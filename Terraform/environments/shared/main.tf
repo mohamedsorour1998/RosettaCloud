@@ -100,7 +100,7 @@ module "ec2" {
 
   ec2_instances = {
     RosettaCloud = {
-      create = true
+      create = false
 
       name                        = "rosettacloud-ec2"
       ami                         = "ami-09c1ab2520ee9181a" # Ubuntu 24.04
@@ -111,34 +111,42 @@ module "ec2" {
       key_name                    = "RosettaCloud"
 
       user_data = <<-EOF
-        #!/bin/bash
-set -e
+        #!/usr/bin/env bash
+        set -ex
 
-# Download AWS CLI v2
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        # Install dependencies
+        sudo apt-get update -y
+        sudo apt-get install -y unzip
 
-# Install dependencies
-sudo apt-get update -y
-sudo apt-get install -y unzip
+        # Install AWS CLI v2
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+        unzip -q /tmp/awscliv2.zip -d /tmp
+        sudo /tmp/aws/install
+        rm -rf /tmp/awscliv2.zip /tmp/aws
 
-# Unzip and install AWS CLI
-unzip -q awscliv2.zip
-sudo ./aws/install
+        # Install MicroK8s
+        sudo snap install microk8s --classic
+ 
+        sudo microk8s enable dns
+        sudo microk8s enable dashboard
+        sudo microk8s enable storage
+        
+        # Install Kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        
+        # Alias
+        echo 'export PATH=$PATH:~/.local/bin' >> /home/ubuntu/.bashrc
+        echo 'alias k="kubectl"' >> /home/ubuntu/.bashrc
+        
+        # Install Tutor
 
-# Clean up
-rm -rf awscliv2.zip aws
-
-# Install MicroK8s
-sudo snap install microk8s --classic
-
-microk8s enable dns 
-microk8s enable dashboard
-microk8s enable storage
+        # Make kubectl use micro k8s
+        sudo mkdir -p /home/ubuntu/.kube
+        sudo microk8s config | sudo tee /home/ubuntu/.kube/config > /dev/null
+        sudo chown -R ubuntu:ubuntu /home/ubuntu/.kube
 
 
-echo 'export PATH=$PATH:~/.local/bin' >> ~/.bashrc
-echo 'alias kubectl="microk8s kubectl"' >> ~/.bashrc
-source ~/.bashrc
       EOF
 
       tags = merge(local.tags, {
