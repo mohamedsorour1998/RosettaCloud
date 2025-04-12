@@ -63,11 +63,18 @@ module "sg" {
       # https://github.com/terraform-aws-modules/terraform-aws-security-group/blob/master/rules.tf
       ingress_with_cidr_blocks = [
         {
-          from_port   = "8080"
-          to_port     = "8090"
+          from_port   = "30444"
+          to_port     = "30444"
           protocol    = "tcp"
-          description = "User-service ports"
-          cidr_blocks = "10.10.0.0/16"
+          description = "Kubernetes Dashboard"
+          cidr_blocks = "0.0.0.0/0"
+        },
+        {
+          from_port   = "30443"
+          to_port     = "30443"
+          protocol    = "tcp"
+          description = "Nginx"
+          cidr_blocks = "0.0.0.0/0"
         },
         {
           rule        = "ssh-tcp"
@@ -100,15 +107,17 @@ module "ec2" {
 
   ec2_instances = {
     RosettaCloud = {
-      create = false
+      create = true
 
       name                        = "rosettacloud-ec2"
       ami                         = "ami-09c1ab2520ee9181a" # Ubuntu 24.04
-      instance_type               = "t3.medium"
+      instance_type               = "t3.large"
       subnet_id                   = module.vpc.public_subnets[0]
       associate_public_ip_address = true
       vpc_security_group_ids      = [data.aws_security_group.rosettacloud_ec2_sg.id]
       key_name                    = "RosettaCloud"
+      iam_instance_profile        = "EBEC2InstanceProfile"
+      root_volume_size            = 30
 
       user_data = <<-EOF
         #!/usr/bin/env bash
@@ -130,22 +139,45 @@ module "ec2" {
         sudo microk8s enable dns
         sudo microk8s enable dashboard
         sudo microk8s enable storage
-        
+        sudo microk8s ctr images ls -q | xargs -r sudo microk8s ctr images rm
+
         # Install Kubectl
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
         sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-        
+
         # Alias
         echo 'export PATH=$PATH:~/.local/bin' >> /home/ubuntu/.bashrc
         echo 'alias k="kubectl"' >> /home/ubuntu/.bashrc
+         _TUTOR_COMPLETE=bash_source tutor >> /home/ubuntu/.bashrc
         
         # Install Tutor
-
+        sudo curl -L "https://github.com/overhangio/tutor/releases/download/v19.0.2/tutor-$(uname -s)_$(uname -m)" -o /usr/local/bin/tutor
+        sudo chmod 0755 /usr/local/bin/tutor
+        
         # Make kubectl use micro k8s
         sudo mkdir -p /home/ubuntu/.kube
         sudo microk8s config | sudo tee /home/ubuntu/.kube/config > /dev/null
         sudo chown -R ubuntu:ubuntu /home/ubuntu/.kube
 
+        # Dashboard
+        kubectl patch svc kubernetes-dashboard -n kube-system -p '{"spec": {"type": "NodePort", "ports": [{"port": 443, "targetPort": 8443, "nodePort": 30443}]}}'
+        kubectl create token default --duration=24h
+
+        # Tutor
+        tutor config save --set ENABLE_WEB_PROXY=false
+        tutor config save --set ENABLE_HTTPS=false
+        # tutor k8s do createuser --staff --superuser admin admin@rosettacloud.app
+        tutor k8s do importdemocourse
+        sudo pip install tutor-indigo --break-system-packages
+        tutor plugins enable fourms
+      # tutor k8s launch
+      # active ssl/tls cert: No
+
+        # Caddy
+      # kubectl patch svc caddy -n openedx -p '{"spec": {"type": "NodePort", "ports": [{"port": 80, "targetPort": 80, "nodePort": 30080}]}}'
+      # caddy logs: kubectl logs -f caddy-0 -n openedx
+       #tutor config printroot
+       #cat $(tutor config printroot)/env/apps/caddy/Caddyfile
 
       EOF
 
@@ -155,3 +187,211 @@ module "ec2" {
     }
   }
 }
+
+################################################################################
+# Route53 Module
+################################################################################
+
+module "zones" {
+  source  = "terraform-aws-modules/route53/aws//modules/zones"
+  version = "5.0.0"
+
+  zones = {
+    "rosettacloud.app" = {
+      tags = local.tags
+    }
+
+  }
+
+  tags = local.tags
+}
+
+module "records" {
+  source  = "terraform-aws-modules/route53/aws//modules/records"
+  version = "5.0.0"
+
+  zone_name = keys(module.zones.route53_zone_zone_id)[0]
+
+  records = [
+    {
+      name    = ""
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "www"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "dev"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "stg"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "uat"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "learn.dev"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "preview.learn.dev"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "apps.learn.dev"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "meilisearch.learn.dev"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "learn.stg"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "preview.learn.stg"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "apps.learn.stg"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "meilisearch.learn.stg"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "learn.uat"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "preview.learn.uat"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "apps.learn.uat"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "meilisearch.learn.uat"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "studio.dev"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "studio.stg"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "studio.uat"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    }
+  ]
+
+  depends_on = [module.zones]
+}
+
+
+################################################################################
+# ACM Module
+################################################################################
+
+module "acm_useast1" {
+  source  = "terraform-aws-modules/acm/aws"
+  version = "5.1.1"
+
+  providers = {
+    aws = aws.useast1
+  }
+
+  domain_name = "rosettacloud.app"
+  zone_id     = "Z079218314YQ78VCH6R35"
+
+  validation_method = "DNS"
+
+  subject_alternative_names = [
+    "*.rosettacloud.app",
+    "*.dev.rosettacloud.app",
+    "*.learn.dev.rosettacloud.app",
+    "*.stg.rosettacloud.app",
+    "*.learn.stg.rosettacloud.app",
+    "*.uat.rosettacloud.app",
+    "*.learn.uat.rosettacloud.app",
+  ]
+
+  wait_for_validation = true
+
+  tags = local.tags
+}
+
+module "acm" {
+  source  = "terraform-aws-modules/acm/aws"
+  version = "5.1.1"
+
+  domain_name = "rosettacloud.app"
+  zone_id     = "Z079218314YQ78VCH6R35"
+
+  validation_method = "DNS"
+
+  subject_alternative_names = [
+    "*.rosettacloud.app",
+    "*.dev.rosettacloud.app",
+    "*.learn.dev.rosettacloud.app",
+    "*.stg.rosettacloud.app",
+    "*.learn.stg.rosettacloud.app",
+    "*.uat.rosettacloud.app",
+    "*.learn.uat.rosettacloud.app",
+  ]
+
+  wait_for_validation = true
+
+  tags = local.tags
+}
+

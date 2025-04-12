@@ -1,0 +1,26 @@
+
+sudo apt update
+sudo apt install python3-pip -y
+
+pip3 install certbot certbot-dns-route53 --break-system-packages
+
+~/.local/bin/certbot certonly \
+  --dns-route53 \
+  --config-dir ~/.certbot/config \
+  --work-dir ~/.certbot/work \
+  --logs-dir ~/.certbot/logs \
+  -d rosettacloud.app \
+  -d "*.rosettacloud.app" \
+  -d "*.dev.rosettacloud.app" \
+  -d "*.learn.dev.rosettacloud.app" \
+  -d "*.stg.rosettacloud.app" \
+  -d "*.learn.stg.rosettacloud.app" \
+  -d "*.uat.rosettacloud.app" \
+  -d "*.learn.uat.rosettacloud.app"
+
+kubectl delete secret rosettacloud-tls -n openedx
+
+kubectl create secret tls rosettacloud-tls \
+  --cert=/home/ubuntu/.certbot/config/live/rosettacloud.app/fullchain.pem \
+  --key=/home/ubuntu/.certbot/config/live/rosettacloud.app/privkey.pem \
+  -n openedx

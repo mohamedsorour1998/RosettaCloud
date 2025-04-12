@@ -21,6 +21,13 @@ module "ec2_submodules" {
   source_dest_check           = try(each.value.source_dest_check, null)
   iam_instance_profile        = try(each.value.iam_instance_profile, null)
   associate_public_ip_address = try(each.value.associate_public_ip_address, false)
-
+  root_block_device = [
+    {
+      encrypted   = true
+      volume_type = "gp3"
+      throughput  = 125
+      volume_size = try(each.value.root_volume_size, 8)
+    },
+  ]
   tags = try(each.value.tags, {})
 }

@@ -15,7 +15,7 @@ Value = object describing instance config:
   root_block_device         = (list(map(string)), optional)
   create_spot_instance      = (bool, optional)
   spot_price                = (string, optional)
-  # ... (you can add more fields as needed)
+  root_volume_size = (number, optional)
   tags = (map(string), optional)
 }
 EOT
@@ -37,6 +37,7 @@ EOT
       iam_instance_profile        = optional(string)
       tags                        = optional(map(string))
       associate_public_ip_address = optional(bool, false)
+      root_volume_size            = optional(number, 8)
     })
   )
 
