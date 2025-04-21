@@ -1,3 +1,23 @@
-<div class="lab-container">
-  <div #termHost class="terminal-wrapper"></div>
+<div class="lab-container d-flex flex-column">
+  <!-- optional toolbar -->
+  <div class="lab-toolbar bg-light border-bottom p-2 d-flex align-items-center">
+    <h5 class="mb-0 me-auto">DevLab</h5>
+    <button class="btn btn-sm btn-primary me-2">
+      <i class="bi bi-play-fill"></i> Run
+    </button>
+    <button class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-gear"></i> Settings
+    </button>
+  </div>
+
+  <!-- iframe wrapper -->
+  <div class="lab-frame flex-grow-1">
+    <iframe
+      [src]="codeServerUrl"
+      title="Code Server"
+      frameborder="0"
+      allowfullscreen
+      sandbox="allow-scripts allow-forms allow-same-origin"
+    ></iframe>
+  </div>
 </div>

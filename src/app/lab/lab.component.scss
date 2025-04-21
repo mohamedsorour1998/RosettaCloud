@@ -1,0 +1,22 @@
+:host {
+  display: block;
+  /* fill remaining vertical space between header & footer */
+  height: calc(100vh - (56px + 56px)); // adjust if your header/footer heights differ
+  .lab-container {
+    height: 100%;
+    .lab-toolbar {
+      flex: 0 0 auto;
+    }
+    .lab-frame {
+      position: relative;
+      flex: 1 1 auto;
+      iframe {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+    }
+  }
+}
