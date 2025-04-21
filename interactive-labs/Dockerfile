@@ -15,6 +15,8 @@ RUN apt-get update \
      gnupg \
      && rm -rf /var/lib/apt/lists/*
 
+RUN echo "root ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+     && echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 ############################
 # 2) CODE-SERVER CONFIGURATION
 ############################
@@ -33,7 +35,6 @@ RUN printf '%s\n' \
      '}' \
      > /data/User/settings.json
 
-# Install all the specified extensions
 RUN code-server \
      --extensions-dir /data/extensions \
      --user-data-dir /data \
@@ -104,13 +105,13 @@ RUN printf '%s\n' \
      '#!/usr/bin/env bash' \
      'set -e' \
      'caddy run --config /etc/caddy/Caddyfile &' \
-     'su -c "/usr/bin/code-server \
+     'sudo -u coder /usr/bin/code-server \
      --host 127.0.0.1 \
      --port 8080 \
      --auth none \
      --user-data-dir /data \
      --extensions-dir /data/extensions \
-     /home/coder/project" coder' \
+     /home/coder/project' \
      > /usr/local/bin/start.sh \
      && chmod +x /usr/local/bin/start.sh
 
