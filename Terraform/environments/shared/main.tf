@@ -395,3 +395,131 @@ module "acm" {
   tags = local.tags
 }
 
+################################################################################
+# ECR Module
+################################################################################
+
+module "ecr" {
+  source  = "terraform-aws-modules/ecr/aws"
+  version = "2.4.0"
+
+  repository_name                 = "interactive-labs"
+  repository_image_tag_mutability = "MUTABLE"
+
+  # repository_read_write_access_arns for root via caller identity
+  repository_read_write_access_arns = [
+    "arn:aws:iam::339712964409:root"
+  ]
+  repository_lifecycle_policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1,
+        description  = "Keep last 5 images",
+        selection = {
+          tagStatus     = "tagged",
+          tagPrefixList = ["v"],
+          countType     = "imageCountMoreThan",
+          countNumber   = 5
+        },
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+################################################################################
+# ECS Module
+################################################################################
+module "ecs_cluster" {
+  source  = "terraform-aws-modules/ecs/aws//modules/cluster"
+  version = "5.12.1"
+
+  cluster_name = "interactive-labs-cluster"
+
+  cluster_configuration = {
+    execute_command_configuration = {
+      logging = "OVERRIDE"
+      log_configuration = {
+        cloud_watch_log_group_name = "/aws/ecs/aws-ec2"
+      }
+    }
+  }
+
+  fargate_capacity_providers = {
+    FARGATE_SPOT = {
+      default_capacity_provider_strategy = {
+        weight = 100
+      }
+    }
+  }
+
+  tags = local.tags
+}
+
+module "ecs_task_definition" {
+  source  = "terraform-aws-modules/ecs/aws//modules/service"
+  version = "5.12.1"
+
+  # Service
+  name                   = "interactive-labs"
+  cluster_arn            = module.ecs_cluster.arn
+  create_service         = false
+  enable_execute_command = true
+
+  # Task Definition
+  volume = {
+    # ex-vol = {}
+  }
+
+  runtime_platform = {
+    cpu_architecture        = "X86_64"
+    operating_system_family = "LINUX"
+  }
+
+  # Container definition(s)
+  container_definitions = {
+    lab = {
+      image                    = "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest"
+      cpu                      = 512
+      memory                   = 2048
+      essential                = true
+      memory_reservation       = 50
+      readonly_root_filesystem = false
+      port_mappings = [
+        {
+          name          = "ecs"
+          containerPort = 80
+          protocol      = "tcp"
+        }
+      ]
+      # mount_points = [
+      #   {
+      #     sourceVolume  = "ex-vol",
+      #     containerPath = "/var/www/ex-vol"
+      #   }
+      # ]
+
+      entrypoint = ["/bin/sh", "-c"]
+      command    = ["tail -f /dev/null"]
+    }
+  }
+
+  subnet_ids = module.vpc.public_subnets
+
+  security_group_rules = {
+    egress_all = {
+      type        = "egress"
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+  security_group_use_name_prefix = false
+
+  tags = local.tags
+}
