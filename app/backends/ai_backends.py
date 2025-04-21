@@ -1,5 +1,5 @@
 """
-Concrete AI back‑ends for *AIBus*.
+Concrete AI back‑ends for *ai_service*.
 
 • nova – Amazon Bedrock Nova via ConverseStream.
 """
@@ -24,7 +24,7 @@ _DEFAULT_SYS = "You are a helpful assistant."
 # ═════════════════════════ NOVA BACK‑END ══════════════════════════════════
 def get_nova_backend():
     class NovaAI:
-        _log = logging.getLogger("AIBus.nova")
+        _log = logging.getLogger("ai_service.nova")
 
         _session: Optional[aioboto3.Session] = None
         _client_cm = None

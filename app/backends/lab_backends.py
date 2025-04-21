@@ -1,5 +1,5 @@
 """
-ECS back‑end for *labbus* – one Fargate task per lab + ECS‑Exec shell.
+ECS back‑end for *lab_service* – one Fargate task per lab + ECS‑Exec shell.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ SUBNETS  = os.getenv("LAB_SUBNETS", "subnet-0a0f4e717f6b0caca,subnet-0f671aadf4d
 SEC_GRP       = os.getenv("LAB_SG", "sg-01c911f5aea2071c3")                    # may be empty
 CONTAINER  = os.getenv("LAB_CONTAINER",       "lab")
 WAIT_SECONDS   = int(os.getenv("LAB_WAIT_SECS",   "300"))                # 5 min
-LOG        = logging.getLogger("labbus.ecs")
+LOG        = logging.getLogger("lab_service.ecs")
 
 # What header kw does *this* websockets build expect?
 _WS_SIG = inspect.signature(websockets.connect)
@@ -164,5 +164,5 @@ def get_eks_backend():
         async def close(self): ...
         async def _todo(self, *a, **k): raise NotImplementedError("EKS backend TBD")
         launch = exec_stream = stop = _todo
-    logging.getLogger("labbus.eks").warning("EKS backend is only a stub.")
+    logging.getLogger("lab_service.eks").warning("EKS backend is only a stub.")
     return _Stub()

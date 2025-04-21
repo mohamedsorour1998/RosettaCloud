@@ -5,9 +5,9 @@ from fastapi import FastAPI, WebSocket, Path, Body, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app import cloudBus as cloud
-from app import AIBus   as ai
-from app import labBus  as lab
+from app.services import cache_events_service as cloud
+from app.services import ai_service   as ai
+from app.services import lab_service  as lab
 
 # ───────────── lifespan ───────────────────────────────────────────────────
 @asynccontextmanager

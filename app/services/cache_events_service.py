@@ -1,5 +1,5 @@
 """
-cloudBus – unified async interface for cache + pub/sub.
+cache_events_service – unified async interface for cache + pub/sub.
 
 Back‑end selection
 ------------------
@@ -29,7 +29,7 @@ class _Backend(Protocol):
 # ────────────────────────── load concrete back‑end ─────────────────────────
 _backend_name = os.getenv("CLOUD_BUS_BACKEND", "momento").lower()
 
-_module = importlib.import_module(".backends.cloud_backends", package=__package__)
+_module = importlib.import_module("app.backends.cloud_backends", package=__package__)
 
 try:
     _IMPL: _Backend = getattr(_module, f"get_{_backend_name}_backend")()
@@ -39,7 +39,7 @@ except AttributeError as exc:
         "Choose 'momento'."
     ) from exc
 
-logging.getLogger(__name__).info("cloudBus backend: %s", _backend_name)
+logging.getLogger(__name__).info("cache_events_service backend: %s", _backend_name)
 
 # ────────────────────────── facade re‑exports ──────────────────────────────
 init      = _IMPL.init

@@ -1,5 +1,5 @@
 """
-AIBus – unified async interface to LLM chat/stream.
+ai_service – unified async interface to LLM chat/stream.
 
 Back‑end selector
 -----------------
@@ -28,7 +28,7 @@ class _AIBackend(Protocol):
 
 _backend_name = os.getenv("AI_BACKEND", "nova").lower()
 
-_module = importlib.import_module(".backends.ai_backends", package=__package__)
+_module = importlib.import_module("app.backends.ai_backends")
 try:
     _IMPL: _AIBackend = getattr(_module, f"get_{_backend_name}_backend")()
 except AttributeError as exc:
@@ -36,7 +36,7 @@ except AttributeError as exc:
         f"Unsupported AI_BACKEND '{_backend_name}'. Choose 'nova'."
     ) from exc
 
-logging.getLogger(__name__).info("AIBus backend: %s", _backend_name)
+logging.getLogger(__name__).info("ai_service backend: %s", _backend_name)
 
 init   = _IMPL.init
 close  = _IMPL.close

@@ -1,5 +1,5 @@
 """
-Concrete back‑end factories for cloudBus.
+Concrete back‑end factories for cache_events_service.
 
 • Momento  – fully implemented.
 """
@@ -37,7 +37,7 @@ def get_momento_backend():
     class MomentoBus:
         _known: set[str] = set()
         _lock = asyncio.Lock()
-        _log  = logging.getLogger("cloudBus.momento")
+        _log  = logging.getLogger("cache_events_service.momento")
 
         _cache: Optional[CacheClientAsync] = None
         _topic: Optional[TopicClientAsync] = None

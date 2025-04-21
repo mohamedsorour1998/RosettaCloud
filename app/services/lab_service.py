@@ -1,5 +1,5 @@
 """
-labbus – facade + Web‑Socket proxy for interactive labs.
+lab_service – facade + Web‑Socket proxy for interactive labs.
 """
 from __future__ import annotations
 
@@ -18,10 +18,10 @@ class _Backend(Protocol):
     async def stop(self, lab_id: str): ...
 
 _backend = os.getenv("LAB_BACKEND", "ecs").lower()
-_impl    = importlib.import_module(".backends.lab_backends", package=__package__)
+_impl    = importlib.import_module("app.backends.lab_backends", package=__package__)
 _IMPL: _Backend = getattr(_impl, f"get_{_backend}_backend")()
 
-logging.getLogger(__name__).info("labbus backend: %s", _backend)
+logging.getLogger(__name__).info("lab_service backend: %s", _backend)
 
 init, close   = _IMPL.init, _IMPL.close
 launch, stop  = _IMPL.launch, _IMPL.stop
