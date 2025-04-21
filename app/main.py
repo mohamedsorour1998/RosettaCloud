@@ -5,16 +5,16 @@ from fastapi import FastAPI, WebSocket, Path, Body, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.services import cache_events_service as cloud
+from app.services import cache_events_service as cache_events
 from app.services import ai_service   as ai
 from app.services import lab_service  as lab
 
 # ───────────── lifespan ───────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await cloud.init(); await ai.init(); await lab.init()
+    await cache_events.init(); await ai.init(); await lab.init()
     yield
-    await lab.close(); await ai.close(); await cloud.close()
+    await lab.close(); await ai.close(); await cache_events.close()
 
 app = FastAPI(
     title="RosettaCloud API",
@@ -32,24 +32,24 @@ class CacheItem(BaseModel):
 async def cache_put(
     cache: Annotated[str, Path()], key: Annotated[str, Path()], item: CacheItem
 ):
-    await cloud.set(cache, key, item.value, item.ttl)
-    return {"stored": key, "cache": cache, "ttl": item.ttl or cloud.DEFAULT_TTL}
+    await cache_events.set(cache, key, item.value, item.ttl)
+    return {"stored": key, "cache": cache, "ttl": item.ttl or cache_events.DEFAULT_TTL}
 
 @app.get("/cache/{cache}/{key}", tags=["Cache"])
 async def cache_get(cache: Annotated[str, Path()], key: Annotated[str, Path()]):
-    val = await cloud.get(cache, key)
+    val = await cache_events.get(cache, key)
     return {"value": val, "hit": val is not None}
 
 # ───────────── Topic endpoints (unchanged) ────────────────────────────────
 @app.post("/events/{topic}", tags=["Events"])
 async def publish_event(topic: Annotated[str, Path()], payload: Annotated[str, Body(embed=True)]):
-    await cloud.publish(topic, payload)
+    await cache_events.publish(topic, payload)
     return {"published": topic}
 
 @app.websocket("/ws/events/{topic}")
 async def event_stream(ws: WebSocket, topic: str):
     await ws.accept()
-    async for msg in cloud.subscribe(topic):
+    async for msg in cache_events.subscribe(topic):
         await ws.send_text(msg)
 
 # ───────────── AI streaming endpoint ──────────────────────────

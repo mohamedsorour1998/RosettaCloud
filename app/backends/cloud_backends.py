@@ -12,8 +12,8 @@ import os
 from datetime import timedelta
 from typing import AsyncGenerator, Optional
 
-_DEFAULT_CACHE = os.getenv("CLOUD_BUS_DEFAULT_CACHE", "interactive-labs")
-_DEFAULT_TTL   = int(os.getenv("CLOUD_BUS_DEFAULT_TTL", "900"))
+_DEFAULT_CACHE = os.getenv("CACHE_EVENTS_DEFAULT_CACHE", "interactive-labs")
+_DEFAULT_TTL   = int(os.getenv("CACHE_EVENTS_DEFAULT_TTL", "900"))
 
 # ═════════════════ MOMENTO ════════════════════════════════════════
 def get_momento_backend():
@@ -34,7 +34,7 @@ def get_momento_backend():
     )
     from momento.errors import InvalidArgumentException
 
-    class MomentoBus:
+    class MomentoCacheEvents:
         _known: set[str] = set()
         _lock = asyncio.Lock()
         _log  = logging.getLogger("cache_events_service.momento")
@@ -119,4 +119,4 @@ def get_momento_backend():
                         self._log.error("Stream closed: %s", item.inner_exception)
                         return
 
-    return MomentoBus()
+    return MomentoCacheEvents()
