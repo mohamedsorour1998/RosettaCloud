@@ -29,7 +29,7 @@ RUN sudo apt update && sudo apt install python3 python3-pip python-is-python3 -y
 
 # Install Node and npm
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
-     \. "coder/.nvm/nvm.sh" && \
+     \. "/home/coder/.nvm/nvm.sh" && \
      nvm install 22
 
 # Install Docker
