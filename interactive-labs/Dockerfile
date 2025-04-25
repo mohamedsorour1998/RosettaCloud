@@ -23,13 +23,13 @@ RUN apt-get update && \
      fuse-overlayfs \
      ca-certificates && \
      rm -rf /var/lib/apt/lists/*
-     
+
 # Install Python and pip
 RUN sudo apt update && sudo apt install python3 python3-pip python-is-python3 -y
 
 # Install Node and npm
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
-     \. "$HOME/.nvm/nvm.sh" && \
+     \. "coder/.nvm/nvm.sh" && \
      nvm install 22
 
 # Install Docker
@@ -107,7 +107,6 @@ RUN code-server \
      --install-extension ms-python.debugpy \
      --install-extension ms-python.isort \
      --install-extension ms-python.vscode-pylance \
-     --install-extension postman.postman-for-vscode \
      --install-extension redhat.vscode-xml \
      --install-extension redhat.vscode-yaml \
      --install-extension sonarsource.sonarlint-vscode \
@@ -157,7 +156,10 @@ RUN printf '%s\n' \
      'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
      'docker load -i /kind-node.tar' \
      'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud' \
-     'kubectl cluster-info --context kind-rosettacloud' \
+     'sudo -u code kubectl cluster-info --context kind-rosettacloud' \
+     'sudo -u coder kind get kubeconfig --name rosettacloud > /home/coder/.kube/config' \
+     'chmod 600 /home/coder/.kube/config' \
+     'sudo -u code kubectl config use-context kind-rosettacloud' \
      'sudo -u coder /usr/bin/code-server \
      --host 127.0.0.1 \
      --port 8080 \
