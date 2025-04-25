@@ -24,10 +24,10 @@ RUN apt-get update && \
      ca-certificates && \
      rm -rf /var/lib/apt/lists/*
 
-# Install Python and pip
+# Install Python and PIP
 RUN sudo apt update && sudo apt install python3 python3-pip python-is-python3 -y
 
-# Install Node and npm
+# Install Node and NPM
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
      \. "/home/coder/.nvm/nvm.sh" && \
      nvm install 22
