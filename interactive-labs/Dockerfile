@@ -158,10 +158,10 @@ RUN printf '%s\n' \
      'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
      'docker load -i /kind-node.tar' \
      'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud' \
-     'sudo -u code kubectl cluster-info --context kind-rosettacloud' \
-     'sudo -u coder kind get kubeconfig --name rosettacloud > /home/coder/.kube/config' \
-     'chmod 600 /home/coder/.kube/config' \
-     'sudo -u code kubectl config use-context kind-rosettacloud' \
+     'kubectl cluster-info --context kind-rosettacloud' \
+     # 'sudo -u coder kind get kubeconfig --name rosettacloud > /home/coder/.kube/config' \
+     # 'chmod 600 /home/coder/.kube/config' \
+     # 'sudo -u code kubectl config use-context kind-rosettacloud' \
      'sudo -u coder /usr/bin/code-server \
      --host 127.0.0.1 \
      --port 8080 \
