@@ -53,9 +53,11 @@ module "iam" {
 ################################################################################
 # Security Group Module
 ################################################################################
-
 data "aws_security_group" "rosettacloud_ec2_sg" {
   name = "rosettacloud-ec2-sg"
+}
+data "aws_security_group" "autoscaling_group_sg" {
+  name = "autoscaling_group_sg"
 }
 
 module "sg" {
@@ -101,6 +103,24 @@ module "sg" {
       egress_rules                          = ["all-all"]
       egress_cidr_blocks                    = ["0.0.0.0/0"]
 
+    },
+    autoscaling_group_sg = {
+      name        = "autoscaling_group_sg"
+      description = "Security group for Autoscaling Group"
+      vpc_id      = module.vpc.vpc_id
+
+      # https://github.com/terraform-aws-modules/terraform-aws-security-group/blob/master/rules.tf
+      ingress_with_cidr_blocks = [
+        {
+          rule        = "http-80-tcp"
+          cidr_blocks = "0.0.0.0/0"
+        }
+      ]
+
+      ingress_with_source_security_group_id = []
+      egress_rules                          = ["all-all"]
+      egress_cidr_blocks                    = ["0.0.0.0/0"]
+
     }
   }
 }
@@ -108,7 +128,6 @@ module "sg" {
 ################################################################################
 # EC2 Module
 ################################################################################
-
 module "ec2" {
   source = "../../modules/ec2"
 
@@ -198,7 +217,6 @@ module "ec2" {
 ################################################################################
 # Route53 Module
 ################################################################################
-
 module "zones" {
   source  = "terraform-aws-modules/route53/aws//modules/zones"
   version = "5.0.0"
@@ -345,11 +363,9 @@ module "records" {
   depends_on = [module.zones]
 }
 
-
 ################################################################################
 # ACM Module
 ################################################################################
-
 module "acm_useast1" {
   source  = "terraform-aws-modules/acm/aws"
   version = "5.1.1"
@@ -405,7 +421,6 @@ module "acm" {
 ################################################################################
 # ECR Module
 ################################################################################
-
 module "ecr" {
   source  = "terraform-aws-modules/ecr/aws"
   version = "2.4.0"
@@ -455,9 +470,19 @@ module "ecs_cluster" {
       }
     }
   }
+  default_capacity_provider_use_fargate = false
+  autoscaling_capacity_providers = {
+    labs-spot = {
+      auto_scaling_group_arn         = module.autoscaling["labs-spot"].autoscaling_group_arn
+      managed_termination_protection = "ENABLED"
 
-  fargate_capacity_providers = {
-    FARGATE_SPOT = {
+      managed_scaling = {
+        maximum_scaling_step_size = 2
+        minimum_scaling_step_size = 1
+        status                    = "ENABLED"
+        target_capacity           = 90
+      }
+
       default_capacity_provider_strategy = {
         weight = 100
       }
@@ -482,9 +507,13 @@ module "ecs_task_definition" {
     # ex-vol = {}
   }
 
-  runtime_platform = {
-    cpu_architecture        = "X86_64"
-    operating_system_family = "LINUX"
+  requires_compatibilities = ["EC2"]
+  capacity_provider_strategy = {
+    labs-spot = {
+      capacity_provider = module.ecs_cluster.autoscaling_capacity_providers["labs-spot"].name
+      weight            = 1
+      base              = 1
+    }
   }
 
   # Container definition(s)
@@ -509,9 +538,15 @@ module "ecs_task_definition" {
       #     containerPath = "/var/www/ex-vol"
       #   }
       # ]
+      # enable_cloudwatch_logging              = true
+      # create_cloudwatch_log_group            = true
+      # cloudwatch_log_group_name              = "/aws/ecs/${local.name}/${local.container_name}"
+      # cloudwatch_log_group_retention_in_days = 7
 
-      entrypoint = ["/bin/sh", "-c"]
-      command    = ["tail -f /dev/null"]
+      # log_configuration = {
+      #   logDriver = "awslogs"
+      # }
+
     }
   }
 
@@ -525,8 +560,93 @@ module "ecs_task_definition" {
       protocol    = "-1"
       cidr_blocks = ["0.0.0.0/0"]
     }
+    http_ingress = {
+      type        = "ingress"
+      from_port   = 80
+      to_port     = 80
+      protocol    = "-1"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
   security_group_use_name_prefix = false
 
   tags = local.tags
 }
+#  https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html#ecs-optimized-ami-linux
+data "aws_ssm_parameter" "ecs_optimized_ami" {
+  name = "/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended"
+}
+module "autoscaling" {
+  source  = "terraform-aws-modules/autoscaling/aws"
+  version = "8.2.0"
+
+  for_each = {
+    # Spot instances
+    labs-spot = {
+      instance_type              = "t3.medium"
+      use_mixed_instances_policy = true
+      mixed_instances_policy = {
+        instances_distribution = {
+          on_demand_base_capacity                  = 0
+          on_demand_percentage_above_base_capacity = 0
+          spot_allocation_strategy                 = "price-capacity-optimized"
+        }
+
+        override = [
+          {
+            instance_type     = "t3.large"
+            weighted_capacity = "1"
+          }
+        ]
+      }
+      user_data = <<-EOT
+        #!/bin/bash
+
+        cat <<'EOF' >> /etc/ecs/ecs.config
+        ECS_CLUSTER=interactive-labs-cluster
+        ECS_LOGLEVEL=debug
+        ECS_CONTAINER_INSTANCE_TAGS=${jsonencode(local.tags)}
+        ECS_ENABLE_TASK_IAM_ROLE=true
+        ECS_ENABLE_SPOT_INSTANCE_DRAINING=true
+        EOF
+      EOT
+    }
+  }
+
+  name = "interactive-${each.key}"
+
+  image_id      = jsondecode(data.aws_ssm_parameter.ecs_optimized_ami.value)["image_id"]
+  instance_type = each.value.instance_type
+
+  security_groups                 = [data.aws_security_group.autoscaling_group_sg.id]
+  user_data                       = base64encode(each.value.user_data)
+  ignore_desired_capacity_changes = true
+
+  create_iam_instance_profile = true
+  iam_role_name               = "interactive-labs-ecs-iam-role"
+  iam_role_description        = "ECS role for interactive-labs"
+  iam_role_policies = {
+    AmazonEC2ContainerServiceforEC2Role = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+    AmazonSSMManagedInstanceCore        = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  }
+  vpc_zone_identifier = module.vpc.public_subnets
+  health_check_type   = "EC2"
+  min_size            = 0
+  max_size            = 5
+  desired_capacity    = 0
+
+  # https://github.com/hashicorp/terraform-provider-aws/issues/12582
+  autoscaling_group_tags = {
+    AmazonECSManaged = true
+  }
+
+  # Required for  managed_termination_protection = "ENABLED"
+  protect_from_scale_in = true
+
+  # Spot instances
+  use_mixed_instances_policy = each.value.use_mixed_instances_policy
+  mixed_instances_policy     = each.value.mixed_instances_policy
+
+  tags = local.tags
+}
+
