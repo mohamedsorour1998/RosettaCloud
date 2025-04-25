@@ -23,6 +23,13 @@ RUN apt-get update && \
      fuse-overlayfs \
      ca-certificates && \
      rm -rf /var/lib/apt/lists/*
+# Install Python and pip
+RUN sudo apt update && sudo apt install python3 python3-pip python-is-python3 -y
+
+# Install Node and npm
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
+     \. "$HOME/.nvm/nvm.sh" && \
+     nvm install 22
 
 # Install Docker
 COPY --from=docker-engine /usr/local/bin/                  /usr/local/bin/
