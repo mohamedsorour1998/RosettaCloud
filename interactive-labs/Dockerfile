@@ -181,7 +181,7 @@ RUN printf '%s\n' \
   '' \
   '# 4) Load Kind image and create cluster as coder' \
   'docker load -i /kind-node.tar' \
-  'sudo -u coder bash -lc "kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud --wait 60s"' \
+  'sudo -u coder bash -lc "kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud"' \
   '' \
   '# 5) Keep script alive' \
   'wait' \
