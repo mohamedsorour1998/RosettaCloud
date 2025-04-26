@@ -13,7 +13,7 @@ from kubernetes.client.rest import ApiException
 NAMESPACE     = os.getenv("LAB_K8S_NAMESPACE", "interactive-labs")
 POD_IMAGE     = os.getenv("LAB_POD_IMAGE", "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
 WAIT_EKS      = int(os.getenv("LAB_WAIT_SECS", "300"))
-IMAGE_PULL_SECRET = os.getenv("LAB_IMAGE_PULL_SECRET", "ecr-creds")
+IMAGE_PULL_SECRET = os.getenv("LAB_IMAGE_PULL_SECRET", None)
 POD_TTL_SECS  = 3600
 LOG_EKS = logging.getLogger("lab_service.eks")
 
