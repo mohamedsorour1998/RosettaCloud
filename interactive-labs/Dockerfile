@@ -66,7 +66,8 @@ RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/s
 # Install AWS CLI
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
      unzip awscliv2.zip && \
-     sudo ./aws/install
+     sudo ./aws/install && \
+     rm awscliv2.zip
 
 ############################
 # 2) CODE-SERVER CONFIGURATION
@@ -98,7 +99,6 @@ RUN code-server \
      --extensions-dir /data/extensions \
      --user-data-dir /data \
      --install-extension ms-python.python \
-     --install-extension amazonwebservices.aws-toolkit-vscode \
      --install-extension editorconfig.editorconfig \
      --install-extension esbenp.prettier-vscode \
      --install-extension formulahendry.auto-close-tag \
@@ -111,7 +111,6 @@ RUN code-server \
      --install-extension hussamadil.ayat \
      --install-extension mechatroner.rainbow-csv \
      --install-extension mellowmarshmallow.groovy \
-     --install-extension mongodb.mongodb-vscode \
      --install-extension ms-azuretools.vscode-docker \
      --install-extension ms-kubernetes-tools.vscode-kubernetes-tools \
      --install-extension ms-python.black-formatter \
@@ -120,9 +119,7 @@ RUN code-server \
      --install-extension ms-python.vscode-pylance \
      --install-extension redhat.vscode-xml \
      --install-extension redhat.vscode-yaml \
-     --install-extension sonarsource.sonarlint-vscode \
      --install-extension streetsidesoftware.code-spell-checker \
-     --install-extension tomoki1207.pdf \
      --install-extension tonybaloney.vscode-pets \
      --install-extension vincaslt.highlight-matching-tag \
      --install-extension visualstudioexptteam.intellicode-api-usage-examples \
@@ -160,33 +157,33 @@ RUN printf '%s\n' \
 # 4) STARTUP SCRIPT
 ############################
 RUN printf '%s\n' \
-  '#!/usr/bin/env bash' \
-  'set -e' \
-  '' \
-  '# 1) Start code-server' \
-  'sudo -u coder /usr/bin/code-server \' \
-  '  --host 127.0.0.1 \' \
-  '  --port 8080 \' \
-  '  --auth none \' \
-  '  --user-data-dir /data \' \
-  '  --extensions-dir /data/extensions \' \
-  '  /home/coder/project &' \
-  '' \
-  '# 2) Start Caddy' \
-  'caddy run --config /etc/caddy/Caddyfile &' \
-  '' \
-  '# 3) Start Docker & wait' \
-  'nohup dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &' \
-  'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
-  '' \
-  '# 4) Load Kind image and create cluster as coder' \
-  'docker load -i /kind-node.tar' \
-  'sudo -u coder bash -lc "kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud"' \
-  '' \
-  '# 5) Keep script alive' \
-  'wait' \
-  > /usr/local/bin/start.sh \
-  && chmod +x /usr/local/bin/start.sh
+     '#!/usr/bin/env bash' \
+     'set -e' \
+     '' \
+     '# 1) Start code-server' \
+     'sudo -u coder /usr/bin/code-server \' \
+     '  --host 127.0.0.1 \' \
+     '  --port 8080 \' \
+     '  --auth none \' \
+     '  --user-data-dir /data \' \
+     '  --extensions-dir /data/extensions \' \
+     '  /home/coder/project &' \
+     '' \
+     '# 2) Start Caddy' \
+     'caddy run --config /etc/caddy/Caddyfile &' \
+     '' \
+     '# 3) Start Docker & wait' \
+     'nohup dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &' \
+     'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
+     '' \
+     '# 4) Load Kind image and create cluster as coder' \
+     'docker load -i /kind-node.tar' \
+     'sudo -u coder bash -lc "kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud"' \
+     '' \
+     '# 5) Keep script alive' \
+     'wait' \
+     > /usr/local/bin/start.sh \
+     && chmod +x /usr/local/bin/start.sh
 
 ############################
 # 5) RUNTIME
