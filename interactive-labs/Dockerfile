@@ -164,7 +164,6 @@ RUN printf '%s\n' \
      'set -e' \
      'caddy run --config /etc/caddy/Caddyfile &' \
      'nohup dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &' \
-     'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
      'docker load -i /kind-node.tar' \
      'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud' \
      'kubectl cluster-info --context kind-rosettacloud' \
