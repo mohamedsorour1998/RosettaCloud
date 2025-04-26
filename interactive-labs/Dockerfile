@@ -179,7 +179,7 @@ RUN printf '%s\n' \
      'nohup dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &' \
      'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
      'docker load -i /kind-node.tar' \
-     'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud --wait 60s' \
+     'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud' \
      '' \
      '# 4) Configure kubectl for the coder user' \
      'mkdir -p /home/coder/.kube' \
