@@ -72,9 +72,9 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 ############################
 # 2) CODE-SERVER CONFIGURATION
 ############################
-RUN mkdir -p /data/User /data/extensions /data/logs /data/Machine \
-     && chmod -R 777 /data \
-     && chown -R coder:coder /data
+RUN mkdir -p /data/User /data/extensions /data/logs /data/Machine /home/coder/lab \
+     && chmod -R 777 /data && chmod -R 777 /home/coder/lab \
+     && chown -R coder:coder /data && chown -R coder:coder /home/coder/lab
 
 RUN sed -i '/"reportIssueUrl":/a \
      "extensionsGallery": { \
@@ -167,7 +167,7 @@ RUN printf '%s\n' \
      '  --auth none \' \
      '  --user-data-dir /data \' \
      '  --extensions-dir /data/extensions \' \
-     '  /home/coder/project &' \
+     '  /home/coder/lab &' \
      '' \
      '# 2) Start Caddy' \
      'caddy run --config /etc/caddy/Caddyfile &' \
