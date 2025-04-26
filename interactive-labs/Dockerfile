@@ -160,34 +160,33 @@ RUN printf '%s\n' \
 # 4) STARTUP SCRIPT
 ############################
 RUN printf '%s\n' \
-     '#!/usr/bin/env bash' \
-     'set -e' \
-     '' \
-     '# 1) Start code-server' \
-     'sudo -u coder /usr/bin/code-server \' \
-     '  --host 127.0.0.1 \' \
-     '  --port 8080 \' \
-     '  --auth none \' \
-     '  --user-data-dir /data \' \
-     '  --extensions-dir /data/extensions \' \
-     '  /home/coder/project &' \
-     '' \
-     '# 2) Start Caddy' \
-     'caddy run --config /etc/caddy/Caddyfile &' \
-     '' \
-     '# 3) Start Docker & KinD' \
-     'nohup dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &' \
-     'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
-     'docker load -i /kind-node.tar' \
-     'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud --wait 60s' \
-     '' \
-     '# 4) Configure kubectl for the coder user' \
-     'mkdir -p /home/coder/.kube && chown coder:coder /home/coder/.kube' \
-     'sudo -u coder sh -c '\''kind get kubeconfig --name rosettacloud > "$HOME/.kube/config"'\''' \
-     'chmod 600 /home/coder/.kube/config && chown coder:coder /home/coder/.kube/config' \
-     'sudo -u coder kubectl config use-context kind-rosettacloud' \
-     > /usr/local/bin/start.sh \
-     && chmod +x /usr/local/bin/start.sh
+  '#!/usr/bin/env bash' \
+  'set -e' \
+  '' \
+  '# 1) Start code-server' \
+  'sudo -u coder /usr/bin/code-server \' \
+  '  --host 127.0.0.1 \' \
+  '  --port 8080 \' \
+  '  --auth none \' \
+  '  --user-data-dir /data \' \
+  '  --extensions-dir /data/extensions \' \
+  '  /home/coder/project &' \
+  '' \
+  '# 2) Start Caddy' \
+  'caddy run --config /etc/caddy/Caddyfile &' \
+  '' \
+  '# 3) Start Docker & wait' \
+  'nohup dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &' \
+  'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
+  '' \
+  '# 4) Load Kind image and create cluster as coder' \
+  'docker load -i /kind-node.tar' \
+  'sudo -u coder bash -lc "kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud --wait 60s"' \
+  '' \
+  '# 5) Keep script alive' \
+  'wait' \
+  > /usr/local/bin/start.sh \
+  && chmod +x /usr/local/bin/start.sh
 
 ############################
 # 5) RUNTIME
