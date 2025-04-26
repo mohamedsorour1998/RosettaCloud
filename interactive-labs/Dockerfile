@@ -11,11 +11,15 @@ RUN echo "root ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
 
 RUN apt-get update && \
      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+     vim \
      nano \
      debian-keyring \
      debian-archive-keyring \
      apt-transport-https \
      curl \
+     zip\
+     unzip \
+     jq \
      gnupg \
      iproute2 \
      iptables \
@@ -58,6 +62,11 @@ RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/s
      chmod 700 get_helm.sh && \
      ./get_helm.sh && \
      rm get_helm.sh
+
+# Install AWS CLI
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+     unzip awscliv2.zip && \
+     sudo ./aws/install
 
 ############################
 # 2) CODE-SERVER CONFIGURATION
@@ -159,9 +168,9 @@ RUN printf '%s\n' \
      'docker load -i /kind-node.tar' \
      'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud' \
      'kubectl cluster-info --context kind-rosettacloud' \
-     # 'sudo -u coder kind get kubeconfig --name rosettacloud > /home/coder/.kube/config' \
-     # 'chmod 600 /home/coder/.kube/config' \
-     # 'sudo -u code kubectl config use-context kind-rosettacloud' \
+     'sudo -u coder kind get kubeconfig --name rosettacloud > /home/coder/.kube/config' \
+     'chmod 600 /home/coder/.kube/config' \
+     'sudo -u coder kubectl config use-context kind-rosettacloud' \
      'sudo -u coder /usr/bin/code-server \
      --host 127.0.0.1 \
      --port 8080 \
