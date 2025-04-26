@@ -179,12 +179,12 @@ RUN printf '%s\n' \
      'nohup dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &' \
      'while ! docker info > /dev/null 2>&1; do sleep 1; done' \
      'docker load -i /kind-node.tar' \
-     'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud' \
+     'kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud --wait 60s' \
      '' \
      '# 4) Configure kubectl for the coder user' \
-     'mkdir -p /home/coder/.kube' \
-     'sudo -u coder kind get kubeconfig --name rosettacloud > /home/coder/.kube/config' \
-     'chmod 600 /home/coder/.kube/config' \
+     'mkdir -p /home/coder/.kube && chown coder:coder /home/coder/.kube' \
+     'sudo -u coder sh -c '\''kind get kubeconfig --name rosettacloud > "$HOME/.kube/config"'\''' \
+     'chmod 600 /home/coder/.kube/config && chown coder:coder /home/coder/.kube/config' \
      'sudo -u coder kubectl config use-context kind-rosettacloud' \
      > /usr/local/bin/start.sh \
      && chmod +x /usr/local/bin/start.sh
