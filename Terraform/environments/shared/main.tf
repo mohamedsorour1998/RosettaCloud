@@ -414,25 +414,77 @@ module "ecr" {
 
   repository_name                 = "interactive-labs"
   repository_image_tag_mutability = "MUTABLE"
-
-  # repository_read_write_access_arns for root via caller identity
   repository_read_write_access_arns = [
     "arn:aws:iam::339712964409:root"
   ]
+
   repository_lifecycle_policy = jsonencode({
     rules = [
       {
-        rulePriority = 1,
-        description  = "Keep last 5 images",
+        rulePriority = 1
+        description  = "Expire images, keep last 5"
         selection = {
-          tagStatus     = "tagged",
-          tagPrefixList = ["v"],
-          countType     = "imageCountMoreThan",
-          countNumber   = 5
-        },
-        action = {
-          type = "expire"
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 5
         }
+        action = { type = "expire" }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+module "ecr_1" {
+  source  = "terraform-aws-modules/ecr/aws"
+  version = "2.4.0"
+
+  repository_name                 = "rosettacloud-backend"
+  repository_image_tag_mutability = "MUTABLE"
+  repository_read_write_access_arns = [
+    "arn:aws:iam::339712964409:root"
+  ]
+
+  repository_lifecycle_policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire images, keep last 5"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 5
+        }
+        action = { type = "expire" }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+module "ecr_2" {
+  source  = "terraform-aws-modules/ecr/aws"
+  version = "2.4.0"
+
+  repository_name                 = "rosettacloud-frontend"
+  repository_image_tag_mutability = "MUTABLE"
+  repository_read_write_access_arns = [
+    "arn:aws:iam::339712964409:root"
+  ]
+
+  repository_lifecycle_policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire images, keep last 5"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 5
+        }
+        action = { type = "expire" }
       }
     ]
   })

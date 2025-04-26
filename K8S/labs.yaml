@@ -45,3 +45,4 @@ spec:
 #   --docker-username=AWS \
 #   --docker-password="$(aws ecr get-login-password --region me-central-1)" \
 #   --docker-email=you@example.com
+# kubectl delete secret -n openedx ecr-creds
