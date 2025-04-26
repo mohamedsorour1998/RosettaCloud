@@ -1,1 +1,7 @@
+aioboto3==14.1.0
+boto3==1.37.1
+kubernetes==32.0.1
+momento==1.26.0
+uvicorn==0.34.2
+fastapi==0.115.12
 websockets==10.1

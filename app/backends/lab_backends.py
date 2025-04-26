@@ -1,168 +1,160 @@
 """
-ECS back‑end for *lab_service* – one Fargate task per lab + ECS‑Exec shell.
+Concrete back‑end factories for lab_service.
+
+• EKS  – fully implemented.
 """
-
 from __future__ import annotations
+import asyncio, logging, os, uuid, datetime as dt
+from typing import Optional, Dict, Any
 
-import asyncio, datetime as dt, logging, os, uuid
-from typing import Any, Dict, Optional
+from kubernetes import client, config
+from kubernetes.client.rest import ApiException
 
-import aioboto3
-from botocore.exceptions import ClientError
-import inspect, websockets                               # ← detect parameter
+NAMESPACE     = os.getenv("LAB_K8S_NAMESPACE", "interactive-labs")
+POD_IMAGE     = os.getenv("LAB_POD_IMAGE", "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
+WAIT_EKS      = int(os.getenv("LAB_WAIT_SECS", "300"))
+IMAGE_PULL_SECRET = os.getenv("LAB_IMAGE_PULL_SECRET", "ecr-creds")
+POD_TTL_SECS  = 3600
+LOG_EKS = logging.getLogger("lab_service.eks")
 
-# ──────────────────────────── configuration ───────────────────────────────
-REGION     = os.getenv("AWS_REGION",          "me-central-1")
-CLUSTER    = os.getenv("LAB_ECS_CLUSTER",     "interactive-labs-cluster")
-TASK_DEF   = os.getenv("LAB_TASK_DEF",        "interactive-labs")
-SUBNETS  = os.getenv("LAB_SUBNETS", "subnet-0a0f4e717f6b0caca,subnet-0f671aadf4df2b6d8,subnet-0506473196ebc6cdf").split(",")
-SEC_GRP       = os.getenv("LAB_SG", "sg-01c911f5aea2071c3")                    # may be empty
-CONTAINER  = os.getenv("LAB_CONTAINER",       "lab")
-WAIT_SECONDS   = int(os.getenv("LAB_WAIT_SECS",   "300"))                # 5 min
-LOG        = logging.getLogger("lab_service.ecs")
-
-# What header kw does *this* websockets build expect?
-_WS_SIG = inspect.signature(websockets.connect)
-_HDR_KW = "headers" if "headers" in _WS_SIG.parameters else "extra_headers"
-
-# ──────────────────────────── factory ─────────────────────────────────────
-def get_ecs_backend():
-    class ECSLabs:
-        _session: Optional[aioboto3.Session] = None
-        _ecs     = None                           # aioboto3 client
-        _labs: Dict[str, str] = {}                # lab_id → taskArn
-
-        # ────────── helpers ────────────────────────────────────────────
-        async def _client(self):
-            if self._ecs:
-                return self._ecs
-            self._session = aioboto3.Session()
-            self._ecs = await self._session.client(
-                "ecs", region_name=REGION
-            ).__aenter__()
-            LOG.info("connected to ECS %s", REGION)
-            return self._ecs
-
-        async def _task_for_lab(self, lab_id: str) -> Optional[str]:
-            """
-            Resolve *lab_id* → task‑ARN (works after hot‑reload or on another
-            API replica).
-            """
-            ecs = await self._client()
-
-            # 1) quick path – the task we started ourselves
-            resp = await ecs.list_tasks(
-                cluster=CLUSTER, desiredStatus="RUNNING", startedBy=lab_id
-            )
-            arns = resp["taskArns"]
-
-            # 2) slow path – scan all running tasks
-            if not arns:
-                arns = (await ecs.list_tasks(cluster=CLUSTER))["taskArns"]
-
-            if not arns:
-                return None
-
-            desc = await ecs.describe_tasks(cluster=CLUSTER, tasks=arns)
-            for t in desc["tasks"]:
-                for tag in t.get("tags", []):
-                    if tag["key"] == "lab_id" and tag["value"] == lab_id:
-                        return t["taskArn"]
-            return None
-
-        # ────────── lifecycle (called by facade) ───────────────────────
-        async def init(self):  await self._client()
-        async def close(self):
-            if self._ecs:
-                await self._ecs.__aexit__(None, None, None)
-
-        # ────────── public API ─────────────────────────────────────────
-        async def launch(self, *, tag: str | None = None) -> str:
-            ecs    = await self._client()
-            lab_id = tag or uuid.uuid4().hex
-
-            resp = await ecs.run_task(
-                cluster=CLUSTER,
-                taskDefinition=TASK_DEF,
-                launchType="FARGATE",
-                enableExecuteCommand=True,
-                networkConfiguration={
-                    "awsvpcConfiguration": {
-                        "subnets": SUBNETS,
-                        **({"securityGroups": [SEC_GRP]} if SEC_GRP else {}),
-                        "assignPublicIp": "ENABLED",
-                    }
-                },
-                startedBy=lab_id,                    # <‑‑ makes lookup trivial
-                tags=[{"key": "lab_id", "value": lab_id}],
-            )
-            if not resp["tasks"]:
-                raise RuntimeError("ECS couldn’t start the Fargate task")
-            task_arn = resp["tasks"][0]["taskArn"]
-            self._labs[lab_id] = task_arn
-
-            # Wait until RUNNING (async‑friendly loop)
-            deadline = dt.datetime.now(dt.timezone.utc).timestamp() + WAIT_SECONDS
-            while dt.datetime.now(dt.timezone.utc).timestamp() < deadline:
-                status = (
-                    await ecs.describe_tasks(cluster=CLUSTER, tasks=[task_arn])
-                )["tasks"][0]["lastStatus"]
-                if status == "RUNNING":
-                    LOG.info("lab %s RUNNING – task %s", lab_id, task_arn)
-                    return lab_id
-                await asyncio.sleep(3)
-
-            await self.stop(lab_id)
-            raise RuntimeError("ECS task didn’t reach RUNNING state in time")
-
-        async def exec_stream(self, lab_id: str) -> Dict[str, Any]:
-            ecs = await self._client()
-            task_arn = self._labs.get(lab_id) or await self._task_for_lab(lab_id)
-            if not task_arn:
-                raise RuntimeError("unknown lab_id")
-
-            # SSM channel sometimes needs a few seconds – retry
-            for _ in range(10):
-                try:
-                    resp = await ecs.execute_command(
-                        cluster=CLUSTER,
-                        task=task_arn,
-                        container=CONTAINER,
-                        command="/bin/bash",
-                        interactive=True,
-                    )
-                    break
-                except ClientError as e:
-                    if e.response["Error"]["Code"] == "TargetNotConnectedException":
-                        await asyncio.sleep(2)
-                        continue
-                    raise
-            else:
-                raise RuntimeError("ECS‑Exec channel not ready after retries")
-
-            return {
-                "uri": resp["session"]["streamUrl"],
-                "subprotocols": ["aws.exec"],
-                # NB: websockets.connect wants **extra_headers**
-                "extra_headers": [("X-aws-ecscmd-token", resp["session"]["tokenValue"])],
-                "ping_interval": None,   # SSM handles keep‑alive
-            }
-
-        async def stop(self, lab_id: str) -> None:
-            ecs = await self._client()
-            task_arn = self._labs.pop(lab_id, None) or await self._task_for_lab(lab_id)
-            if task_arn:
-                await ecs.stop_task(cluster=CLUSTER, task=task_arn,
-                                    reason="lab finished")
-                LOG.info("stopped lab %s", lab_id)
-
-    return ECSLabs()
-# ─────────── placeholder EKS backend ──────────────────────────────────────
 def get_eks_backend():
-    class _Stub:
-        async def init(self):  ...
-        async def close(self): ...
-        async def _todo(self, *a, **k): raise NotImplementedError("EKS backend TBD")
-        launch = exec_stream = stop = _todo
-    logging.getLogger("lab_service.eks").warning("EKS backend is only a stub.")
-    return _Stub()
+    class EKSLabs:
+        def __init__(self):
+            self._api = None
+            self._pods: Dict[str,str] = {}
+            self._creation_times: Dict[str,float] = {}
+            self._pod_ips: Dict[str,str] = {}
+            self._created: Dict[str,float] = {}
+            self._ips: Dict[str,str] = {}
+            self._cleanup_task = None
+            
+        async def _client(self):
+            if self._api:
+                return self._api
+            try:
+                config.load_incluster_config()
+            except Exception:
+                config.load_kube_config()
+            self._api = client.CoreV1Api()
+            LOG_EKS.info("K8s client ready")
+            return self._api
+
+        async def init(self):
+            await self._client()
+            self._cleanup_task = asyncio.create_task(self.cleanup_expired_pods())
+
+        async def close(self):
+            if self._cleanup_task:
+                self._cleanup_task.cancel()
+                try:
+                    await self._cleanup_task
+                except asyncio.CancelledError:
+                    pass
+
+        async def launch(self, *, tag: str | None = None) -> str:
+            k8s = await self._client()
+            lab_id = tag or f"lab-{uuid.uuid4().hex[:8]}"
+            pod = client.V1Pod(
+                  api_version="v1",
+                  kind="Pod",
+                  metadata=client.V1ObjectMeta(
+                      name=lab_id,
+                      namespace=NAMESPACE,
+                      labels={
+                          "app": "interactive-labs",
+                          "lab_id": lab_id
+                      }
+                  ),
+                  spec=client.V1PodSpec(
+                      containers=[
+                          client.V1Container(
+                              name="interactive-labs",
+                              image=POD_IMAGE,
+                              ports=[client.V1ContainerPort(container_port=80)],
+                              security_context=client.V1SecurityContext(
+                                  privileged=True,
+                                  run_as_user=0
+                              )
+                          )
+                      ],
+                      image_pull_secrets=[client.V1LocalObjectReference(name="ecr-creds")] if IMAGE_PULL_SECRET else None,
+                      restart_policy="Never"
+                  ),
+              )
+              
+            try:
+                await asyncio.to_thread(
+                    k8s.create_namespaced_pod,
+                    namespace=NAMESPACE,
+                    body=pod
+                )
+                self._pods[lab_id] = lab_id 
+                self._creation_times[lab_id] = dt.datetime.now(dt.timezone.utc).timestamp()
+                LOG_EKS.info(f"Created pod {lab_id} in namespace {NAMESPACE} with 1-hour TTL")
+                deadline = dt.datetime.now(dt.timezone.utc).timestamp() + WAIT_EKS
+                while dt.datetime.now(dt.timezone.utc).timestamp() < deadline:
+                    pod_status = await asyncio.to_thread(
+                    k8s.read_namespaced_pod,
+                    name=lab_id,
+                    namespace=NAMESPACE
+                )
+                    if pod_status.status.phase == "Running" and pod_status.status.pod_ip:
+                        self._pod_ips[lab_id] = pod_status.status.pod_ip
+                        LOG_EKS.info(f"Pod {lab_id} is running with IP {pod_status.status.pod_ip}, storing in _pod_ips")
+                        return lab_id
+        
+                    await asyncio.sleep(2)
+                await self.stop(lab_id)
+                raise RuntimeError(f"Kubernetes pod {lab_id} didn't reach Running state in time")
+            except ApiException as e:
+                LOG_EKS.error(f"Error creating pod: {e}")
+                raise RuntimeError(f"Failed to create Kubernetes pod: {e}")
+
+        async def stop(self, lab_id: str) -> bool:
+            k8s = await self._client()
+            name = self._pods.pop(lab_id, lab_id)
+            try:
+                await asyncio.to_thread(
+                    k8s.delete_namespaced_pod,
+                    name=name,
+                    namespace=NAMESPACE,
+                    body=client.V1DeleteOptions()
+                )
+                LOG_EKS.info(f"Stopped lab {lab_id} (deleted pod {name})")
+                return True
+            except ApiException as e:
+                LOG_EKS.error(f"Error stopping lab {lab_id}: {e}")
+                return False
+
+        async def get_ip(self, lab_id: str) -> Optional[str]:
+            return self._pod_ips.get(lab_id)
+
+        async def get_time_remaining(self, lab_id: str) -> Optional[Dict[str,int]]:
+            created = self._creation_times.get(lab_id)
+            if not created:
+                return None
+            left = max(0, POD_TTL_SECS - (dt.datetime.now(dt.timezone.utc).timestamp() - created))
+            m, s = divmod(int(left), 60)
+            return {"minutes": m, "seconds": s, "total_seconds": int(left)}
+        
+        async def cleanup_expired_pods(self):
+            while True:
+              now = dt.datetime.now(dt.timezone.utc).timestamp()
+              expired_pods = [
+                  lab_id for lab_id, created in self._creation_times.items()
+                  if now - created > POD_TTL_SECS
+              ]
+              for lab_id in expired_pods:
+                  LOG_EKS.info(f"Pod {lab_id} exceeded TTL and will be deleted.")
+                  await self.stop(lab_id)
+              await asyncio.sleep(60)
+        
+        async def get_lab_info(self, lab_id: str) -> Optional[Dict[str,Any]]:
+            ip = await self.get_ip(lab_id)
+            tr = await self.get_time_remaining(lab_id)
+            is_running = lab_id in self._pods
+            status = "Running" if is_running else "Unknown"
+            LOG_EKS.info(f"Get lab info for {lab_id}: IP={ip}, running={is_running}, status={status}")
+            return {"lab_id": lab_id, "pod_ip": ip, "time_remaining": tr, "status": status}
+    
+    return EKSLabs()

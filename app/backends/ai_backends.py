@@ -1,7 +1,7 @@
 """
-Concrete AI back‑ends for *ai_service*.
+Concrete back‑end factories for ai_service.
 
-• nova – Amazon Bedrock Nova via ConverseStream.
+• Nova  – fully implemented.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ from typing import AsyncGenerator, Optional
 
 import aioboto3
 
-# ───────────────────────── defaults ───────────────────────────────────────
 _REGION      = os.getenv("AWS_REGION", "us-east-1")
 _MODEL_ID    = os.getenv("NOVA_MODEL_ID", "amazon.nova-lite-v1:0")
 _MAX_TOKENS  = int(os.getenv("NOVA_MAX_TOKENS", "512"))
@@ -21,7 +20,6 @@ _TEMPERATURE = float(os.getenv("NOVA_TEMPERATURE", "0.5"))
 _TOP_P       = float(os.getenv("NOVA_TOP_P", "0.9"))
 _DEFAULT_SYS = "You are a helpful assistant."
 
-# ═════════════════════════ NOVA BACK‑END ══════════════════════════════════
 def get_nova_backend():
     class NovaAI:
         _log = logging.getLogger("ai_service.nova")
@@ -70,7 +68,6 @@ def get_nova_backend():
             }
             model = model_id or _MODEL_ID
 
-            # —— streaming ——
             if stream:
                 resp = await self._client.converse_stream(
                     modelId=model,
@@ -85,7 +82,6 @@ def get_nova_backend():
 
                 return _chunks()
 
-            # —— non‑streaming ——
             raw = await self._client.invoke_model(
                 body=json.dumps(
                     {"inputText": prompt, "textGenerationConfig": cfg}

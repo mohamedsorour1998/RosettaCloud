@@ -15,7 +15,6 @@ from typing import AsyncGenerator, Optional
 _DEFAULT_CACHE = os.getenv("CACHE_EVENTS_DEFAULT_CACHE", "interactive-labs")
 _DEFAULT_TTL   = int(os.getenv("CACHE_EVENTS_DEFAULT_TTL", "900"))
 
-# ═════════════════ MOMENTO ════════════════════════════════════════
 def get_momento_backend():
     from momento import (
         CacheClientAsync,

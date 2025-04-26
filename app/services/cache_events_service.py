@@ -1,9 +1,9 @@
 """
 cache_events_service – unified async interface for cache + pub/sub.
 
-Back‑end selection
+Back‑end selector
 ------------------
-    export CACHE_EVENTS_BACKEND=momento   # default (fully working)
+    export CACHE_EVENTS_BACKEND=momento   # default
 """
 
 from __future__ import annotations
@@ -13,11 +13,9 @@ import logging
 import os
 from typing import AsyncGenerator, Protocol
 
-# ────────────────────────── public defaults ────────────────────────────────
 DEFAULT_CACHE = os.getenv("CACHE_EVENTS_DEFAULT_CACHE", "interactive-labs")
 DEFAULT_TTL   = int(os.getenv("CACHE_EVENTS_DEFAULT_TTL", "900"))
 
-# ────────────────────────── abstract interface ─────────────────────────────
 class _Backend(Protocol):
     async def init(self) -> None: ...
     async def close(self) -> None: ...
@@ -26,10 +24,9 @@ class _Backend(Protocol):
     async def publish(self, topic: str, payload: str | bytes, cache: str = DEFAULT_CACHE) -> None: ...
     async def subscribe(self, topic: str, cache: str = DEFAULT_CACHE) -> AsyncGenerator[str | bytes, None]: ...
 
-# ────────────────────────── load concrete back‑end ─────────────────────────
 _backend_name = os.getenv("CACHE_EVENTS_BACKEND", "momento").lower()
 
-_module = importlib.import_module("app.backends.cloud_backends", package=__package__)
+_module = importlib.import_module("app.backends.cache_events_backends", package=__package__)
 
 try:
     _IMPL: _Backend = getattr(_module, f"get_{_backend_name}_backend")()
@@ -41,7 +38,6 @@ except AttributeError as exc:
 
 logging.getLogger(__name__).info("cache_events_service backend: %s", _backend_name)
 
-# ────────────────────────── facade re‑exports ──────────────────────────────
 init      = _IMPL.init
 close     = _IMPL.close
 set       = _IMPL.set

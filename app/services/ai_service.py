@@ -3,7 +3,7 @@ ai_service – unified async interface to LLM chat/stream.
 
 Back‑end selector
 -----------------
-    export AI_BACKEND=nova      # default (Amazon Nova via Bedrock)
+    export AI_BACKEND=nova      # default
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ import logging
 import os
 from typing import AsyncGenerator, Protocol
 
-# ─────────── abstract contract every back‑end must meet ────────────
 class _AIBackend(Protocol):
     async def init(self) -> None: ...
     async def close(self) -> None: ...
