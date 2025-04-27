@@ -7,7 +7,6 @@ Back‑end selector
 """
 
 from __future__ import annotations
-
 import importlib
 import logging
 import os
@@ -27,16 +26,16 @@ class _AIBackend(Protocol):
 
 _backend_name = os.getenv("AI_BACKEND", "nova").lower()
 
-_module = importlib.import_module("app.backends.ai_backends")
 try:
+    _module = importlib.import_module("app.backends.ai_backends")
     _IMPL: _AIBackend = getattr(_module, f"get_{_backend_name}_backend")()
 except AttributeError as exc:
     raise RuntimeError(
-        f"Unsupported AI_BACKEND '{_backend_name}'. Choose 'nova'."
+        f"Unsupported AI_BACKEND '{_backend_name}'. Choose 'nova' or implement a valid backend."
     ) from exc
 
-logging.getLogger(__name__).info("ai_service backend: %s", _backend_name)
+logging.getLogger(__name__).info("AI backend selected: %s", _backend_name)
 
 init   = _IMPL.init
 close  = _IMPL.close
-chat   = _IMPL.chat 
+chat   = _IMPL.chat

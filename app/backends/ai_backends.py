@@ -4,14 +4,12 @@ Concrete back‑end factories for ai_service.
 • Nova  – fully implemented.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import os
 from typing import AsyncGenerator, Optional
-
 import aioboto3
+from botocore.exceptions import ClientError
 
 _REGION      = os.getenv("AWS_REGION", "us-east-1")
 _MODEL_ID    = os.getenv("NOVA_MODEL_ID", "amazon.nova-lite-v1:0")
@@ -31,12 +29,16 @@ def get_nova_backend():
         async def init(self):
             if self._client:
                 return
-            self._session = aioboto3.Session()
-            self._client_cm = self._session.client(
-                "bedrock-runtime", region_name=_REGION
-            )
-            self._client = await self._client_cm.__aenter__()
-            self._log.info("Connected to Bedrock runtime (%s)", _REGION)
+            try:
+                self._session = aioboto3.Session()
+                self._client_cm = self._session.client(
+                    "bedrock-runtime", region_name=_REGION
+                )
+                self._client = await self._client_cm.__aenter__()
+                self._log.info("Connected to Bedrock runtime (%s)", _REGION)
+            except ClientError as e:
+                self._log.error("Failed to initialize Bedrock client: %s", e)
+                raise RuntimeError("Failed to connect to Bedrock API") from e
 
         async def close(self):
             if self._client_cm:
@@ -69,25 +71,34 @@ def get_nova_backend():
             model = model_id or _MODEL_ID
 
             if stream:
-                resp = await self._client.converse_stream(
+                try:
+                    resp = await self._client.converse_stream(
+                        modelId=model,
+                        messages=messages,
+                        inferenceConfig=cfg,
+                    )
+
+                    async def _chunks() -> AsyncGenerator[str, None]:
+                        async for chunk in resp["stream"]:
+                            if "contentBlockDelta" in chunk:
+                                yield chunk["contentBlockDelta"]["delta"]["text"]
+
+                    return _chunks()
+                except ClientError as e:
+                    self._log.error("Error during stream conversation: %s", e)
+                    raise RuntimeError("Error during stream conversation") from e
+
+            try:
+                raw = await self._client.invoke_model(
+                    body=json.dumps(
+                        {"inputText": prompt, "textGenerationConfig": cfg}
+                    ),
                     modelId=model,
-                    messages=messages,
-                    inferenceConfig=cfg,
                 )
-
-                async def _chunks() -> AsyncGenerator[str, None]:
-                    async for chunk in resp["stream"]:
-                        if "contentBlockDelta" in chunk:
-                            yield chunk["contentBlockDelta"]["delta"]["text"]
-
-                return _chunks()
-
-            raw = await self._client.invoke_model(
-                body=json.dumps(
-                    {"inputText": prompt, "textGenerationConfig": cfg}
-                ),
-                modelId=model,
-            )
-            return json.loads(raw["body"])["results"][0]["outputText"]
+                return json.loads(raw["body"])["results"][0]["outputText"]
+            except ClientError as e:
+                self._log.error("Error invoking the model: %s", e)
+                raise RuntimeError("Error invoking the model") from e
 
     return NovaAI()
+
