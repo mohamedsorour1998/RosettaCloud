@@ -99,6 +99,6 @@ def get_nova_backend():
             except ClientError as e:
                 self._log.error("Error invoking the model: %s", e)
                 raise RuntimeError("Error invoking the model") from e
-
+        
     return NovaAI()
 

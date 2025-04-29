@@ -1,13 +1,21 @@
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
+
 from typing import Annotated, Optional, Dict, Union
 
-from fastapi import FastAPI, WebSocket, Path, Body, Query
+from fastapi import FastAPI, HTTPException, status, WebSocket, Path, Body, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.services import cache_events_service as cache_events
 from app.services import ai_service           as ai
 from app.services import lab_service          as lab
+
+from app.services.question_service import QuestionService
+from app.backends.question_backends import QuestionBackend
+
+question_backend = QuestionBackend()
+question_service = QuestionService(ai, question_backend)
 
 #startup / shutdown
 @asynccontextmanager
@@ -25,6 +33,14 @@ app = FastAPI(
     version="1.0.0",
     description="Caching, events, AI, and interactive labs",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins (you can specify your frontend's URL here)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Cache / Events
@@ -78,6 +94,9 @@ async def chat_endpoint(body: Prompt):
     return StreamingResponse(gen(), media_type="text/plain")
 
 # Labs management
+class LaunchLabRequest(BaseModel):
+    user_id: str
+    
 class LabCreationResponse(BaseModel):
     lab_id: str
 
@@ -91,9 +110,25 @@ class ErrorResponse(BaseModel):
     error: str
 
 @app.post("/labs", status_code=201, response_model=LabCreationResponse, tags=["Labs"])
-async def new_lab():
-    lab_id = await lab.launch()
+async def new_lab(request: LaunchLabRequest):  # Accept the body as LaunchLabRequest
+    user_id = request.user_id  # Extract the user_id from the request body
+    
+    # Check if the user already has an active lab in the cache
+    active_lab = await cache_events.get("active_labs", user_id)
+    if active_lab:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You already have an active lab. Please terminate the existing lab first."
+        )
+
+    # Proceed to launch the lab
+    lab_id = await lab.launch()  # Launch the lab and get lab_id
+    
+    # Store the lab ID in the cache for the user
+    await cache_events.set("active_labs", user_id, lab_id)
+    
     return LabCreationResponse(lab_id=lab_id)
+
 
 @app.get("/labs/{lab_id}", response_model=Union[LabInfoResponse,ErrorResponse], tags=["Labs"])
 async def lab_info(lab_id: str):
@@ -103,6 +138,62 @@ async def lab_info(lab_id: str):
     return LabInfoResponse(**info)
 
 @app.delete("/labs/{lab_id}", status_code=200, tags=["Labs"])
-async def terminate_lab(lab_id: str) -> Dict[str, bool]:
+async def terminate_lab(lab_id: str, user_id: str):
     deleted = await lab.stop(lab_id)
-    return {"deleted": deleted}
+    if deleted:
+        await cache_events.set("active_labs", user_id, "null")
+        return {"deleted": True}
+    else:
+        raise HTTPException(status_code=404, detail="Lab not found.")
+
+class QuestionRequest(BaseModel):
+    pod_name: str
+    
+class QuestionCheckRequest(QuestionRequest):
+    pass
+
+@app.get("/questions/{module_uuid}/{lesson_uuid}", tags=["Questions"])
+async def get_questions(module_uuid: str, lesson_uuid: str, user_id: str):
+    """
+    Get all questions for a specific module and lesson.
+    Questions will be sorted by their defined question number.
+    """
+    result = await question_service.get_questions(module_uuid, lesson_uuid, user_id)
+    return result
+
+@app.post("/questions/{module_uuid}/{lesson_uuid}/{question_number}/setup", tags=["Questions"])
+async def setup_question(
+    module_uuid: str, 
+    lesson_uuid: str, 
+    question_number: int, 
+    request: QuestionRequest
+):
+    """
+    Set up a specific question by executing the question script in the pod.
+    Uses the question number defined in the shell script.
+    """
+    result = await question_service.execute_question_setup(
+        request.pod_name, module_uuid, lesson_uuid, question_number
+    )
+    
+    if result["status"] == "error":
+        raise HTTPException(status_code=400, detail=result["message"])
+    
+    return result
+
+@app.post("/questions/{module_uuid}/{lesson_uuid}/{question_number}/check", tags=["Questions"])
+async def check_question(
+    module_uuid: str, 
+    lesson_uuid: str, 
+    question_number: int, 
+    request: QuestionCheckRequest
+):
+    """
+    Check if the user's answer for a specific question is correct by executing the check script.
+    Uses the question number defined in the shell script.
+    """
+    result = await question_service.execute_question_check(
+        request.pod_name, module_uuid, lesson_uuid, question_number
+    )
+    
+    return result
