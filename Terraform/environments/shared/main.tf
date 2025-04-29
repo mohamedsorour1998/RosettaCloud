@@ -57,7 +57,6 @@ data "aws_security_group" "rosettacloud_ec2_sg" {
   name = "rosettacloud-ec2-sg"
 }
 
-
 module "sg" {
   source = "../../modules/sg"
 
@@ -74,6 +73,13 @@ module "sg" {
           to_port     = "30444"
           protocol    = "tcp"
           description = "Kubernetes Dashboard"
+          cidr_blocks = "0.0.0.0/0"
+        },
+        {
+          from_port   = "30085"
+          to_port     = "30085"
+          protocol    = "tcp"
+          description = "BE"
           cidr_blocks = "0.0.0.0/0"
         },
         {
@@ -374,6 +380,7 @@ module "acm_useast1" {
     "*.learn.stg.rosettacloud.app",
     "*.uat.rosettacloud.app",
     "*.learn.uat.rosettacloud.app",
+    "*.labs.rosettacloud.app"
   ]
 
   wait_for_validation = true
@@ -398,6 +405,8 @@ module "acm" {
     "*.learn.stg.rosettacloud.app",
     "*.uat.rosettacloud.app",
     "*.learn.uat.rosettacloud.app",
+    "*.labs.rosettacloud.app"
+
   ]
 
   wait_for_validation = true
