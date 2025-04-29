@@ -1,13 +1,7 @@
 """
-QuestionBackend – loads shell questions from S3, caches them with Momento,
-and runs the –q / –c parts inside the lab pod.
+Concrete back‑end factories for questions_service.
 
-Changes versus your previous file
-• added Momento caching (cache.get / cache.set)
-• json (serialise / deserialise) helpers
-• bug-fix: per-question caching now happens in get_questions (async),
-          not inside the sync convert_shells_to_questions
-• small lint / typing fixes
+• Momento  – fully implemented.
 """
 
 import asyncio
@@ -88,7 +82,6 @@ class QuestionBackend:
             logging.error("Question #%s not found", question_number)
             return False
         return await self._exec_script_in_pod(pod_name, shell, part="c")
-
 
     async def _fetch_shells(self, module_uuid: str,
                             lesson_uuid: str) -> List[str]:
@@ -186,7 +179,6 @@ class QuestionBackend:
             tf.write("\nexit $?\n")
             path = tf.name
         os.chmod(path, 0o755)
-
         try:
             # kubectl cp
             dst = f"{pod}:/tmp/{part}_script.sh"
@@ -261,19 +253,36 @@ class QuestionBackend:
         a_id = m.group(1)
         am   = re.search(r"#\s*-\s*" + re.escape(a_id) + r":\s*(.*?)($|\n)", txt)
         return am.group(1).strip() if am else ""
+    
+    @staticmethod
+    def _extract_block(txt: str, flag: str) -> str:
+        lines      = txt.splitlines()
+        collecting = False
+        depth      = 0
+        body: list[str] = []
+        for ln in lines:
+            if not collecting:
+                if f'"$1" == "{flag}"' in ln and "if" in ln:
+                    collecting = True
+                    depth = 1
+                continue
+            if re.search(r'\bif\b', ln):
+                depth += 1
+    
+            if re.match(r'\s*fi\b', ln):
+                depth -= 1
+                if depth == 0:
+                    break
+                body.append(ln)
+                continue
+            body.append(ln)
+    
+        return "\n".join(body).strip()
 
     @staticmethod
     def _extract_question_script(txt: str) -> str:
-        m = re.search(
-            r'if\s+\[\[\s+"\$1"\s+==\s+"-q"\s+\]\];\s+then(.*?)fi', txt,
-            re.DOTALL
-        )
-        return m.group(1).strip() if m else ""
+        return QuestionBackend._extract_block(txt, "-q")
 
     @staticmethod
     def _extract_check_script(txt: str) -> str:
-        m = re.search(
-            r'if\s+\[\[\s+"\$1"\s+==\s+"-c"\s+\]\];\s+then(.*?)fi', txt,
-            re.DOTALL
-        )
-        return m.group(1).strip() if m else ""
+        return QuestionBackend._extract_block(txt, "-c")

@@ -1,4 +1,4 @@
-from app.backends.question_backends import QuestionBackend
+from app.backends.questions_backends import QuestionBackend
 from app.services import ai_service
 import logging
 
@@ -26,10 +26,6 @@ class QuestionService:
         }
     
     async def execute_question_setup(self, pod_name: str, module_uuid: str, lesson_uuid: str, question_number: int) -> dict:
-        """
-        Execute the setup/question part of the shell script for a specific question number.
-        This is typically called when moving to a new question.
-        """
         try:
             result = await self.backend.execute_question_by_number(
                 pod_name, module_uuid, lesson_uuid, question_number
@@ -38,26 +34,25 @@ class QuestionService:
             if not result:
                 return {
                     "status": "error", 
-                    "message": f"Failed to execute question {question_number} setup in the pod"
+                    "message": f"Failed to execute question {question_number} setup in the pod",
+                    "completed": False
                 }
             
             return {
                 "status": "success", 
-                "message": f"Question {question_number} setup executed successfully"
+                "message": f"Question {question_number} setup executed successfully",
+                "completed": True
             }
             
         except Exception as e:
             logging.error(f"Error executing question setup: {e}")
             return {
                 "status": "error", 
-                "message": f"Error executing question setup: {e}"
+                "message": f"Error executing question setup: {e}",
+                "completed": False
             }
     
     async def execute_question_check(self, pod_name: str, module_uuid: str, lesson_uuid: str, question_number: int) -> dict:
-        """
-        Execute the check part of the shell script for a specific question number.
-        This is typically called when checking if the user's answer is correct.
-        """
         try:
             result = await self.backend.execute_check_by_number(
                 pod_name, module_uuid, lesson_uuid, question_number
@@ -66,7 +61,8 @@ class QuestionService:
             if not result:
                 return {
                     "status": "error", 
-                    "message": f"Failed validation for question {question_number}"
+                    "message": f"Failed validation for question {question_number}",
+                    "completed": False
                 }
                 
             return {
@@ -79,7 +75,7 @@ class QuestionService:
             logging.error(f"Error executing question check: {e}")
             return {
                 "status": "error", 
-                "message": f"Error executing question check: {e}"
+                "message": f"Error executing question check: {e}",
+                "completed": False
             }
-    
     

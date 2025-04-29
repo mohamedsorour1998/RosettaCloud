@@ -11,11 +11,11 @@ from app.services import cache_events_service as cache_events
 from app.services import ai_service           as ai
 from app.services import lab_service          as lab
 
-from app.services.question_service import QuestionService
-from app.backends.question_backends import QuestionBackend
+from app.services.questions_service import QuestionService
+from app.backends.questions_backends import QuestionBackend
 
 question_backend = QuestionBackend()
-question_service = QuestionService(ai, question_backend)
+questions_service = QuestionService(ai, question_backend)
 
 #startup / shutdown
 @asynccontextmanager
@@ -37,10 +37,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (you can specify your frontend's URL here)
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Cache / Events
@@ -110,9 +110,10 @@ class ErrorResponse(BaseModel):
     error: str
 
 @app.post("/labs", status_code=201, response_model=LabCreationResponse, tags=["Labs"])
-async def new_lab(request: LaunchLabRequest):  # Accept the body as LaunchLabRequest
-    user_id = request.user_id  # Extract the user_id from the request body
-    
+async def new_lab(request: LaunchLabRequest):
+    user_id = request.user_id
+    # temporarily set the user_id in the cache to allow multiple labs
+    await cache_events.set("active_labs", user_id, "")
     # Check if the user already has an active lab in the cache
     active_lab = await cache_events.get("active_labs", user_id)
     if active_lab:
@@ -121,10 +122,8 @@ async def new_lab(request: LaunchLabRequest):  # Accept the body as LaunchLabReq
             detail="You already have an active lab. Please terminate the existing lab first."
         )
 
-    # Proceed to launch the lab
-    lab_id = await lab.launch()  # Launch the lab and get lab_id
+    lab_id = await lab.launch()
     
-    # Store the lab ID in the cache for the user
     await cache_events.set("active_labs", user_id, lab_id)
     
     return LabCreationResponse(lab_id=lab_id)
@@ -154,11 +153,7 @@ class QuestionCheckRequest(QuestionRequest):
 
 @app.get("/questions/{module_uuid}/{lesson_uuid}", tags=["Questions"])
 async def get_questions(module_uuid: str, lesson_uuid: str, user_id: str):
-    """
-    Get all questions for a specific module and lesson.
-    Questions will be sorted by their defined question number.
-    """
-    result = await question_service.get_questions(module_uuid, lesson_uuid, user_id)
+    result = await questions_service.get_questions(module_uuid, lesson_uuid, user_id)
     return result
 
 @app.post("/questions/{module_uuid}/{lesson_uuid}/{question_number}/setup", tags=["Questions"])
@@ -168,11 +163,7 @@ async def setup_question(
     question_number: int, 
     request: QuestionRequest
 ):
-    """
-    Set up a specific question by executing the question script in the pod.
-    Uses the question number defined in the shell script.
-    """
-    result = await question_service.execute_question_setup(
+    result = await questions_service.execute_question_setup(
         request.pod_name, module_uuid, lesson_uuid, question_number
     )
     
@@ -188,12 +179,7 @@ async def check_question(
     question_number: int, 
     request: QuestionCheckRequest
 ):
-    """
-    Check if the user's answer for a specific question is correct by executing the check script.
-    Uses the question number defined in the shell script.
-    """
-    result = await question_service.execute_question_check(
+    result = await questions_service.execute_question_check(
         request.pod_name, module_uuid, lesson_uuid, question_number
     )
-    
     return result
