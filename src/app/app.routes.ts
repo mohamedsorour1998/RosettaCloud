@@ -10,6 +10,9 @@ export const routes: Routes = [
   { path: 'features', component: FeaturesComponent },
   { path: 'pricing', component: PricingComponent },
   { path: 'instructors', component: InstructorsComponent },
-  { path: 'lab', component: LabComponent },
+  {
+    path: 'lab/module/:moduleUuid/lesson/:lessonUuid',
+    component: LabComponent,
+  }, // Correct route with params
   { path: '**', redirectTo: '', pathMatch: 'full' },
 ];

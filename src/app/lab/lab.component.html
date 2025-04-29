@@ -1,23 +1,104 @@
-<div class="lab-container d-flex flex-column">
-  <!-- optional toolbar -->
-  <div class="lab-toolbar bg-light border-bottom p-2 d-flex align-items-center">
-    <h5 class="mb-0 me-auto">DevLab</h5>
-    <button class="btn btn-sm btn-primary me-2">
-      <i class="bi bi-play-fill"></i> Run
-    </button>
-    <button class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-gear"></i> Settings
-    </button>
-  </div>
+<div class="lab-container">
+  <!-- Lab Header with Status and Actions -->
+  <header class="lab-header">
+    <div class="lab-title">
+      <h4>DevLab</h4>
+      <div class="lab-status" *ngIf="labInfo$ | async as labInfo">
+        <span class="status-indicator" [ngClass]="{'active': labInfo.status === 'running'}"></span>
+        <span class="status-text">{{ labInfo.status | titlecase }}</span>
+        <span class="time-remaining" *ngIf="timeRemaining$ | async as timeRemaining">
+          <i class="bi bi-clock"></i> {{ timeRemaining }}
+        </span>
+      </div>
+    </div>
 
-  <!-- iframe wrapper -->
-  <div class="lab-frame flex-grow-1">
-    <iframe
-      [src]="codeServerUrl"
-      title="Code Server"
-      frameborder="0"
-      allowfullscreen
-      sandbox="allow-scripts allow-forms allow-same-origin"
-    ></iframe>
+    <div class="lab-actions">
+      <button class="btn btn-restart" *ngIf="isLabActive" (click)="initializeNewLab()">
+        <i class="bi bi-arrow-clockwise"></i> Restart
+      </button>
+      <button class="btn btn-terminate" [disabled]="!isLabActive" (click)="terminateLab()">
+        <i class="bi bi-stop-circle"></i> Terminate
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <div class="lab-content">
+    <!-- Left Panel: Questions & Instructions -->
+    <aside class="lab-sidebar">
+      <div class="sidebar-header">
+        <h5>Lab Questions</h5>
+      </div>
+
+      <!-- Questions List -->
+      <div class="questions-container" *ngIf="!isLoading; else loadingTemplate">
+        <div *ngIf="questions.length > 0; else noQuestions">
+          <div class="question-item" *ngFor="let question of questions; let i = index"
+               [ngClass]="{'active': currentQuestionIndex === i, 'completed': question.completed}"
+               (click)="setupQuestion(question.id)">
+            <div class="question-header">
+              <span class="question-number">{{ question.id }}</span>
+              <span class="question-status">
+                <i class="bi" [ngClass]="question.completed ? 'bi-check-circle-fill' : 'bi-circle'"></i>
+              </span>
+            </div>
+            <div class="question-title">{{ question.question }}</div>
+          </div>
+        </div>
+
+        <ng-template #noQuestions>
+          <div class="no-questions-message">
+            <p>No questions available for this lab.</p>
+          </div>
+        </ng-template>
+      </div>
+
+      <!-- Question Details -->
+      <div class="question-details" *ngIf="currentQuestionIndex >= 0 && questions[currentQuestionIndex]">
+        <div class="question-description">
+          {{ questions[currentQuestionIndex].description }}
+        </div>
+        <button class="btn btn-check" (click)="checkQuestion(questions[currentQuestionIndex].id)">
+          Check Answer
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Lab Content -->
+    <main class="lab-main">
+      <!-- Loading States -->
+      <div class="lab-loading" *ngIf="isLoading || isInitializing">
+        <div class="spinner"></div>
+        <p *ngIf="isInitializing">Initializing your lab environment...</p>
+        <p *ngIf="isLoading && !isInitializing">Loading...</p>
+      </div>
+
+      <!-- Error State -->
+      <div class="lab-error" *ngIf="errorMessage">
+        <div class="error-icon">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <h5>Something went wrong</h5>
+        <p>{{ errorMessage }}</p>
+        <button class="btn btn-retry" (click)="initializeNewLab()">Try Again</button>
+      </div>
+
+      <!-- Lab iframe - Only shown when lab is active -->
+      <div class="lab-frame" *ngIf="codeServerUrl && isLabActive">
+        <iframe
+          [src]="codeServerUrl"
+          title="Code Server"
+          allow="fullscreen"
+          sandbox="allow-scripts allow-forms allow-same-origin">
+        </iframe>
+      </div>
+    </main>
   </div>
 </div>
+
+<ng-template #loadingTemplate>
+  <div class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Loading questions...</p>
+  </div>
+</ng-template>
