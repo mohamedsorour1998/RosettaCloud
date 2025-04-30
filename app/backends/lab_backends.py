@@ -23,6 +23,8 @@ from kubernetes.client.rest import ApiException
 # Settings (env-overridable)
 # ──────────────────────────────────────────────────────────────────
 NAMESPACE             = os.getenv("LAB_K8S_NAMESPACE",            "interactive-labs")
+INGRESS_NAMESPACE     = os.getenv("LAB_INGRESS_NAMESPACE",     NAMESPACE)
+INGRESS_NAME          = os.getenv("LAB_INGRESS_NAME",          "caddy-ingress")
 POD_IMAGE             = os.getenv("LAB_POD_IMAGE",                "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
 IMAGE_PULL_SECRET     = os.getenv("LAB_IMAGE_PULL_SECRET",        "ecr-creds")
 WILDCARD_DOMAIN       = os.getenv("LAB_WILDCARD_DOMAIN",          "dev.labs.rosettacloud.app")
@@ -192,53 +194,7 @@ class EKSLabs:
             await asyncio.to_thread(core.create_namespaced_service, NAMESPACE, body)
             LOG.info(f"Created headless service {HEADLESS_SERVICE_NAME}")
 
-    @retry_async(exceptions=(ApiException,))
-    async def _ensure_ingress(self):
-        LOG.info("Ensuring ingress %s exists", INGRESS_NAME)
     
-        async with self._k8s() as (*_, net):
-            try:
-                await asyncio.to_thread(
-                    net.read_namespaced_ingress, INGRESS_NAME, NAMESPACE
-                )
-                LOG.debug("Ingress %s already exists", INGRESS_NAME)
-                return
-            except ApiException as e:
-                if e.status != 404:
-                    raise
-                LOG.info("Creating ingress %s", INGRESS_NAME)
-    
-            body = client.V1Ingress(
-                metadata=client.V1ObjectMeta(
-                    name=INGRESS_NAME,
-                    namespace=NAMESPACE,
-                    annotations={
-                        "kubernetes.io/ingress.class": INGRESS_CLASS,
-                        "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-                    },
-                ),
-                spec=client.V1IngressSpec(
-                    default_backend=client.V1IngressBackend(
-                        service=client.V1IngressServiceBackend(
-                            name=HEADLESS_SERVICE_NAME,
-                            port=client.V1ServiceBackendPort(number=80),
-                        )
-                    ),
-                    tls=[
-                        client.V1IngressTLS(
-                            hosts=[f"*.{WILDCARD_DOMAIN}"],
-                            secret_name=f"{INGRESS_NAME}-tls",
-                        )
-                    ],
-                    rules=[],
-                ),
-            )
-    
-            await asyncio.to_thread(
-                net.create_namespaced_ingress, NAMESPACE, body
-            )
-            LOG.info("Created ingress %s", INGRESS_NAME)
-
     # ──────────────────────────────────────────────────────────────
     # Lifecycle
     # ──────────────────────────────────────────────────────────────
@@ -250,7 +206,6 @@ class EKSLabs:
             await asyncio.gather(
                 self._ensure_statefulset(),
                 self._ensure_headless(),
-                self._ensure_ingress(),
             )
             self._janitor = asyncio.create_task(self._janitor_loop())
             LOG.info("EKS lab backend initialized successfully")
@@ -355,48 +310,62 @@ class EKSLabs:
 
     @retry_async(exceptions=(ApiException,))
     async def _patch_ingress(self, lab_id: str, add: bool):
-        """Add or remove an ingress rule for a lab"""
+        """Add (or remove) an ingress rule for a lab in the existing caddy-ingress"""
         action = "Adding" if add else "Removing"
-        LOG.info(f"{action} ingress rule for lab {lab_id}")
-        
+        host   = lab_host(lab_id)              #  lab-xxxx.labs.rosettacloud.app
+        svc    = svc_name(lab_id)              #  Service we create per lab
+    
+        LOG.info("%s rule %s → %s/%s",
+                 action, host, INGRESS_NAMESPACE, INGRESS_NAME)
+    
         async with self._k8s() as (*_, net):
-            # Get current ingress
-            ing = await asyncio.to_thread(net.read_namespaced_ingress, INGRESS_NAME, NAMESPACE)
-            
-            # Initialize rules list if None
-            if ing.spec.rules is None:
-                ing.spec.rules = []
-                
-            # Host for this lab
-            host = lab_host(lab_id)
-            
-            # Remove existing rule for this host if any
-            ing.spec.rules = [r for r in ing.spec.rules if r.host != host]
-            
-            # Add new rule if requested
+            ing = await asyncio.to_thread(
+                net.read_namespaced_ingress,
+                name      = INGRESS_NAME,
+                namespace = INGRESS_NAMESPACE,
+            )
+    
+            # rules list may be None
+            rules: list[client.V1IngressRule] = ing.spec.rules or []
+            # keep every rule except the one for this host
+            rules = [r for r in rules if r.host != host]
+    
             if add:
-                ing.spec.rules.append(
+                rules.append(
                     client.V1IngressRule(
-                        host=host,
-                        http=client.V1HTTPIngressRuleValue(
-                            paths=[client.V1HTTPIngressPath(
-                                path="/",
-                                path_type="Prefix",
-                                backend=client.V1IngressBackend(
-                                    service=client.V1IngressServiceBackend(
-                                        name=svc_name(lab_id),
-                                        port=client.V1ServiceBackendPort(number=80),
+                        host = host,
+                        http = client.V1HTTPIngressRuleValue(
+                            paths = [
+                                client.V1HTTPIngressPath(
+                                    path="/",
+                                    path_type="Prefix",
+                                    backend=client.V1IngressBackend(
+                                        service=client.V1IngressServiceBackend(
+                                            name = svc,          # Service we just created
+                                            port = client.V1ServiceBackendPort(
+                                                number = 80
+                                            )
+                                        )
                                     )
-                                ),
-                            )]
-                        ),
+                                )
+                            ]
+                        )
                     )
                 )
-                
-            # Update ingress
-            await asyncio.to_thread(net.patch_namespaced_ingress, INGRESS_NAME, NAMESPACE, ing)
-            LOG.info(f"Ingress {action.lower()} for lab {lab_id} completed")
+    
+            ing.spec.rules = rules 
+    
+            await asyncio.to_thread(
+                net.patch_namespaced_ingress,
+                name      = INGRESS_NAME,
+                namespace = INGRESS_NAMESPACE,
+                body      = ing,
+            )
+    
+        LOG.info("%s rule for %s complete (now %d rule(s) total)",
+                 action, host, len(rules))
 
+    
     async def _get_active_pods(self) -> List[int]:
         """Get indices of currently active pods"""
         indices = []
