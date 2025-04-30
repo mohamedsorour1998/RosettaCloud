@@ -1,13 +1,8 @@
 """
-lab_service – unified async interface to interactive labs on EKS.
-
-This module automatically creates and manages:
-----------------------------------------------------------------
-• A StatefulSet to host lab pods
-• One ClusterIP service *per replica* to target every pod exclusively
-• A headless service for stable DNS inside the cluster
-• An Ingress that maps <lab-id>.labs.rosettacloud.app → that replica’s service
-• A Route 53 A-record that points <lab-id>.labs.rosettacloud.app to the ALB
+Interactive-lab back-end for EKS
+--------------------------------
+* single wildcard DNS record – no runtime Route 53 calls
+* resources are created lazily and idempotently
 """
 
 from __future__ import annotations
@@ -19,133 +14,123 @@ import logging
 import os
 import uuid
 from functools import wraps
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-import boto3
-from botocore.exceptions import ClientError
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
-# --------------------------------------------------------------------------- #
-#  CONFIGURATION                                                               #
-# --------------------------------------------------------------------------- #
-NAMESPACE = os.getenv("LAB_K8S_NAMESPACE", "interactive-labs")
-POD_IMAGE = os.getenv(
-    "LAB_POD_IMAGE",
-    "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest",
-)
-WAIT_EKS = int(os.getenv("LAB_WAIT_SECS", "300"))
-IMAGE_PULL_SECRET = os.getenv("LAB_IMAGE_PULL_SECRET", "ecr-creds")
-POD_TTL_SECS = int(os.getenv("LAB_POD_TTL_SECS", "3600"))
-STATEFULSET_NAME = os.getenv("LAB_STATEFULSET_NAME", "interactive-labs")
-HEADLESS_SERVICE_NAME = os.getenv("LAB_HEADLESS_SERVICE_NAME", "interactive-labs-headless")
-INGRESS_NAME = os.getenv("LAB_INGRESS_NAME", "interactive-labs-ingress")
-INGRESS_CLASS = os.getenv("LAB_INGRESS_CLASS", "nginx")
-BASE_DOMAIN = os.getenv("LAB_BASE_DOMAIN", "labs.rosettacloud.app")
-LOADBALANCER_DNS = os.getenv("LAB_LOADBALANCER_DNS", "51.112.10.4")
-ROUTE53_HOSTED_ZONE_ID = os.getenv("LAB_ROUTE53_HOSTED_ZONE_ID", "Z079218314YQ78VCH6R35")
-ROUTE53_TTL = int(os.getenv("LAB_ROUTE53_TTL", "60"))
-DNS_CREATE_RETRY_COUNT = int(os.getenv("LAB_DNS_CREATE_RETRY_COUNT", "3"))
-DNS_CREATE_RETRY_DELAY = int(os.getenv("LAB_DNS_CREATE_RETRY_DELAY", "2"))
-CONCURRENT_TASKS_LIMIT = int(os.getenv("LAB_CONCURRENT_TASKS_LIMIT", "5"))
+# ──────────────────────────────────────────────────────────────────
+# Settings (env-overridable)
+# ──────────────────────────────────────────────────────────────────
+NAMESPACE             = os.getenv("LAB_K8S_NAMESPACE",            "interactive-labs")
+POD_IMAGE             = os.getenv("LAB_POD_IMAGE",                "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
+IMAGE_PULL_SECRET     = os.getenv("LAB_IMAGE_PULL_SECRET",        "ecr-creds")
+WILDCARD_DOMAIN       = os.getenv("LAB_WILDCARD_DOMAIN",          "dev.labs.rosettacloud.app")
+STATEFULSET_NAME      = os.getenv("LAB_STATEFULSET_NAME",         "interactive-labs")
+HEADLESS_SERVICE_NAME = os.getenv("LAB_HEADLESS_SERVICE_NAME",    "interactive-labs-headless")
+INGRESS_NAME          = os.getenv("LAB_INGRESS_NAME",             "interactive-labs-ingress")
+INGRESS_CLASS         = os.getenv("LAB_INGRESS_CLASS",            "nginx")
+POD_TTL_SECS          = int(os.getenv("LAB_POD_TTL_SECS",         "3600"))
+CONCURRENCY           = int(os.getenv("LAB_CONCURRENT_TASKS_LIMIT","5"))
+DEBUG                 = os.getenv("LAB_DEBUG", "").lower() in ("1", "true", "yes")
 
-LOG_EKS = logging.getLogger("lab_service.eks")
+LOG = logging.getLogger("lab_service.eks")
+if DEBUG:
+    logging.basicConfig(level=logging.DEBUG)
+    LOG.setLevel(logging.DEBUG)
 
+# ──────────────────────────────────────────────────────────────────
+# Helper decorators & small helpers
+# ──────────────────────────────────────────────────────────────────
 def retry_async(max_retries=3, delay=1, backoff=2, exceptions=(Exception,)):
-    def decorator(fn):
+    def deco(fn):
         @wraps(fn)
-        async def wrapper(*args, **kw):
+        async def wrap(*args, **kw):
             n, t = 0, delay
             while True:
                 try:
                     return await fn(*args, **kw)
                 except exceptions as e:
                     n += 1
-                    if n > max_retries:
-                        LOG_EKS.error("%s failed after %d retries – %s", fn.__name__, max_retries, e)
+                    if n >= max_retries:
+                        LOG.error(f"Failed after {max_retries} retries: {str(e)}")
                         raise
-                    LOG_EKS.warning("Retrying %s in %ds (%s)", fn.__name__, t, e)
+                    LOG.warning(f"Retrying in {t}s after error: {str(e)}")
                     await asyncio.sleep(t)
                     t *= backoff
+        return wrap
+    return deco
 
-        return wrapper
-    return decorator
+def pod_name(i: int) -> str: return f"{STATEFULSET_NAME}-{i}"
+def svc_name(l: str) -> str: return f"{l}-svc"
+def lab_host(l: str) -> str: return f"{l}.{WILDCARD_DOMAIN}"
 
-def pod_name(idx: int) -> str:
-    return f"{STATEFULSET_NAME}-{idx}"
-
-def svc_name(lab_id: str) -> str:
-    return f"{lab_id}-svc"
-
-def fqdn(lab_id: str) -> str:
-    return f"{lab_id}.{BASE_DOMAIN}."
-
-
+# ──────────────────────────────────────────────────────────────────
+# Back-end class
+# ──────────────────────────────────────────────────────────────────
 class EKSLabs:
     def __init__(self) -> None:
-        self._core: client.CoreV1Api | None = None
-        self._apps: client.AppsV1Api | None = None
-        self._net: client.NetworkingV1Api | None = None
-        self._r53: Any | None = None
-        self._sem = asyncio.Semaphore(CONCURRENT_TASKS_LIMIT)
-        self._active: Dict[str, int] = {}  # lab-id → pod index
-        self._created: Dict[str, float] = {}
-        self._janitor_task: asyncio.Task | None = None
+        LOG.debug("Initializing EKSLabs backend")
+        self._core: Optional[client.CoreV1Api] = None
+        self._apps: Optional[client.AppsV1Api] = None
+        self._net: Optional[client.NetworkingV1Api] = None
+        self._sem = asyncio.Semaphore(CONCURRENCY)
 
-    async def _clients(
-        self,
-    ) -> tuple[client.CoreV1Api, client.AppsV1Api, client.NetworkingV1Api, Any | None]:
-        if not all([self._core, self._apps, self._net]):
-            try:
-                config.load_incluster_config()
-            except Exception:
-                config.load_kube_config()
-            self._core = client.CoreV1Api()
-            self._apps = client.AppsV1Api()
-            self._net = client.NetworkingV1Api()
-            LOG_EKS.info("Kubernetes clients initialised")
-        if not self._r53 and ROUTE53_HOSTED_ZONE_ID:
-            self._r53 = boto3.client("route53")
-        return self._core, self._apps, self._net, self._r53
+        # Lab tracking
+        self._active: Dict[str, int] = {}    # lab_id → replica index
+        self._created: Dict[str, float] = {} # lab_id → epoch secs
+        self._janitor: Optional[asyncio.Task] = None
+        
+        LOG.debug("EKSLabs backend initialized")
+
+    # ──────────────────────────────────────────────────────────────
+    # Kubernetes client plumbing
+    # ──────────────────────────────────────────────────────────────
+    async def _init_clients(self):
+        """Initialize Kubernetes client objects"""
+        LOG.debug("Initializing Kubernetes clients")
+        try:
+            config.load_incluster_config()
+            LOG.info("Loaded in-cluster Kubernetes configuration")
+        except Exception:
+            config.load_kube_config()
+            LOG.info("Loaded local Kubernetes configuration")
+        
+        self._core = client.CoreV1Api()
+        self._apps = client.AppsV1Api()
+        self._net = client.NetworkingV1Api()
+        LOG.debug("Kubernetes clients initialized successfully")
+
+    async def _get_clients(self):
+        """Get or initialize Kubernetes client objects"""
+        if self._core is None or self._apps is None or self._net is None:
+            await self._init_clients()
+        return self._core, self._apps, self._net
 
     @contextlib.asynccontextmanager
     async def _k8s(self):
+        """Context manager to get Kubernetes clients with concurrency control"""
         async with self._sem:
-            try:
-                yield await self._clients()
-            except ApiException as e:
-                LOG_EKS.error("Kubernetes API error: %s", e)
-                raise
+            yield await self._get_clients()
 
-    async def init(self) -> None:
-        await self._clients()
-        await asyncio.gather(
-            self._ensure_statefulset(),
-            self._ensure_headless(),
-            self._ensure_ingress(),
-        )
-        self._janitor_task = asyncio.create_task(self._janitor())
-        LOG_EKS.info("EKSLabs backend READY")
-
-    async def close(self) -> None:
-        if self._janitor_task:
-            self._janitor_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._janitor_task
-
-    # ---------------------- resource: StatefulSet -------------------------- #
-    @retry_async(max_retries=3, exceptions=(ApiException,))
+    # ──────────────────────────────────────────────────────────────
+    # Resource bootstrap (idempotent)
+    # ──────────────────────────────────────────────────────────────
+    @retry_async(exceptions=(ApiException,))
     async def _ensure_statefulset(self):
-        async with self._k8s() as (_, apps, __, ___):
+        """Ensure the StatefulSet exists, creating it if necessary"""
+        LOG.info(f"Ensuring StatefulSet {STATEFULSET_NAME} exists")
+        async with self._k8s() as (_, apps, _):
             try:
-                await asyncio.to_thread(
-                    apps.read_namespaced_stateful_set, STATEFULSET_NAME, NAMESPACE
-                )
+                await asyncio.to_thread(apps.read_namespaced_stateful_set, STATEFULSET_NAME, NAMESPACE)
+                LOG.debug(f"StatefulSet {STATEFULSET_NAME} already exists")
                 return
             except ApiException as e:
                 if e.status != 404:
                     raise
-            sts = client.V1StatefulSet(
+                LOG.info(f"Creating StatefulSet {STATEFULSET_NAME}")
+            
+            body = client.V1StatefulSet(
                 metadata=client.V1ObjectMeta(
                     name=STATEFULSET_NAME,
                     namespace=NAMESPACE,
@@ -154,173 +139,180 @@ class EKSLabs:
                 spec=client.V1StatefulSetSpec(
                     service_name=HEADLESS_SERVICE_NAME,
                     replicas=0,
-                    selector=client.V1LabelSelector(
-                        match_labels={"app": "interactive-labs"}
-                    ),
+                    selector=client.V1LabelSelector(match_labels={"app": "interactive-labs"}),
                     template=client.V1PodTemplateSpec(
-                        metadata=client.V1ObjectMeta(
-                            labels={"app": "interactive-labs"}
-                        ),
+                        metadata=client.V1ObjectMeta(labels={"app": "interactive-labs"}),
                         spec=client.V1PodSpec(
-                            containers=[
-                                client.V1Container(
-                                    name="lab",
-                                    image=POD_IMAGE,
-                                    ports=[client.V1ContainerPort(container_port=80)],
-                                    resources=client.V1ResourceRequirements(
-                                        requests={"cpu": "100m", "memory": "256Mi"},
-                                        limits={"cpu": "1", "memory": "1Gi"},
+                            containers=[client.V1Container(
+                                name="lab",
+                                image=POD_IMAGE,
+                                ports=[client.V1ContainerPort(container_port=80)],
+                                readiness_probe=client.V1Probe(
+                                    http_get=client.V1HTTPGetAction(
+                                        path="/",
+                                        port=80
                                     ),
-                                )
-                            ],
-                            image_pull_secrets=[
-                                client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)
-                            ]
-                            if IMAGE_PULL_SECRET
-                            else None,
+                                    initial_delay_seconds=5,
+                                    period_seconds=5,
+                                    timeout_seconds=3,
+                                    failure_threshold=3,
+                                ),
+                            )],
+                            image_pull_secrets=[client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)] if IMAGE_PULL_SECRET else None,
                         ),
                     ),
                 ),
             )
-            await asyncio.to_thread(
-                apps.create_namespaced_stateful_set, NAMESPACE, sts
-            )
-            LOG_EKS.info("StatefulSet %s created", STATEFULSET_NAME)
+            await asyncio.to_thread(apps.create_namespaced_stateful_set, NAMESPACE, body)
+            LOG.info(f"Created StatefulSet {STATEFULSET_NAME}")
 
-    # ------------------------ resource: headless svc ----------------------- #
-    @retry_async(max_retries=3, exceptions=(ApiException,))
+    @retry_async(exceptions=(ApiException,))
     async def _ensure_headless(self):
+        """Ensure the headless service exists, creating it if necessary"""
+        LOG.info(f"Ensuring headless service {HEADLESS_SERVICE_NAME} exists")
         async with self._k8s() as (core, *_):
             try:
-                await asyncio.to_thread(
-                    core.read_namespaced_service, HEADLESS_SERVICE_NAME, NAMESPACE
-                )
+                await asyncio.to_thread(core.read_namespaced_service, HEADLESS_SERVICE_NAME, NAMESPACE)
+                LOG.debug(f"Headless service {HEADLESS_SERVICE_NAME} already exists")
                 return
             except ApiException as e:
                 if e.status != 404:
                     raise
-            svc = client.V1Service(
-                metadata=client.V1ObjectMeta(
-                    name=HEADLESS_SERVICE_NAME,
-                    namespace=NAMESPACE,
-                    labels={"app": "interactive-labs"},
-                ),
+                LOG.info(f"Creating headless service {HEADLESS_SERVICE_NAME}")
+            
+            body = client.V1Service(
+                metadata=client.V1ObjectMeta(name=HEADLESS_SERVICE_NAME, namespace=NAMESPACE),
                 spec=client.V1ServiceSpec(
                     selector={"app": "interactive-labs"},
-                    ports=[client.V1ServicePort(port=80, target_port=80)],
-                    cluster_ip="None",  # headless
+                    cluster_ip="None",
                     publish_not_ready_addresses=True,
+                    ports=[client.V1ServicePort(port=80, target_port=80)],
                 ),
             )
-            await asyncio.to_thread(core.create_namespaced_service, NAMESPACE, svc)
-            LOG_EKS.info("Headless service %s created", HEADLESS_SERVICE_NAME)
+            await asyncio.to_thread(core.create_namespaced_service, NAMESPACE, body)
+            LOG.info(f"Created headless service {HEADLESS_SERVICE_NAME}")
 
-    # --------------------------- resource: ingress ------------------------- #
-    @retry_async(max_retries=3, exceptions=(ApiException,))
+    @retry_async(exceptions=(ApiException,))
     async def _ensure_ingress(self):
-        async with self._k8s() as (*_, net, __):
+        """Ensure the ingress exists, creating it if necessary"""
+        LOG.info(f"Ensuring ingress {INGRESS_NAME} exists")
+        async with self._k8s() as (*_, net):
             try:
-                await asyncio.to_thread(
-                    net.read_namespaced_ingress, INGRESS_NAME, NAMESPACE
-                )
+                await asyncio.to_thread(net.read_namespaced_ingress, INGRESS_NAME, NAMESPACE)
+                LOG.debug(f"Ingress {INGRESS_NAME} already exists")
                 return
             except ApiException as e:
                 if e.status != 404:
                     raise
-            ing = client.V1Ingress(
+                LOG.info(f"Creating ingress {INGRESS_NAME}")
+            
+            body = client.V1Ingress(
                 metadata=client.V1ObjectMeta(
                     name=INGRESS_NAME,
                     namespace=NAMESPACE,
-                    labels={"app": "interactive-labs"},
                     annotations={
                         "kubernetes.io/ingress.class": INGRESS_CLASS,
                         "nginx.ingress.kubernetes.io/ssl-redirect": "true",
                     },
                 ),
                 spec=client.V1IngressSpec(
-                    default_backend=client.V1IngressBackend(
-                        service=client.V1IngressServiceBackend(
-                            name=HEADLESS_SERVICE_NAME,
-                            port=client.V1ServiceBackendPort(number=80),
-                        )
-                    ),
-                    tls=[
-                        client.V1IngressTLS(
-                            hosts=[f"*.{BASE_DOMAIN}"],
-                            secret_name=f"{INGRESS_NAME}-tls",
-                        )
-                    ],
+                    tls=[client.V1IngressTLS(
+                        hosts=[f"*.{WILDCARD_DOMAIN}"],
+                        secret_name=f"{INGRESS_NAME}-tls",
+                    )],
+                    rules=[], # We'll add rules as labs are created
                 ),
             )
-            await asyncio.to_thread(net.create_namespaced_ingress, NAMESPACE, ing)
-            LOG_EKS.info("Ingress %s created", INGRESS_NAME)
+            await asyncio.to_thread(net.create_namespaced_ingress, NAMESPACE, body)
+            LOG.info(f"Created ingress {INGRESS_NAME}")
 
-    # ---------------------------- Route 53 --------------------------------- #
-    async def _wait_change(self, change_id: str):
-        if self._r53:
-            waiter = self._r53.get_waiter("resource_record_sets_changed")
-            await asyncio.to_thread(waiter.wait, Id=change_id)
+    # ──────────────────────────────────────────────────────────────
+    # Lifecycle
+    # ──────────────────────────────────────────────────────────────
+    async def init(self):
+        """Initialize the backend"""
+        LOG.info("Initializing EKS lab backend")
+        await self._init_clients()
+        try:
+            await asyncio.gather(
+                self._ensure_statefulset(),
+                self._ensure_headless(),
+                self._ensure_ingress(),
+            )
+            self._janitor = asyncio.create_task(self._janitor_loop())
+            LOG.info("EKS lab backend initialized successfully")
+        except Exception as e:
+            LOG.error(f"Failed to initialize EKS lab backend: {e}")
+            raise
 
-    @retry_async(
-        max_retries=DNS_CREATE_RETRY_COUNT,
-        delay=DNS_CREATE_RETRY_DELAY,
-        exceptions=(ClientError,),
-    )
-    async def _r53_upsert(self, lab_id: str):
-        if not all([ROUTE53_HOSTED_ZONE_ID, LOADBALANCER_DNS, self._r53]):
-            return
-        resp = await asyncio.to_thread(
-            self._r53.change_resource_record_sets,
-            HostedZoneId=ROUTE53_HOSTED_ZONE_ID,
-            ChangeBatch={
-                "Changes": [
-                    {
-                        "Action": "UPSERT",
-                        "ResourceRecordSet": {
-                            "Name": fqdn(lab_id),
-                            "Type": "A",
-                            "TTL": ROUTE53_TTL,
-                            "ResourceRecords": [{"Value": LOADBALANCER_DNS}],
-                        },
-                    }
-                ]
-            },
-        )
-        await self._wait_change(resp["ChangeInfo"]["Id"])
+    async def close(self):
+        """Shutdown the backend"""
+        LOG.info("Shutting down EKS lab backend")
+        if self._janitor:
+            self._janitor.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._janitor
+        LOG.info("EKS lab backend shut down")
 
-    @retry_async(
-        max_retries=DNS_CREATE_RETRY_COUNT,
-        delay=DNS_CREATE_RETRY_DELAY,
-        exceptions=(ClientError,),
-    )
-    async def _r53_delete(self, lab_id: str):
-        if not all([ROUTE53_HOSTED_ZONE_ID, LOADBALANCER_DNS, self._r53]):
-            return
-        resp = await asyncio.to_thread(
-            self._r53.change_resource_record_sets,
-            HostedZoneId=ROUTE53_HOSTED_ZONE_ID,
-            ChangeBatch={
-                "Changes": [
-                    {
-                        "Action": "DELETE",
-                        "ResourceRecordSet": {
-                            "Name": fqdn(lab_id),
-                            "Type": "A",
-                            "TTL": ROUTE53_TTL,
-                            "ResourceRecords": [{"Value": LOADBALANCER_DNS}],
-                        },
-                    }
-                ]
-            },
-        )
-        await self._wait_change(resp["ChangeInfo"]["Id"])
+    # ──────────────────────────────────────────────────────────────
+    # Internal helpers
+    # ──────────────────────────────────────────────────────────────
+    @retry_async(exceptions=(ApiException, RuntimeError))
+    async def _scale(self, replicas: int):
+        """Scale the StatefulSet to the desired number of replicas"""
+        LOG.info(f"Scaling StatefulSet to {replicas} replicas")
+        if replicas < 0:
+            replicas = 0
+            
+        async with self._k8s() as (_, apps, _):
+            # First check current replicas
+            sts = await asyncio.to_thread(apps.read_namespaced_stateful_set, STATEFULSET_NAME, NAMESPACE)
+            current = sts.spec.replicas or 0
+            
+            if current == replicas:
+                LOG.debug(f"StatefulSet already has {replicas} replicas, no scaling needed")
+                return
+                
+            # Scale the StatefulSet
+            patch_body = {"spec": {"replicas": replicas}}
+            await asyncio.to_thread(
+                apps.patch_namespaced_stateful_set,
+                name=STATEFULSET_NAME,
+                namespace=NAMESPACE,
+                body=patch_body,
+            )
+            
+            # Wait for pods to be ready if scaling up
+            if replicas > current:
+                LOG.debug(f"Waiting for StatefulSet to scale up to {replicas} replicas")
+                deadline = dt.datetime.now(dt.timezone.utc).timestamp() + 60
+                while dt.datetime.now(dt.timezone.utc).timestamp() < deadline:
+                    sts = await asyncio.to_thread(apps.read_namespaced_stateful_set, STATEFULSET_NAME, NAMESPACE)
+                    ready = sts.status.ready_replicas or 0
+                    LOG.debug(f"StatefulSet has {ready}/{replicas} ready replicas")
+                    if ready >= replicas:
+                        LOG.info(f"StatefulSet successfully scaled to {replicas} replicas")
+                        return
+                    await asyncio.sleep(2)
+                
+                # If we get here, timeout occurred
+                msg = f"Timed out waiting for StatefulSet to scale to {replicas} replicas"
+                LOG.error(msg)
+                raise RuntimeError(msg)
+            else:
+                LOG.info(f"StatefulSet scaling down to {replicas} replicas initiated")
 
-    # --------------- per-replica ClusterIP service helpers ---------------- #
-    async def _create_lab_svc(self, lab_id: str, idx: int) -> str:
-        name = svc_name(lab_id)
+    @retry_async(exceptions=(ApiException,))
+    async def _create_lab_svc(self, lab_id: str, idx: int):
+        """Create a Service for the lab"""
+        LOG.info(f"Creating service for lab {lab_id} pointing to pod index {idx}")
         async with self._k8s() as (core, *_):
             body = client.V1Service(
-                metadata=client.V1ObjectMeta(name=name, namespace=NAMESPACE),
+                metadata=client.V1ObjectMeta(
+                    name=svc_name(lab_id), 
+                    namespace=NAMESPACE,
+                    labels={"app": "interactive-labs", "lab-id": lab_id}
+                ),
                 spec=client.V1ServiceSpec(
                     selector={"statefulset.kubernetes.io/pod-name": pod_name(idx)},
                     ports=[client.V1ServicePort(port=80, target_port=80)],
@@ -329,114 +321,293 @@ class EKSLabs:
             )
             try:
                 await asyncio.to_thread(core.create_namespaced_service, NAMESPACE, body)
+                LOG.info(f"Service for lab {lab_id} created successfully")
             except ApiException as e:
-                if e.status != 409:
+                if e.status != 409:  # Already exists
                     raise
-        return name
+                LOG.warning(f"Service for lab {lab_id} already exists")
 
+    @retry_async(exceptions=(ApiException,))
     async def _delete_lab_svc(self, lab_id: str):
-        name = svc_name(lab_id)
+        """Delete the Service for a lab"""
+        LOG.info(f"Deleting service for lab {lab_id}")
         async with self._k8s() as (core, *_):
-            with contextlib.suppress(ApiException):
-                await asyncio.to_thread(core.delete_namespaced_service, name, NAMESPACE)
+            try:
+                await asyncio.to_thread(core.delete_namespaced_service, svc_name(lab_id), NAMESPACE)
+                LOG.info(f"Service for lab {lab_id} deleted successfully")
+            except ApiException as e:
+                if e.status != 404:  # Not found
+                    raise
+                LOG.warning(f"Service for lab {lab_id} not found, may have been already deleted")
 
-    # --------------------------- Ingress patch ----------------------------- #
-    async def _patch_ingress(self, lab_id: str, service: str, action: str):
-        async with self._k8s() as (*_, net, __):
-            ing = await asyncio.to_thread(
-                net.read_namespaced_ingress, INGRESS_NAME, NAMESPACE
-            )
-            ing.spec.rules = ing.spec.rules or []
-            host = f"{lab_id}.{BASE_DOMAIN}"
+    @retry_async(exceptions=(ApiException,))
+    async def _patch_ingress(self, lab_id: str, add: bool):
+        """Add or remove an ingress rule for a lab"""
+        action = "Adding" if add else "Removing"
+        LOG.info(f"{action} ingress rule for lab {lab_id}")
+        
+        async with self._k8s() as (*_, net):
+            # Get current ingress
+            ing = await asyncio.to_thread(net.read_namespaced_ingress, INGRESS_NAME, NAMESPACE)
+            
+            # Initialize rules list if None
+            if ing.spec.rules is None:
+                ing.spec.rules = []
+                
+            # Host for this lab
+            host = lab_host(lab_id)
+            
+            # Remove existing rule for this host if any
             ing.spec.rules = [r for r in ing.spec.rules if r.host != host]
-            if action == "add":
+            
+            # Add new rule if requested
+            if add:
                 ing.spec.rules.append(
                     client.V1IngressRule(
                         host=host,
                         http=client.V1HTTPIngressRuleValue(
-                            paths=[
-                                client.V1HTTPIngressPath(
-                                    path="/",
-                                    path_type="Prefix",
-                                    backend=client.V1IngressBackend(
-                                        service=client.V1IngressServiceBackend(
-                                            name=service,
-                                            port=client.V1ServiceBackendPort(number=80),
-                                        )
-                                    ),
-                                )
-                            ]
+                            paths=[client.V1HTTPIngressPath(
+                                path="/",
+                                path_type="Prefix",
+                                backend=client.V1IngressBackend(
+                                    service=client.V1IngressServiceBackend(
+                                        name=svc_name(lab_id),
+                                        port=client.V1ServiceBackendPort(number=80),
+                                    )
+                                ),
+                            )]
                         ),
                     )
                 )
-            await asyncio.to_thread(
-                net.patch_namespaced_ingress, INGRESS_NAME, NAMESPACE, ing
-            )
+                
+            # Update ingress
+            await asyncio.to_thread(net.patch_namespaced_ingress, INGRESS_NAME, NAMESPACE, ing)
+            LOG.info(f"Ingress {action.lower()} for lab {lab_id} completed")
 
-    # ----------------------- StatefulSet scaling --------------------------- #
-    async def _scale(self, replicas: int):
-        async with self._k8s() as (_, apps, __, ___):
-            sts = await asyncio.to_thread(
-                apps.read_namespaced_stateful_set, STATEFULSET_NAME, NAMESPACE
-            )
-            if sts.spec.replicas != replicas:
-                sts.spec.replicas = replicas
-                await asyncio.to_thread(
-                    apps.patch_namespaced_stateful_set, STATEFULSET_NAME, NAMESPACE, sts
+    async def _get_active_pods(self) -> List[int]:
+        """Get indices of currently active pods"""
+        indices = []
+        try:
+            async with self._k8s() as (core, *_):
+                pods = await asyncio.to_thread(
+                    core.list_namespaced_pod,
+                    namespace=NAMESPACE,
+                    label_selector="app=interactive-labs"
                 )
-                LOG_EKS.info("Scaled %s → %d", STATEFULSET_NAME, replicas)
+                
+                for pod in pods.items:
+                    if pod.metadata.name.startswith(f"{STATEFULSET_NAME}-"):
+                        try:
+                            idx = int(pod.metadata.name.split('-')[-1])
+                            indices.append(idx)
+                        except (ValueError, IndexError):
+                            pass
+        except Exception as e:
+            LOG.error(f"Error getting active pods: {e}")
+            
+        return indices
 
-    # ----------------------------- public API ------------------------------ #
-    async def launch(self, *, tag: str | None = None) -> str:
-        lab_id = tag or f"lab-{uuid.uuid4().hex[:8]}"
-        idx = len(self._active)
-        await self._scale(idx + 1)
-        await self._create_lab_svc(lab_id, idx)
-        await self._patch_ingress(lab_id, svc_name(lab_id), "add")
-        await self._r53_upsert(lab_id)
-        self._active[lab_id] = idx
-        self._created[lab_id] = dt.datetime.now(dt.timezone.utc).timestamp()
-        return lab_id
+    async def _find_available_index(self) -> int:
+        """Find the next available pod index"""
+        # Get currently active indices
+        active_indices = set(await self._get_active_pods())
+        
+        # Find lowest unused index
+        idx = 0
+        while idx in active_indices:
+            idx += 1
+            
+        LOG.debug(f"Found available pod index: {idx}")
+        return idx
 
-    async def stop(self, lab_id: str) -> bool:
-        idx = self._active.pop(lab_id, None)
-        if idx is None:
-            return False
-        self._created.pop(lab_id, None)
-        await asyncio.gather(
-            self._patch_ingress(lab_id, svc_name(lab_id), "remove"),
-            self._delete_lab_svc(lab_id),
-            self._r53_delete(lab_id),
-        )
-        if idx == max(self._active.values(), default=-1):
-            await self._scale(idx)
-        return True
-
-    async def get_ip(self, lab_id: str) -> Optional[str]:
-        return f"{lab_id}.{BASE_DOMAIN}" if lab_id in self._active else None
-
-    async def get_time_remaining(self, lab_id: str) -> Optional[Dict[str, int]]:
+    async def _time_left(self, lab_id: str) -> Optional[Dict[str, int]]:
+        """Calculate time remaining for a lab"""
         ts = self._created.get(lab_id)
         if ts is None:
             return None
-        remaining = max(0, POD_TTL_SECS - int(dt.datetime.now(dt.timezone.utc).timestamp() - ts))
-        return {"minutes": remaining // 60, "seconds": remaining % 60, "total_seconds": remaining}
+            
+        now = dt.datetime.now(dt.timezone.utc).timestamp()
+        left = max(0, POD_TTL_SECS - int(now - ts))
+        
+        return {
+            "minutes": left // 60,
+            "seconds": left % 60,
+            "total_seconds": left
+        }
 
-    # ------------------------- background janitor -------------------------- #
-    async def _janitor(self):
+    # ──────────────────────────────────────────────────────────────
+    # Public API
+    # ──────────────────────────────────────────────────────────────
+    async def launch(self, *, tag: str | None = None) -> str:
+        """Launch a new lab pod and return its ID"""
+        LOG.info("Launching new lab pod")
+        
+        # Generate lab ID if not provided
+        lab_id = tag or f"lab-{uuid.uuid4().hex[:8]}"
+        LOG.debug(f"Using lab ID: {lab_id}")
+        
+        try:
+            # Ensure required resources exist
+            await self._ensure_statefulset()
+            
+            # Find available pod index
+            idx = await self._find_available_index()
+            LOG.debug(f"Using pod index {idx} for lab {lab_id}")
+            
+            # Scale up if needed
+            max_index = max(self._active.values(), default=-1)
+            if idx > max_index:
+                await self._scale(idx + 1)
+            
+            # Create service and patch ingress
+            await self._create_lab_svc(lab_id, idx)
+            await self._patch_ingress(lab_id, add=True)
+            
+            # Register lab
+            self._active[lab_id] = idx
+            self._created[lab_id] = dt.datetime.now(dt.timezone.utc).timestamp()
+            
+            LOG.info(f"Lab {lab_id} launched successfully with pod index {idx}")
+            return lab_id
+            
+        except Exception as e:
+            LOG.error(f"Failed to launch lab: {e}")
+            # Clean up any partial resources that may have been created
+            with contextlib.suppress(Exception):
+                await self.stop(lab_id)
+            raise RuntimeError(f"Failed to launch lab: {str(e)}")
+
+    async def stop(self, lab_id: str) -> bool:
+        """Stop a lab pod"""
+        LOG.info(f"Stopping lab: {lab_id}")
+        
+        # Check if lab exists
+        idx = self._active.pop(lab_id, None)
+        if idx is None:
+            LOG.warning(f"Lab {lab_id} not found, cannot stop")
+            return False
+            
+        # Remove from created list
+        self._created.pop(lab_id, None)
+        
+        try:
+            # Remove from ingress and delete service
+            await self._patch_ingress(lab_id, add=False)
+            await self._delete_lab_svc(lab_id)
+            
+            # Scale down if this was the highest indexed pod
+            highest_idx = max(self._active.values(), default=-1)
+            if idx > highest_idx:
+                await self._scale(highest_idx + 1)
+                
+            LOG.info(f"Lab {lab_id} stopped successfully")
+            return True
+            
+        except Exception as e:
+            # Put back in active list if cleanup failed
+            self._active[lab_id] = idx
+            LOG.error(f"Error stopping lab {lab_id}: {e}")
+            return False
+
+    async def get_lab_info(self, lab_id: str) -> Optional[Dict[str, Any]]:
+        """Get information about a lab"""
+        LOG.debug(f"Getting info for lab: {lab_id}")
+        
+        # Check if lab exists
+        idx = self._active.get(lab_id)
+        if idx is None:
+            LOG.debug(f"Lab {lab_id} not found")
+            return None
+
+        # Host information
+        hostname = lab_host(lab_id)
+        url = f"https://{hostname}"
+        
+        # Pod status
+        pod_ip = None
+        status = "unknown"
+        try:
+            async with self._k8s() as (core, *_):
+                pod = await asyncio.to_thread(
+                    core.read_namespaced_pod,
+                    pod_name(idx),
+                    NAMESPACE
+                )
+                status = (pod.status.phase or "unknown").lower()
+                pod_ip = pod.status.pod_ip
+                
+                # Check if running but not ready
+                if status == "running":
+                    if not pod.status.conditions:
+                        status = "starting"
+                    else:
+                        ready = False
+                        for cond in pod.status.conditions:
+                            if cond.type == "Ready" and cond.status == "True":
+                                ready = True
+                                break
+                        if not ready:
+                            status = "starting"
+                
+        except ApiException as e:
+            LOG.error(f"Error getting pod status for lab {lab_id}: {e}")
+            status = f"error-{e.status}"
+        
+        # Return info
+        return {
+            "lab_id": lab_id,
+            "hostname": hostname,
+            "url": url,
+            "pod_ip": pod_ip,
+            "status": status,
+            "index": idx,
+            "time_remaining": await self._time_left(lab_id),
+            "domain": WILDCARD_DOMAIN
+        }
+
+    async def get_ip(self, lab_id: str) -> Optional[str]:
+        """Get the hostname for a lab"""
+        if lab_id not in self._active:
+            return None
+        return lab_host(lab_id)
+
+    async def get_time_remaining(self, lab_id: str) -> Optional[Dict[str, int]]:
+        """Get time remaining before automatic termination"""
+        return await self._time_left(lab_id)
+
+    # ──────────────────────────────────────────────────────────────
+    # Background janitor
+    # ──────────────────────────────────────────────────────────────
+    async def _janitor_loop(self):
+        """Background task to clean up expired labs"""
+        LOG.info("Starting janitor loop")
         while True:
             try:
                 now = dt.datetime.now(dt.timezone.utc).timestamp()
-                for lab_id, ct in list(self._created.items()):
-                    if now - ct > POD_TTL_SECS:
+                
+                # Find expired labs
+                expired = []
+                for lab_id, created_at in list(self._created.items()):
+                    if now - created_at > POD_TTL_SECS:
+                        LOG.info(f"Lab {lab_id} has expired (created {int(now - created_at)}s ago)")
+                        expired.append(lab_id)
+                
+                # Stop expired labs
+                for lab_id in expired:
+                    try:
                         await self.stop(lab_id)
+                    except Exception as e:
+                        LOG.error(f"Error stopping expired lab {lab_id}: {e}")
+                
             except Exception as e:
-                LOG_EKS.error("Janitor error: %s", e)
+                LOG.error(f"Error in janitor loop: {e}")
+                
+            # Wait before next check
             await asyncio.sleep(60)
 
-
-# --------------------------------------------------------------------------- #
-#  FACTORY                                                                    #
-# --------------------------------------------------------------------------- #
-def get_eks_backend():
+# ──────────────────────────────────────────────────────────────────
+# Factory
+# ──────────────────────────────────────────────────────────────────
+def get_eks_backend() -> EKSLabs:
+    """Create and return an EKSLabs backend instance"""
     return EKSLabs()
