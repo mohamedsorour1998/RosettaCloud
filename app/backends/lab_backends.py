@@ -21,11 +21,10 @@ NAMESPACE             = os.getenv("LAB_K8S_NAMESPACE",            "openedx")
 INGRESS_NAMESPACE     = os.getenv("LAB_INGRESS_NAMESPACE",     NAMESPACE)
 INGRESS_NAME          = os.getenv("LAB_INGRESS_NAME",          "caddy-ingress")
 POD_IMAGE             = os.getenv("LAB_POD_IMAGE",                "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
-IMAGE_PULL_SECRET = os.getenv("LAB_IMAGE_PULL_SECRET")
+IMAGE_PULL_SECRET     = os.getenv("LAB_IMAGE_PULL_SECRET",        "ecr-creds")
 WILDCARD_DOMAIN       = os.getenv("LAB_WILDCARD_DOMAIN",          "dev.labs.rosettacloud.app")
 STATEFULSET_NAME      = os.getenv("LAB_STATEFULSET_NAME",         "interactive-labs")
 HEADLESS_SERVICE_NAME = os.getenv("LAB_HEADLESS_SERVICE_NAME",    "interactive-labs-headless")
-INGRESS_NAME          = os.getenv("LAB_INGRESS_NAME",             "interactive-labs-ingress")
 INGRESS_CLASS         = os.getenv("LAB_INGRESS_CLASS",            "nginx")
 POD_TTL_SECS          = int(os.getenv("LAB_POD_TTL_SECS",         "3600"))
 CONCURRENCY           = int(os.getenv("LAB_CONCURRENT_TASKS_LIMIT","5"))
@@ -143,11 +142,7 @@ class EKSLabs:
                                     failure_threshold=3,
                                 ),
                             )],
-                            image_pull_secrets=(
-                               [client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)]
-                               if IMAGE_PULL_SECRET
-                               else None
-    ),
+                            image_pull_secrets=[client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)] if IMAGE_PULL_SECRET else None,
                         ),
                     ),
                 ),
