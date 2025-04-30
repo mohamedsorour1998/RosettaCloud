@@ -114,7 +114,7 @@ async def new_lab(request: LaunchLabRequest):
     user_id = request.user_id
     # Check if the user already has an active lab in the cache
     active_lab = await cache_events.get("active_labs", user_id)
-    if active_lab:
+    if active_lab and active_lab != "null":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You already have an active lab. Please terminate the existing lab first."
