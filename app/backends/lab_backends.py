@@ -558,7 +558,7 @@ class EKSLabs:
             "lab_id": lab_id,
             "hostname": hostname,
             "url": url,
-            "pod_ip": pod_ip,
+            "pod_ip": hostname,
             "status": status,
             "index": idx,
             "time_remaining": await self._time_left(lab_id),

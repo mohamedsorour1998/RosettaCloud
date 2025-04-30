@@ -112,8 +112,6 @@ class ErrorResponse(BaseModel):
 @app.post("/labs", status_code=201, response_model=LabCreationResponse, tags=["Labs"])
 async def new_lab(request: LaunchLabRequest):
     user_id = request.user_id
-    # temporarily set the user_id in the cache to allow multiple labs
-    await cache_events.set("active_labs", user_id, "")
     # Check if the user already has an active lab in the cache
     active_lab = await cache_events.get("active_labs", user_id)
     if active_lab:
