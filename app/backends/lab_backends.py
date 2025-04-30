@@ -22,7 +22,7 @@ from kubernetes.client.rest import ApiException
 # ──────────────────────────────────────────────────────────────────
 # Settings (env-overridable)
 # ──────────────────────────────────────────────────────────────────
-NAMESPACE             = os.getenv("LAB_K8S_NAMESPACE",            "interactive-labs")
+NAMESPACE             = os.getenv("LAB_K8S_NAMESPACE",            "openedx")
 INGRESS_NAMESPACE     = os.getenv("LAB_INGRESS_NAMESPACE",     NAMESPACE)
 INGRESS_NAME          = os.getenv("LAB_INGRESS_NAME",          "caddy-ingress")
 POD_IMAGE             = os.getenv("LAB_POD_IMAGE",                "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
