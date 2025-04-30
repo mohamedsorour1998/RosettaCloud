@@ -194,18 +194,20 @@ class EKSLabs:
 
     @retry_async(exceptions=(ApiException,))
     async def _ensure_ingress(self):
-        """Ensure the ingress exists, creating it if necessary"""
-        LOG.info(f"Ensuring ingress {INGRESS_NAME} exists")
+        LOG.info("Ensuring ingress %s exists", INGRESS_NAME)
+    
         async with self._k8s() as (*_, net):
             try:
-                await asyncio.to_thread(net.read_namespaced_ingress, INGRESS_NAME, NAMESPACE)
-                LOG.debug(f"Ingress {INGRESS_NAME} already exists")
+                await asyncio.to_thread(
+                    net.read_namespaced_ingress, INGRESS_NAME, NAMESPACE
+                )
+                LOG.debug("Ingress %s already exists", INGRESS_NAME)
                 return
             except ApiException as e:
                 if e.status != 404:
                     raise
-                LOG.info(f"Creating ingress {INGRESS_NAME}")
-            
+                LOG.info("Creating ingress %s", INGRESS_NAME)
+    
             body = client.V1Ingress(
                 metadata=client.V1ObjectMeta(
                     name=INGRESS_NAME,
@@ -216,15 +218,26 @@ class EKSLabs:
                     },
                 ),
                 spec=client.V1IngressSpec(
-                    tls=[client.V1IngressTLS(
-                        hosts=[f"*.{WILDCARD_DOMAIN}"],
-                        secret_name=f"{INGRESS_NAME}-tls",
-                    )],
-                    rules=[], # We'll add rules as labs are created
+                    default_backend=client.V1IngressBackend(
+                        service=client.V1IngressServiceBackend(
+                            name=HEADLESS_SERVICE_NAME,
+                            port=client.V1ServiceBackendPort(number=80),
+                        )
+                    ),
+                    tls=[
+                        client.V1IngressTLS(
+                            hosts=[f"*.{WILDCARD_DOMAIN}"],
+                            secret_name=f"{INGRESS_NAME}-tls",
+                        )
+                    ],
+                    rules=[],
                 ),
             )
-            await asyncio.to_thread(net.create_namespaced_ingress, NAMESPACE, body)
-            LOG.info(f"Created ingress {INGRESS_NAME}")
+    
+            await asyncio.to_thread(
+                net.create_namespaced_ingress, NAMESPACE, body
+            )
+            LOG.info("Created ingress %s", INGRESS_NAME)
 
     # ──────────────────────────────────────────────────────────────
     # Lifecycle
@@ -435,35 +448,26 @@ class EKSLabs:
             "total_seconds": left
         }
 
-    # ──────────────────────────────────────────────────────────────
-    # Public API
-    # ──────────────────────────────────────────────────────────────
     async def launch(self, *, tag: str | None = None) -> str:
         """Launch a new lab pod and return its ID"""
         LOG.info("Launching new lab pod")
         
-        # Generate lab ID if not provided
         lab_id = tag or f"lab-{uuid.uuid4().hex[:8]}"
         LOG.debug(f"Using lab ID: {lab_id}")
         
         try:
-            # Ensure required resources exist
             await self._ensure_statefulset()
             
-            # Find available pod index
             idx = await self._find_available_index()
             LOG.debug(f"Using pod index {idx} for lab {lab_id}")
             
-            # Scale up if needed
             max_index = max(self._active.values(), default=-1)
             if idx > max_index:
                 await self._scale(idx + 1)
             
-            # Create service and patch ingress
             await self._create_lab_svc(lab_id, idx)
             await self._patch_ingress(lab_id, add=True)
             
-            # Register lab
             self._active[lab_id] = idx
             self._created[lab_id] = dt.datetime.now(dt.timezone.utc).timestamp()
             
@@ -472,7 +476,6 @@ class EKSLabs:
             
         except Exception as e:
             LOG.error(f"Failed to launch lab: {e}")
-            # Clean up any partial resources that may have been created
             with contextlib.suppress(Exception):
                 await self.stop(lab_id)
             raise RuntimeError(f"Failed to launch lab: {str(e)}")
@@ -481,21 +484,17 @@ class EKSLabs:
         """Stop a lab pod"""
         LOG.info(f"Stopping lab: {lab_id}")
         
-        # Check if lab exists
         idx = self._active.pop(lab_id, None)
         if idx is None:
             LOG.warning(f"Lab {lab_id} not found, cannot stop")
             return False
             
-        # Remove from created list
         self._created.pop(lab_id, None)
         
         try:
-            # Remove from ingress and delete service
             await self._patch_ingress(lab_id, add=False)
             await self._delete_lab_svc(lab_id)
             
-            # Scale down if this was the highest indexed pod
             highest_idx = max(self._active.values(), default=-1)
             if idx > highest_idx:
                 await self._scale(highest_idx + 1)
@@ -510,20 +509,16 @@ class EKSLabs:
             return False
 
     async def get_lab_info(self, lab_id: str) -> Optional[Dict[str, Any]]:
-        """Get information about a lab"""
         LOG.debug(f"Getting info for lab: {lab_id}")
         
-        # Check if lab exists
         idx = self._active.get(lab_id)
         if idx is None:
             LOG.debug(f"Lab {lab_id} not found")
             return None
 
-        # Host information
         hostname = lab_host(lab_id)
         url = f"https://{hostname}"
         
-        # Pod status
         pod_ip = None
         status = "unknown"
         try:
@@ -536,7 +531,6 @@ class EKSLabs:
                 status = (pod.status.phase or "unknown").lower()
                 pod_ip = pod.status.pod_ip
                 
-                # Check if running but not ready
                 if status == "running":
                     if not pod.status.conditions:
                         status = "starting"
@@ -575,9 +569,6 @@ class EKSLabs:
         """Get time remaining before automatic termination"""
         return await self._time_left(lab_id)
 
-    # ──────────────────────────────────────────────────────────────
-    # Background janitor
-    # ──────────────────────────────────────────────────────────────
     async def _janitor_loop(self):
         """Background task to clean up expired labs"""
         LOG.info("Starting janitor loop")
