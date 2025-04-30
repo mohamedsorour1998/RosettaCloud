@@ -100,55 +100,80 @@ class EKSLabs:
         async with self._sem:
             yield await self._get_clients()
 
-    @retry_async(exceptions=(ApiException,))
-    async def _ensure_statefulset(self):
-        """Ensure the StatefulSet exists, creating it if necessary"""
-        LOG.info(f"Ensuring StatefulSet {STATEFULSET_NAME} exists")
-        async with self._k8s() as (_, apps, _):
-            try:
-                await asyncio.to_thread(apps.read_namespaced_stateful_set, STATEFULSET_NAME, NAMESPACE)
-                LOG.debug(f"StatefulSet {STATEFULSET_NAME} already exists")
-                return
-            except ApiException as e:
-                if e.status != 404:
-                    raise
-                LOG.info(f"Creating StatefulSet {STATEFULSET_NAME}")
-            
-            body = client.V1StatefulSet(
-                metadata=client.V1ObjectMeta(
-                    name=STATEFULSET_NAME,
-                    namespace=NAMESPACE,
-                    labels={"app": "interactive-labs"},
-                ),
-                spec=client.V1StatefulSetSpec(
-                    service_name=HEADLESS_SERVICE_NAME,
-                    replicas=0,
-                    selector=client.V1LabelSelector(match_labels={"app": "interactive-labs"}),
-                    template=client.V1PodTemplateSpec(
-                        metadata=client.V1ObjectMeta(labels={"app": "interactive-labs"}),
-                        spec=client.V1PodSpec(
-                            containers=[client.V1Container(
-                                name="lab",
-                                image=POD_IMAGE,
-                                ports=[client.V1ContainerPort(container_port=80)],
-                                readiness_probe=client.V1Probe(
-                                    http_get=client.V1HTTPGetAction(
-                                        path="/",
-                                        port=80
-                                    ),
-                                    initial_delay_seconds=5,
-                                    period_seconds=5,
-                                    timeout_seconds=3,
-                                    failure_threshold=3,
-                                ),
-                            )],
-                            image_pull_secrets=[client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)] if IMAGE_PULL_SECRET else None,
-                        ),
-                    ),
-                ),
+@retry_async(exceptions=(ApiException,))
+async def _ensure_statefulset(self):
+    """
+    Make sure the StatefulSet that hosts interactive-lab pods exists.
+    If it isn't present, create it with a privileged container.
+    """
+    LOG.info("Ensuring StatefulSet %s exists", STATEFULSET_NAME)
+
+    async with self._k8s() as (_, apps, _):
+        try:
+            await asyncio.to_thread(
+                apps.read_namespaced_stateful_set,
+                name=STATEFULSET_NAME,
+                namespace=NAMESPACE,
             )
-            await asyncio.to_thread(apps.create_namespaced_stateful_set, NAMESPACE, body)
-            LOG.info(f"Created StatefulSet {STATEFULSET_NAME}")
+            LOG.debug("StatefulSet %s already present", STATEFULSET_NAME)
+            return
+        except ApiException as exc:
+            if exc.status != 404:
+                raise
+            LOG.info("StatefulSet %s missing – creating it", STATEFULSET_NAME)
+
+        container = client.V1Container(
+            name="lab",
+            image=POD_IMAGE,
+            ports=[client.V1ContainerPort(container_port=80)],
+            security_context=client.V1SecurityContext(
+                privileged=True,
+                run_as_user=0,
+            ),
+            readiness_probe=client.V1Probe(
+                http_get=client.V1HTTPGetAction(path="/", port=80),
+                initial_delay_seconds=5,
+                period_seconds=5,
+                timeout_seconds=3,
+                failure_threshold=3,
+            ),
+        )
+
+        pod_spec = client.V1PodSpec(
+            containers=[container],
+            image_pull_secrets=(
+                [client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)]
+                if IMAGE_PULL_SECRET
+                else None
+            ),
+        )
+
+        sts_body = client.V1StatefulSet(
+            metadata=client.V1ObjectMeta(
+                name=STATEFULSET_NAME,
+                namespace=NAMESPACE,
+                labels={"app": "interactive-labs"},
+            ),
+            spec=client.V1StatefulSetSpec(
+                service_name=HEADLESS_SERVICE_NAME,
+                replicas=0,
+                selector=client.V1LabelSelector(
+                    match_labels={"app": "interactive-labs"}
+                ),
+                template=client.V1PodTemplateSpec(
+                    metadata=client.V1ObjectMeta(
+                        labels={"app": "interactive-labs"}
+                    ),
+                    spec=pod_spec,
+                ),
+            ),
+        )
+        await asyncio.to_thread(
+            apps.create_namespaced_stateful_set,
+            namespace=NAMESPACE,
+            body=sts_body,
+        )
+        LOG.info("Created privileged StatefulSet %s", STATEFULSET_NAME)
 
     @retry_async(exceptions=(ApiException,))
     async def _ensure_headless(self):
