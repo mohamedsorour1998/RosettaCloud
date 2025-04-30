@@ -1,13 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>RosettaCloudFrontend</title>
-  <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-</head>
-<body>
-  <app-root></app-root>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <title>RosettaCloudFrontend</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+    default-src 'self';
+    script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline' 'unsafe-eval';
+    worker-src 'self' blob:;
+    frame-src 'self' https://*.rosettacloud.app http://*.rosettacloud.app https://*.labs.dev.rosettacloud.app;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    connect-src 'self' http://51.112.10.4:30085 https://*.rosettacloud.app http://*.rosettacloud.app;
+  "
+    />
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
 </html>

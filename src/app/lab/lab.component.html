@@ -4,23 +4,40 @@
     <div class="lab-title">
       <h4>DevLab</h4>
       <div class="lab-status" *ngIf="labInfo$ | async as labInfo">
-        <span class="status-indicator" [ngClass]="{'active': labInfo.status === 'running'}"></span>
+        <span
+          class="status-indicator"
+          [ngClass]="{
+            active: labInfo.status === 'running',
+            error: labInfo.status === 'error',
+            pending: labInfo.status === 'pending'
+          }"
+        ></span>
         <span class="status-text">{{ labInfo.status | titlecase }}</span>
-        <span class="time-remaining" *ngIf="timeRemaining$ | async as timeRemaining">
+        <span
+          class="time-remaining"
+          *ngIf="timeRemaining$ | async as timeRemaining"
+        >
           <i class="bi bi-clock"></i> {{ timeRemaining }}
         </span>
       </div>
     </div>
 
     <div class="lab-actions">
-      <button class="btn btn-restart" *ngIf="isLabActive" (click)="initializeNewLab()">
-        <i class="bi bi-arrow-clockwise"></i> Restart
-      </button>
-      <button class="btn btn-terminate" [disabled]="!isLabActive" (click)="terminateLab()">
+      <!-- Restart button hidden as requested -->
+      <button
+        class="btn btn-terminate"
+        [disabled]="!isLabActive"
+        (click)="terminateLab()"
+      >
         <i class="bi bi-stop-circle"></i> Terminate
       </button>
     </div>
   </header>
+
+  <!-- API Connection Warning - Only shows when connection is lost and lab is not active -->
+  <div class="api-connection-warning" *ngIf="!isApiConnected && !isLabActive">
+    <i class="bi bi-wifi-off"></i> Connection to lab service lost. Retrying...
+  </div>
 
   <!-- Main Content Area -->
   <div class="lab-content">
@@ -30,75 +47,102 @@
         <h5>Lab Questions</h5>
       </div>
 
-      <!-- Questions List -->
-      <div class="questions-container" *ngIf="!isLoading; else loadingTemplate">
-        <div *ngIf="questions.length > 0; else noQuestions">
-          <div class="question-item" *ngFor="let question of questions; let i = index"
-               [ngClass]="{'active': currentQuestionIndex === i, 'completed': question.completed}"
-               (click)="setupQuestion(question.id)">
-            <div class="question-header">
-              <span class="question-number">{{ question.id }}</span>
-              <span class="question-status">
-                <i class="bi" [ngClass]="question.completed ? 'bi-check-circle-fill' : 'bi-circle'"></i>
-              </span>
-            </div>
-            <div class="question-title">{{ question.question }}</div>
+      <!-- Enhanced Question Navigation Bar -->
+      <div class="question-navigation" *ngIf="questions.length > 0">
+        <button
+          class="nav-btn prev-btn"
+          (click)="navigateToPrevQuestion()"
+          [disabled]="currentQuestionIndex === 0"
+        >
+          <i class="bi bi-chevron-left"></i>
+        </button>
+
+        <div class="question-indicators">
+          <div
+            *ngFor="let question of questions; let i = index"
+            class="question-indicator"
+            [ngClass]="{
+              active: currentQuestionIndex === i,
+              visited: question.visited,
+              completed: question.completed
+            }"
+          >
+            {{ i + 1 }}
           </div>
         </div>
 
-        <ng-template #noQuestions>
-          <div class="no-questions-message">
-            <p>No questions available for this lab.</p>
-          </div>
-        </ng-template>
+        <button
+          class="nav-btn next-btn"
+          (click)="navigateToNextQuestion()"
+          [disabled]="currentQuestionIndex === questions.length - 1"
+        >
+          <i class="bi bi-chevron-right"></i>
+        </button>
       </div>
 
-      <!-- Question Details -->
-      <div class="question-details" *ngIf="currentQuestionIndex >= 0 && questions[currentQuestionIndex]">
-        <div class="question-description">
-          {{ questions[currentQuestionIndex].description }}
-        </div>
-        <button class="btn btn-check" (click)="checkQuestion(questions[currentQuestionIndex].id)">
-          Check Answer
+      <!-- Current Question Details -->
+      <div class="question-details" *ngIf="currentQuestion">
+        <h5 class="question-title">Question {{ currentQuestionIndex + 1 }}</h5>
+        <div
+          class="question-description"
+          [innerHTML]="currentQuestion.description"
+        ></div>
+
+        <button
+          class="btn-check"
+          (click)="checkQuestion(currentQuestionIndex + 1)"
+          [disabled]="!isLabActive || currentQuestion.completed"
+        >
+          <i class="bi bi-check2-circle"></i>
+          {{ currentQuestion.completed ? "Completed" : "Check Answer" }}
+        </button>
+
+        <button
+          *ngIf="
+            currentQuestion.completed &&
+            currentQuestionIndex < questions.length - 1
+          "
+          class="btn-next"
+          (click)="navigateToNextQuestion()"
+        >
+          <i class="bi bi-arrow-right"></i> Next Question
         </button>
       </div>
     </aside>
 
-    <!-- Main Lab Content -->
+    <!-- Main Lab Display Area -->
     <main class="lab-main">
-      <!-- Loading States -->
-      <div class="lab-loading" *ngIf="isLoading || isInitializing">
+      <!-- Loading State -->
+      <div class="lab-loading" *ngIf="isLoading">
         <div class="spinner"></div>
-        <p *ngIf="isInitializing">Initializing your lab environment...</p>
-        <p *ngIf="isLoading && !isInitializing">Loading...</p>
+        <p>
+          {{
+            isInitializing ? "Initializing lab environment..." : "Loading..."
+          }}
+        </p>
       </div>
 
       <!-- Error State -->
-      <div class="lab-error" *ngIf="errorMessage">
+      <div class="lab-error" *ngIf="!isLoading && errorMessage">
         <div class="error-icon">
           <i class="bi bi-exclamation-triangle"></i>
         </div>
-        <h5>Something went wrong</h5>
+        <h5>Oops! Something went wrong</h5>
         <p>{{ errorMessage }}</p>
-        <button class="btn btn-retry" (click)="initializeNewLab()">Try Again</button>
+        <button class="btn-retry" (click)="initializeNewLab()">
+          Try Again
+        </button>
       </div>
 
-      <!-- Lab iframe - Only shown when lab is active -->
-      <div class="lab-frame" *ngIf="codeServerUrl && isLabActive">
+      <!-- Lab Frame (Code Server) -->
+      <div class="lab-frame" *ngIf="!isLoading && isLabActive && codeServerUrl">
         <iframe
+          class="code-server-iframe"
           [src]="codeServerUrl"
-          title="Code Server"
-          allow="fullscreen"
-          sandbox="allow-scripts allow-forms allow-same-origin">
-        </iframe>
+          allowfullscreen
+          title="Lab Environment"
+        ></iframe>
       </div>
     </main>
   </div>
 </div>
-
-<ng-template #loadingTemplate>
-  <div class="loading-spinner">
-    <div class="spinner"></div>
-    <p>Loading questions...</p>
-  </div>
-</ng-template>

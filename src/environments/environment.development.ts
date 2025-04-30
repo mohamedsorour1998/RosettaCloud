@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:8000',
+  apiUrl: 'http://51.112.10.4:30085',
   labDefaultTimeout: {
     hours: 2,
     minutes: 0,

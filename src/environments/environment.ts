@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: '/api', // This should be replaced with your actual production API URL
+  apiUrl: 'http://51.112.10.4:30085',
   labDefaultTimeout: {
     hours: 1,
     minutes: 30,
