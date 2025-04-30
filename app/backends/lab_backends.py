@@ -1,8 +1,5 @@
 """
 Interactive-lab back-end for EKS
---------------------------------
-* single wildcard DNS record – no runtime Route 53 calls
-* resources are created lazily and idempotently
 """
 
 from __future__ import annotations
@@ -19,14 +16,12 @@ from typing import Any, Dict, List, Optional
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
-# ──────────────────────────────────────────────────────────────────
-# Settings (env-overridable)
-# ──────────────────────────────────────────────────────────────────
+
 NAMESPACE             = os.getenv("LAB_K8S_NAMESPACE",            "openedx")
 INGRESS_NAMESPACE     = os.getenv("LAB_INGRESS_NAMESPACE",     NAMESPACE)
 INGRESS_NAME          = os.getenv("LAB_INGRESS_NAME",          "caddy-ingress")
 POD_IMAGE             = os.getenv("LAB_POD_IMAGE",                "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
-IMAGE_PULL_SECRET     = os.getenv("LAB_IMAGE_PULL_SECRET",        "ecr-creds")
+IMAGE_PULL_SECRET = os.getenv("LAB_IMAGE_PULL_SECRET")
 WILDCARD_DOMAIN       = os.getenv("LAB_WILDCARD_DOMAIN",          "dev.labs.rosettacloud.app")
 STATEFULSET_NAME      = os.getenv("LAB_STATEFULSET_NAME",         "interactive-labs")
 HEADLESS_SERVICE_NAME = os.getenv("LAB_HEADLESS_SERVICE_NAME",    "interactive-labs-headless")
@@ -41,9 +36,6 @@ if DEBUG:
     logging.basicConfig(level=logging.DEBUG)
     LOG.setLevel(logging.DEBUG)
 
-# ──────────────────────────────────────────────────────────────────
-# Helper decorators & small helpers
-# ──────────────────────────────────────────────────────────────────
 def retry_async(max_retries=3, delay=1, backoff=2, exceptions=(Exception,)):
     def deco(fn):
         @wraps(fn)
@@ -67,9 +59,6 @@ def pod_name(i: int) -> str: return f"{STATEFULSET_NAME}-{i}"
 def svc_name(l: str) -> str: return f"{l}-svc"
 def lab_host(l: str) -> str: return f"{l}.{WILDCARD_DOMAIN}"
 
-# ──────────────────────────────────────────────────────────────────
-# Back-end class
-# ──────────────────────────────────────────────────────────────────
 class EKSLabs:
     def __init__(self) -> None:
         LOG.debug("Initializing EKSLabs backend")
@@ -85,9 +74,6 @@ class EKSLabs:
         
         LOG.debug("EKSLabs backend initialized")
 
-    # ──────────────────────────────────────────────────────────────
-    # Kubernetes client plumbing
-    # ──────────────────────────────────────────────────────────────
     async def _init_clients(self):
         """Initialize Kubernetes client objects"""
         LOG.debug("Initializing Kubernetes clients")
@@ -115,9 +101,6 @@ class EKSLabs:
         async with self._sem:
             yield await self._get_clients()
 
-    # ──────────────────────────────────────────────────────────────
-    # Resource bootstrap (idempotent)
-    # ──────────────────────────────────────────────────────────────
     @retry_async(exceptions=(ApiException,))
     async def _ensure_statefulset(self):
         """Ensure the StatefulSet exists, creating it if necessary"""
@@ -160,7 +143,11 @@ class EKSLabs:
                                     failure_threshold=3,
                                 ),
                             )],
-                            image_pull_secrets=[client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)] if IMAGE_PULL_SECRET else None,
+                            image_pull_secrets=(
+                               [client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)]
+                               if IMAGE_PULL_SECRET
+                               else None
+    ),
                         ),
                     ),
                 ),
@@ -194,10 +181,6 @@ class EKSLabs:
             await asyncio.to_thread(core.create_namespaced_service, NAMESPACE, body)
             LOG.info(f"Created headless service {HEADLESS_SERVICE_NAME}")
 
-    
-    # ──────────────────────────────────────────────────────────────
-    # Lifecycle
-    # ──────────────────────────────────────────────────────────────
     async def init(self):
         """Initialize the backend"""
         LOG.info("Initializing EKS lab backend")
@@ -222,9 +205,6 @@ class EKSLabs:
                 await self._janitor
         LOG.info("EKS lab backend shut down")
 
-    # ──────────────────────────────────────────────────────────────
-    # Internal helpers
-    # ──────────────────────────────────────────────────────────────
     @retry_async(exceptions=(ApiException, RuntimeError))
     async def _scale(self, replicas: int):
         """Scale the StatefulSet to the desired number of replicas"""
