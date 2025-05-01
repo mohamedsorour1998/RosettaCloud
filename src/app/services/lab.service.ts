@@ -26,8 +26,17 @@ export interface LabInfoResponse {
   status: string;
 }
 
+export interface QuestionData {
+  question_number: number;
+  question: string;
+  question_type: 'MCQ' | 'Check';
+  question_difficulty: string;
+  answer_choices?: string[];
+  correct_answer?: string;
+}
+
 export interface QuestionsResponse {
-  questions: any[];
+  questions: QuestionData[];
   total_count: number;
 }
 
@@ -68,27 +77,11 @@ export class LabService {
 
   // Get API URL dynamically from window location
   private getApiUrl(): string {
-    // const hostname = window.location.hostname;
-    // const protocol = window.location.protocol;
-
-    // // Default for development
-    // if (hostname === 'localhost') {
-    //   return 'http://51.112.10.4:30085';
-    // }
-
-    // // Extract API domain from current domain
-    // if (hostname.includes('.rosettacloud.app')) {
-    //   // If we're on a specific subdomain, replace it with 'api'
-    //   const domainParts = hostname.split('.');
-    //   domainParts[0] = 'api';
-    //   return `${protocol}//${domainParts.join('.')}`;
-    // }
-
     // Fallback to the environment variable or hardcoded default
     return (
       environment.apiUrl ||
       (window as any).__RC_API__ ||
-      'http://localhost:8000'
+      'http://51.112.10.4:30085' // Updated to your actual API URL
     );
   }
 
@@ -242,7 +235,14 @@ export class LabService {
         `${this.apiUrl}/questions/${moduleUuid}/${lessonUuid}?user_id=${userId}`,
         { headers: this.getHeaders() }
       )
-      .pipe(catchError(this.handleError));
+      .pipe(
+        map(response => {
+          // Log the response to help debug
+          console.log('API Questions Response:', response);
+          return response;
+        }),
+        catchError(this.handleError)
+      );
   }
 
   // Setup a question
@@ -258,7 +258,13 @@ export class LabService {
         { pod_name: podName },
         { headers: this.getHeaders() }
       )
-      .pipe(catchError(this.handleError));
+      .pipe(
+        tap(response => {
+          // Log setup response
+          console.log(`Setup Question ${questionNumber} Response:`, response);
+        }),
+        catchError(this.handleError)
+      );
   }
 
   // Check a question
@@ -266,15 +272,30 @@ export class LabService {
     podName: string,
     moduleUuid: string,
     lessonUuid: string,
-    questionNumber: number
+    questionNumber: number,
+    additionalData?: any
   ): Observable<QuestionCheckResponse> {
+    const payload = {
+      pod_name: podName,
+      ...additionalData,
+    };
+
+    // Log the payload we're sending
+    console.log(`Checking Question ${questionNumber} with payload:`, payload);
+
     return this.http
       .post<QuestionCheckResponse>(
         `${this.apiUrl}/questions/${moduleUuid}/${lessonUuid}/${questionNumber}/check`,
-        { pod_name: podName },
+        payload,
         { headers: this.getHeaders() }
       )
-      .pipe(catchError(this.handleError));
+      .pipe(
+        tap(response => {
+          // Log check response
+          console.log(`Check Question ${questionNumber} Response:`, response);
+        }),
+        catchError(this.handleError)
+      );
   }
 
   // Error handling method with improved logging

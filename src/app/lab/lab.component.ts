@@ -4,7 +4,7 @@ import {
   OnDestroy,
   HostListener,
   ElementRef,
-  ViewChild,
+  AfterViewInit,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, BehaviorSubject, interval, Subscription, of } from 'rxjs';
@@ -26,7 +26,9 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 interface Question {
   id: number;
   question: string;
-  description: string;
+  type: 'mcq' | 'check'; // Fixed types: mcq or check
+  options?: string[]; // For MCQ questions
+  correctAnswer?: string; // Correct answer for MCQ
   completed: boolean;
   visited: boolean;
 }
@@ -50,7 +52,7 @@ interface LabInfo {
   templateUrl: './lab.component.html',
   styleUrls: ['./lab.component.scss'],
 })
-export class LabComponent implements OnInit, OnDestroy {
+export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   labId: string | null = null;
   labInfo$ = new BehaviorSubject<LabInfo | null>(null);
   codeServerUrl: SafeResourceUrl | null = null;
@@ -60,6 +62,13 @@ export class LabComponent implements OnInit, OnDestroy {
   get currentQuestion(): Question | null {
     return this.questions[this.currentQuestionIndex] || null;
   }
+
+  // Properties for enhanced UI
+  selectedOption: number | null = null;
+  showFeedback = false;
+  feedbackMessage = '';
+  isAnswerCorrect = false;
+  checkInProgress = false;
 
   isLoading = true;
   isInitializing = true;
@@ -113,6 +122,13 @@ export class LabComponent implements OnInit, OnDestroy {
     }
 
     this.initializeLab();
+  }
+
+  ngAfterViewInit(): void {
+    // Set iframe properly after view initialization
+    setTimeout(() => {
+      this.adjustIframeHeight();
+    }, 500);
   }
 
   // Initialize lab - either reuse an existing one or create a new one
@@ -229,6 +245,11 @@ export class LabComponent implements OnInit, OnDestroy {
         this.isLabActive = true;
         this.isLoading = false;
         this.isInitializing = false;
+
+        // Adjust iframe height
+        setTimeout(() => {
+          this.adjustIframeHeight();
+        }, 500);
       } catch (error) {
         console.error('Error creating code server URL:', error);
         this.errorMessage = 'Failed to load lab environment';
@@ -264,14 +285,34 @@ export class LabComponent implements OnInit, OnDestroy {
 
     this.labService.getQuestions(this.moduleUuid, this.lessonUuid).subscribe(
       (data) => {
+        console.log('Questions from API:', data);
+
         if (data && data.questions) {
-          this.questions = data.questions.map((q: any, index: number) => ({
-            id: index + 1,
-            question: q.question || `Question ${index + 1}`,
-            description: q.description || 'No description available',
-            completed: false,
-            visited: false, // Track if the question has been visited
-          }));
+          // Process questions from API response - FIXED: proper type mapping
+          this.questions = data.questions.map((q: any) => {
+            console.log('Processing question:', q); // Debug log
+
+            // Basic question properties
+            const questionObj: Question = {
+              id: q.question_number,
+              question: q.question,
+              // Make sure we're correctly identifying question types
+              type: q.question_type?.toUpperCase() === 'MCQ' ? 'mcq' : 'check',
+              completed: false,
+              visited: false,
+            };
+
+            // Add options only for MCQ type questions
+            if (q.question_type?.toUpperCase() === 'MCQ') {
+              questionObj.options = q.answer_choices || [];
+              questionObj.correctAnswer = q.correct_answer;
+            }
+
+            console.log('Processed to:', questionObj); // Debug log
+            return questionObj;
+          });
+
+          console.log('Processed questions:', this.questions);
 
           // Try to restore saved question state
           this.restoreQuestionState();
@@ -291,6 +332,7 @@ export class LabComponent implements OnInit, OnDestroy {
   // Navigate to previous question
   navigateToPrevQuestion(): void {
     if (this.currentQuestionIndex > 0) {
+      this.resetQuestionUI();
       this.setupQuestion(this.currentQuestionIndex);
     }
   }
@@ -298,6 +340,7 @@ export class LabComponent implements OnInit, OnDestroy {
   // Navigate to next question
   navigateToNextQuestion(): void {
     if (this.currentQuestionIndex < this.questions.length - 1) {
+      this.resetQuestionUI();
       this.setupQuestion(this.currentQuestionIndex + 2);
     }
   }
@@ -305,8 +348,17 @@ export class LabComponent implements OnInit, OnDestroy {
   // Navigate to specific question
   navigateToQuestion(questionNumber: number): void {
     if (questionNumber >= 1 && questionNumber <= this.questions.length) {
+      this.resetQuestionUI();
       this.setupQuestion(questionNumber);
     }
+  }
+
+  // Reset question UI state when changing questions
+  private resetQuestionUI(): void {
+    this.selectedOption = null;
+    this.showFeedback = false;
+    this.feedbackMessage = '';
+    this.isAnswerCorrect = false;
   }
 
   // Setup a question
@@ -315,6 +367,9 @@ export class LabComponent implements OnInit, OnDestroy {
 
     const podName = this.labId; // Assuming pod name is the same as lab ID
 
+    // Reset UI state when changing questions
+    this.resetQuestionUI();
+
     // Update UI first for responsive feel
     this.currentQuestionIndex = questionNumber - 1;
 
@@ -322,6 +377,14 @@ export class LabComponent implements OnInit, OnDestroy {
     if (this.questions[this.currentQuestionIndex]) {
       this.questions[this.currentQuestionIndex].visited = true;
       this.saveQuestionState();
+
+      // Scroll to the top of the question detail area to show buttons
+      setTimeout(() => {
+        const questionDetails = document.querySelector('.question-details');
+        if (questionDetails) {
+          questionDetails.scrollTop = 0;
+        }
+      }, 100);
     }
 
     this.labService
@@ -343,11 +406,74 @@ export class LabComponent implements OnInit, OnDestroy {
       );
   }
 
-  // Check a question
-  checkQuestion(questionNumber: number): void {
-    if (!this.labId || !this.isLabActive) return;
+  // Check answer for MCQ questions
+  checkAnswer(): void {
+    if (!this.labId || !this.isLabActive || this.checkInProgress) return;
 
+    this.checkInProgress = true;
+
+    // For questions with options (MCQ type)
+    if (
+      this.currentQuestion?.type === 'mcq' &&
+      this.selectedOption !== null &&
+      this.currentQuestion.options
+    ) {
+      this.showFeedback = true;
+
+      // Send request to check MCQ answer
+      const questionNumber = this.currentQuestionIndex + 1;
+      const podName = this.labId;
+
+      this.feedbackMessage = 'Checking your answer...';
+
+      // Get the selected answer text
+      const selectedAnswer = this.currentQuestion.options[this.selectedOption];
+      console.log('Selected answer:', selectedAnswer);
+
+      this.labService
+        .checkQuestion(
+          podName,
+          this.moduleUuid!,
+          this.lessonUuid!,
+          questionNumber,
+          { selected_answer: selectedAnswer }
+        )
+        .subscribe(
+          (result) => {
+            console.log('Check answer result:', result);
+
+            if (result.status === 'success' && result.completed) {
+              this.isAnswerCorrect = true;
+              this.feedbackMessage =
+                'Correct! ' + (result.message || 'Well done.');
+              this.markQuestionAsCompleted(questionNumber);
+            } else {
+              this.isAnswerCorrect = false;
+              this.feedbackMessage =
+                'Incorrect. ' +
+                (result.message || 'Try again or skip to continue.');
+            }
+            this.checkInProgress = false;
+          },
+          (error) => {
+            console.error('Error checking question:', error);
+            this.feedbackMessage =
+              'Error checking your answer. Please try again.';
+            this.checkInProgress = false;
+            this.isAnswerCorrect = false;
+          }
+        );
+    }
+  }
+
+  // Check a code-based question (now used for "Check" type questions)
+  checkQuestion(questionNumber: number): void {
+    if (!this.labId || !this.isLabActive || this.checkInProgress) return;
+
+    this.checkInProgress = true;
     const podName = this.labId;
+    this.showFeedback = true;
+    this.feedbackMessage = 'Checking your answer...';
 
     this.labService
       .checkQuestion(
@@ -358,17 +484,77 @@ export class LabComponent implements OnInit, OnDestroy {
       )
       .subscribe(
         (result) => {
+          console.log('Check question result:', result);
+
           if (result.status === 'success' && result.completed) {
-            if (this.questions[questionNumber - 1]) {
-              this.questions[questionNumber - 1].completed = true;
-              this.saveQuestionState();
-            }
+            this.feedbackMessage =
+              'Correct! ' +
+              (result.message || 'Your solution passes all tests.');
+            this.isAnswerCorrect = true;
+            this.markQuestionAsCompleted(questionNumber);
+          } else {
+            this.feedbackMessage =
+              result.message ||
+              "Your solution doesn't pass all tests yet. Try again or skip.";
+            this.isAnswerCorrect = false;
           }
+          this.checkInProgress = false;
         },
         (error) => {
           console.error('Error checking question:', error);
+          this.feedbackMessage =
+            'Error checking your answer. Please try again.';
+          this.checkInProgress = false;
+          this.isAnswerCorrect = false;
         }
       );
+  }
+
+  // Mark a question as completed
+  private markQuestionAsCompleted(questionNumber: number): void {
+    if (this.questions[questionNumber - 1]) {
+      this.questions[questionNumber - 1].completed = true;
+      this.saveQuestionState();
+    }
+  }
+
+  // Reset the current question attempt
+  resetQuestion(): void {
+    this.showFeedback = false;
+    this.feedbackMessage = '';
+    this.selectedOption = null;
+    this.isAnswerCorrect = false;
+  }
+
+  // Set the selected option for multiple choice questions
+  setSelectedOption(index: number): void {
+    if (this.showFeedback) return; // Don't allow changing after feedback is shown
+    this.selectedOption = index;
+  }
+
+  // Get the count of completed questions
+  getCompletedQuestionsCount(): number {
+    return this.questions.filter((q) => q.completed).length;
+  }
+
+  // Helper method to adjust iframe height
+  private adjustIframeHeight(): void {
+    if (this.isLabActive && this.codeServerUrl) {
+      const frameElement = this.el.nativeElement.querySelector(
+        '.code-server-iframe'
+      );
+      if (frameElement) {
+        // Set fixed height to prevent scrolling issues
+        frameElement.style.height = '100%';
+        frameElement.style.width = '100%';
+      }
+    }
+  }
+
+  // Handle iframe sizing on window resize
+  @HostListener('window:resize', ['$event'])
+  onWindowResize(event: Event): void {
+    this.adjustIframeHeight();
   }
 
   // Save question state to session storage
@@ -505,27 +691,6 @@ export class LabComponent implements OnInit, OnDestroy {
 
       this.updateTimeRemaining({ hours, minutes, seconds });
     });
-  }
-
-  // Handle iframe scrolling
-  @HostListener('window:scroll', ['$event'])
-  onWindowScroll(event: Event): void {
-    // When lab is active, ensure iframe content is visible
-    if (this.isLabActive && this.codeServerUrl) {
-      const frameElement = this.el.nativeElement.querySelector(
-        '.code-server-iframe'
-      );
-      if (frameElement) {
-        // Adjust iframe height to match available window height
-        const windowHeight = window.innerHeight;
-        const frameTop = frameElement.getBoundingClientRect().top;
-        const headerHeight =
-          this.el.nativeElement.querySelector('.lab-header')?.offsetHeight || 0;
-        const availableHeight = windowHeight - frameTop - 20; // 20px buffer
-
-        frameElement.style.height = `${availableHeight}px`;
-      }
-    }
   }
 
   ngOnDestroy(): void {
