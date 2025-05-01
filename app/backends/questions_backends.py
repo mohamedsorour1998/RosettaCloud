@@ -19,9 +19,8 @@ from app.services import cache_events_service as cache
 
 class QuestionBackend:
     def __init__(self) -> None:
-        self.bucket_name   = os.getenv("S3_BUCKET_NAME",
-                                       "rosettacloud-shared-interactive-labs")
-        self.namespace     = os.getenv("LAB_K8S_NAMESPACE", "interactive-labs")
+        self.bucket_name   = os.getenv("S3_BUCKET_NAME", "rosettacloud-shared-interactive-labs")
+        self.namespace     = os.getenv("LAB_K8S_NAMESPACE", "openedx")
 
         self._shell_files: Dict[Tuple[str, str], List[str]]        = {}
         self._shell_files_by_number: Dict[Tuple[str, str], Dict[int, str]] = {}
