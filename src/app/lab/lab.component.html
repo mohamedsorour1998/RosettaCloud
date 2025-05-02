@@ -168,7 +168,14 @@
           </button>
         </div>
       </div>
-
+      <div class="lab-feedback-section" *ngIf="showFeedbackButton">
+        <app-feedback
+          [moduleUuid]="moduleUuid ?? ''"
+          [lessonUuid]="lessonUuid ?? ''"
+          [questions]="questions"
+          [userProgress]="userProgressData"
+        ></app-feedback>
+      </div>
       <!-- footer with progress -->
       <div class="sidebar-footer" *ngIf="questions.length">
         <div class="progress-indicator">

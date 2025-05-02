@@ -1,0 +1,38 @@
+<div class="feedback-container">
+  <ng-container *ngIf="!feedbackRequested">
+    <button
+      class="feedback-button"
+      [disabled]="loading"
+      (click)="requestFeedback()"
+    >
+      {{ loading ? "Requesting feedback..." : "Finish and Get Your Feedback!" }}
+    </button>
+  </ng-container>
+
+  <ng-container *ngIf="feedbackRequested && !feedback">
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>Generating your personalized feedback...</p>
+      <p class="info-text">
+        This might take a minute or two. Please wait while our AI analyzes your
+        performance.
+      </p>
+    </div>
+  </ng-container>
+
+  <ng-container *ngIf="feedback">
+    <div class="feedback-content">
+      <h2>Your Learning Feedback</h2>
+      <div class="feedback-text">
+        <p *ngFor="let paragraph of feedbackParagraphs">{{ paragraph }}</p>
+      </div>
+
+      <div class="feedback-actions">
+        <button class="action-button" (click)="saveFeedback()">
+          Save Feedback
+        </button>
+        <button class="action-button" (click)="closeFeedback()">Close</button>
+      </div>
+    </div>
+  </ng-container>
+</div>

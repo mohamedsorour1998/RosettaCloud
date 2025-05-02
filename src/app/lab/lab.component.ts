@@ -32,6 +32,7 @@ import {
 } from 'rxjs/operators';
 import { LabService } from '../services/lab.service';
 import { UserService } from '../services/user.service';
+import { FeedbackComponent } from '../feedback/feedback.component';
 
 /* ─── Types ──────────────────────────────────────────── */
 interface Question {
@@ -58,7 +59,7 @@ interface LabInfo {
 @Component({
   selector: 'app-lab',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FeedbackComponent],
   templateUrl: './lab.component.html',
   styleUrls: ['./lab.component.scss'],
 })
@@ -90,6 +91,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   isApiConnected = true;
   errorMessage: string | null = null;
   timeRemaining$ = new BehaviorSubject<string>('');
+  userProgressData: any = {};
 
   /* route params */
   moduleUuid: string | null = null;
@@ -330,6 +332,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe({
         next: (progress) => {
           console.log('User progress loaded:', progress);
+          // Store progress data for feedback component
+          this.userProgressData = progress;
+
           if (progress && Object.keys(progress).length > 0) {
             // Update questions with completion status
             this.questions.forEach((question) => {
@@ -791,6 +796,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isLabActive && // lab is running
       !this.isInitializing && // not in init
       !this.isLoading // not in global spinner
+    );
+  }
+  // New computed property to determine when to show the feedback button
+  get showFeedbackButton(): boolean {
+    // Show feedback button when all questions are completed
+    return (
+      this.questions.length > 0 && this.questions.every((q) => q.completed)
     );
   }
 }
