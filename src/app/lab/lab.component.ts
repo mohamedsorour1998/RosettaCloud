@@ -1,4 +1,3 @@
-/* lab.component.ts */
 import {
   Component,
   OnInit,
@@ -10,7 +9,15 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
-import { BehaviorSubject, Observable, Subscription, interval, of } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  Subscription,
+  interval,
+  of,
+  forkJoin,
+  Subject,
+} from 'rxjs';
 import {
   catchError,
   delay,
@@ -20,8 +27,11 @@ import {
   switchMap,
   take,
   tap,
+  debounceTime,
+  distinctUntilChanged,
 } from 'rxjs/operators';
 import { LabService } from '../services/lab.service';
+import { UserService } from '../services/user.service';
 
 /* ─── Types ──────────────────────────────────────────── */
 interface Question {
@@ -35,6 +45,7 @@ interface Question {
   disabledOptions: number[];
   wrongAttempt: boolean;
 }
+
 interface LabInfo {
   lab_id: string;
   pod_ip: string | null;
@@ -56,6 +67,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   labId: string | null = null;
   labInfo$ = new BehaviorSubject<LabInfo | null>(null);
   codeServerUrl: SafeResourceUrl | null = null;
+  private iframeUrl$ = new Subject<string>();
+  private lastIframeUrl: string | null = null;
 
   questions: Question[] = [];
   currentQuestionIndex = 0;
@@ -86,19 +99,42 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   private timerSub?: Subscription;
   private pollSub?: Subscription;
   private apiSub?: Subscription;
+  private progressSub?: Subscription;
+  private iframeSub?: Subscription;
 
   private readonly qStateKey = 'lab-question-state';
+  private readonly pollInterval = 30000; // 30 seconds between polls
+  private readonly retryDelay = 5000; // 5 seconds between retries
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private labSv: LabService,
+    private userSv: UserService,
     private sanitizer: DomSanitizer,
     private el: ElementRef
   ) {}
 
   /* ─── LIFECYCLE ───────────────────────────────────── */
   ngOnInit(): void {
+    // Set up iframe URL updater with debounce
+    this.iframeSub = this.iframeUrl$
+      .pipe(
+        debounceTime(1000), // Wait 1 second before processing URL changes
+        distinctUntilChanged() // Only process when URL actually changes
+      )
+      .subscribe((url) => {
+        console.log('Updating iframe URL:', url);
+        if (url !== this.lastIframeUrl) {
+          this.lastIframeUrl = url;
+          this.codeServerUrl =
+            this.sanitizer.bypassSecurityTrustResourceUrl(url);
+
+          // Wait before trying to adjust iframe to allow it to load
+          setTimeout(() => this.adjustIframe(), 1000);
+        }
+      });
+
     // Ensure service is available before subscribing
     if (this.labSv && this.labSv.connectionStatus$) {
       this.apiSub = this.labSv.connectionStatus$.subscribe((ok) => {
@@ -127,13 +163,16 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    setTimeout(() => this.adjustIframe(), 500);
+    // No immediate iframe adjustment - will be triggered after URL is set
   }
 
   ngOnDestroy(): void {
+    // Clean up all subscriptions
     this.timerSub?.unsubscribe();
     this.pollSub?.unsubscribe();
     this.apiSub?.unsubscribe();
+    this.progressSub?.unsubscribe();
+    this.iframeSub?.unsubscribe();
   }
 
   /* ─── LAB INIT / POLLING ─────────────────────────── */
@@ -185,11 +224,11 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.labId) return;
     this.pollSub?.unsubscribe();
 
-    this.pollSub = interval(10000)
+    this.pollSub = interval(this.pollInterval)
       .pipe(
         filter(() => this.isApiConnected),
         switchMap(() => this.labSv.getLabInfo(this.labId!)),
-        retryWhen((errs) => errs.pipe(delay(2000), take(3))),
+        retryWhen((errs) => errs.pipe(delay(this.retryDelay), take(3))),
         tap((info) => this.handleLabInfo(info))
       )
       .subscribe();
@@ -211,10 +250,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    console.log('Received lab info:', info); // Debug to see the full lab info object
-    console.log('Pod index value:', info.index); // Debug to check the index value
+    console.log('Received lab info:', info);
 
+    const currentInfo = this.labInfo$.getValue();
     const wasNotActive = !this.isLabActive;
+    const statusChanged = !currentInfo || currentInfo.status !== info.status;
+
+    // Update internal state
     this.labInfo$.next(info);
 
     /* auto-recover from dead labs */
@@ -228,24 +270,41 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (info.status === 'running' && info.pod_ip) {
+      // Format URL properly
       const url = info.pod_ip.includes('://')
         ? info.pod_ip
         : `https://${info.pod_ip}/`;
-      this.codeServerUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+
+      // Only update the iframe URL if it's changed or the status has changed
+      if (this.lastIframeUrl !== url || statusChanged) {
+        // Push to the debounced URL handler
+        this.iframeUrl$.next(url);
+      }
+
+      // Update status flags
       this.isLabActive = true;
       this.isLoading = false;
       this.isInitializing = false;
-      setTimeout(() => this.adjustIframe(), 500);
 
+      // Handle timer
       if (info.time_remaining) {
         this.updateTime(info.time_remaining);
-        this.startTimer(info.time_remaining);
-      } else this.timeRemaining$.next('Time unknown');
+
+        // Only start a new timer if we don't have one running or the status just changed
+        if (!this.timerSub || statusChanged) {
+          this.startTimer(info.time_remaining);
+        }
+      } else {
+        this.timeRemaining$.next('Time unknown');
+      }
 
       // If the lab just became active and we have questions, set up question 1
       if (wasNotActive && this.questions.length > 0) {
         console.log('Lab became active, setting up question 1 automatically');
         this.setupQuestion(1);
+
+        // Also load user progress to update completed questions
+        this.loadUserProgress();
       }
     } else if (info.status === 'pending') {
       this.isInitializing = true;
@@ -259,13 +318,55 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /* --- Load User Progress --- */
+  private loadUserProgress(): void {
+    if (!this.moduleUuid || !this.lessonUuid) return;
+
+    const userId = this.labSv.getCurrentUserId();
+
+    this.progressSub?.unsubscribe();
+    this.progressSub = this.userSv
+      .getUserProgress(userId, this.moduleUuid, this.lessonUuid)
+      .subscribe({
+        next: (progress) => {
+          console.log('User progress loaded:', progress);
+          if (progress && Object.keys(progress).length > 0) {
+            // Update questions with completion status
+            this.questions.forEach((question) => {
+              const questionKey = question.id.toString();
+              if (progress[questionKey] === true) {
+                console.log(
+                  `Marking question ${questionKey} as completed based on user progress`
+                );
+                question.completed = true;
+                question.wrongAttempt = false;
+              }
+            });
+            this.saveQuestionState();
+          }
+        },
+        error: (err) => {
+          console.error('Error loading user progress:', err);
+        },
+      });
+  }
+
   /* ─── QUESTIONS ─────────────────────────────────── */
   private loadQuestions(): void {
     if (!this.moduleUuid || !this.lessonUuid) return;
 
-    this.labSv.getQuestions(this.moduleUuid, this.lessonUuid).subscribe(
-      (data) => {
-        this.questions = data.questions.map(
+    // Load both questions and user progress
+    forkJoin({
+      questions: this.labSv.getQuestions(this.moduleUuid, this.lessonUuid),
+      progress: this.userSv.getUserProgress(
+        this.labSv.getCurrentUserId(),
+        this.moduleUuid,
+        this.lessonUuid
+      ),
+    }).subscribe({
+      next: (result) => {
+        // Map questions from API
+        this.questions = result.questions.questions.map(
           (q: any): Question => ({
             id: q.question_number,
             question: q.question,
@@ -278,6 +379,23 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             wrongAttempt: false,
           })
         );
+
+        // Apply user progress to mark completed questions
+        const progress = result.progress;
+        if (progress && Object.keys(progress).length > 0) {
+          this.questions.forEach((question) => {
+            const questionKey = question.id.toString();
+            if (progress[questionKey] === true) {
+              console.log(
+                `Question ${questionKey} is completed based on user progress`
+              );
+              question.completed = true;
+              question.wrongAttempt = false;
+            }
+          });
+        }
+
+        // Restore any session state (may override progress from API)
         this.restoreQuestionState();
 
         // Only set up question 1 if lab is already active, otherwise it will be done
@@ -286,8 +404,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           this.setupQuestion(1);
         }
       },
-      (err) => console.error('Error loading questions', err)
-    );
+      error: (err) =>
+        console.error('Error loading questions or progress:', err),
+    });
   }
 
   /* ─── Navigation helpers ────────────────────────── */
@@ -297,12 +416,14 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.setupQuestion(this.currentQuestionIndex);
     }
   }
+
   navigateToNextQuestion(): void {
     if (this.currentQuestionIndex < this.questions.length - 1) {
       this.resetUI();
       this.setupQuestion(this.currentQuestionIndex + 2);
     }
   }
+
   navigateToQuestion(n: number): void {
     if (n >= 1 && n <= this.questions.length) {
       this.resetUI();
@@ -329,10 +450,12 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.questions[this.currentQuestionIndex].visited = true;
     this.saveQuestionState();
 
-    setTimeout(
-      () => document.querySelector('.question-details')?.scrollTo(0, 0),
-      100
-    );
+    setTimeout(() => {
+      const element = document.querySelector('.question-details');
+      if (element) {
+        element.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 100);
 
     // Always call setup for all question types
     console.log(`Setting up question ${n} with pod index: ${labInfo.index}`);
@@ -366,6 +489,24 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.feedbackMessage = 'Correct! Well done.';
       q.completed = true;
       q.wrongAttempt = false;
+
+      // Track progress in user service
+      if (this.moduleUuid && this.lessonUuid) {
+        this.userSv
+          .updateUserProgress(
+            this.labSv.getCurrentUserId(),
+            this.moduleUuid,
+            this.lessonUuid,
+            q.id,
+            true
+          )
+          .subscribe({
+            next: () => console.log(`Progress saved for question ${q.id}`),
+            error: (err) =>
+              console.error(`Error saving progress: ${err.message}`),
+          });
+      }
+
       this.markCompleted(q.id);
     } else {
       this.isAnswerCorrect = false;
@@ -381,7 +522,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  // Modify checkAnswer to handle MCQ and Check questions differently
   checkAnswer(): void {
     if (
       !this.labId ||
@@ -416,21 +556,20 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         this.lessonUuid!,
         q.id,
         payload,
-        labInfo.index // Pass the pod index from labInfo
+        labInfo.index
       )
       .subscribe({
         next: (res) => {
           if (res.status === 'success' && res.completed) {
             this.isAnswerCorrect = true;
-            this.feedbackMessage = 'Correct! ' + (res.message || 'Well done.');
+            this.feedbackMessage = 'Correct! Well done.';
             q.completed = true;
             q.wrongAttempt = false;
             this.markCompleted(q.id);
           } else {
             this.isAnswerCorrect = false;
-            this.feedbackMessage =
-              'Incorrect. ' + (res.message || 'Try again or skip.');
-            /* after */
+            this.feedbackMessage = 'Incorrect. Try again or skip.';
+
             if (
               this.selectedOption !== null &&
               !q.disabledOptions.includes(this.selectedOption)
@@ -453,6 +592,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
   checkQuestion(questionNumber: number): void {
     if (!this.labId || this.checkInProgress || !this.isLabActive) return;
+
     const q = this.currentQuestion!;
     const labInfo = this.labInfo$.getValue();
     if (!labInfo) return;
@@ -467,21 +607,19 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         this.moduleUuid!,
         this.lessonUuid!,
         questionNumber,
-        undefined, // No additional data
-        labInfo.index // Pass the pod index from labInfo
+        undefined,
+        labInfo.index
       )
       .subscribe({
         next: (res) => {
           if (res.status === 'success' && res.completed) {
             this.isAnswerCorrect = true;
-            // Use the same format as MCQ questions
             this.feedbackMessage = 'Correct! Well done.';
             q.completed = true;
             q.wrongAttempt = false;
             this.markCompleted(questionNumber);
           } else {
             this.isAnswerCorrect = false;
-            // Use the same format as MCQ questions
             this.feedbackMessage = 'Incorrect. Try again or skip.';
             q.wrongAttempt = true;
           }
@@ -501,32 +639,56 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     if (q.disabledOptions.includes(i)) return;
     if (this.showFeedback && !this.isAnswerCorrect) {
       this.showFeedback = false;
-      this.feedbackMessage = ''; /* keep q.wrongAttempt true for Skip */
+      this.feedbackMessage = '';
     }
     this.selectedOption = i;
   }
 
   /* ─── Completion / state persistence ─────────────── */
   private markCompleted(id: number): void {
+    // Save to session storage
     this.saveQuestionState();
+
+    // Update user progress in backend
+    if (this.moduleUuid && this.lessonUuid) {
+      this.userSv
+        .updateUserProgress(
+          this.labSv.getCurrentUserId(),
+          this.moduleUuid,
+          this.lessonUuid,
+          id,
+          true
+        )
+        .subscribe({
+          next: () => console.log(`Progress saved for question ${id}`),
+          error: (err) =>
+            console.error(`Error saving progress: ${err.message}`),
+        });
+    }
   }
 
   private saveQuestionState(): void {
-    sessionStorage.setItem(
-      this.qStateKey,
-      JSON.stringify({
-        currentIndex: this.currentQuestionIndex,
-        questions: this.questions.map((q) => ({
-          completed: q.completed,
-          visited: q.visited,
-        })),
-      })
-    );
-  }
-  private restoreQuestionState(): void {
-    const raw = sessionStorage.getItem(this.qStateKey);
-    if (!raw) return;
     try {
+      sessionStorage.setItem(
+        this.qStateKey,
+        JSON.stringify({
+          currentIndex: this.currentQuestionIndex,
+          questions: this.questions.map((q) => ({
+            completed: q.completed,
+            visited: q.visited,
+          })),
+        })
+      );
+    } catch (e) {
+      console.error('Error saving question state:', e);
+    }
+  }
+
+  private restoreQuestionState(): void {
+    try {
+      const raw = sessionStorage.getItem(this.qStateKey);
+      if (!raw) return;
+
       const state = JSON.parse(raw);
       if (this.questions.length) {
         this.currentQuestionIndex = state.currentIndex || 0;
@@ -537,13 +699,15 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           }
         });
       }
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.error('Error restoring question state:', e);
     }
   }
+
   public initializeNewLab(): void {
     this.launchNewLab().subscribe();
   }
+
   /* ─── Terminate ─────────────────────────────────── */
   terminateLab(): void {
     if (!this.labId) return;
@@ -552,8 +716,15 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       .terminateLab(this.labId, this.labSv.getCurrentUserId())
       .subscribe({
         next: () => {
-          sessionStorage.removeItem('activeLabId');
-          sessionStorage.removeItem(this.qStateKey);
+          // Clear local storage
+          try {
+            sessionStorage.removeItem('activeLabId');
+            sessionStorage.removeItem(this.qStateKey);
+          } catch (e) {
+            console.error('Error clearing session storage:', e);
+          }
+
+          // Navigate away
           this.router.navigate(['/dashboard']);
         },
         error: (err) => {
@@ -569,7 +740,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     minutes: number;
     seconds: number;
   }): void {
+    // Clean up existing timer if present
     this.timerSub?.unsubscribe();
+
     let seconds = t.hours * 3600 + t.minutes * 60 + t.seconds;
     this.timerSub = interval(1000).subscribe(() => {
       if (--seconds <= 0) {
@@ -583,27 +756,38 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.updateTime({ hours: h, minutes: m, seconds: s });
     });
   }
+
   private updateTime(t: { hours: number; minutes: number; seconds: number }) {
     this.timeRemaining$.next(`${t.hours}h ${t.minutes}m ${t.seconds}s`);
   }
 
   /* ─── Misc helpers ──────────────────────────────── */
-  @HostListener('window:resize') onResize() {
-    this.adjustIframe();
+  @HostListener('window:resize')
+  onResize() {
+    // Debounce iframe adjustment to prevent too many calls
+    setTimeout(() => this.adjustIframe(), 500);
   }
+
   private adjustIframe(): void {
     if (!this.isLabActive) return;
-    const frame = this.el.nativeElement.querySelector('.code-server-iframe');
-    if (frame) {
-      frame.style.height = '100%';
+
+    try {
+      const frame = this.el.nativeElement.querySelector('.code-server-iframe');
+      if (frame) {
+        frame.style.height = '100%';
+      }
+    } catch (e) {
+      console.error('Error adjusting iframe:', e);
     }
   }
+
   getCompletedQuestionsCount(): number {
     return this.questions.filter((q) => q.completed).length;
   }
+
   get showApiBanner(): boolean {
     return (
-      this.lostConnectionCount >= 3 && // 3 × 10-sec polls ≈ 30 s offline
+      this.lostConnectionCount >= 3 && // 3 × polls ≈ offline for a while
       this.isLabActive && // lab is running
       !this.isInitializing && // not in init
       !this.isLoading // not in global spinner

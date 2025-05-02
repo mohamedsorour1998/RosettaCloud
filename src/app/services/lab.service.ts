@@ -7,6 +7,7 @@ import {
 import { Observable, throwError, of, BehaviorSubject } from 'rxjs';
 import { catchError, map, tap, retry, timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { UserService } from './user.service';
 
 // API Response Interfaces
 export interface LabCreationResponse {
@@ -72,7 +73,7 @@ export class LabService {
   private activeLabCache: { [userId: string]: string } = {};
 
   // In LabService class constructor, add better error handling for the connection check
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private userService: UserService) {
     try {
       // Check initial connection
       this.checkApiConnection();
@@ -120,13 +121,14 @@ export class LabService {
     });
   }
 
-  // Get current user ID (replace with your auth service implementation)
+  // Get current user ID from UserService
   getCurrentUserId(): string {
-    // This should be replaced with actual user ID from your auth service
-    return localStorage.getItem('userId') || 'user12';
+    const userId = this.userService.getCurrentUserId();
+    // Provide a fallback for null case
+    return userId || 'guest';
   }
 
-  // Get active lab for current user
+  // Get active lab for current user - now integrates with UserService for lab listings
   getActiveLabForUser(): Observable<string> {
     const userId = this.getCurrentUserId();
 
@@ -142,28 +144,27 @@ export class LabService {
       return of(storedLabId);
     }
 
-    // API call to check active labs for user
-    return this.http
-      .get<string>(`${this.apiUrl}/users/${userId}/active-lab`, {
-        headers: this.getHeaders(),
+    // Use the user service to get labs
+    return this.userService.getUserLabs(userId).pipe(
+      map((response) => {
+        const labs = response.labs;
+        // If user has labs, return the first one
+        if (labs && labs.length > 0) {
+          const labId = labs[0];
+          this.activeLabCache[userId] = labId;
+          sessionStorage.setItem('activeLabId', labId);
+          return labId;
+        }
+        throw new Error('No active lab found');
+      }),
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 404) {
+          // No active lab found, which is fine
+          return throwError(() => new Error('No active lab found'));
+        }
+        return this.handleError(error);
       })
-      .pipe(
-        retry(2),
-        tap((labId) => {
-          if (labId) {
-            this.activeLabCache[userId] = labId;
-            // Store in session storage to persist across refreshes
-            sessionStorage.setItem('activeLabId', labId);
-          }
-        }),
-        catchError((error: HttpErrorResponse) => {
-          if (error.status === 404) {
-            // No active lab found, which is fine
-            return throwError(() => new Error('No active lab found'));
-          }
-          return this.handleError(error);
-        })
-      );
+    );
   }
 
   // Launch a new lab
@@ -187,7 +188,6 @@ export class LabService {
       );
   }
 
-  // Get lab info
   // Get lab info
   getLabInfo(labId: string): Observable<LabInfoResponse> {
     if (!labId) {
@@ -229,7 +229,7 @@ export class LabService {
       );
   }
 
-  // Terminate lab
+  // Terminate lab - now includes updating user progress
   terminateLab(labId: string, userId: string): Observable<any> {
     return this.http
       .delete(`${this.apiUrl}/labs/${labId}?user_id=${userId}`, {
@@ -258,6 +258,25 @@ export class LabService {
         { headers: this.getHeaders() }
       )
       .pipe(
+        tap((response) => {
+          // Load user progress to potentially mark questions as completed
+          this.userService
+            .getUserProgress(userId, moduleUuid, lessonUuid)
+            .subscribe((progress) => {
+              if (progress && Object.keys(progress).length > 0) {
+                // Update the response with completed status
+                response.questions.forEach((question) => {
+                  const questionKey = question.question_number.toString();
+                  if (progress[questionKey] === true) {
+                    console.log(
+                      `Question ${questionKey} is completed based on user progress`
+                    );
+                    // We'll handle this in the component to update its local state
+                  }
+                });
+              }
+            });
+        }),
         map((response) => {
           // Log the response to help debug
           console.log('API Questions Response:', response);
@@ -275,13 +294,15 @@ export class LabService {
     questionNumber: number,
     podIdx?: number // Add optional index parameter
   ): Observable<QuestionSetupResponse> {
+    const userId = this.getCurrentUserId();
+
     // Format pod name correctly if index is provided
     const formattedPodName =
       podIdx !== undefined ? `interactive-labs-${podIdx}` : podName;
 
     return this.http
       .post<QuestionSetupResponse>(
-        `${this.apiUrl}/questions/${moduleUuid}/${lessonUuid}/${questionNumber}/setup`,
+        `${this.apiUrl}/questions/${moduleUuid}/${lessonUuid}/${questionNumber}/setup?user_id=${userId}`,
         { pod_name: formattedPodName },
         { headers: this.getHeaders() }
       )
@@ -294,7 +315,7 @@ export class LabService {
       );
   }
 
-  // Check a question
+  // Check a question - now updates user progress on success
   checkQuestion(
     podName: string,
     moduleUuid: string,
@@ -303,6 +324,8 @@ export class LabService {
     additionalData?: any,
     podIdx?: number // Add optional index parameter
   ): Observable<QuestionCheckResponse> {
+    const userId = this.getCurrentUserId();
+
     // Format pod name correctly if index is provided
     const formattedPodName =
       podIdx !== undefined ? `interactive-labs-${podIdx}` : podName;
@@ -317,12 +340,32 @@ export class LabService {
 
     return this.http
       .post<QuestionCheckResponse>(
-        `${this.apiUrl}/questions/${moduleUuid}/${lessonUuid}/${questionNumber}/check`,
+        `${this.apiUrl}/questions/${moduleUuid}/${lessonUuid}/${questionNumber}/check?user_id=${userId}`,
         payload,
         { headers: this.getHeaders() }
       )
       .pipe(
         tap((response) => {
+          // If question completed successfully, update user progress
+          if (response.status === 'success' && response.completed) {
+            this.userService
+              .updateUserProgress(
+                userId,
+                moduleUuid,
+                lessonUuid,
+                questionNumber,
+                true
+              )
+              .subscribe(
+                () =>
+                  console.log(
+                    `User progress updated for question ${questionNumber}`
+                  ),
+                (error) =>
+                  console.error(`Failed to update user progress: ${error}`)
+              );
+          }
+
           // Log check response
           console.log(`Check Question ${questionNumber} Response:`, response);
         }),
