@@ -1,5 +1,5 @@
 """
-lab_service – unified async interface to interactive labs.
+labs_service – unified async interface to interactive labs.
 
 Select the concrete backend with:
     export LAB_BACKEND=eks   # default
@@ -23,10 +23,10 @@ class _Backend(Protocol):
 
 
 _backend_name = os.getenv("LAB_BACKEND", "eks").lower()
-_impl_mod = importlib.import_module("app.backends.lab_backends")
+_impl_mod = importlib.import_module("app.backends.labs_backends")
 _IMPL: _Backend = getattr(_impl_mod, f"get_{_backend_name}_backend")()
 
-logging.getLogger(__name__).info("lab_service backend: %s", _backend_name)
+logging.getLogger(__name__).info("labs_service backend: %s", _backend_name)
 
 init = _IMPL.init
 close = _IMPL.close

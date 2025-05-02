@@ -5,3 +5,4 @@ momento==1.26.0
 uvicorn==0.34.2
 fastapi==0.115.12
 websockets==10.1
+email_validator==2.2.0

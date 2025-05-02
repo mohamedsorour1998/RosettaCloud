@@ -30,7 +30,7 @@ POD_TTL_SECS          = int(os.getenv("LAB_POD_TTL_SECS",         "3600"))
 CONCURRENCY           = int(os.getenv("LAB_CONCURRENT_TASKS_LIMIT","5"))
 DEBUG                 = os.getenv("LAB_DEBUG", "").lower() in ("1", "true", "yes")
 
-LOG = logging.getLogger("lab_service.eks")
+LOG = logging.getLogger("labs_service.eks")
 if DEBUG:
     logging.basicConfig(level=logging.DEBUG)
     LOG.setLevel(logging.DEBUG)
