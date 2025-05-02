@@ -1,5 +1,6 @@
+<!-- lab.component.html -->
 <div class="lab-container">
-  <!-- ────────── HEADER ────────── -->
+  <!-- ───── HEADER ───── -->
   <header class="lab-header">
     <div class="lab-title">
       <h4>DevLab</h4>
@@ -14,7 +15,7 @@
         ></span>
         <span class="status-text">{{ labInfo.status | titlecase }}</span>
         <span class="time-remaining" *ngIf="timeRemaining$ | async as t">
-          <i class="bi bi-clock"></i> {{ t }}
+          <i class="bi bi-clock"></i>{{ t }}
         </span>
       </div>
     </div>
@@ -22,26 +23,27 @@
     <div class="lab-actions">
       <button
         class="btn-terminate"
-        [disabled]="!isLabActive"
         (click)="terminateLab()"
+        [disabled]="!isLabActive"
       >
         <i class="bi bi-stop-circle"></i> Terminate
       </button>
     </div>
   </header>
 
-  <!-- connection banner -->
-  <div class="api-connection-warning" *ngIf="!isApiConnected && !isLabActive">
-    <i class="bi bi-wifi-off"></i> Connection to lab service lost. Retrying…
+  <!-- connection lost banner -->
+  <div class="api-connection-warning" *ngIf="showApiBanner">
+    <i class="bi bi-wifi-off wifi-icon"></i> Connection to lab service lost.
+    Retrying…
   </div>
 
-  <!-- ────────── MAIN LAYOUT ────────── -->
+  <!-- ───── MAIN LAYOUT ───── -->
   <div class="lab-content">
     <!-- ░░ Sidebar ░░ -->
     <aside class="lab-sidebar">
       <div class="sidebar-header"><h5>Lab Questions</h5></div>
 
-      <!-- navigation -->
+      <!-- navigation bar -->
       <div class="question-navigation" *ngIf="questions.length">
         <button
           class="nav-btn"
@@ -75,11 +77,11 @@
         </button>
       </div>
 
-      <!-- scrollable question body -->
+      <!-- question body -->
       <div class="question-details" *ngIf="currentQuestion as cq">
         <h5 class="question-title">{{ cq.question }}</h5>
 
-        <!-- MCQ list -->
+        <!-- MCQ options -->
         <div
           class="question-options"
           *ngIf="cq.type === 'mcq' && cq.options?.length"
@@ -91,7 +93,8 @@
               selected: selectedOption === i,
               correct: showFeedback && selectedOption === i && isAnswerCorrect,
               incorrect:
-                showFeedback && selectedOption === i && !isAnswerCorrect
+                showFeedback && selectedOption === i && !isAnswerCorrect,
+              'disabled-wrong': cq.disabledOptions.includes(i)
             }"
             (click)="setSelectedOption(i)"
           >
@@ -112,15 +115,65 @@
             {{ feedbackMessage }}
           </div>
         </div>
+
+        <!-- buttons under answers -->
+        <div class="question-buttons">
+          <!-- submit/check -->
+          <button
+            class="btn-submit"
+            [ngClass]="{ loading: checkInProgress }"
+            *ngIf="cq.type === 'mcq' && !cq.completed"
+            [disabled]="
+              selectedOption === null || !isLabActive || checkInProgress
+            "
+            (click)="checkAnswer()"
+          >
+            <span class="spinner" *ngIf="checkInProgress"></span>
+            <span class="btn-text">Submit</span>
+          </button>
+
+          <button
+            class="btn-submit"
+            [ngClass]="{ loading: checkInProgress }"
+            *ngIf="cq.type === 'check' && !cq.completed"
+            [disabled]="checkInProgress || !isLabActive"
+            (click)="checkQuestion(currentQuestionIndex + 1)"
+          >
+            <span class="spinner" *ngIf="checkInProgress"></span>
+            <span class="btn-text">Check</span>
+          </button>
+
+          <!-- next / skip -->
+          <button
+            class="btn-next"
+            *ngIf="
+              (cq.completed || (showFeedback && isAnswerCorrect)) &&
+              currentQuestionIndex < questions.length - 1
+            "
+            (click)="navigateToNextQuestion()"
+          >
+            Next Question
+          </button>
+
+          <button
+            class="btn-skip"
+            *ngIf="
+              cq.wrongAttempt &&
+              !cq.completed &&
+              currentQuestionIndex < questions.length - 1
+            "
+            (click)="navigateToNextQuestion()"
+          >
+            Skip
+          </button>
+        </div>
       </div>
 
-      <!-- fixed footer: progress + buttons -->
+      <!-- footer with progress -->
       <div class="sidebar-footer" *ngIf="questions.length">
-        <!-- progress -->
         <div class="progress-indicator">
           <div class="progress-text">
-            {{ getCompletedQuestionsCount() }} /
-            {{ questions.length }} completed
+            {{ getCompletedQuestionsCount() }}/{{ questions.length }} completed
           </div>
           <div class="progress-bar">
             <div
@@ -131,64 +184,24 @@
             ></div>
           </div>
         </div>
-
-        <!-- action buttons -->
-        <div class="question-actions" *ngIf="currentQuestion as cq">
-          <!-- check / submit -->
-          <button
-            class="btn-check"
-            *ngIf="cq.type === 'mcq' && !showFeedback && !cq.completed"
-            [disabled]="
-              selectedOption === null || !isLabActive || checkInProgress
-            "
-            (click)="checkAnswer()"
-          >
-            Check
-          </button>
-
-          <button
-            class="btn-check"
-            *ngIf="cq.type === 'check' && !showFeedback && !cq.completed"
-            [disabled]="!isLabActive || checkInProgress"
-            (click)="checkQuestion(currentQuestionIndex + 1)"
-          >
-            Check
-          </button>
-
-          <!-- next / skip -->
-          <button
-            class="btn-next"
-            *ngIf="
-              ((showFeedback && isAnswerCorrect) || cq.completed) &&
-              currentQuestionIndex < questions.length - 1
-            "
-            (click)="navigateToNextQuestion()"
-          >
-            Next Question
-          </button>
-
-          <button
-            class="btn-skip"
-            *ngIf="showFeedback && !isAnswerCorrect && !cq.completed"
-            (click)="navigateToNextQuestion()"
-          >
-            Skip
-          </button>
-        </div>
       </div>
     </aside>
 
     <!-- ░░ Main panel ░░ -->
     <main class="lab-main">
-      <!-- loading -->
+      <!-- loading overlay -->
       <div class="lab-loading" *ngIf="isLoading">
         <div class="spinner"></div>
         <p>
-          {{ isInitializing ? "Initializing lab environment…" : "Loading…" }}
+          {{
+            isInitializing
+              ? "Initializing lab environment this may talk up to 1 minute…"
+              : "Loading…"
+          }}
         </p>
       </div>
 
-      <!-- error -->
+      <!-- error overlay -->
       <div class="lab-error" *ngIf="!isLoading && errorMessage">
         <div class="error-icon"><i class="bi bi-exclamation-triangle"></i></div>
         <h5>Oops! Something went wrong</h5>
@@ -203,7 +216,6 @@
         <iframe
           class="code-server-iframe"
           [src]="codeServerUrl"
-          allowfullscreen
           title="Lab Environment"
         ></iframe>
       </div>

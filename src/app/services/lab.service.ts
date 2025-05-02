@@ -236,7 +236,7 @@ export class LabService {
         { headers: this.getHeaders() }
       )
       .pipe(
-        map(response => {
+        map((response) => {
           // Log the response to help debug
           console.log('API Questions Response:', response);
           return response;
@@ -259,7 +259,7 @@ export class LabService {
         { headers: this.getHeaders() }
       )
       .pipe(
-        tap(response => {
+        tap((response) => {
           // Log setup response
           console.log(`Setup Question ${questionNumber} Response:`, response);
         }),
@@ -290,7 +290,7 @@ export class LabService {
         { headers: this.getHeaders() }
       )
       .pipe(
-        tap(response => {
+        tap((response) => {
           // Log check response
           console.log(`Check Question ${questionNumber} Response:`, response);
         }),
