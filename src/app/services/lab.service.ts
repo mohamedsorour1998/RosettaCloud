@@ -24,6 +24,7 @@ export interface LabInfoResponse {
   pod_ip: string | null;
   time_remaining: TimeRemaining | null;
   status: string;
+  index: number;
 }
 
 export interface QuestionData {
@@ -70,9 +71,16 @@ export class LabService {
   // Store active labs in memory to reduce API calls
   private activeLabCache: { [userId: string]: string } = {};
 
+  // In LabService class constructor, add better error handling for the connection check
   constructor(private http: HttpClient) {
-    // Check initial connection
-    this.checkApiConnection();
+    try {
+      // Check initial connection
+      this.checkApiConnection();
+    } catch (err) {
+      console.error('Error initializing lab service:', err);
+      // Ensure connectionStatus is always defined, even if initialization fails
+      this.connectionStatus.next(false);
+    }
   }
 
   // Get API URL dynamically from window location
@@ -180,7 +188,13 @@ export class LabService {
   }
 
   // Get lab info
+  // Get lab info
   getLabInfo(labId: string): Observable<LabInfoResponse> {
+    if (!labId) {
+      console.error('Attempted to get lab info with no labId');
+      return throwError(() => new Error('No lab ID provided'));
+    }
+
     return this.http
       .get<LabInfoResponse | ErrorResponse>(`${this.apiUrl}/labs/${labId}`, {
         headers: this.getHeaders(),
@@ -199,6 +213,14 @@ export class LabService {
               minutes: labInfo.time_remaining.minutes || 0,
               seconds: labInfo.time_remaining.seconds || 0,
             };
+          }
+
+          // Ensure index exists, default to 0 if not provided by backend
+          if (labInfo.index === undefined) {
+            labInfo.index = 0;
+            console.warn(
+              'Lab index was not provided by the backend, defaulting to 0'
+            );
           }
 
           return labInfo;
@@ -250,12 +272,17 @@ export class LabService {
     podName: string,
     moduleUuid: string,
     lessonUuid: string,
-    questionNumber: number
+    questionNumber: number,
+    podIdx?: number // Add optional index parameter
   ): Observable<QuestionSetupResponse> {
+    // Format pod name correctly if index is provided
+    const formattedPodName =
+      podIdx !== undefined ? `interactive-labs-${podIdx}` : podName;
+
     return this.http
       .post<QuestionSetupResponse>(
         `${this.apiUrl}/questions/${moduleUuid}/${lessonUuid}/${questionNumber}/setup`,
-        { pod_name: podName },
+        { pod_name: formattedPodName },
         { headers: this.getHeaders() }
       )
       .pipe(
@@ -273,10 +300,15 @@ export class LabService {
     moduleUuid: string,
     lessonUuid: string,
     questionNumber: number,
-    additionalData?: any
+    additionalData?: any,
+    podIdx?: number // Add optional index parameter
   ): Observable<QuestionCheckResponse> {
+    // Format pod name correctly if index is provided
+    const formattedPodName =
+      podIdx !== undefined ? `interactive-labs-${podIdx}` : podName;
+
     const payload = {
-      pod_name: podName,
+      pod_name: formattedPodName,
       ...additionalData,
     };
 

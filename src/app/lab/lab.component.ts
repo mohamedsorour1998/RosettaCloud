@@ -40,6 +40,7 @@ interface LabInfo {
   pod_ip: string | null;
   time_remaining: { hours: number; minutes: number; seconds: number } | null;
   status: string;
+  index: number;
 }
 
 /* ─── Component ──────────────────────────────────────── */
@@ -98,16 +99,23 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /* ─── LIFECYCLE ───────────────────────────────────── */
   ngOnInit(): void {
-    this.apiSub = this.labSv.connectionStatus$.subscribe((ok) => {
-      if (ok) {
-        this.hadSuccessfulConnection = true;
-        this.lostConnectionCount = 0; // reset on any success
-      } else if (this.hadSuccessfulConnection) {
-        this.lostConnectionCount++; // count only after first success
-      }
-      this.isApiConnected = ok;
-    });
+    // Ensure service is available before subscribing
+    if (this.labSv && this.labSv.connectionStatus$) {
+      this.apiSub = this.labSv.connectionStatus$.subscribe((ok) => {
+        if (ok) {
+          this.hadSuccessfulConnection = true;
+          this.lostConnectionCount = 0; // reset on any success
+        } else if (this.hadSuccessfulConnection) {
+          this.lostConnectionCount++; // count only after first success
+        }
+        this.isApiConnected = ok;
+      });
+    } else {
+      console.error('Lab service or connection status not available');
+      this.isApiConnected = false;
+    }
 
+    // Continue with the rest of the initialization
     this.moduleUuid = this.route.snapshot.paramMap.get('moduleUuid');
     this.lessonUuid = this.route.snapshot.paramMap.get('lessonUuid');
     if (!this.moduleUuid || !this.lessonUuid) {
@@ -203,7 +211,12 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
+    console.log('Received lab info:', info); // Debug to see the full lab info object
+    console.log('Pod index value:', info.index); // Debug to check the index value
+
+    const wasNotActive = !this.isLabActive;
     this.labInfo$.next(info);
+
     /* auto-recover from dead labs */
     if (['error', 'terminated'].includes(info.status)) {
       // remove stale lab reference
@@ -213,6 +226,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.launchNewLab().subscribe();
       return; // stop processing the dead lab
     }
+
     if (info.status === 'running' && info.pod_ip) {
       const url = info.pod_ip.includes('://')
         ? info.pod_ip
@@ -227,6 +241,12 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         this.updateTime(info.time_remaining);
         this.startTimer(info.time_remaining);
       } else this.timeRemaining$.next('Time unknown');
+
+      // If the lab just became active and we have questions, set up question 1
+      if (wasNotActive && this.questions.length > 0) {
+        console.log('Lab became active, setting up question 1 automatically');
+        this.setupQuestion(1);
+      }
     } else if (info.status === 'pending') {
       this.isInitializing = true;
       this.isLoading = true;
@@ -259,7 +279,12 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           })
         );
         this.restoreQuestionState();
-        if (this.questions.length) this.setupQuestion(1);
+
+        // Only set up question 1 if lab is already active, otherwise it will be done
+        // when the lab becomes active in handleLabInfo
+        if (this.questions.length && this.isLabActive) {
+          this.setupQuestion(1);
+        }
       },
       (err) => console.error('Error loading questions', err)
     );
@@ -296,6 +321,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   private setupQuestion(n: number): void {
     if (!this.labId || !this.isLabActive) return;
 
+    const labInfo = this.labInfo$.getValue();
+    if (!labInfo) return;
+
     this.resetUI();
     this.currentQuestionIndex = n - 1;
     this.questions[this.currentQuestionIndex].visited = true;
@@ -306,14 +334,54 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       100
     );
 
+    // Always call setup for all question types
+    console.log(`Setting up question ${n} with pod index: ${labInfo.index}`);
     this.labSv
-      .setupQuestion(this.labId, this.moduleUuid!, this.lessonUuid!, n)
+      .setupQuestion(
+        this.labId,
+        this.moduleUuid!,
+        this.lessonUuid!,
+        n,
+        labInfo.index
+      )
       .subscribe({
         error: (err) => console.error('Setup question error', err),
       });
   }
 
-  /* ─── SUBMIT / CHECK logic ───────────────────────── */
+  checkMCQAnswer(): void {
+    if (this.selectedOption === null) return;
+
+    const q = this.currentQuestion!;
+    this.showFeedback = true;
+
+    // Get the selected answer text
+    const selectedAnswerText = q.options![this.selectedOption];
+
+    // Compare with the correct answer
+    const isCorrect = selectedAnswerText === q.correctAnswer;
+
+    if (isCorrect) {
+      this.isAnswerCorrect = true;
+      this.feedbackMessage = 'Correct! Well done.';
+      q.completed = true;
+      q.wrongAttempt = false;
+      this.markCompleted(q.id);
+    } else {
+      this.isAnswerCorrect = false;
+      this.feedbackMessage = 'Incorrect. Try again or skip.';
+
+      // Add the incorrect option to disabled options
+      if (!q.disabledOptions.includes(this.selectedOption)) {
+        q.disabledOptions.push(this.selectedOption);
+      }
+
+      q.wrongAttempt = true;
+      this.selectedOption = null;
+    }
+  }
+
+  // Modify checkAnswer to handle MCQ and Check questions differently
   checkAnswer(): void {
     if (
       !this.labId ||
@@ -322,7 +390,19 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.selectedOption === null
     )
       return;
+
     const q = this.currentQuestion!;
+
+    // For MCQ questions, check locally without API call
+    if (q.type === 'mcq') {
+      this.checkMCQAnswer();
+      return;
+    }
+
+    // For Check questions, use the original API call logic
+    const labInfo = this.labInfo$.getValue();
+    if (!labInfo) return;
+
     this.checkInProgress = true;
     this.showFeedback = true;
 
@@ -335,7 +415,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         this.moduleUuid!,
         this.lessonUuid!,
         q.id,
-        payload
+        payload,
+        labInfo.index // Pass the pod index from labInfo
       )
       .subscribe({
         next: (res) => {
@@ -373,6 +454,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   checkQuestion(questionNumber: number): void {
     if (!this.labId || this.checkInProgress || !this.isLabActive) return;
     const q = this.currentQuestion!;
+    const labInfo = this.labInfo$.getValue();
+    if (!labInfo) return;
+
     this.checkInProgress = true;
     this.showFeedback = true;
     this.feedbackMessage = 'Checking your answer…';
@@ -382,21 +466,23 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         this.labId,
         this.moduleUuid!,
         this.lessonUuid!,
-        questionNumber
+        questionNumber,
+        undefined, // No additional data
+        labInfo.index // Pass the pod index from labInfo
       )
       .subscribe({
         next: (res) => {
           if (res.status === 'success' && res.completed) {
             this.isAnswerCorrect = true;
-            this.feedbackMessage =
-              'Correct! ' + (res.message || 'All tests passed.');
+            // Use the same format as MCQ questions
+            this.feedbackMessage = 'Correct! Well done.';
             q.completed = true;
             q.wrongAttempt = false;
             this.markCompleted(questionNumber);
           } else {
             this.isAnswerCorrect = false;
-            this.feedbackMessage =
-              res.message || 'Not yet correct. Try again or skip.';
+            // Use the same format as MCQ questions
+            this.feedbackMessage = 'Incorrect. Try again or skip.';
             q.wrongAttempt = true;
           }
           this.checkInProgress = false;
