@@ -30,9 +30,6 @@ async def lifespan(app: FastAPI):
     await lab.init()
     await users.init()
     
-    # Log that the app is ready
-    print("Application fully initialized and ready")
-    
     yield
     
     # Cleanup
