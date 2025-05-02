@@ -105,6 +105,7 @@ class LabInfoResponse(BaseModel):
     pod_ip: Optional[str]
     time_remaining: Optional[Dict[str,int]]
     status: str
+    idx: Optional[int]
 
 class ErrorResponse(BaseModel):
     error: str

@@ -343,7 +343,6 @@ class EKSLabs:
     
         LOG.info("%s rule for %s complete (now %d rule(s) total)",
                  action, host, len(rules))
-
     
     async def _get_active_pods(self) -> List[int]:
         """Get indices of currently active pods"""
