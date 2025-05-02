@@ -11,20 +11,14 @@
 # - answer_4: rm
 # Correct answer: answer_1
 
-# -q flag: Create a directory for testing
+# -q flag: no setup needed
 if [[ "$1" == "-q" ]]; then
-  mkdir -p /home/ubuntu/test_directory
-  echo "Directory created at /home/ubuntu/test_directory"
+  echo "No setup required for this MCQ."
   exit 0
 fi
 
-# -c flag: Check if the directory exists
+# -c flag: always succeed
 if [[ "$1" == "-c" ]]; then
-  if [ -d "/home/ubuntu/test_directory" ]; then
-    echo "Directory exists: /home/ubuntu/test_directory"
-    exit 0
-  else
-    echo "Directory does not exist."
-    exit 1
-  fi
+  echo "Nothing to verify for this MCQ."
+  exit 0
 fi

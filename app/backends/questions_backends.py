@@ -65,7 +65,7 @@ class QuestionBackend:
         if not shell:
             logging.error("Question #%s not found", question_number)
             return False
-        return await self._exec_script_in_pod(pod_name, shell, part="q")
+        return await self._exec_script_in_pod(pod_name, shell, part="q", question_number=question_number)
 
     async def execute_check_by_number(
         self,
@@ -80,7 +80,7 @@ class QuestionBackend:
         if not shell:
             logging.error("Question #%s not found", question_number)
             return False
-        return await self._exec_script_in_pod(pod_name, shell, part="c")
+        return await self._exec_script_in_pod(pod_name, shell, part="c",question_number=question_number)
 
     async def _fetch_shells(self, module_uuid: str,
                             lesson_uuid: str) -> List[str]:
@@ -162,7 +162,7 @@ class QuestionBackend:
         return self._shell_files_by_number[key].get(q_no)
 
     async def _exec_script_in_pod(self, pod: str, shell: str,
-                                  part: str) -> bool:
+                                  part: str, question_number: int) -> bool:
         """Extract -q or -c, copy to pod, execute, return success."""
         extractor = self._extract_question_script if part == "q" \
                     else self._extract_check_script
@@ -180,7 +180,7 @@ class QuestionBackend:
         os.chmod(path, 0o755)
         try:
             # kubectl cp
-            dst = f"{pod}:/tmp/{part}_script.sh"
+            dst = f"{pod}:/tmp/{question_number}_{part}_script.sh"
             cp  = subprocess.run(
                 ["kubectl", "cp", path, dst, "-n", self.namespace],
                 capture_output=True, text=True
@@ -191,7 +191,7 @@ class QuestionBackend:
 
             # kubectl exec
             exec_cmd = (
-                "chmod +x /tmp/{f} && /tmp/{f}".format(f=f"{part}_script.sh")
+                "chmod +x /tmp/{f} && /tmp/{f}".format(f=f"{question_number}_{part}_script.sh")
             )
             ex = subprocess.run(
                 ["kubectl", "exec", pod, "-n", self.namespace,
