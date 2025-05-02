@@ -11,6 +11,9 @@ from app.services import cache_events_service as cache_events
 from app.services import ai_service as ai
 from app.services import labs_service as lab
 from app.services import users_service as users
+# Import the feedback service, but don't initialize it separately
+# as it will hook into the AI service initialization
+from app.services import feedback_service
 
 from app.services.questions_service import QuestionService
 from app.backends.questions_backends import QuestionBackend
@@ -18,17 +21,24 @@ from app.backends.questions_backends import QuestionBackend
 question_backend = QuestionBackend()
 questions_service = QuestionService(ai, question_backend)
 
-#startup / shutdown
+# Startup / shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize services
     await cache_events.init()
-    await ai.init()
+    await ai.init()  # This will also initialize the feedback service
     await lab.init()
     await users.init()
+    
+    # Log that the app is ready
+    print("Application fully initialized and ready")
+    
     yield
+    
+    # Cleanup
     await users.close()
     await lab.close()
-    await ai.close()
+    await ai.close()  # This will also clean up the feedback service
     await cache_events.close()
 
 app = FastAPI(
@@ -374,7 +384,6 @@ async def check_question(
     return result
 
 # Health check endpoint
-
 @app.get("/health-check", tags=["System"])
 async def health_check():
     return {"status": "healthy", "timestamp": time.time()}

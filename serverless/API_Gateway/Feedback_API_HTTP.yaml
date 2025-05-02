@@ -1,0 +1,160 @@
+openapi: 3.0.0
+info:
+  title: RosettaCloud Feedback API
+  description: API for AI-powered feedback on lab exercises
+  version: 1.0.0
+paths:
+  /feedback/request:
+    post:
+      summary: Request feedback for lab exercises
+      description: Submits user progress data and lab questions for AI feedback generation
+      operationId: requestFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+      responses:
+        "200":
+          description: Feedback request submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackResponse"
+        "400":
+          description: Bad request - missing required parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      x-amazon-apigateway-integration:
+        uri: ${LambdaFunctionArn}
+        passthroughBehavior: when_no_match
+        httpMethod: POST
+        type: aws_proxy
+    options:
+      summary: CORS support
+      description: Enables CORS by returning correct headers
+      responses:
+        "200":
+          description: CORS enabled
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content: {}
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: "{}"
+components:
+  schemas:
+    FeedbackRequest:
+      type: object
+      required:
+        - user_id
+        - module_uuid
+        - lesson_uuid
+        - questions
+      properties:
+        user_id:
+          type: string
+          description: ID of the user requesting feedback
+        module_uuid:
+          type: string
+          description: UUID of the module being completed
+        lesson_uuid:
+          type: string
+          description: UUID of the lesson being completed
+        questions:
+          type: array
+          description: Array of questions attempted by the user
+          items:
+            $ref: "#/components/schemas/Question"
+        progress:
+          type: object
+          description: Object mapping question IDs to completion status
+          additionalProperties:
+            type: boolean
+    Question:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Question ID or number
+        question:
+          type: string
+          description: Text of the question
+        type:
+          type: string
+          description: Type of question (mcq, check, code, etc.)
+          enum: [mcq, check, code, open_ended]
+        question_difficulty:
+          type: string
+          description: Difficulty level of the question
+          enum: [Easy, Medium, Hard]
+        options:
+          type: array
+          description: For MCQ questions, list of answer options
+          items:
+            type: string
+        correctAnswer:
+          type: string
+          description: The correct answer for the question
+        completed:
+          type: boolean
+          description: Whether the user completed this question successfully
+        userAnswer:
+          type: string
+          description: The user's answer (if applicable)
+        visited:
+          type: boolean
+          description: Whether the user visited this question
+    FeedbackResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          description: Unique ID for the feedback request
+        status:
+          type: string
+          description: Status of the request (pending, completed, failed)
+          enum: [pending, completed, failed]
+        message:
+          type: string
+          description: Additional message about the request
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+x-amazon-apigateway-binary-media-types:
+  - "application/json"
+x-amazon-apigateway-request-validators:
+  basic:
+    validateRequestBody: true
+    validateRequestParameters: true
+x-amazon-apigateway-request-validator: basic

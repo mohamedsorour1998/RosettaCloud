@@ -1,0 +1,50 @@
+swagger: "2.0"
+info:
+  title: RosettaCloud Feedback WebSocket API
+  description: WebSocket API for receiving real-time feedback updates
+  version: "1.0"
+schemes:
+  - wss
+paths:
+  /$connect:
+    get:
+      summary: Connect to WebSocket
+      description: Establishes a WebSocket connection
+      parameters:
+        - name: request_id
+          in: query
+          required: false
+          type: string
+          description: Optional request ID to subscribe to immediately upon connection
+      responses:
+        "200":
+          description: Connection established
+      x-amazon-apigateway-integration:
+        uri: ${ConnectLambdaFunctionArn}
+        passthroughBehavior: when_no_match
+        httpMethod: POST
+        type: aws_proxy
+  /$disconnect:
+    get:
+      summary: Disconnect from WebSocket
+      description: Handles WebSocket disconnection
+      responses:
+        "200":
+          description: Disconnection handled
+      x-amazon-apigateway-integration:
+        uri: ${DisconnectLambdaFunctionArn}
+        passthroughBehavior: when_no_match
+        httpMethod: POST
+        type: aws_proxy
+  /$default:
+    get:
+      summary: Default WebSocket route
+      description: Handles default WebSocket messages
+      responses:
+        "200":
+          description: Message handled
+      x-amazon-apigateway-integration:
+        uri: ${DefaultLambdaFunctionArn}
+        passthroughBehavior: when_no_match
+        httpMethod: POST
+        type: aws_proxy
