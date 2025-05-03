@@ -1,3 +1,5 @@
 app/__pycache__
 app/backends/__pycache__
 app/services/__pycache__
+serverless/Lambda/feedback/deploy.zip
+serverless/Lambda/feedback/build
