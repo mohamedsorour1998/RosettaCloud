@@ -1,16 +1,9 @@
 import json
 import os
-import uuid
-from datetime import datetime
 import logging
 import asyncio
 import boto3
-
-# Configure logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-# Import Momento libraries
+from datetime import datetime, timedelta
 from momento import (
     CacheClientAsync,
     Configurations,
@@ -24,7 +17,10 @@ from momento.responses import (
     CreateCache,
     TopicPublish,
 )
-from datetime import timedelta
+
+# Configure logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 # Default cache name from environment
 DEFAULT_CACHE = os.getenv("CACHE_EVENTS_DEFAULT_CACHE", "interactive-labs")
@@ -98,7 +94,7 @@ async def async_lambda_handler(event, context):
     This function:
     1. Parses the request from API Gateway
     2. Validates the required parameters
-    3. Generates a unique request ID
+    3. Uses the feedback_id provided by the UI
     4. Publishes the request to the FeedbackRequested Momento topic
     5. Returns a response to the API Gateway
     """
@@ -129,11 +125,12 @@ async def async_lambda_handler(event, context):
         user_id = body.get('user_id')
         module_uuid = body.get('module_uuid')
         lesson_uuid = body.get('lesson_uuid')
+        feedback_id = body.get('feedback_id')
         questions = body.get('questions', [])
         progress = body.get('progress', {})
         
         # Validate required parameters
-        if not all([user_id, module_uuid, lesson_uuid]):
+        if not all([user_id, module_uuid, lesson_uuid, feedback_id]):
             logger.error("Missing required parameters")
             return {
                 'statusCode': 400,
@@ -142,16 +139,14 @@ async def async_lambda_handler(event, context):
                     'Access-Control-Allow-Headers': 'Content-Type',
                     'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
                 },
-                'body': json.dumps({'error': 'Missing required parameters'})
+                'body': json.dumps({'error': 'Missing required parameters: user_id, module_uuid, lesson_uuid, and feedback_id are required'})
             }
             
-        # Generate feedback request ID
-        request_id = str(uuid.uuid4())
         timestamp = datetime.utcnow().isoformat()
         
         # Format the message for Momento
         message = {
-            'request_id': request_id,
+            'feedback_id': feedback_id,
             'user_id': user_id,
             'module_uuid': module_uuid,
             'lesson_uuid': lesson_uuid,
@@ -161,7 +156,7 @@ async def async_lambda_handler(event, context):
         }
         
         # Publish to Momento topic
-        logger.info(f"Publishing request to FeedbackRequested topic: {request_id}")
+        logger.info(f"Publishing request to FeedbackRequested topic: {feedback_id}")
         await momento_client.publish('FeedbackRequested', json.dumps(message))
         
         # Return success response
@@ -173,7 +168,7 @@ async def async_lambda_handler(event, context):
                 'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
             },
             'body': json.dumps({
-                'request_id': request_id,
+                'feedback_id': feedback_id,
                 'status': 'pending',
                 'message': 'Feedback request submitted successfully'
             })

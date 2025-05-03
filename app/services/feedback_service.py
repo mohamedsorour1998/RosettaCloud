@@ -65,10 +65,10 @@ async def _handle(raw_msg: str) -> None:
     logger.debug("Raw message: %s", raw_msg)
     try:
         data        = json.loads(raw_msg)
-        request_id  = data["request_id"]
+        feedback_id  = data["feedback_id"]
 
         prompt      = _build_prompt(data)
-        logger.info("Calling AI for request %s", request_id)
+        logger.info("Calling AI for request %s", feedback_id)
 
         system_role = (
             "You are an educational assistant providing feedback on lab exercises. "
@@ -90,7 +90,7 @@ async def _handle(raw_msg: str) -> None:
         payload = json.dumps(
             {
                 "type":       "feedback",
-                "request_id": request_id,
+                "feedback_id": feedback_id,
                 "content":    ai_response,
                 "timestamp":  datetime.utcnow().isoformat(),
             }
@@ -100,7 +100,7 @@ async def _handle(raw_msg: str) -> None:
         if isinstance(pub, TopicPublish.Error):
             logger.error("Publish failed: %s", pub.message)
         else:
-            logger.info("Feedback %s published to %s", request_id, FEEDBACK_GIVEN_TOPIC)
+            logger.info("Feedback %s published to %s", feedback_id, FEEDBACK_GIVEN_TOPIC)
 
     except Exception as exc:
         logger.exception("Failed to handle message: %s", exc)

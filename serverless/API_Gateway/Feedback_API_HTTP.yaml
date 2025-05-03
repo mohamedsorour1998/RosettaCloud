@@ -135,7 +135,7 @@ components:
     FeedbackResponse:
       type: object
       properties:
-        request_id:
+        feedback_id:
           type: string
           description: Unique ID for the feedback request
         status:
