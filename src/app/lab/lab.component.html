@@ -131,7 +131,6 @@
             <span class="spinner" *ngIf="checkInProgress"></span>
             <span class="btn-text">Submit</span>
           </button>
-
           <button
             class="btn-submit"
             [ngClass]="{ loading: checkInProgress }"
@@ -174,6 +173,7 @@
           [lessonUuid]="lessonUuid ?? ''"
           [questions]="questions"
           [userProgress]="userProgressData"
+          (terminateLabRequest)="terminateLab()"
         ></app-feedback>
       </div>
       <!-- footer with progress -->

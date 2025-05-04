@@ -1,98 +1,35 @@
-// feedback.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { MomentoService } from './momento.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class FeedbackService {
   private apiUrl =
-    environment.feedbackApiUrl || 'https://api.rosettacloud.example.com';
-  private webSocketUrl =
-    environment.feedbackWebSocketUrl || 'wss://ws.rosettacloud.example.com';
-  private socket: WebSocket | null = null;
-  private requestId: string | null = null;
+    environment.feedbackApiUrl || 'https://api.dev.rosettacloud.app';
+  private feedbackId: string | null = null;
 
-  // Subject to broadcast feedback when received from WebSocket
-  private feedbackReceivedSubject = new Subject<string>();
+  // Subject to broadcast feedback when received from Momento
+  private feedbackReceivedSubject = new Subject<any>();
   public feedbackReceived$ = this.feedbackReceivedSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private momentoService: MomentoService
+  ) {}
 
-  // Connect to the feedback WebSocket
-  public connectToFeedbackWebSocket(): void {
-    if (this.socket) {
-      // Already connected
-      return;
-    }
-
-    this.socket = new WebSocket(this.webSocketUrl);
-
-    this.socket.onopen = () => {
-      console.log('WebSocket connection established');
-
-      // If we have a requestId, send it to subscribe
-      if (this.requestId) {
-        this.subscribeToFeedback(this.requestId);
-      }
-    };
-
-    this.socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('WebSocket message received:', data);
-
-        // Check if this is feedback for our request
-        if (
-          data &&
-          data.type === 'feedback' &&
-          data.request_id === this.requestId
-        ) {
-          // Broadcast the feedback to subscribers
-          this.feedbackReceivedSubject.next(data.content);
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-
-    this.socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    this.socket.onclose = () => {
-      console.log('WebSocket connection closed');
-      this.socket = null;
-    };
-  }
-
-  // Subscribe to feedback updates for a specific request
-  private subscribeToFeedback(requestId: string): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      console.error('Cannot subscribe: WebSocket not connected');
-      return;
-    }
-
-    this.socket.send(
-      JSON.stringify({
-        action: 'subscribe',
-        request_id: requestId,
-      })
-    );
-  }
-
-  // Disconnect from the WebSocket
-  public disconnectFromFeedbackWebSocket(): void {
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
-      this.requestId = null;
-    }
-  }
-
-  // Request feedback from the API
+  /**
+   * Request feedback from the API
+   * @param userId User ID
+   * @param moduleUuid Module UUID
+   * @param lessonUuid Lesson UUID
+   * @param questions Questions data
+   * @param userProgress User progress data
+   * @returns Observable of the feedback request response
+   */
   public requestFeedback(
     userId: string,
     moduleUuid: string,
@@ -100,36 +37,112 @@ export class FeedbackService {
     questions: any[],
     userProgress: any
   ): Observable<any> {
+    // Generate a unique feedback ID
+    this.feedbackId = this.momentoService.generateFeedbackId();
+
+    // Prepare request payload
     const payload = {
       user_id: userId,
       module_uuid: moduleUuid,
       lesson_uuid: lessonUuid,
+      feedback_id: this.feedbackId, // Include feedback_id in the request
       questions: questions,
       progress: userProgress,
     };
 
+    // Subscribe to Momento for this feedback ID
+    this.setupMomentoSubscription(userId, this.feedbackId);
+
+    // Send request to API
     return new Observable((observer) => {
       this.http
         .post<any>(`${this.apiUrl}/feedback/request`, payload)
         .subscribe({
           next: (response) => {
-            // Store the request ID for WebSocket subscription
-            this.requestId = response.request_id;
-
-            // If WebSocket is already connected, subscribe to this request
-            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-              if (this.requestId) {
-                this.subscribeToFeedback(this.requestId);
-              }
-            }
-
-            observer.next(response);
+            console.log('Feedback request successful:', response);
+            observer.next({
+              ...response,
+              feedback_id: this.feedbackId,
+            });
             observer.complete();
           },
           error: (err) => {
+            console.error('Error requesting feedback:', err);
             observer.error(err);
           },
         });
     });
+  }
+
+  /**
+   * Set up subscription to Momento for feedback updates
+   * @param userId User ID for token request
+   * @param feedbackId The feedback ID to filter messages by
+   */
+  private async setupMomentoSubscription(
+    userId: string,
+    feedbackId: string
+  ): Promise<void> {
+    try {
+      console.log(
+        `Setting up Momento subscription for feedback ID: ${feedbackId}`
+      );
+
+      // Get token from vending endpoint
+      const token = await this.momentoService.getToken(userId);
+      console.log('Received Momento token');
+
+      // Initialize Momento client with token
+      this.momentoService.initializeClient(token);
+      console.log('Momento client initialized');
+
+      // Subscribe to topic for this feedback ID
+      const success = await this.momentoService.subscribe(
+        feedbackId,
+        // Message handler
+        (data) => {
+          console.log('Received feedback message:', data);
+          // Extract feedback content from the response
+          const content = data.content || data.feedback || JSON.stringify(data);
+          this.feedbackReceivedSubject.next(content);
+        },
+        // Error handler
+        async (error) => {
+          if (error.type === 'token_expired') {
+            console.log('Token expired, refreshing...');
+            // Clean up existing subscription
+            this.momentoService.unsubscribe();
+
+            // Try again with a new token
+            await this.setupMomentoSubscription(userId, feedbackId);
+          }
+        }
+      );
+
+      if (success) {
+        console.log('Successfully subscribed to Momento topic');
+      } else {
+        console.error('Failed to subscribe to Momento topic');
+      }
+    } catch (error) {
+      console.error('Error setting up Momento subscription:', error);
+    }
+  }
+
+  /**
+   * Connect to WebSocket (keeping for backward compatibility)
+   */
+  public connectToFeedbackWebSocket(): void {
+    // This method is intentionally left empty as we're now using Momento directly
+    console.log('Using Momento for real-time updates instead of WebSocket');
+  }
+
+  /**
+   * Disconnect from WebSocket (keeping for backward compatibility)
+   */
+  public disconnectFromFeedbackWebSocket(): void {
+    // Clean up Momento subscription instead
+    this.momentoService.unsubscribe();
+    this.feedbackId = null;
   }
 }

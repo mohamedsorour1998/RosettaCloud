@@ -23,6 +23,10 @@
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
+            "allowedCommonJsDependencies": [
+              "@gomomento/sdk-web",
+              "google-protobuf"
+            ],
             "assets": [
               {
                 "glob": "**/*",

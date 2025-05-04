@@ -1,11 +1,11 @@
 export const environment = {
   production: true,
   apiUrl: 'http://51.112.10.4:30085',
-  feedbackApiUrl:
-    'https://your-api-gateway-id.execute-api.region.amazonaws.com/prod',
-
-  feedbackWebSocketUrl:
-    'wss://your-websocket-api-id.execute-api.region.amazonaws.com/prod',
+  feedbackApiUrl: 'https://api.dev.rosettacloud.app',
+  momento: {
+    cacheName: 'interactive-labs',
+    feedbackTopic: 'FeedbackGiven',
+  },
   labDefaultTimeout: {
     hours: 1,
     minutes: 30,

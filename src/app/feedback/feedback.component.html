@@ -1,38 +1,108 @@
-<div class="feedback-container">
-  <ng-container *ngIf="!feedbackRequested">
+<!-- feedback.component.html -->
+<!-- Main component container -->
+<div class="feedback-wrapper">
+  <!-- Request Feedback Button Section - Only shown initially -->
+  <div *ngIf="!feedbackRequested" class="feedback-button-container">
     <button
-      class="feedback-button"
-      [disabled]="loading"
+      class="btn btn-success btn-lg w-100 py-3"
       (click)="requestFeedback()"
+      [disabled]="loading || feedbackRequested"
     >
-      {{ loading ? "Requesting feedback..." : "Finish and Get Your Feedback!" }}
+      <i class="bi bi-check-circle me-2"></i>
+      {{ loading ? "Requesting feedback..." : "Complete Lab & Get Feedback" }}
     </button>
-  </ng-container>
+    <p class="text-muted mt-2 small text-center">
+      <i class="bi bi-info-circle"></i>
+      This will end your lab session and provide personalized feedback on your
+      performance.
+    </p>
+  </div>
 
-  <ng-container *ngIf="feedbackRequested && !feedback">
-    <div class="loading-container">
-      <div class="loading-spinner"></div>
-      <p>Generating your personalized feedback...</p>
-      <p class="info-text">
-        This might take a minute or two. Please wait while our AI analyzes your
-        performance.
-      </p>
+  <!-- Loading State - Shown when requesting feedback -->
+  <div *ngIf="loading" class="loading-container text-center">
+    <div class="spinner-border text-success" role="status">
+      <span class="visually-hidden">Loading...</span>
     </div>
-  </ng-container>
+    <h4 class="mt-3 mb-1">Generating your personalized feedback...</h4>
+    <p class="text-muted small">
+      This might take a minute. Please wait while our AI analyzes your
+      performance.
+    </p>
+  </div>
 
-  <ng-container *ngIf="feedback">
-    <div class="feedback-content">
-      <h2>Your Learning Feedback</h2>
-      <div class="feedback-text">
-        <p *ngFor="let paragraph of feedbackParagraphs">{{ paragraph }}</p>
+  <!-- Feedback Content - Fullscreen modal overlay -->
+  <div *ngIf="feedback && !loading" class="feedback-modal-overlay">
+    <div class="feedback-modal">
+      <!-- Auto-terminate countdown banner -->
+      <div class="terminate-countdown-banner">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-alarm me-2"></i>
+            Lab will be terminated automatically in:
+            <strong
+              >{{ countdownMinutes }}:{{
+                countdownSeconds | number : "2.0"
+              }}</strong
+            >
+          </div>
+          <div class="progress" style="width: 150px; height: 8px">
+            <div
+              class="progress-bar bg-success"
+              [style.width.%]="(remainingSeconds / (5 * 60)) * 100"
+            ></div>
+          </div>
+        </div>
       </div>
 
-      <div class="feedback-actions">
-        <button class="action-button" (click)="saveFeedback()">
-          Save Feedback
+      <div class="feedback-modal-header">
+        <h2>
+          <i class="bi bi-card-text me-2 text-success"></i>Your Learning
+          Feedback
+        </h2>
+      </div>
+
+      <!-- Scrollable Feedback Area -->
+      <div class="feedback-modal-body">
+        <div class="feedback-scroll-container">
+          <div
+            class="feedback-text"
+            [innerHTML]="formatFeedback(feedback)"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Modal footer with action buttons -->
+      <div class="feedback-modal-footer">
+        <button class="btn btn-outline-primary" (click)="saveFeedback()">
+          <i class="bi bi-download me-2"></i> Download Feedback
         </button>
-        <button class="action-button" (click)="closeFeedback()">Close</button>
+        <button class="btn btn-danger" (click)="notifyTerminateLab()">
+          <i class="bi bi-stop-circle me-2"></i> Terminate Lab Now
+        </button>
       </div>
     </div>
-  </ng-container>
+
+    <!-- Save Success Toast -->
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1100">
+      <div
+        class="toast align-items-center text-white bg-success border-0"
+        [ngClass]="{ show: showSaveSuccess }"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+      >
+        <div class="d-flex">
+          <div class="toast-body">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            Feedback downloaded successfully!
+          </div>
+          <button
+            type="button"
+            class="btn-close btn-close-white me-2 m-auto"
+            (click)="showSaveSuccess = false"
+          ></button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

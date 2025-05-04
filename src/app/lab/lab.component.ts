@@ -437,11 +437,43 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /* ─── Question setup / UI reset ─────────────────── */
+  resetAnswerAttempt(): void {
+    const currentQuestion = this.questions[this.currentQuestionIndex];
+    this.selectedOption = null;
+    this.showFeedback = false;
+    this.feedbackMessage = '';
+
+    // Don't reset wrongAttempt flag - we still want to show retry button
+  }
+  // Modify the resetUI method around line 412
   private resetUI(): void {
     this.selectedOption = null;
     this.showFeedback = false;
     this.feedbackMessage = '';
     this.isAnswerCorrect = false;
+
+    // If this is the last question and it had a wrong attempt,
+    // make sure the wrongAttempt flag is preserved for UI display purposes
+    if (this.currentQuestionIndex === this.questions.length - 1) {
+      const lastQuestion = this.questions[this.currentQuestionIndex];
+      if (lastQuestion && !lastQuestion.completed) {
+        // Keep the wrongAttempt flag if we're staying on the same question
+        // This ensures the retry UI remains visible
+      } else {
+        // Reset wrongAttempt only if we're changing questions or it's completed
+        lastQuestion.wrongAttempt = false;
+      }
+    }
+  }
+
+  // Add this helper method
+  resetCurrentQuestionAttempt(): void {
+    this.selectedOption = null;
+    this.showFeedback = false;
+    this.feedbackMessage = '';
+    this.isAnswerCorrect = false;
+
+    // Don't reset the wrongAttempt flag to preserve UI state
   }
 
   private setupQuestion(n: number): void {
@@ -710,6 +742,16 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   public initializeNewLab(): void {
+    // Clear question state when starting a new lab
+    try {
+      sessionStorage.removeItem(this.qStateKey);
+      this.questions = [];
+      this.currentQuestionIndex = 0;
+    } catch (e) {
+      console.error('Error clearing question state:', e);
+    }
+
+    // Launch new lab
     this.launchNewLab().subscribe();
   }
 
@@ -725,6 +767,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           try {
             sessionStorage.removeItem('activeLabId');
             sessionStorage.removeItem(this.qStateKey);
+            this.questions = [];
+            this.currentQuestionIndex = 0;
           } catch (e) {
             console.error('Error clearing session storage:', e);
           }
@@ -799,10 +843,20 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     );
   }
   // New computed property to determine when to show the feedback button
+  // Update the showFeedbackButton getter
   get showFeedbackButton(): boolean {
-    // Show feedback button when all questions are completed
+    // Show feedback button when either:
+    // 1. User has reached the last question (whether completed or not)
+    // 2. User has completed 75% or more of all questions
+    const completedCount = this.getCompletedQuestionsCount();
+    const totalCount = this.questions.length;
+
     return (
-      this.questions.length > 0 && this.questions.every((q) => q.completed)
+      totalCount > 0 &&
+      // First condition: User is at the last question
+      (this.currentQuestionIndex === this.questions.length - 1 ||
+        // Second condition: User has completed at least 75% of questions
+        completedCount / totalCount >= 0.75)
     );
   }
 }
