@@ -1,0 +1,74 @@
+openapi: 3.0.0
+info:
+  title: Momento Token Vending API
+  description: API for generating disposable Momento tokens for browser applications
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+    description: API server
+paths:
+  /momento/token:
+    get:
+      summary: Generate a disposable Momento token
+      description: Creates a short-lived token with limited permissions for browser use
+      operationId: generateToken
+      parameters:
+        - name: user_id
+          in: query
+          description: User ID to associate with the token
+          required: true
+          schema:
+            type: string
+        - name: cache_name
+          in: query
+          description: Cache name to grant access to (defaults to "interactive-labs")
+          required: false
+          schema:
+            type: string
+        - name: expiry_minutes
+          in: query
+          description: Token expiry time in minutes (max 60)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 60
+            default: 30
+        - name: scope
+          in: query
+          description: Permission scope - "subscribe", "publish", or "both"
+          required: false
+          schema:
+            type: string
+            enum: [subscribe, publish, both]
+            default: subscribe
+      responses:
+        "200":
+          description: Token generated successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Momento disposable token
+        "400":
+          description: Bad request - missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  message:
+                    type: string
+      tags:
+        - Momento

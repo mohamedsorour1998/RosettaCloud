@@ -3,5 +3,5 @@ app/backends/__pycache__
 app/services/__pycache__
 serverless/Lambda/feedback_request/deploy.zip
 serverless/Lambda/feedback_request/build
-serverless/Lambda/feedback_response/deploy.zip
-serverless/Lambda/feedback_response/build
+serverless/Lambda/momento_token_vending/node_modules
+serverless/Lambda/momento_token_vending/function.zip
