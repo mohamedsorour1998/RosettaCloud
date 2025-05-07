@@ -9,7 +9,35 @@ const {
 
 let _momentoAuthClient = undefined;
 
+// CORS headers for all responses
+const CORS_HEADERS = {
+  "Content-Type": "text/plain",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Access-Control-Allow-Headers,Access-Control-Allow-Origin",
+  "Access-Control-Allow-Methods": "OPTIONS,GET",
+  "Cache-Control": "no-store",
+};
+
+// CORS headers for errors
+const ERROR_CORS_HEADERS = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Access-Control-Allow-Headers,Access-Control-Allow-Origin",
+  "Access-Control-Allow-Methods": "OPTIONS,GET",
+};
+
 exports.handler = async (event) => {
+  // Handle preflight OPTIONS request
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: "",
+    };
+  }
+
   try {
     // Get API key from environment variable
     const momentoApiKey = process.env.MOMENTO_API_KEY;
@@ -29,16 +57,16 @@ exports.handler = async (event) => {
     );
     const scope = event.queryStringParameters?.scope || "subscribe";
 
+    // Log the request
+    console.log(
+      `Token request: user=${userId}, cache=${cacheName}, scope=${scope}, expiry=${expiryMinutes}min`
+    );
+
     // Validate required parameters
     if (!userId) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": "Content-Type",
-          "Access-Control-Allow-Methods": "OPTIONS,GET",
-        },
+        headers: ERROR_CORS_HEADERS,
         body: JSON.stringify({
           error: "Missing required parameter: user_id",
         }),
@@ -60,25 +88,14 @@ exports.handler = async (event) => {
     // Return the token as plain text
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "text/plain",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "OPTIONS,GET",
-        "Cache-Control": "no-store",
-      },
+      headers: CORS_HEADERS,
       body: token.authToken,
     };
   } catch (err) {
     console.error("Error:", err);
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "OPTIONS,GET",
-      },
+      headers: ERROR_CORS_HEADERS,
       body: JSON.stringify({
         error: "Failed to generate token",
         message: err.message || String(err),
@@ -105,15 +122,21 @@ async function generateToken(apiKey, userId, cacheName, expiryMinutes, scope) {
     tokenScope = TokenScopes.topicPublishSubscribe(cacheName, AllTopics);
   }
 
+  // Validate expiry (must be between 1 and 60 minutes)
+  const validatedExpiryMinutes = Math.min(Math.max(1, expiryMinutes), 60);
+
   // Generate token
   const response = await _momentoAuthClient.generateDisposableToken(
     tokenScope,
-    ExpiresIn.minutes(Math.min(Math.max(1, expiryMinutes), 60)),
+    ExpiresIn.minutes(validatedExpiryMinutes),
     { tokenId: userId }
   );
 
   // Process response
   if (response.type === GenerateDisposableTokenResponse.Success) {
+    console.log(
+      `Token generated successfully for user ${userId}, expires in ${validatedExpiryMinutes} minutes`
+    );
     return {
       authToken: response.authToken,
       expiresAt: response.expiresAt.epoch(),

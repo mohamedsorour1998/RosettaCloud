@@ -26,6 +26,13 @@ logger.setLevel(logging.INFO)
 DEFAULT_CACHE = os.getenv("CACHE_EVENTS_DEFAULT_CACHE", "interactive-labs")
 DEFAULT_TTL = int(os.getenv("CACHE_EVENTS_DEFAULT_TTL", "900"))
 
+# CORS headers for all responses
+CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+}
+
 class MomentoClient:
     _known: set[str] = set()
     _lock = None
@@ -85,6 +92,14 @@ def lambda_handler(event, context):
     """
     AWS Lambda entry point
     """
+    # Handle preflight OPTIONS request
+    if event.get('httpMethod') == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': CORS_HEADERS,
+            'body': ''
+        }
+        
     return asyncio.get_event_loop().run_until_complete(async_lambda_handler(event, context))
 
 async def async_lambda_handler(event, context):
@@ -111,11 +126,7 @@ async def async_lambda_handler(event, context):
             logger.error("Missing request body")
             return {
                 'statusCode': 400,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-                },
+                'headers': CORS_HEADERS,
                 'body': json.dumps({'error': 'Missing request body'})
             }
             
@@ -134,11 +145,7 @@ async def async_lambda_handler(event, context):
             logger.error("Missing required parameters")
             return {
                 'statusCode': 400,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-                },
+                'headers': CORS_HEADERS,
                 'body': json.dumps({'error': 'Missing required parameters: user_id, module_uuid, lesson_uuid, and feedback_id are required'})
             }
             
@@ -162,11 +169,7 @@ async def async_lambda_handler(event, context):
         # Return success response
         return {
             'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-            },
+            'headers': CORS_HEADERS,
             'body': json.dumps({
                 'feedback_id': feedback_id,
                 'status': 'pending',
@@ -178,10 +181,6 @@ async def async_lambda_handler(event, context):
         logger.error(f"Error processing feedback request: {str(e)}")
         return {
             'statusCode': 500,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
-            },
+            'headers': CORS_HEADERS,
             'body': json.dumps({'error': f'Internal server error: {str(e)}'})
         }
