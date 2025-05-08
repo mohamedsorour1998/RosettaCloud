@@ -5,17 +5,23 @@ on:
       image_tag:
         description: Docker tag
         default: latest
+        type: string
       github_iam_role:
         description: IAM role for GitHub Actions
         default: github-actions-role
+        type: string
       aws_account_id:
         description: AWS Account ID
         default: "339712964409"
+        type: string
       aws_region:
         description: AWS Region
         default: me-central-1
+        type: string
+
 jobs:
-  build-push-deploy:
+  # First job: Build and push all images in parallel
+  build-push-images:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -24,50 +30,140 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # ─── Lambdas ──────────────────────────────────────────────────────────
           - dockerfile_path: serverless/Lambda/document_indexer/Dockerfile
             build_dir: serverless/Lambda/document_indexer
             ecr_repository: rosettacloud-document_indexer-lambda
-            lambda_name: document_indexer
           - dockerfile_path: serverless/Lambda/ai_chatbot/Dockerfile
             build_dir: serverless/Lambda/ai_chatbot
             ecr_repository: rosettacloud-ai_chatbot-lambda
-            lambda_name: document_indexer
-          - dockerfile_path: backend/Dockerfile
-            build_dir: backend
+          # ─── Backend image ─────────────────────────────────────────────────────
+          - dockerfile_path: Dockerfile
+            build_dir: .
             ecr_repository: rosettacloud-backend
-            lambda_name: ""
+    outputs:
+      document_indexer_image: ${{ steps.set-outputs.outputs.rosettacloud-document_indexer-lambda_image }}
+      ai_chatbot_image: ${{ steps.set-outputs.outputs.rosettacloud-ai_chatbot-lambda_image }}
     steps:
       - uses: actions/checkout@v3
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ inputs.aws_account_id }}:role/${{ inputs.github_iam_role }}
           aws-region: ${{ inputs.aws_region }}
+
       - name: Login to ECR
         id: login
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registries: ${{ inputs.aws_account_id }}
+
+      - name: Verify paths
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Directory contents: $(ls -la)"
+
+          # Check build directory
+          if [ ! -d "${{ matrix.build_dir }}" ]; then
+            echo "::error::Directory '${{ matrix.build_dir }}' not found!"
+            exit 1
+          fi
+
+          # Check Dockerfile
+          if [ ! -f "${{ matrix.dockerfile_path }}" ]; then
+            echo "::error::Dockerfile '${{ matrix.dockerfile_path }}' not found!"
+            exit 1
+          fi
+
       - name: Ensure ECR repo exists
         run: |
           aws ecr describe-repositories --repository-names ${{ matrix.ecr_repository }} \
           || aws ecr create-repository --repository-name ${{ matrix.ecr_repository }}
+
       - name: Build & push image
         id: push
         env:
           REGISTRY: ${{ steps.login.outputs.registry }}
         run: |
           IMAGE_URI=$REGISTRY/${{ matrix.ecr_repository }}:${{ inputs.image_tag }}
+
+          echo "Building image for ${{ matrix.ecr_repository }}"
+          echo "Using Dockerfile at: ${{ matrix.dockerfile_path }}"
+          echo "Building from directory: ${{ matrix.build_dir }}"
+
           docker build --platform linux/amd64 \
             -f ${{ matrix.dockerfile_path }} \
             ${{ matrix.build_dir }} \
             -t "$IMAGE_URI"
+
           docker push "$IMAGE_URI"
-          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
-      - name: Update Lambda (only if lambda_name is set)
-        if: matrix.lambda_name != ''
+
+          # Create output variable with safe name (replace hyphens with underscores)
+          SAFE_REPO_NAME=$(echo "${{ matrix.ecr_repository }}" | tr '-' '_')
+          echo "${SAFE_REPO_NAME}_image=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+          echo "Successfully pushed image: $IMAGE_URI"
+
+      # Set job outputs from matrix outputs
+      - name: Set job outputs
+        id: set-outputs
         run: |
+          echo "rosettacloud-document_indexer-lambda_image=${{ steps.push.outputs.rosettacloud_document_indexer_lambda_image }}" >> $GITHUB_OUTPUT
+          echo "rosettacloud-ai_chatbot-lambda_image=${{ steps.push.outputs.rosettacloud_ai_chatbot_lambda_image }}" >> $GITHUB_OUTPUT
+
+  # Second job: Update first Lambda and wait for completion
+  update-first-lambda:
+    needs: build-push-images
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ inputs.aws_account_id }}:role/${{ inputs.github_iam_role }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Update document-indexer Lambda
+        run: |
+          echo "Updating document-indexer-lambda with image: ${{ needs.build-push-images.outputs.document_indexer_image }}"
+
           aws lambda update-function-code \
-            --function-name ${{ matrix.lambda_name }} \
-            --image-uri       ${{ steps.push.outputs.image_uri }} \
-            --region          ${{ inputs.aws_region }}
+            --function-name document-indexer-lambda \
+            --image-uri ${{ needs.build-push-images.outputs.document_indexer_image }} \
+            --region ${{ inputs.aws_region }}
+            
+          echo "Waiting for Lambda update to complete..."
+          aws lambda wait function-updated-v2 --function-name document-indexer-lambda
+
+          echo "document-indexer-lambda update completed!"
+
+  # Third job: Update second Lambda after first one completes
+  update-second-lambda:
+    needs: [build-push-images, update-first-lambda]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ inputs.aws_account_id }}:role/${{ inputs.github_iam_role }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Update ai-chatbot Lambda
+        run: |
+          echo "Updating ai-chatbot-lambda with image: ${{ needs.build-push-images.outputs.ai_chatbot_image }}"
+
+          aws lambda update-function-code \
+            --function-name ai-chatbot-lambda \
+            --image-uri ${{ needs.build-push-images.outputs.ai_chatbot_image }} \
+            --region ${{ inputs.aws_region }}
+            
+          echo "Waiting for Lambda update to complete..."
+          aws lambda wait function-updated-v2 --function-name ai-chatbot-lambda
+
+          echo "ai-chatbot-lambda update completed!"
