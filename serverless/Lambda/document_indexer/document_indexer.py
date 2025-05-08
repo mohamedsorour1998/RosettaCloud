@@ -93,6 +93,29 @@ def extract_mcq_data(comments):
     
     return mcq_data
 
+def extract_flag_handlers(text):
+    """Extract flag handlers for -q and -c flags"""
+    flag_handlers = {
+        'question_flag': '',   # -q flag handler
+        'check_flag': ''    # -c flag handler
+    }
+    
+    # Use regex to extract flag handlers
+    q_flag_pattern = re.compile(r'#.*-q\s+flag.*\n(if.*?\[\[\s*"\$1"\s*==\s*"-q"\s*\]\].*?\n(.*?\n)*?.*?fi)', re.DOTALL)
+    c_flag_pattern = re.compile(r'#.*-c\s+flag.*\n(if.*?\[\[\s*"\$1"\s*==\s*"-c"\s*\]\].*?\n(.*?\n)*?.*?fi)', re.DOTALL)
+    
+    # Extract -q flag handler
+    q_match = q_flag_pattern.search(text)
+    if q_match:
+        flag_handlers['question_flag'] = q_match.group(1)
+    
+    # Extract -c flag handler
+    c_match = c_flag_pattern.search(text)
+    if c_match:
+        flag_handlers['check_flag'] = c_match.group(1)
+    
+    return flag_handlers
+
 def process_shell_script(text, filename):
     """Special processing for shell scripts to improve embeddings quality"""
     # Extract comments which often contain useful information
@@ -108,8 +131,15 @@ def process_shell_script(text, filename):
         'question': '',
         'question_type': '',
         'possible_answers': [],
-        'correct_answer': ''
+        'correct_answer': '',
+        'question_flag': '',   # -q flag handler
+        'check_flag': ''    # -c flag handler
     }
+    
+    # Extract flag handlers first
+    flag_handlers = extract_flag_handlers(text)
+    lab_info['question_flag'] = flag_handlers['question_flag']
+    lab_info['check_flag'] = flag_handlers['check_flag']
     
     current_command_block = []
     current_comment_block = []
@@ -171,6 +201,10 @@ def process_shell_script(text, filename):
                 current_comment_block = []
                 in_mcq_section = False
             
+            # Skip flag handler sections since we extracted them separately
+            if line_stripped.startswith('if [[ "$1" =='):
+                continue
+            
             # Track command blocks for better understanding of script functionality
             if line_stripped and not line_stripped.startswith('#'):
                 current_command_block.append(line)
@@ -224,6 +258,12 @@ MAIN COMMAND BLOCKS:
         lab_metadata_texts.append(f"Possible Answers:\n{answers_text}")
     if lab_info['correct_answer']:
         lab_metadata_texts.append(f"Correct Answer: {lab_info['correct_answer']}")
+    
+    # Add flag handlers if available
+    if lab_info['question_flag']:
+        lab_metadata_texts.append(f"\nQuestion Flag Handler (-q):\n{lab_info['question_flag']}")
+    if lab_info['check_flag']:
+        lab_metadata_texts.append(f"\nCheck Flag Handler (-c):\n{lab_info['check_flag']}")
     
     if lab_metadata_texts:
         lab_metadata = "\nLAB QUESTION INFORMATION:\n" + "\n".join(lab_metadata_texts)
@@ -312,6 +352,12 @@ def process_s3_object(bucket, key):
                 chunk.metadata["possible_answers"] = json.dumps(lab_info['possible_answers'])
             if 'correct_answer' in lab_info and lab_info['correct_answer']:
                 chunk.metadata["correct_answer"] = lab_info['correct_answer']
+            
+            # Add flag handlers
+            if 'question_flag' in lab_info and lab_info['question_flag']:
+                chunk.metadata["question_flag"] = lab_info['question_flag']
+            if 'check_flag' in lab_info and lab_info['check_flag']:
+                chunk.metadata["check_flag"] = lab_info['check_flag']
     
     # Create embeddings for all chunks
     print("Creating embeddings...")
@@ -330,12 +376,10 @@ def process_s3_object(bucket, key):
             "file_type": chunk.metadata.get("file_type", "")
         }
         
-        # Add educational metadata
-        for meta_key in ["course", "lab_type", "educational", "exercise_name", 
-                        "difficulty", "question_number", "question", "question_type",
-                        "possible_answers", "correct_answer"]:
-            if meta_key in chunk.metadata and chunk.metadata[meta_key]:
-                doc_with_vector[meta_key] = chunk.metadata.get(meta_key)
+        # Add all metadata fields
+        for meta_key in chunk.metadata:
+            if meta_key not in doc_with_vector and chunk.metadata[meta_key]:
+                doc_with_vector[meta_key] = chunk.metadata[meta_key]
         
         embedded_documents.append(doc_with_vector)
     
