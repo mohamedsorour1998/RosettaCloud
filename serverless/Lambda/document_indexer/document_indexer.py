@@ -406,9 +406,15 @@ def lambda_handler(event, context):
     Lambda handler that processes a specific S3 object provided in the event
     """
     try:
-        # Extract bucket and key from the event
-        bucket = event.get('bucket')
-        key = event.get('key')
+        # Extract bucket and key from the event - support both direct invocation and EventBridge events
+        if 'detail' in event and 'bucket' in event['detail'] and 'object' in event['detail']:
+            # This is an EventBridge event
+            bucket = event['detail']['bucket']['name']
+            key = event['detail']['object']['key']
+        else:
+            # This is a direct invocation
+            bucket = event.get('bucket')
+            key = event.get('key')
         
         if not bucket or not key:
             print("Missing bucket or key in event:", event)
