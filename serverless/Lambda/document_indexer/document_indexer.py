@@ -8,13 +8,13 @@ import time
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 
-# Configuration from environment variables with defaults
+# Configuration
 LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-interactive-labs-vector")
 KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID', "shell-scripts-knowledge-base")
 BEDROCK_REGION = 'us-east-1'
 S3_REGION = os.environ.get('S3_REGION', os.environ.get('AWS_REGION', 'me-central-1'))
 
-# Add .sh to the supported extensions
+# Supported extensions
 SUPPORTED_EXTENSIONS = ['.txt', '.md', '.pdf', '.doc', '.docx', '.csv', '.json', '.sh']
 
 # Educational lab data for scripts
@@ -285,6 +285,28 @@ MAIN COMMAND BLOCKS:
     
     return enhanced_text, lab_info
 
+def prepare_document_for_lancedb(doc):
+    """Convert document to a format safe for LanceDB"""
+    result = {}
+    for key, value in doc.items():
+        # If key is vector, keep it as is
+        if key == 'vector':
+            result[key] = value
+        # Convert complex types (lists, dicts) to JSON strings
+        elif isinstance(value, (list, dict)):
+            result[key] = json.dumps(value)
+        # Convert bool to string
+        elif isinstance(value, bool):
+            result[key] = str(value).lower()
+        # For all other non-None values, convert to string
+        elif value is not None:
+            result[key] = str(value)
+        # Skip None values
+        else:
+            continue
+            
+    return result
+
 def process_s3_object(bucket, key):
     print(f"Processing file: s3://{bucket}/{key}")
     
@@ -342,7 +364,6 @@ def process_s3_object(bucket, key):
                     chunk.metadata[meta_key] = lab_info[meta_key]
             
             if 'possible_answers' in lab_info and lab_info['possible_answers']:
-                chunk.metadata["possible_answers"] = json.dumps(lab_info['possible_answers'])
                 answers_text = '; '.join([f"{a['id']}: {a['text']}" for a in lab_info['possible_answers']])
                 chunk.metadata["possible_answers_text"] = answers_text
             if 'correct_answer' in lab_info and lab_info['correct_answer']:
@@ -373,7 +394,10 @@ def process_s3_object(bucket, key):
                 if meta_key not in doc_with_vector and chunk.metadata[meta_key]:
                     doc_with_vector[meta_key] = chunk.metadata[meta_key]
             
-            embedded_documents.append(doc_with_vector)
+            # Convert document to LanceDB-safe format
+            safe_doc = prepare_document_for_lancedb(doc_with_vector)
+            embedded_documents.append(safe_doc)
+            
         except Exception as e:
             print(f"Error creating embedding for chunk: {str(e)}")
             import traceback
@@ -383,36 +407,46 @@ def process_s3_object(bucket, key):
         print(f"Connecting to vector database at {LANCEDB_S3_URI}")
         db = lancedb.connect(LANCEDB_S3_URI)
         
-        all_tables = db.table_names()
-        if KNOWLEDGE_BASE_ID in all_tables:
-            print(f"Updating existing table: {KNOWLEDGE_BASE_ID}")
-            try:
-                table = db.open_table(KNOWLEDGE_BASE_ID)
-                
-                if embedded_documents:
-                    # Just add as-is, let LanceDB handle compatibility
-                    print(f"Adding {len(embedded_documents)} documents to existing table")
-                    table.add(embedded_documents)
-                    print(f"Successfully indexed {len(embedded_documents)} document chunks")
-            except Exception as e:
-                print(f"Error updating table: {str(e)}")
-                import traceback
-                print(traceback.format_exc())
-        else:
+        # Try to create the table first
+        try:
             print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
-            try:
-                table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
-                print(f"Successfully created table and indexed {len(embedded_documents)} document chunks")
-            except ValueError as ve:
-                if "already exists" in str(ve):
-                    print(f"Table was created by another process, opening and updating instead")
+            table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
+            print(f"Successfully created table and indexed {len(embedded_documents)} document chunks")
+        except ValueError as ve:
+            # Table already exists, first try a simple append
+            if "already exists" in str(ve):
+                print(f"Table already exists, attempting to add documents")
+                try:
                     table = db.open_table(KNOWLEDGE_BASE_ID)
                     table.add(embedded_documents)
-                    print(f"Successfully indexed {len(embedded_documents)} document chunks")
-                else:
-                    raise
+                    print(f"Successfully added {len(embedded_documents)} document chunks")
+                except Exception as add_error:
+                    # If direct add fails, try creating a new table and merging
+                    print(f"Error adding to table: {str(add_error)}")
+                    print("Trying alternate approach with temporary table")
+                    
+                    # Create temp table with this batch
+                    temp_table_name = f"{KNOWLEDGE_BASE_ID}_temp_{int(time.time())}"
+                    temp_table = db.create_table(temp_table_name, data=embedded_documents)
+                    print(f"Created temporary table {temp_table_name}")
+                    
+                    # Get data from temp table
+                    all_data = temp_table.to_pandas()
+                    print(f"Retrieved {len(all_data)} rows from temporary table")
+                    
+                    # Add to existing table
+                    main_table = db.open_table(KNOWLEDGE_BASE_ID)
+                    main_table.add(all_data)
+                    print(f"Successfully added data to main table")
+                    
+                    # Clean up
+                    db.drop_table(temp_table_name)
+                    print(f"Cleaned up temporary table")
+            else:
+                raise
+                
     except Exception as e:
-        print(f"Error connecting to LanceDB: {str(e)}")
+        print(f"Error working with LanceDB: {str(e)}")
         import traceback
         print(traceback.format_exc())
 
