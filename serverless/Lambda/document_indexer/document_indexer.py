@@ -1,11 +1,10 @@
 import boto3
 import os
 import json
-import urllib.parse
-import lancedb
-import time
 import tempfile
 import re
+import lancedb
+import time
 from langchain_aws import BedrockEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
@@ -403,45 +402,30 @@ def process_s3_object(bucket, key):
 
 def lambda_handler(event, context):
     """
-    Handle both S3 direct events and EventBridge events
+    Lambda handler that processes a specific S3 object provided in the event
     """
-    print("Received event:", json.dumps(event, indent=2))
-    
-    processed_count = 0
-    
     try:
-        # Check if this is an S3 event (via S3 notification)
-        if 'Records' in event:
-            for record in event['Records']:
-                # Check if this is an S3 event
-                if record.get('eventSource') == 'aws:s3' or 's3' in record:
-                    bucket = record['s3']['bucket']['name']
-                    key = urllib.parse.unquote_plus(record['s3']['object']['key'])
-                    process_s3_object(bucket, key)
-                    processed_count += 1
+        # Extract bucket and key from the event
+        bucket = event.get('bucket')
+        key = event.get('key')
         
-        # Check if this is an EventBridge event
-        elif 'detail-type' in event and event.get('detail-type') == 'Object Created' and event.get('source') == 'aws.s3':
-            bucket = event['detail']['bucket']['name']
-            key = event['detail']['object']['key']
-            process_s3_object(bucket, key)
-            processed_count += 1
-        
-        # If neither, log error
-        else:
-            print("Unsupported event format:", event)
+        if not bucket or not key:
+            print("Missing bucket or key in event:", event)
             return {
                 'statusCode': 400,
-                'body': json.dumps('Unsupported event format')
+                'body': json.dumps('Missing bucket or key parameters')
             }
+        
+        # Process the specific S3 object
+        process_s3_object(bucket, key)
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps(f'Successfully processed file: s3://{bucket}/{key}')
+        }
     except Exception as e:
         print(f"Error in lambda handler: {str(e)}")
         return {
             'statusCode': 500,
             'body': json.dumps(f'Error processing event: {str(e)}')
         }
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps(f'Successfully processed {processed_count} files')
-    }
