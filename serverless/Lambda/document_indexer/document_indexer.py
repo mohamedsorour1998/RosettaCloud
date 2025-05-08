@@ -285,26 +285,19 @@ MAIN COMMAND BLOCKS:
     
     return enhanced_text, lab_info
 
-def prepare_document_for_lancedb(doc):
-    """Convert document to a format safe for LanceDB"""
-    result = {}
-    for key, value in doc.items():
-        # If key is vector, keep it as is
-        if key == 'vector':
-            result[key] = value
-        # Convert complex types (lists, dicts) to JSON strings
-        elif isinstance(value, (list, dict)):
-            result[key] = json.dumps(value)
-        # Convert bool to string
-        elif isinstance(value, bool):
-            result[key] = str(value).lower()
-        # For all other non-None values, convert to string
-        elif value is not None:
-            result[key] = str(value)
-        # Skip None values
-        else:
-            continue
-            
+def get_minimal_document_schema(docs):
+    """Extract only essential fields that we know exist in the target schema"""
+    result = []
+    for doc in docs:
+        # These fields should always be in the schema
+        minimal_doc = {
+            "vector": doc["vector"],
+            "document": doc["document"],
+            "file_name": doc["file_name"],
+            "full_path": doc["full_path"],
+            "indexed_at": doc["indexed_at"],
+        }
+        result.append(minimal_doc)
     return result
 
 def process_s3_object(bucket, key):
@@ -363,12 +356,14 @@ def process_s3_object(bucket, key):
                 if meta_key in lab_info and lab_info[meta_key]:
                     chunk.metadata[meta_key] = lab_info[meta_key]
             
+            # Store answers as plain text instead of JSON
             if 'possible_answers' in lab_info and lab_info['possible_answers']:
                 answers_text = '; '.join([f"{a['id']}: {a['text']}" for a in lab_info['possible_answers']])
-                chunk.metadata["possible_answers_text"] = answers_text
+                chunk.metadata["answers_text"] = answers_text
             if 'correct_answer' in lab_info and lab_info['correct_answer']:
                 chunk.metadata["correct_answer"] = lab_info['correct_answer']
             
+            # Flag handlers are already strings, so they should be fine
             if 'question_flag' in lab_info and lab_info['question_flag']:
                 chunk.metadata["question_flag"] = lab_info['question_flag']
             if 'check_flag' in lab_info and lab_info['check_flag']:
@@ -380,23 +375,22 @@ def process_s3_object(bucket, key):
         try:
             vector = custom_embed_query(chunk.page_content, bedrock_client)
             
+            # Use only the minimal necessary fields
             doc_with_vector = {
                 "vector": vector,
                 "document": chunk.page_content,
                 "file_name": chunk.metadata.get("file_name", ""),
                 "full_path": chunk.metadata.get("full_path", ""),
-                "volume_junction_path": chunk.metadata.get("volume_junction_path", ""),
                 "indexed_at": chunk.metadata.get("indexed_at", 0),
-                "file_type": chunk.metadata.get("file_type", "")
             }
             
-            for meta_key in chunk.metadata:
-                if meta_key not in doc_with_vector and chunk.metadata[meta_key]:
-                    doc_with_vector[meta_key] = chunk.metadata[meta_key]
-            
-            # Convert document to LanceDB-safe format
-            safe_doc = prepare_document_for_lancedb(doc_with_vector)
-            embedded_documents.append(safe_doc)
+            # Add a few essential fields
+            if "volume_junction_path" in chunk.metadata:
+                doc_with_vector["volume_junction_path"] = chunk.metadata["volume_junction_path"]
+            if "file_type" in chunk.metadata:
+                doc_with_vector["file_type"] = chunk.metadata["file_type"]
+                
+            embedded_documents.append(doc_with_vector)
             
         except Exception as e:
             print(f"Error creating embedding for chunk: {str(e)}")
@@ -407,44 +401,44 @@ def process_s3_object(bucket, key):
         print(f"Connecting to vector database at {LANCEDB_S3_URI}")
         db = lancedb.connect(LANCEDB_S3_URI)
         
-        # Try to create the table first
         try:
-            print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
-            table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
-            print(f"Successfully created table and indexed {len(embedded_documents)} document chunks")
-        except ValueError as ve:
-            # Table already exists, first try a simple append
-            if "already exists" in str(ve):
-                print(f"Table already exists, attempting to add documents")
+            # First check if table exists
+            all_tables = db.table_names()
+            if KNOWLEDGE_BASE_ID in all_tables:
+                # Table exists, use it
+                print(f"Table {KNOWLEDGE_BASE_ID} exists, updating it")
                 try:
                     table = db.open_table(KNOWLEDGE_BASE_ID)
+                    # Add documents using only minimal fields
                     table.add(embedded_documents)
-                    print(f"Successfully added {len(embedded_documents)} document chunks")
-                except Exception as add_error:
-                    # If direct add fails, try creating a new table and merging
-                    print(f"Error adding to table: {str(add_error)}")
-                    print("Trying alternate approach with temporary table")
+                    print(f"Successfully added {len(embedded_documents)} documents")
+                except Exception as e:
+                    # If add fails, try with minimal schema fields only
+                    print(f"Error adding to table: {str(e)}")
+                    print("Trying with minimal schema fields only")
                     
-                    # Create temp table with this batch
-                    temp_table_name = f"{KNOWLEDGE_BASE_ID}_temp_{int(time.time())}"
-                    temp_table = db.create_table(temp_table_name, data=embedded_documents)
-                    print(f"Created temporary table {temp_table_name}")
-                    
-                    # Get data from temp table
-                    all_data = temp_table.to_pandas()
-                    print(f"Retrieved {len(all_data)} rows from temporary table")
-                    
-                    # Add to existing table
-                    main_table = db.open_table(KNOWLEDGE_BASE_ID)
-                    main_table.add(all_data)
-                    print(f"Successfully added data to main table")
-                    
-                    # Clean up
-                    db.drop_table(temp_table_name)
-                    print(f"Cleaned up temporary table")
+                    # Extract only fields we know will work
+                    minimal_docs = get_minimal_document_schema(embedded_documents)
+                    table.add(minimal_docs)
+                    print(f"Successfully added {len(minimal_docs)} documents with minimal schema")
+            else:
+                # Create new table
+                print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
+                table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
+                print(f"Successfully created new table with {len(embedded_documents)} documents")
+        except ValueError as ve:
+            # Table already exists but wasn't in table_names
+            if "already exists" in str(ve):
+                print("Table exists but wasn't in table_names list")
+                try:
+                    table = db.open_table(KNOWLEDGE_BASE_ID)
+                    minimal_docs = get_minimal_document_schema(embedded_documents)
+                    table.add(minimal_docs)
+                    print(f"Successfully added {len(minimal_docs)} documents to existing table")
+                except Exception as e:
+                    print(f"Failed to update existing table: {str(e)}")
             else:
                 raise
-                
     except Exception as e:
         print(f"Error working with LanceDB: {str(e)}")
         import traceback
