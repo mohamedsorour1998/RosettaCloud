@@ -5,7 +5,7 @@ import urllib.parse
 import lancedb
 import time
 from langchain_aws import BedrockEmbeddings
-from langchain.document_loaders import S3FileLoader
+from langchain_community.document_loaders import S3FileLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # Configuration from environment variables with defaults
@@ -108,9 +108,15 @@ Learning Objectives:
     
     return enhanced_text, lab_info
 
-def lambda_handler(event, context):
-    """Process S3 upload events and index documents into LanceDB"""
-    print("Received event:", json.dumps(event, indent=2))
+def process_s3_object(bucket, key):
+    """Process a single S3 object and index it into LanceDB"""
+    print(f"Processing file: s3://{bucket}/{key}")
+    
+    # Skip processing if the file is in the LanceDB bucket (to avoid infinite loops)
+    if LANCEDB_S3_URI and LANCEDB_S3_URI.startswith(f"s3://{bucket}"):
+        if key.startswith(LANCEDB_S3_URI.replace(f"s3://{bucket}/", "")):
+            print("Skipping LanceDB file to prevent recursive processing")
+            return
     
     # Initialize Bedrock client
     bedrock_client = boto3.client(service_name='bedrock-runtime', region_name=BEDROCK_REGION)
@@ -122,121 +128,140 @@ def lambda_handler(event, context):
         model_kwargs={"dimensions": 1536}
     )
     
-    # Process each record in the S3 event
-    for record in event['Records']:
-        # Get the S3 bucket name and key
-        bucket = record['s3']['bucket']['name']
-        key = urllib.parse.unquote_plus(record['s3']['object']['key'])
-        
-        print(f"Processing file: s3://{bucket}/{key}")
-        
-        # Skip processing if the file is in the LanceDB bucket (to avoid infinite loops)
-        if LANCEDB_S3_URI and LANCEDB_S3_URI.startswith(f"s3://{bucket}"):
-            if key.startswith(LANCEDB_S3_URI.replace(f"s3://{bucket}/", "")):
-                print("Skipping LanceDB file to prevent recursive processing")
-                continue
-        
-        # Get the appropriate document loader
-        loader = get_document_loader(bucket, key)
-        if not loader:
-            print(f"No loader available for {key}, skipping")
-            continue
-        
-        try:
-            # Load the document
-            documents = loader.load()
-            if not documents:
-                print(f"No content loaded from {key}")
-                continue
-                
-            print(f"Loaded document: {key} with {len(documents)} pages/sections")
+    # Get the appropriate document loader
+    loader = get_document_loader(bucket, key)
+    if not loader:
+        print(f"No loader available for {key}, skipping")
+        return
+    
+    try:
+        # Load the document
+        documents = loader.load()
+        if not documents:
+            print(f"No content loaded from {key}")
+            return
             
-            # Special processing for shell scripts
-            filename = os.path.basename(key)
-            lab_info = {}
+        print(f"Loaded document: {key} with {len(documents)} pages/sections")
+        
+        # Special processing for shell scripts
+        filename = os.path.basename(key)
+        lab_info = {}
+        
+        if key.lower().endswith('.sh'):
+            for doc in documents:
+                enhanced_content, lab_metadata = process_shell_script(doc.page_content, filename)
+                doc.page_content = enhanced_content
+                lab_info = lab_metadata
+            print("Applied shell script-specific processing for educational lab context")
+        
+        # Split the document into chunks
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200  # Increased overlap for better context preservation
+        )
+        chunks = text_splitter.split_documents(documents)
+        print(f"Split into {len(chunks)} chunks")
+        
+        # Add metadata to each chunk
+        for chunk in chunks:
+            # Extract filename from source path
+            chunk.metadata["file_name"] = filename
+            chunk.metadata["full_path"] = key
+            chunk.metadata["volume_junction_path"] = bucket
+            chunk.metadata["indexed_at"] = time.time()
             
+            # Add script-specific metadata for shell scripts
             if key.lower().endswith('.sh'):
-                for doc in documents:
-                    enhanced_content, lab_metadata = process_shell_script(doc.page_content, filename)
-                    doc.page_content = enhanced_content
-                    lab_info = lab_metadata
-                print("Applied shell script-specific processing for educational lab context")
-            
-            # Split the document into chunks
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200  # Increased overlap for better context preservation
-            )
-            chunks = text_splitter.split_documents(documents)
-            print(f"Split into {len(chunks)} chunks")
-            
-            # Add metadata to each chunk
-            for chunk in chunks:
-                # Extract filename from source path
-                chunk.metadata["file_name"] = filename
-                chunk.metadata["full_path"] = key
-                chunk.metadata["volume_junction_path"] = bucket
-                chunk.metadata["indexed_at"] = time.time()
+                chunk.metadata["file_type"] = "shell_script"
                 
-                # Add script-specific metadata for shell scripts
-                if key.lower().endswith('.sh'):
-                    chunk.metadata["file_type"] = "shell_script"
-                    
-                    # Add educational lab metadata
-                    chunk.metadata["course"] = LAB_METADATA['course']
-                    chunk.metadata["lab_type"] = LAB_METADATA['lab_type']
-                    chunk.metadata["educational"] = LAB_METADATA['educational']
-                    
-                    # Add lab exercise info if available
-                    if lab_info.get('exercise_name'):
-                        chunk.metadata["exercise_name"] = lab_info['exercise_name']
-                    if lab_info.get('difficulty'):
-                        chunk.metadata["difficulty"] = lab_info['difficulty']
-            
-            # Create embeddings for all chunks
-            print("Creating embeddings...")
-            embedded_documents = []
-            for chunk in chunks:
-                vector = embeddings.embed_query(chunk.page_content)
+                # Add educational lab metadata
+                chunk.metadata["course"] = LAB_METADATA['course']
+                chunk.metadata["lab_type"] = LAB_METADATA['lab_type']
+                chunk.metadata["educational"] = LAB_METADATA['educational']
                 
-                # Create document with all metadata
-                doc_with_vector = {
-                    "vector": vector,
-                    "document": chunk.page_content,
-                    "file_name": chunk.metadata.get("file_name", ""),
-                    "full_path": chunk.metadata.get("full_path", ""),
-                    "volume_junction_path": chunk.metadata.get("volume_junction_path", ""),
-                    "indexed_at": chunk.metadata.get("indexed_at", 0),
-                    "file_type": chunk.metadata.get("file_type", "")
-                }
-                
-                # Add educational metadata
-                for meta_key in ["course", "lab_type", "educational", "exercise_name", "difficulty"]:
-                    if meta_key in chunk.metadata:
-                        doc_with_vector[meta_key] = chunk.metadata.get(meta_key)
-                
-                embedded_documents.append(doc_with_vector)
+                # Add lab exercise info if available
+                if lab_info.get('exercise_name'):
+                    chunk.metadata["exercise_name"] = lab_info['exercise_name']
+                if lab_info.get('difficulty'):
+                    chunk.metadata["difficulty"] = lab_info['difficulty']
+        
+        # Create embeddings for all chunks
+        print("Creating embeddings...")
+        embedded_documents = []
+        for chunk in chunks:
+            vector = embeddings.embed_query(chunk.page_content)
             
-            # Connect to LanceDB and create or update table
-            print(f"Connecting to vector database at {LANCEDB_S3_URI}")
-            db = lancedb.connect(LANCEDB_S3_URI)
+            # Create document with all metadata
+            doc_with_vector = {
+                "vector": vector,
+                "document": chunk.page_content,
+                "file_name": chunk.metadata.get("file_name", ""),
+                "full_path": chunk.metadata.get("full_path", ""),
+                "volume_junction_path": chunk.metadata.get("volume_junction_path", ""),
+                "indexed_at": chunk.metadata.get("indexed_at", 0),
+                "file_type": chunk.metadata.get("file_type", "")
+            }
             
-            # Create or update LanceDB table
-            if KNOWLEDGE_BASE_ID in db.table_names():
-                print(f"Updating existing table: {KNOWLEDGE_BASE_ID}")
-                table = db.open_table(KNOWLEDGE_BASE_ID)
-                table.add(embedded_documents)
-            else:
-                print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
-                table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
+            # Add educational metadata
+            for meta_key in ["course", "lab_type", "educational", "exercise_name", "difficulty"]:
+                if meta_key in chunk.metadata:
+                    doc_with_vector[meta_key] = chunk.metadata.get(meta_key)
             
-            print(f"Successfully indexed {len(embedded_documents)} document chunks")
-            
-        except Exception as e:
-            print(f"Error processing {key}: {str(e)}")
-            continue
+            embedded_documents.append(doc_with_vector)
+        
+        # Connect to LanceDB and create or update table
+        print(f"Connecting to vector database at {LANCEDB_S3_URI}")
+        db = lancedb.connect(LANCEDB_S3_URI)
+        
+        # Create or update LanceDB table
+        if KNOWLEDGE_BASE_ID in db.table_names():
+            print(f"Updating existing table: {KNOWLEDGE_BASE_ID}")
+            table = db.open_table(KNOWLEDGE_BASE_ID)
+            table.add(embedded_documents)
+        else:
+            print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
+            table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
+        
+        print(f"Successfully indexed {len(embedded_documents)} document chunks")
+        
+    except Exception as e:
+        print(f"Error processing {key}: {str(e)}")
+        return
+
+def lambda_handler(event, context):
+    """
+    Handle both S3 direct events and EventBridge events
+    """
+    print("Received event:", json.dumps(event, indent=2))
+    
+    processed_count = 0
+    
+    # Check if this is an S3 event (via S3 notification)
+    if 'Records' in event:
+        for record in event['Records']:
+            # Check if this is an S3 event
+            if record.get('eventSource') == 'aws:s3' or 's3' in record:
+                bucket = record['s3']['bucket']['name']
+                key = urllib.parse.unquote_plus(record['s3']['object']['key'])
+                process_s3_object(bucket, key)
+                processed_count += 1
+    
+    # Check if this is an EventBridge event
+    elif 'detail-type' in event and event.get('detail-type') == 'Object Created' and event.get('source') == 'aws.s3':
+        bucket = event['detail']['bucket']['name']
+        key = event['detail']['object']['key']
+        process_s3_object(bucket, key)
+        processed_count += 1
+    
+    # If neither, log error
+    else:
+        print("Unsupported event format:", event)
+        return {
+            'statusCode': 400,
+            'body': json.dumps('Unsupported event format')
+        }
     
     return {
         'statusCode': 200,
-        'body': json.dumps(f'Successfully processed {len(event["Records"])} files')
+        'body': json.dumps(f'Successfully processed {processed_count} files')
     }
