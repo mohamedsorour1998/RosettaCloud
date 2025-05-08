@@ -12,7 +12,8 @@ from langchain.schema.document import Document
 # Configuration from environment variables with defaults
 LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-interactive-labs-vector")
 KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID', "shell-scripts-knowledge-base")
-BEDROCK_REGION = os.environ.get('BEDROCK_REGION', os.environ.get('AWS_REGION', 'us-east-1'))
+# Force Bedrock region to us-east-1 since it's not available in me-central-1
+BEDROCK_REGION = os.environ.get('BEDROCK_REGION', 'us-east-1')
 S3_REGION = os.environ.get('S3_REGION', os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Add .sh to the supported extensions
@@ -280,8 +281,8 @@ def process_s3_object(bucket, key):
             print("Skipping LanceDB file to prevent recursive processing")
             return
     
-    # Initialize Bedrock client
-    bedrock_client = boto3.client(service_name='bedrock-runtime', region_name=BEDROCK_REGION)
+    # Initialize Bedrock client - explicitly set to us-east-1 where the service is available
+    bedrock_client = boto3.client(service_name='bedrock-runtime', region_name='us-east-1')
     
     # Initialize the embedding model
     embeddings = BedrockEmbeddings(
