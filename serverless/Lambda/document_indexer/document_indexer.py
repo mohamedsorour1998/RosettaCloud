@@ -67,6 +67,42 @@ def load_file_from_s3(bucket, key):
         print(f"Error loading file from S3: {str(e)}")
         return None
 
+
+def custom_embed_query(text, bedrock_client):
+    """
+    Custom implementation to properly format the request for Titan Text Embeddings V2
+    """
+    try:
+        # Format the request exactly according to the Amazon docs
+        request_body = json.dumps({
+            "inputText": text,
+            "embeddingTypes": ["float"]
+        })
+        
+        # Call the model directly
+        response = bedrock_client.invoke_model(
+            body=request_body, 
+            modelId="amazon.titan-embed-text-v2:0",
+            accept="application/json",
+            contentType="application/json"
+        )
+        
+        # Parse the response
+        response_body = json.loads(response.get('body').read())
+        
+        # Extract the embedding vector - V2 model uses embeddingsByType
+        if 'embeddingsByType' in response_body and 'float' in response_body['embeddingsByType']:
+            return response_body['embeddingsByType']['float']
+        else:
+            print(f"Unexpected response format: {json.dumps(response_body)}")
+            raise ValueError("Unexpected response format: no embedding found")
+            
+    except Exception as e:
+        print(f"Error in custom_embed_query: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        raise
+
 def extract_mcq_data(comments):
     """Extract MCQ-specific data from comments"""
     mcq_data = {
@@ -284,16 +320,8 @@ def process_s3_object(bucket, key):
     # Initialize Bedrock client - explicitly set to us-east-1 where the service is available
     bedrock_client = boto3.client(service_name='bedrock-runtime', region_name='us-east-1')
     
-    # Initialize the embedding model
-    embeddings = BedrockEmbeddings(
-        model_id="amazon.titan-embed-text-v2:0",
-        client=bedrock_client,
-        model_kwargs={
-            "dimensions": 1536,
-            "normalize": True,
-            "embeddingTypes": ["float"]
-        }
-    )
+    # Don't use langchain embeddings since they're causing format issues
+    # Instead, we'll use direct API calls via our custom_embed_query function
     
     # Load the document using direct S3 access instead of S3FileLoader
     documents = load_file_from_s3(bucket, key)
@@ -368,8 +396,8 @@ def process_s3_object(bucket, key):
     embedded_documents = []
     for chunk in chunks:
         try:
-            # Create a properly formatted request for the Titan Text Embeddings V2 model
-            vector = embeddings.embed_query(chunk.page_content)
+            # Use custom function to directly call the Bedrock API
+            vector = custom_embed_query(chunk.page_content, bedrock_client)
             
             # Create document with all metadata
             doc_with_vector = {
