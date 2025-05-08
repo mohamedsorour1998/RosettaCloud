@@ -288,7 +288,11 @@ def process_s3_object(bucket, key):
     embeddings = BedrockEmbeddings(
         model_id="amazon.titan-embed-text-v2:0",
         client=bedrock_client,
-        model_kwargs={"dimensions": 1536}
+        model_kwargs={
+            "dimensions": 1536,
+            "normalize": True,
+            "embeddingTypes": ["float"]
+        }
     )
     
     # Load the document using direct S3 access instead of S3FileLoader
@@ -363,25 +367,31 @@ def process_s3_object(bucket, key):
     print("Creating embeddings...")
     embedded_documents = []
     for chunk in chunks:
-        vector = embeddings.embed_query(chunk.page_content)
-        
-        # Create document with all metadata
-        doc_with_vector = {
-            "vector": vector,
-            "document": chunk.page_content,
-            "file_name": chunk.metadata.get("file_name", ""),
-            "full_path": chunk.metadata.get("full_path", ""),
-            "volume_junction_path": chunk.metadata.get("volume_junction_path", ""),
-            "indexed_at": chunk.metadata.get("indexed_at", 0),
-            "file_type": chunk.metadata.get("file_type", "")
-        }
-        
-        # Add all metadata fields
-        for meta_key in chunk.metadata:
-            if meta_key not in doc_with_vector and chunk.metadata[meta_key]:
-                doc_with_vector[meta_key] = chunk.metadata[meta_key]
-        
-        embedded_documents.append(doc_with_vector)
+        try:
+            # Create a properly formatted request for the Titan Text Embeddings V2 model
+            vector = embeddings.embed_query(chunk.page_content)
+            
+            # Create document with all metadata
+            doc_with_vector = {
+                "vector": vector,
+                "document": chunk.page_content,
+                "file_name": chunk.metadata.get("file_name", ""),
+                "full_path": chunk.metadata.get("full_path", ""),
+                "volume_junction_path": chunk.metadata.get("volume_junction_path", ""),
+                "indexed_at": chunk.metadata.get("indexed_at", 0),
+                "file_type": chunk.metadata.get("file_type", "")
+            }
+            
+            # Add all metadata fields
+            for meta_key in chunk.metadata:
+                if meta_key not in doc_with_vector and chunk.metadata[meta_key]:
+                    doc_with_vector[meta_key] = chunk.metadata[meta_key]
+            
+            embedded_documents.append(doc_with_vector)
+        except Exception as e:
+            print(f"Error creating embedding for chunk: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
     
     try:
         # Connect to LanceDB and create or update table
@@ -403,35 +413,38 @@ def process_s3_object(bucket, key):
 
 def lambda_handler(event, context):
     """
-    Lambda handler that processes a specific S3 object provided in the event
+    Lambda handler that processes S3 objects from EventBridge events
     """
     try:
-        # Extract bucket and key from the event - support both direct invocation and EventBridge events
-        if 'detail' in event and 'bucket' in event['detail'] and 'object' in event['detail']:
-            # This is an EventBridge event
-            bucket = event['detail']['bucket']['name']
-            key = event['detail']['object']['key']
-        else:
-            # This is a direct invocation
-            bucket = event.get('bucket')
-            key = event.get('key')
+        print("Received event:", json.dumps(event))
         
-        if not bucket or not key:
-            print("Missing bucket or key in event:", event)
-            return {
-                'statusCode': 400,
-                'body': json.dumps('Missing bucket or key parameters')
-            }
+        # Handle EventBridge event for S3 Object Created
+        if 'detail-type' in event and event['detail-type'] == 'Object Created' and 'source' in event and event['source'] == 'aws.s3':
+            if 'detail' in event and 'bucket' in event['detail'] and 'object' in event['detail']:
+                bucket = event['detail']['bucket']['name']
+                key = event['detail']['object']['key']
+                
+                print(f"Extracted from EventBridge: bucket={bucket}, key={key}")
+                
+                # Process the S3 object
+                process_s3_object(bucket, key)
+                
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps(f'Successfully processed file: s3://{bucket}/{key}')
+                }
         
-        # Process the specific S3 object
-        process_s3_object(bucket, key)
-        
+        # If we can't extract bucket and key from the event
+        print("Could not extract bucket and key from event")
+        print("Event structure:", event)
         return {
-            'statusCode': 200,
-            'body': json.dumps(f'Successfully processed file: s3://{bucket}/{key}')
+            'statusCode': 400,
+            'body': json.dumps('Could not extract bucket and key from event')
         }
     except Exception as e:
         print(f"Error in lambda handler: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         return {
             'statusCode': 500,
             'body': json.dumps(f'Error processing event: {str(e)}')
