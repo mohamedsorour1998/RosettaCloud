@@ -2,4 +2,3 @@ boto3
 lancedb
 langchain
 langchain_aws
-langchain-community

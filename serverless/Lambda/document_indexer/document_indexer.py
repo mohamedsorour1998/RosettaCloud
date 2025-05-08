@@ -4,9 +4,10 @@ import json
 import urllib.parse
 import lancedb
 import time
+import tempfile
 from langchain_aws import BedrockEmbeddings
-from langchain_community.document_loaders import S3FileLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema.document import Document
 
 # Configuration from environment variables with defaults
 LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-interactive-labs-vector")
@@ -24,18 +25,46 @@ LAB_METADATA = {
     'educational': True
 }
 
-def get_document_loader(bucket, key):
-    """Get the appropriate document loader based on file extension"""
-    _, file_extension = os.path.splitext(key)
-    file_extension = file_extension.lower()
+def load_file_from_s3(bucket, key):
+    """Download a file from S3 and read its content"""
+    s3_client = boto3.client('s3', region_name=S3_REGION)
     
-    if file_extension not in SUPPORTED_EXTENSIONS:
-        print(f"Unsupported file type: {file_extension}")
+    try:
+        _, file_extension = os.path.splitext(key)
+        file_extension = file_extension.lower()
+        
+        if file_extension not in SUPPORTED_EXTENSIONS:
+            print(f"Unsupported file type: {file_extension}")
+            return None
+        
+        # Only process text files for now since we don't have unstructured
+        if file_extension in ['.txt', '.md', '.sh', '.json', '.csv']:
+            # Download file to temp directory
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                s3_client.download_file(bucket, key, temp_file.name)
+                
+                # Read the file content
+                with open(temp_file.name, 'r', encoding='utf-8', errors='ignore') as file:
+                    content = file.read()
+                
+                # Clean up temp file
+                os.unlink(temp_file.name)
+                
+                # Create a Document object
+                metadata = {
+                    "source": f"s3://{bucket}/{key}",
+                    "file_name": os.path.basename(key),
+                    "file_type": file_extension[1:]  # Remove the dot
+                }
+                
+                return [Document(page_content=content, metadata=metadata)]
+        else:
+            print(f"Skipping non-text file: {key} (need unstructured package to process this type)")
+            return None
+    
+    except Exception as e:
+        print(f"Error loading file from S3: {str(e)}")
         return None
-    
-    # For .sh files, we'll use S3FileLoader which can handle them as text
-    # This treats shell scripts as plain text files, which works well for indexing
-    return S3FileLoader(bucket, key, region_name=S3_REGION)
 
 def process_shell_script(text, filename):
     """Special processing for shell scripts to improve embeddings quality"""
@@ -128,105 +157,95 @@ def process_s3_object(bucket, key):
         model_kwargs={"dimensions": 1536}
     )
     
-    # Get the appropriate document loader
-    loader = get_document_loader(bucket, key)
-    if not loader:
-        print(f"No loader available for {key}, skipping")
-        return
+    # Load the document using direct S3 access instead of S3FileLoader
+    documents = load_file_from_s3(bucket, key)
     
-    try:
-        # Load the document
-        documents = loader.load()
-        if not documents:
-            print(f"No content loaded from {key}")
-            return
-            
-        print(f"Loaded document: {key} with {len(documents)} pages/sections")
-        
-        # Special processing for shell scripts
-        filename = os.path.basename(key)
-        lab_info = {}
-        
-        if key.lower().endswith('.sh'):
-            for doc in documents:
-                enhanced_content, lab_metadata = process_shell_script(doc.page_content, filename)
-                doc.page_content = enhanced_content
-                lab_info = lab_metadata
-            print("Applied shell script-specific processing for educational lab context")
-        
-        # Split the document into chunks
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200  # Increased overlap for better context preservation
-        )
-        chunks = text_splitter.split_documents(documents)
-        print(f"Split into {len(chunks)} chunks")
-        
-        # Add metadata to each chunk
-        for chunk in chunks:
-            # Extract filename from source path
-            chunk.metadata["file_name"] = filename
-            chunk.metadata["full_path"] = key
-            chunk.metadata["volume_junction_path"] = bucket
-            chunk.metadata["indexed_at"] = time.time()
-            
-            # Add script-specific metadata for shell scripts
-            if key.lower().endswith('.sh'):
-                chunk.metadata["file_type"] = "shell_script"
-                
-                # Add educational lab metadata
-                chunk.metadata["course"] = LAB_METADATA['course']
-                chunk.metadata["lab_type"] = LAB_METADATA['lab_type']
-                chunk.metadata["educational"] = LAB_METADATA['educational']
-                
-                # Add lab exercise info if available
-                if lab_info.get('exercise_name'):
-                    chunk.metadata["exercise_name"] = lab_info['exercise_name']
-                if lab_info.get('difficulty'):
-                    chunk.metadata["difficulty"] = lab_info['difficulty']
-        
-        # Create embeddings for all chunks
-        print("Creating embeddings...")
-        embedded_documents = []
-        for chunk in chunks:
-            vector = embeddings.embed_query(chunk.page_content)
-            
-            # Create document with all metadata
-            doc_with_vector = {
-                "vector": vector,
-                "document": chunk.page_content,
-                "file_name": chunk.metadata.get("file_name", ""),
-                "full_path": chunk.metadata.get("full_path", ""),
-                "volume_junction_path": chunk.metadata.get("volume_junction_path", ""),
-                "indexed_at": chunk.metadata.get("indexed_at", 0),
-                "file_type": chunk.metadata.get("file_type", "")
-            }
-            
-            # Add educational metadata
-            for meta_key in ["course", "lab_type", "educational", "exercise_name", "difficulty"]:
-                if meta_key in chunk.metadata:
-                    doc_with_vector[meta_key] = chunk.metadata.get(meta_key)
-            
-            embedded_documents.append(doc_with_vector)
-        
-        # Connect to LanceDB and create or update table
-        print(f"Connecting to vector database at {LANCEDB_S3_URI}")
-        db = lancedb.connect(LANCEDB_S3_URI)
-        
-        # Create or update LanceDB table
-        if KNOWLEDGE_BASE_ID in db.table_names():
-            print(f"Updating existing table: {KNOWLEDGE_BASE_ID}")
-            table = db.open_table(KNOWLEDGE_BASE_ID)
-            table.add(embedded_documents)
-        else:
-            print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
-            table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
-        
-        print(f"Successfully indexed {len(embedded_documents)} document chunks")
-        
-    except Exception as e:
-        print(f"Error processing {key}: {str(e)}")
+    if not documents:
+        print(f"No content loaded from {key}")
         return
+        
+    print(f"Loaded document: {key} with {len(documents)} pages/sections")
+    
+    # Special processing for shell scripts
+    filename = os.path.basename(key)
+    lab_info = {}
+    
+    if key.lower().endswith('.sh'):
+        for doc in documents:
+            enhanced_content, lab_metadata = process_shell_script(doc.page_content, filename)
+            doc.page_content = enhanced_content
+            lab_info = lab_metadata
+        print("Applied shell script-specific processing for educational lab context")
+    
+    # Split the document into chunks
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200  # Increased overlap for better context preservation
+    )
+    chunks = text_splitter.split_documents(documents)
+    print(f"Split into {len(chunks)} chunks")
+    
+    # Add metadata to each chunk
+    for chunk in chunks:
+        # Extract filename from source path
+        chunk.metadata["file_name"] = filename
+        chunk.metadata["full_path"] = key
+        chunk.metadata["volume_junction_path"] = bucket
+        chunk.metadata["indexed_at"] = time.time()
+        
+        # Add script-specific metadata for shell scripts
+        if key.lower().endswith('.sh'):
+            chunk.metadata["file_type"] = "shell_script"
+            
+            # Add educational lab metadata
+            chunk.metadata["course"] = LAB_METADATA['course']
+            chunk.metadata["lab_type"] = LAB_METADATA['lab_type']
+            chunk.metadata["educational"] = LAB_METADATA['educational']
+            
+            # Add lab exercise info if available
+            if lab_info.get('exercise_name'):
+                chunk.metadata["exercise_name"] = lab_info['exercise_name']
+            if lab_info.get('difficulty'):
+                chunk.metadata["difficulty"] = lab_info['difficulty']
+    
+    # Create embeddings for all chunks
+    print("Creating embeddings...")
+    embedded_documents = []
+    for chunk in chunks:
+        vector = embeddings.embed_query(chunk.page_content)
+        
+        # Create document with all metadata
+        doc_with_vector = {
+            "vector": vector,
+            "document": chunk.page_content,
+            "file_name": chunk.metadata.get("file_name", ""),
+            "full_path": chunk.metadata.get("full_path", ""),
+            "volume_junction_path": chunk.metadata.get("volume_junction_path", ""),
+            "indexed_at": chunk.metadata.get("indexed_at", 0),
+            "file_type": chunk.metadata.get("file_type", "")
+        }
+        
+        # Add educational metadata
+        for meta_key in ["course", "lab_type", "educational", "exercise_name", "difficulty"]:
+            if meta_key in chunk.metadata:
+                doc_with_vector[meta_key] = chunk.metadata.get(meta_key)
+        
+        embedded_documents.append(doc_with_vector)
+    
+    # Connect to LanceDB and create or update table
+    print(f"Connecting to vector database at {LANCEDB_S3_URI}")
+    db = lancedb.connect(LANCEDB_S3_URI)
+    
+    # Create or update LanceDB table
+    if KNOWLEDGE_BASE_ID in db.table_names():
+        print(f"Updating existing table: {KNOWLEDGE_BASE_ID}")
+        table = db.open_table(KNOWLEDGE_BASE_ID)
+        table.add(embedded_documents)
+    else:
+        print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
+        table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
+    
+    print(f"Successfully indexed {len(embedded_documents)} document chunks")
 
 def lambda_handler(event, context):
     """
