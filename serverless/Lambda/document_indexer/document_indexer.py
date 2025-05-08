@@ -5,7 +5,6 @@ import tempfile
 import re
 import lancedb
 import time
-from langchain_aws import BedrockEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 
@@ -13,7 +12,7 @@ from langchain.schema.document import Document
 LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-interactive-labs-vector")
 KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID', "shell-scripts-knowledge-base")
 # Force Bedrock region to us-east-1 since it's not available in me-central-1
-BEDROCK_REGION = os.environ.get('BEDROCK_REGION', 'us-east-1')
+BEDROCK_REGION = 'us-east-1'  # Bedrock is only available in specific regions
 S3_REGION = os.environ.get('S3_REGION', os.environ.get('AWS_REGION', 'me-central-1'))
 
 # Add .sh to the supported extensions
@@ -126,6 +125,9 @@ def extract_mcq_data(comments):
         correct_match = correct_answer_pattern.match(comment)
         if correct_match:
             mcq_data['correct_answer'] = correct_match.group(1)
+    
+    # Additional logging to debug MCQ extraction
+    print(f"Extracted MCQ data: {json.dumps(mcq_data)}")
     
     return mcq_data
 
@@ -382,6 +384,9 @@ def process_s3_object(bucket, key):
             if 'possible_answers' in lab_info and lab_info['possible_answers']:
                 # Store as JSON string to preserve structure
                 chunk.metadata["possible_answers"] = json.dumps(lab_info['possible_answers'])
+                # Also store as a simple string for compatibility
+                answers_text = '; '.join([f"{a['id']}: {a['text']}" for a in lab_info['possible_answers']])
+                chunk.metadata["possible_answers_text"] = answers_text
             if 'correct_answer' in lab_info and lab_info['correct_answer']:
                 chunk.metadata["correct_answer"] = lab_info['correct_answer']
             
@@ -430,6 +435,22 @@ def process_s3_object(bucket, key):
         if KNOWLEDGE_BASE_ID in db.table_names():
             print(f"Updating existing table: {KNOWLEDGE_BASE_ID}")
             table = db.open_table(KNOWLEDGE_BASE_ID)
+            
+            # Check the existing schema to ensure compatibility
+            existing_schema = table.schema
+            existing_fields = [field.name for field in existing_schema.fields]
+            
+            # Add any missing fields from embedded_documents
+            if embedded_documents:
+                for field_name in embedded_documents[0].keys():
+                    if field_name not in existing_fields and field_name != "vector":
+                        print(f"Warning: Field '{field_name}' is not in the existing schema. Converting to string.")
+                        for doc in embedded_documents:
+                            if field_name in doc and doc[field_name] is not None:
+                                # Convert any non-string values to strings to ensure compatibility
+                                doc[field_name] = str(doc[field_name])
+            
+            # Now add the documents
             table.add(embedded_documents)
         else:
             print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
@@ -438,6 +459,8 @@ def process_s3_object(bucket, key):
         print(f"Successfully indexed {len(embedded_documents)} document chunks")
     except Exception as e:
         print(f"Error connecting to LanceDB: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
 
 def lambda_handler(event, context):
     """
