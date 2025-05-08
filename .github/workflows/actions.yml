@@ -82,19 +82,19 @@ jobs:
       # Update document-indexer Lambda and wait for completion
       - name: Update document-indexer Lambda
         run: |
-          echo "Updating document-indexer-lambda with image: ${{ env.document_indexer_image }}"
+          echo "Updating document_indexer with image: ${{ env.document_indexer_image }}"
 
           aws lambda update-function-code \
-            --function-name document-indexer-lambda \
+            --function-name document_indexer \
             --image-uri ${{ env.document_indexer_image }} \
             --region ${{ inputs.aws_region }}
             
-          echo "Waiting for document-indexer-lambda update to complete..."
+          echo "Waiting for document_indexer update to complete..."
 
           STATUS="InProgress"
           while [ "$STATUS" = "InProgress" ]; do
             echo "Checking Lambda update status..."
-            STATUS=$(aws lambda get-function --function-name document-indexer-lambda \
+            STATUS=$(aws lambda get-function --function-name document_indexer \
                     --query 'Configuration.LastUpdateStatus' --output text)
             echo "Current status: $STATUS"
             if [ "$STATUS" = "InProgress" ]; then
@@ -104,9 +104,9 @@ jobs:
           done
 
           if [ "$STATUS" = "Successful" ]; then
-            echo "document-indexer-lambda update completed successfully!"
+            echo "document_indexer update completed successfully!"
           else
-            echo "::warning::document-indexer-lambda update did not complete successfully. Status: $STATUS"
+            echo "::warning::document_indexer update did not complete successfully. Status: $STATUS"
             # Continue anyway to attempt the next Lambda update
           fi
 
@@ -151,19 +151,19 @@ jobs:
       # Update ai-chatbot Lambda
       - name: Update ai-chatbot Lambda
         run: |
-          echo "Updating ai-chatbot-lambda with image: ${{ env.ai_chatbot_image }}"
+          echo "Updating ai_chatbot with image: ${{ env.ai_chatbot_image }}"
 
           aws lambda update-function-code \
-            --function-name ai-chatbot-lambda \
+            --function-name ai_chatbot \
             --image-uri ${{ env.ai_chatbot_image }} \
             --region ${{ inputs.aws_region }}
             
-          echo "Waiting for ai-chatbot-lambda update to complete..."
+          echo "Waiting for ai_chatbot update to complete..."
 
           STATUS="InProgress"
           while [ "$STATUS" = "InProgress" ]; do
             echo "Checking Lambda update status..."
-            STATUS=$(aws lambda get-function --function-name ai-chatbot-lambda \
+            STATUS=$(aws lambda get-function --function-name ai_chatbot \
                     --query 'Configuration.LastUpdateStatus' --output text)
             echo "Current status: $STATUS"
             if [ "$STATUS" = "InProgress" ]; then
@@ -173,9 +173,9 @@ jobs:
           done
 
           if [ "$STATUS" = "Successful" ]; then
-            echo "ai-chatbot-lambda update completed successfully!"
+            echo "ai_chatbot update completed successfully!"
           else
-            echo "::warning::ai-chatbot-lambda update did not complete successfully. Status: $STATUS"
+            echo "::warning::ai_chatbot update did not complete successfully. Status: $STATUS"
           fi
 
       # Build and push backend image
