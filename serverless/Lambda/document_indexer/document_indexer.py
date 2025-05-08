@@ -5,6 +5,7 @@ import urllib.parse
 import lancedb
 import time
 import tempfile
+import re
 from langchain_aws import BedrockEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
@@ -66,6 +67,32 @@ def load_file_from_s3(bucket, key):
         print(f"Error loading file from S3: {str(e)}")
         return None
 
+def extract_mcq_data(comments):
+    """Extract MCQ-specific data from comments"""
+    mcq_data = {
+        'possible_answers': [],
+        'correct_answer': ''
+    }
+    
+    # Look for possible answers and correct answer
+    answer_pattern = re.compile(r'^\s*-\s*(\w+):\s*(.+)$')
+    correct_answer_pattern = re.compile(r'^\s*Correct answer:\s*(\w+)\s*$', re.IGNORECASE)
+    
+    for comment in comments:
+        # Check for possible answers
+        answer_match = answer_pattern.match(comment)
+        if answer_match:
+            answer_id = answer_match.group(1)
+            answer_text = answer_match.group(2)
+            mcq_data['possible_answers'].append({'id': answer_id, 'text': answer_text})
+        
+        # Check for correct answer
+        correct_match = correct_answer_pattern.match(comment)
+        if correct_match:
+            mcq_data['correct_answer'] = correct_match.group(1)
+    
+    return mcq_data
+
 def process_shell_script(text, filename):
     """Special processing for shell scripts to improve embeddings quality"""
     # Extract comments which often contain useful information
@@ -76,10 +103,17 @@ def process_shell_script(text, filename):
     lab_info = {
         'exercise_name': '',
         'difficulty': '',
-        'learning_objectives': []
+        'learning_objectives': [],
+        'question_number': '',
+        'question': '',
+        'question_type': '',
+        'possible_answers': [],
+        'correct_answer': ''
     }
     
     current_command_block = []
+    current_comment_block = []
+    in_mcq_section = False
     
     for line in text.split('\n'):
         line_stripped = line.strip()
@@ -88,22 +122,67 @@ def process_shell_script(text, filename):
         if line_stripped.startswith('#'):
             comment_text = line_stripped[1:].strip()
             comments.append(comment_text)
+            current_comment_block.append(comment_text)
             
-            # Look for lab exercise metadata in comments
-            if 'exercise:' in comment_text.lower():
-                lab_info['exercise_name'] = comment_text.split('exercise:')[1].strip()
-            elif 'difficulty:' in comment_text.lower():
-                lab_info['difficulty'] = comment_text.split('difficulty:')[1].strip()
-            elif 'objective:' in comment_text.lower():
-                objective = comment_text.split('objective:')[1].strip()
-                lab_info['learning_objectives'].append(objective)
+            # Look for lab exercise metadata in comments using different formats
+            if ':' in comment_text:
+                parts = comment_text.split(':', 1)  # Split only on first colon
+                if len(parts) == 2:
+                    key = parts[0].strip().lower()
+                    value = parts[1].strip()
+                    
+                    # Map to lab info fields
+                    if 'exercise' in key:
+                        lab_info['exercise_name'] = value
+                    elif 'difficulty' in key:
+                        lab_info['difficulty'] = value
+                    elif 'objective' in key:
+                        lab_info['learning_objectives'].append(value)
+                    elif 'question number' in key:
+                        lab_info['question_number'] = value
+                    elif 'question type' in key:
+                        lab_info['question_type'] = value
+                        # Check if this is an MCQ question
+                        if 'mcq' in value.lower():
+                            in_mcq_section = True
+                    elif key == 'question':
+                        lab_info['question'] = value
+            
+            # End of MCQ section (blank comment or new section)
+            if in_mcq_section and not comment_text.strip():
+                in_mcq_section = False
+                
+                # Process the MCQ data
+                if current_comment_block:
+                    mcq_data = extract_mcq_data(current_comment_block)
+                    lab_info['possible_answers'] = mcq_data['possible_answers']
+                    lab_info['correct_answer'] = mcq_data['correct_answer']
+                
+                current_comment_block = []
         else:
+            # End of comment block
+            if current_comment_block:
+                # Process the MCQ data if we were in an MCQ section
+                if in_mcq_section:
+                    mcq_data = extract_mcq_data(current_comment_block)
+                    lab_info['possible_answers'] = mcq_data['possible_answers']
+                    lab_info['correct_answer'] = mcq_data['correct_answer']
+                
+                current_comment_block = []
+                in_mcq_section = False
+            
             # Track command blocks for better understanding of script functionality
             if line_stripped and not line_stripped.startswith('#'):
                 current_command_block.append(line)
             elif current_command_block:
                 command_blocks.append('\n'.join(current_command_block))
                 current_command_block = []
+    
+    # Process any remaining comment block
+    if in_mcq_section and current_comment_block:
+        mcq_data = extract_mcq_data(current_comment_block)
+        lab_info['possible_answers'] = mcq_data['possible_answers']
+        lab_info['correct_answer'] = mcq_data['correct_answer']
     
     # Add the last command block if not empty
     if current_command_block:
@@ -124,15 +203,30 @@ MAIN COMMAND BLOCKS:
 """
 
     # Add lab metadata if found
-    if lab_info['exercise_name'] or lab_info['difficulty'] or lab_info['learning_objectives']:
-        learning_obj_text = '\n'.join([f"- {obj}" for obj in lab_info['learning_objectives']])
-        lab_metadata = f"""
-LAB EXERCISE INFORMATION:
-Exercise Name: {lab_info['exercise_name']}
-Difficulty Level: {lab_info['difficulty']}
-Learning Objectives:
-{learning_obj_text}
-"""
+    lab_metadata_texts = []
+    if lab_info['question_number']:
+        lab_metadata_texts.append(f"Question Number: {lab_info['question_number']}")
+    if lab_info['question']:
+        lab_metadata_texts.append(f"Question: {lab_info['question']}")
+    if lab_info['question_type']:
+        lab_metadata_texts.append(f"Question Type: {lab_info['question_type']}")
+    if lab_info['difficulty']:
+        lab_metadata_texts.append(f"Difficulty Level: {lab_info['difficulty']}")
+    if lab_info['exercise_name']:
+        lab_metadata_texts.append(f"Exercise Name: {lab_info['exercise_name']}")
+    if lab_info['learning_objectives']:
+        objectives_text = '\n'.join([f"- {obj}" for obj in lab_info['learning_objectives']])
+        lab_metadata_texts.append(f"Learning Objectives:\n{objectives_text}")
+    
+    # Add MCQ specific data if available
+    if lab_info['possible_answers']:
+        answers_text = '\n'.join([f"- {a['id']}: {a['text']}" for a in lab_info['possible_answers']])
+        lab_metadata_texts.append(f"Possible Answers:\n{answers_text}")
+    if lab_info['correct_answer']:
+        lab_metadata_texts.append(f"Correct Answer: {lab_info['correct_answer']}")
+    
+    if lab_metadata_texts:
+        lab_metadata = "\nLAB QUESTION INFORMATION:\n" + "\n".join(lab_metadata_texts)
         enhanced_text += lab_metadata
     
     return enhanced_text, lab_info
@@ -172,10 +266,15 @@ def process_s3_object(bucket, key):
     
     if key.lower().endswith('.sh'):
         for doc in documents:
-            enhanced_content, lab_metadata = process_shell_script(doc.page_content, filename)
-            doc.page_content = enhanced_content
-            lab_info = lab_metadata
-        print("Applied shell script-specific processing for educational lab context")
+            try:
+                enhanced_content, lab_metadata = process_shell_script(doc.page_content, filename)
+                doc.page_content = enhanced_content
+                lab_info = lab_metadata
+                print("Applied shell script-specific processing for educational lab context")
+            except Exception as e:
+                print(f"Error processing shell script content: {str(e)}")
+                # Continue with original content
+                print("Using original content without processing")
     
     # Split the document into chunks
     text_splitter = RecursiveCharacterTextSplitter(
@@ -203,10 +302,16 @@ def process_s3_object(bucket, key):
             chunk.metadata["educational"] = LAB_METADATA['educational']
             
             # Add lab exercise info if available
-            if lab_info.get('exercise_name'):
-                chunk.metadata["exercise_name"] = lab_info['exercise_name']
-            if lab_info.get('difficulty'):
-                chunk.metadata["difficulty"] = lab_info['difficulty']
+            for meta_key in ["exercise_name", "difficulty", "question_number", "question", "question_type"]:
+                if meta_key in lab_info and lab_info[meta_key]:
+                    chunk.metadata[meta_key] = lab_info[meta_key]
+            
+            # Add MCQ specific metadata
+            if 'possible_answers' in lab_info and lab_info['possible_answers']:
+                # Store as JSON string to preserve structure
+                chunk.metadata["possible_answers"] = json.dumps(lab_info['possible_answers'])
+            if 'correct_answer' in lab_info and lab_info['correct_answer']:
+                chunk.metadata["correct_answer"] = lab_info['correct_answer']
     
     # Create embeddings for all chunks
     print("Creating embeddings...")
@@ -226,26 +331,31 @@ def process_s3_object(bucket, key):
         }
         
         # Add educational metadata
-        for meta_key in ["course", "lab_type", "educational", "exercise_name", "difficulty"]:
-            if meta_key in chunk.metadata:
+        for meta_key in ["course", "lab_type", "educational", "exercise_name", 
+                        "difficulty", "question_number", "question", "question_type",
+                        "possible_answers", "correct_answer"]:
+            if meta_key in chunk.metadata and chunk.metadata[meta_key]:
                 doc_with_vector[meta_key] = chunk.metadata.get(meta_key)
         
         embedded_documents.append(doc_with_vector)
     
-    # Connect to LanceDB and create or update table
-    print(f"Connecting to vector database at {LANCEDB_S3_URI}")
-    db = lancedb.connect(LANCEDB_S3_URI)
-    
-    # Create or update LanceDB table
-    if KNOWLEDGE_BASE_ID in db.table_names():
-        print(f"Updating existing table: {KNOWLEDGE_BASE_ID}")
-        table = db.open_table(KNOWLEDGE_BASE_ID)
-        table.add(embedded_documents)
-    else:
-        print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
-        table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
-    
-    print(f"Successfully indexed {len(embedded_documents)} document chunks")
+    try:
+        # Connect to LanceDB and create or update table
+        print(f"Connecting to vector database at {LANCEDB_S3_URI}")
+        db = lancedb.connect(LANCEDB_S3_URI)
+        
+        # Create or update LanceDB table
+        if KNOWLEDGE_BASE_ID in db.table_names():
+            print(f"Updating existing table: {KNOWLEDGE_BASE_ID}")
+            table = db.open_table(KNOWLEDGE_BASE_ID)
+            table.add(embedded_documents)
+        else:
+            print(f"Creating new table: {KNOWLEDGE_BASE_ID}")
+            table = db.create_table(KNOWLEDGE_BASE_ID, data=embedded_documents)
+        
+        print(f"Successfully indexed {len(embedded_documents)} document chunks")
+    except Exception as e:
+        print(f"Error connecting to LanceDB: {str(e)}")
 
 def lambda_handler(event, context):
     """
@@ -255,29 +365,36 @@ def lambda_handler(event, context):
     
     processed_count = 0
     
-    # Check if this is an S3 event (via S3 notification)
-    if 'Records' in event:
-        for record in event['Records']:
-            # Check if this is an S3 event
-            if record.get('eventSource') == 'aws:s3' or 's3' in record:
-                bucket = record['s3']['bucket']['name']
-                key = urllib.parse.unquote_plus(record['s3']['object']['key'])
-                process_s3_object(bucket, key)
-                processed_count += 1
-    
-    # Check if this is an EventBridge event
-    elif 'detail-type' in event and event.get('detail-type') == 'Object Created' and event.get('source') == 'aws.s3':
-        bucket = event['detail']['bucket']['name']
-        key = event['detail']['object']['key']
-        process_s3_object(bucket, key)
-        processed_count += 1
-    
-    # If neither, log error
-    else:
-        print("Unsupported event format:", event)
+    try:
+        # Check if this is an S3 event (via S3 notification)
+        if 'Records' in event:
+            for record in event['Records']:
+                # Check if this is an S3 event
+                if record.get('eventSource') == 'aws:s3' or 's3' in record:
+                    bucket = record['s3']['bucket']['name']
+                    key = urllib.parse.unquote_plus(record['s3']['object']['key'])
+                    process_s3_object(bucket, key)
+                    processed_count += 1
+        
+        # Check if this is an EventBridge event
+        elif 'detail-type' in event and event.get('detail-type') == 'Object Created' and event.get('source') == 'aws.s3':
+            bucket = event['detail']['bucket']['name']
+            key = event['detail']['object']['key']
+            process_s3_object(bucket, key)
+            processed_count += 1
+        
+        # If neither, log error
+        else:
+            print("Unsupported event format:", event)
+            return {
+                'statusCode': 400,
+                'body': json.dumps('Unsupported event format')
+            }
+    except Exception as e:
+        print(f"Error in lambda handler: {str(e)}")
         return {
-            'statusCode': 400,
-            'body': json.dumps('Unsupported event format')
+            'statusCode': 500,
+            'body': json.dumps(f'Error processing event: {str(e)}')
         }
     
     return {
