@@ -14,7 +14,7 @@ LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-inte
 KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID', "shell-scripts-knowledge-base")
 # Force Bedrock region to us-east-1 since it's not available in me-central-1
 BEDROCK_REGION = os.environ.get('BEDROCK_REGION', 'us-east-1')
-S3_REGION = os.environ.get('S3_REGION', os.environ.get('AWS_REGION', 'us-east-1'))
+S3_REGION = os.environ.get('S3_REGION', os.environ.get('AWS_REGION', 'me-central-1'))
 
 # Add .sh to the supported extensions
 SUPPORTED_EXTENSIONS = ['.txt', '.md', '.pdf', '.doc', '.docx', '.csv', '.json', '.sh']
