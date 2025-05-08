@@ -2,14 +2,6 @@ name: Docker image build and publish
 on:
   workflow_dispatch:
     inputs:
-      path_to_dockerfile:
-        description: Path to the dockerfile (default = 'Dockerfile')
-        default: "Dockerfile"
-        type: string
-      docker_build_dir:
-        description: Docker build directory (default = '.')
-        default: "."
-        type: string
       image_tag:
         description: Tag to apply to images.
         type: string
@@ -26,24 +18,32 @@ on:
         description: Target AWS Region
         default: "me-central-1"
         type: string
-      ecr_repository:
-        description: ECR repository name
-        default: "rosettacloud-backend"
-        type: string
-jobs:
-  docker:
-    runs-on: ubuntu-latest
 
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-
+    strategy:
+      matrix:
+        include:
+          - dockerfile_path: "serverless/Lambda/document_indexer/Dockerfile"
+            build_dir: "serverless/Lambda/document_indexer"
+            ecr_repository: "rosettacloud-document_indexer-lambda"
+          - dockerfile_path: "serverless/Lambda/ai_chatbot/Dockerfile"
+            build_dir: "serverless/Lambda/ai_chatbot"
+            ecr_repository: "rosettacloud-ai_chatbot-lambda"
+          - dockerfile_path: "backend/Dockerfile"
+            build_dir: "backend"
+            ecr_repository: "rosettacloud-backend"
+      fail-fast: false
     outputs:
-      image_tag: ${{ steps.build-publish.outputs.image_tag }}
-      full_image: ${{ steps.build-publish.outputs.full_image }}
-
+      image_tag_${{ matrix.ecr_repository }}: ${{ steps.build-publish.outputs.image_tag }}
+      full_image_${{ matrix.ecr_repository }}: ${{ steps.build-publish.outputs.full_image }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -57,16 +57,66 @@ jobs:
         with:
           registries: ${{ inputs.aws_account_id }}
 
+      - name: Create ECR repository if it does not exist
+        id: create-ecr-repo
+        run: |
+          if ! aws ecr describe-repositories --repository-names ${{ matrix.ecr_repository }} 2>/dev/null; then
+            echo "Repository does not exist. Creating..."
+            aws ecr create-repository --repository-name ${{ matrix.ecr_repository }}
+            echo "Repository created."
+          else
+            echo "Repository already exists."
+          fi
+
       - name: Build, tag, and push image to Amazon ECR
         id: build-publish
         shell: bash
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ inputs.ecr_repository }}
+          ECR_REPOSITORY: ${{ matrix.ecr_repository }}
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
-          docker build "${{ inputs.docker_build_dir }}" -f "${{ inputs.path_to_dockerfile }}" -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "Building image for $ECR_REPOSITORY"
+          echo "Dockerfile path: ${{ matrix.dockerfile_path }}"
+          echo "Build directory: ${{ matrix.build_dir }}"
+
+          # Build the Docker image
+          docker build "${{ matrix.build_dir }}" -f "${{ matrix.dockerfile_path }}" -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          # Push the image to ECR
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          echo "IMAGE $IMAGE_TAG is pushed to $ECR_REGISTRY/$ECR_REPOSITORY"
-          echo "image_tag=$IMAGE_TAG" 
-          echo "full_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          # Output variables
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "full_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+          echo "Image $IMAGE_TAG successfully pushed to $ECR_REGISTRY/$ECR_REPOSITORY"
+
+  deploy-lambda-functions:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ inputs.aws_account_id }}:role/${{ inputs.github_iam_role }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Update Lambda functions with new images
+        run: |
+          echo "Updating document-indexer-lambda Lambda function..."
+          aws lambda update-function-code \
+            --function-name document-indexer-lambda \
+            --image-uri ${{ needs.build-and-push.outputs.full_image_document-indexer-lambda }} \
+            --region ${{ inputs.aws_region }}
+            
+          echo "Updating ai-chatbot-lambda Lambda function..."
+          aws lambda update-function-code \
+            --function-name ai-chatbot-lambda \
+            --image-uri ${{ needs.build-and-push.outputs.full_image_ai-chatbot-lambda }} \
+            --region ${{ inputs.aws_region }}
+            
+          echo "Lambda functions updated successfully!"
