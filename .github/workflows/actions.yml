@@ -24,7 +24,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ─── Lambdas ──────────────────────────────────────────────────────────
           - dockerfile_path: serverless/Lambda/document_indexer/Dockerfile
             build_dir: serverless/Lambda/document_indexer
             ecr_repository: rosettacloud-document_indexer-lambda
@@ -33,11 +32,10 @@ jobs:
             build_dir: serverless/Lambda/ai_chatbot
             ecr_repository: rosettacloud-ai_chatbot-lambda
             lambda_name: document_indexer
-          # ─── Plain image (no Lambda update) ─────────────────────────────────
           - dockerfile_path: backend/Dockerfile
             build_dir: backend
             ecr_repository: rosettacloud-backend
-            lambda_name: "" # leave empty
+            lambda_name: ""
     steps:
       - uses: actions/checkout@v3
       - name: Configure AWS credentials
