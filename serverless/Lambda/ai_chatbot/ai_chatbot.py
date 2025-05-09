@@ -3,19 +3,75 @@ import os
 import boto3
 import lancedb
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_stuff_documents_chain, create_retrieval_chain, create_history_aware_retriever
+# Updated imports to match newer langchain package structure
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 from langchain.memory.chat_message_histories import DynamoDBChatMessageHistory
 from langchain.chains.history_aware_retriever import RunnableWithMessageHistory
 from langchain_aws import BedrockChat, BedrockEmbeddings
 from langchain_community.vectorstores import LanceDB
 
-# Configuration from environment variables with defaults - UPDATED to match indexer
+# Configuration from environment variables with defaults
 LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-interactive-labs-vector")
 KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID', "shell-scripts-knowledge-base")
 DYNAMO_TABLE = os.environ.get('DYNAMO_TABLE', 'SessionTable')
 BEDROCK_REGION = 'us-east-1'  # Hardcode Bedrock region to us-east-1 where it's available
 DEFAULT_REGION = os.environ.get('AWS_REGION', 'me-central-1')  # Default to me-central-1
 API_ENDPOINT = None  # Will be dynamically determined from the event
+
+# Implementation of functions from langchain.chains that may be missing
+def create_stuff_documents_chain(llm, prompt):
+    """Recreate the functionality of create_stuff_documents_chain"""
+    def format_docs(docs):
+        return "\n\n".join([d.page_content for d in docs])
+    
+    return (
+        RunnablePassthrough.assign(context=lambda x: format_docs(x["context"]))
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+
+def create_retrieval_chain(retriever, combine_docs_chain):
+    """Recreate the functionality of create_retrieval_chain"""
+    return (
+        RunnablePassthrough.assign(
+            context=lambda x: retriever.get_relevant_documents(x["input"])
+        )
+        | combine_docs_chain
+    )
+
+def create_history_aware_retriever(llm, retriever, prompt):
+    """Recreate the functionality of create_history_aware_retriever if needed"""
+    # Fallback implementation if the imported one doesn't work
+    # This is a simplified version - the original is more complex
+    def get_context_aware_query(inputs):
+        chat_history = inputs.get("chat_history", [])
+        question = inputs["input"]
+        if not chat_history:
+            return question
+        
+        # Use the llm to generate a new standalone question
+        context_prompt = prompt.format(chat_history=chat_history, input=question)
+        response = llm.invoke(context_prompt)
+        standalone_question = response.content if hasattr(response, "content") else response
+        
+        return standalone_question
+    
+    class HistoryAwareRetriever:
+        def __init__(self, base_retriever):
+            self.base_retriever = base_retriever
+            
+        def get_relevant_documents(self, query, **kwargs):
+            if isinstance(query, dict) and "input" in query and "chat_history" in query:
+                # Process through context-aware logic
+                standalone_query = get_context_aware_query(query)
+                return self.base_retriever.get_relevant_documents(standalone_query, **kwargs)
+            else:
+                # Direct query
+                return self.base_retriever.get_relevant_documents(query, **kwargs)
+    
+    return HistoryAwareRetriever(retriever)
 
 class BedrockStreamer:
     def __init__(self, connectionId, session_id, api_endpoint):
@@ -200,16 +256,37 @@ class BedrockStreamer:
             client=self.bedrock_client  # Use the same client for consistent region
         )
 
-        # Create history-aware retriever to handle conversational context
-        history_aware_retriever = create_history_aware_retriever(
-            llm, retriever, contextualize_q_prompt
-        )
-
-        # Create chain for answering questions using retrieved documents
-        question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-        
-        # Create retrieval chain combining the retriever and QA chain
-        rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+        try:
+            # Try to use the imported function first
+            from langchain.chains import create_history_aware_retriever as import_history_aware_retriever
+            from langchain.chains import create_retrieval_chain as import_retrieval_chain
+            from langchain.chains import create_stuff_documents_chain as import_stuff_documents_chain
+            
+            # Create history-aware retriever
+            history_aware_retriever = import_history_aware_retriever(
+                llm, retriever, contextualize_q_prompt
+            )
+            
+            # Create chain for answering questions
+            question_answer_chain = import_stuff_documents_chain(llm, qa_prompt)
+            
+            # Create retrieval chain
+            rag_chain = import_retrieval_chain(history_aware_retriever, question_answer_chain)
+            
+        except (ImportError, AttributeError):
+            # If imports fail, use our local implementations
+            print("Using local implementations of langchain chain functions")
+            
+            # Create history-aware retriever
+            history_aware_retriever = create_history_aware_retriever(
+                llm, retriever, contextualize_q_prompt
+            )
+            
+            # Create chain for answering questions
+            question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
+            
+            # Create retrieval chain
+            rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
         # Add message history to make it conversational
         conversational_rag_chain = RunnableWithMessageHistory(
@@ -297,56 +374,6 @@ class BedrockStreamer:
                 "content": f"Error during processing: {str(e)}"
             })
 
-def lambda_handler(event, context):
-    """
-    Universal WebSocket handler for connection, streaming, and disconnection events.
-    Uses the route key to determine the handling logic.
-    """
-    # Extract the route key to determine the action
-    route_key = event.get('requestContext', {}).get('routeKey', '')
-    connection_id = event.get('requestContext', {}).get('connectionId', '')
-    
-    print(f"Handling route: {route_key} for connection: {connection_id}")
-    
-    # Handle connection event
-    if route_key == '$connect':
-        return handle_connect(event, context)
-    
-    # Handle disconnection event
-    elif route_key == '$disconnect':
-        return handle_disconnect(event, context)
-    
-    # Handle default (message) event
-    elif route_key == '$default':
-        return handle_message(event, context)
-    
-    # Unknown route
-    else:
-        return {
-            'statusCode': 400,
-            'body': json.dumps(f'Unknown route: {route_key}')
-        }
-
-def handle_connect(event, context):
-    """Handle a new WebSocket connection."""
-    connection_id = event.get('requestContext', {}).get('connectionId', '')
-    print(f"New connection established: {connection_id}")
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Connected to Shell Script AI Assistant')
-    }
-
-def handle_disconnect(event, context):
-    """Handle a WebSocket disconnection."""
-    connection_id = event.get('requestContext', {}).get('connectionId', '')
-    print(f"Connection closed: {connection_id}")
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Disconnected')
-    }
-
 def get_api_endpoint_from_event(event):
     """
     Dynamically determine the API endpoint from the event data
@@ -381,6 +408,31 @@ def get_api_endpoint_from_event(event):
     except Exception as e:
         print(f"Error determining API endpoint: {str(e)}")
         raise ValueError("Failed to determine API Gateway endpoint. Please set API_ENDPOINT environment variable.")
+
+def handle_connect(event, context):
+    """Handle a new WebSocket connection."""
+    connection_id = event.get('requestContext', {}).get('connectionId', '')
+    print(f"New connection established: {connection_id}")
+    
+    # Log the domain used for connection
+    domain = event.get('requestContext', {}).get('domainName', 'unknown')
+    stage = event.get('requestContext', {}).get('stage', 'unknown')
+    print(f"Connection domain: {domain}, stage: {stage}")
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Connected to Shell Script AI Assistant')
+    }
+
+def handle_disconnect(event, context):
+    """Handle a WebSocket disconnection."""
+    connection_id = event.get('requestContext', {}).get('connectionId', '')
+    print(f"Connection closed: {connection_id}")
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Disconnected')
+    }
 
 def handle_message(event, context):
     """Handle a message from the client and stream Bedrock responses."""
@@ -488,4 +540,34 @@ def handle_message(event, context):
         return {
             "statusCode": 500,
             "body": json.dumps(f"Error processing request: {str(e)}")
+        }
+
+def lambda_handler(event, context):
+    """
+    Universal WebSocket handler for connection, streaming, and disconnection events.
+    Uses the route key to determine the handling logic.
+    """
+    # Extract the route key to determine the action
+    route_key = event.get('requestContext', {}).get('routeKey', '')
+    connection_id = event.get('requestContext', {}).get('connectionId', '')
+    
+    print(f"Handling route: {route_key} for connection: {connection_id}")
+    
+    # Handle connection event
+    if route_key == '$connect':
+        return handle_connect(event, context)
+    
+    # Handle disconnection event
+    elif route_key == '$disconnect':
+        return handle_disconnect(event, context)
+    
+    # Handle default (message) event
+    elif route_key == '$default':
+        return handle_message(event, context)
+    
+    # Unknown route
+    else:
+        return {
+            'statusCode': 400,
+            'body': json.dumps(f'Unknown route: {route_key}')
         }

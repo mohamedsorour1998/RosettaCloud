@@ -3,3 +3,4 @@ lancedb
 langchain
 langchain_aws
 langchain-community
+langchain-core
