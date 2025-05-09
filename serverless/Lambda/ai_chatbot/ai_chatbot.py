@@ -9,25 +9,27 @@ from langchain.chains.history_aware_retriever import RunnableWithMessageHistory
 from langchain_aws import BedrockChat, BedrockEmbeddings
 from langchain_community.vectorstores import LanceDB
 
-# Configuration from environment variables with defaults
-LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://bedrock-lancedb-shellscripts/vectordb")
+# Configuration from environment variables with defaults - UPDATED to match indexer
+LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-interactive-labs-vector")
 KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID', "shell-scripts-knowledge-base")
 API_ENDPOINT = os.environ.get('API_ENDPOINT')
 DYNAMO_TABLE = os.environ.get('DYNAMO_TABLE', 'SessionTable')
-BEDROCK_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+BEDROCK_REGION = 'us-east-1'  # Hardcode Bedrock region to us-east-1 where it's available
+DEFAULT_REGION = os.environ.get('AWS_REGION', 'me-central-1')  # Default to me-central-1
 
 class BedrockStreamer:
     def __init__(self, connectionId, session_id):
         """Initialize connections and parameters for Bedrock streaming."""
-        self.region = os.environ.get('AWS_REGION', 'us-east-1')
+        self.region = DEFAULT_REGION  # Use me-central-1 as default region
         self.api_client = boto3.client(
             "apigatewaymanagementapi", 
             endpoint_url=API_ENDPOINT, 
             region_name=self.region
         )
+        # Use specific region for Bedrock only
         self.bedrock_client = boto3.client(
             service_name='bedrock-runtime', 
-            region_name=self.region
+            region_name=BEDROCK_REGION
         )
         self.session_id = session_id
         self.doc_sources = []
@@ -91,19 +93,37 @@ class BedrockStreamer:
         
         # Open the table
         table = db.open_table(knowledge_base_id)
-        dimensions = table.schema.field("vector").type.list_size
         
-        # Initialize embeddings
+        # Get embedding dimensions from schema if available
+        dimensions = 1536  # Default for titan-embed-text-v2
+        try:
+            # Try to get dimensions from vector field
+            if hasattr(table.schema, 'field') and callable(getattr(table.schema, 'field', None)):
+                vector_field = table.schema.field("vector")
+                if hasattr(vector_field.type, 'list_size'):
+                    dimensions = vector_field.type.list_size
+            elif hasattr(table.schema, 'fields'):
+                # Alternative approach if fields attribute exists
+                for field in table.schema.fields:
+                    if field.name == "vector" and hasattr(field.type, 'list_size'):
+                        dimensions = field.type.list_size
+                        break
+        except Exception as e:
+            print(f"Could not determine vector dimensions from schema: {str(e)}")
+            print("Using default dimensions: 1536")
+        
+        # Initialize embeddings with same model as indexer
         bedrock_embeddings = BedrockEmbeddings(
             model_id="amazon.titan-embed-text-v2:0",
             client=self.bedrock_client,
-            model_kwargs={"dimensions": dimensions}
+            model_kwargs={"dimensions": dimensions, 
+                          "embeddingTypes": ["float"]}  # Match indexer format
         )
         
         # Initialize vector store
         vector_store = LanceDB(
             uri=db.uri,
-            region=self.region,
+            region=self.region,  # Use me-central-1 for LanceDB
             embedding=bedrock_embeddings,
             text_key='document',
             table_name=knowledge_base_id   
@@ -123,13 +143,28 @@ class BedrockStreamer:
                 }
             )
         else:
-            # For shell scripts, add a file type filter if available
+            # Safe approach to check if file_type exists in the schema
+            has_file_type = False
+            try:
+                # Check if field_names exists and has file_type
+                if hasattr(table.schema, 'field_names') and callable(getattr(table.schema, 'field_names', None)):
+                    has_file_type = 'file_type' in table.schema.field_names
+                # Alternative method to check
+                elif hasattr(table.schema, 'fields') and isinstance(table.schema.fields, list):
+                    has_file_type = any(f.name == 'file_type' for f in table.schema.fields)
+                # Another way to check for field_names
+                elif hasattr(table.schema, 'names') and callable(getattr(table.schema, 'names', None)):
+                    has_file_type = 'file_type' in table.schema.names()
+            except Exception as e:
+                print(f"Error checking for file_type field: {str(e)}")
+            
+            # Create retriever with or without filtering
             retriever = vector_store.as_retriever(
                 search_kwargs={
                     "filter": {
                         'sql_filter': "file_type='shell_script'",
                         'prefilter': True
-                    } if table.schema.field_names.count('file_type') > 0 else None,
+                    } if has_file_type else None,
                     "k": 5  # Return top 5 results
                 }
             )
@@ -160,7 +195,8 @@ class BedrockStreamer:
         llm = BedrockChat(
             model_id=bedrock_model_id,
             model_kwargs=model_kwargs,
-            streaming=True  # Enable streaming
+            streaming=True,  # Enable streaming
+            client=self.bedrock_client  # Use the same client for consistent region
         )
 
         # Create history-aware retriever to handle conversational context
@@ -180,7 +216,7 @@ class BedrockStreamer:
             lambda session_id: DynamoDBChatMessageHistory(
                 table_name=DYNAMO_TABLE,
                 session_id=self.session_id,
-                boto3_session=boto3.Session(region_name=self.region)),
+                boto3_session=boto3.Session(region_name=self.region)),  # Use me-central-1 for DynamoDB
             input_messages_key="input",
             history_messages_key="chat_history",
             output_messages_key="answer",
@@ -214,11 +250,19 @@ class BedrockStreamer:
                     if key == 'context':
                         # Extract document source information
                         for doc in chunk[key]:
+                            # Extract all available metadata safely
                             source_info = {
                                 "filename": doc.metadata.get("file_name", "Unknown"),
                                 "path": doc.metadata.get("full_path", "Unknown"),
                                 "bucket": doc.metadata.get("volume_junction_path", "Unknown")
                             }
+                            
+                            # Add MCQ info if available
+                            if "question_type" in doc.metadata and "mcq" in doc.metadata.get("question_type", "").lower():
+                                source_info["question_type"] = "MCQ"
+                                source_info["question"] = doc.metadata.get("question", "")
+                                source_info["answers"] = doc.metadata.get("answers_text", "")
+                                source_info["correct_answer"] = doc.metadata.get("correct_answer", "")
                             
                             # Add to sources if not already present
                             if source_info not in self.doc_sources:
@@ -245,6 +289,8 @@ class BedrockStreamer:
             
         except Exception as e:
             print(f"Error in streaming: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             yield json.dumps({
                 "type": "error",
                 "content": f"Error during processing: {str(e)}"
@@ -383,12 +429,15 @@ def handle_message(event, context):
     
     except Exception as e:
         print(f"Error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        
         # Try to send error message to client if connection still active
         try:
             api_client = boto3.client(
                 "apigatewaymanagementapi",
                 endpoint_url=API_ENDPOINT,
-                region_name=os.environ.get('AWS_REGION', 'us-east-1')
+                region_name=DEFAULT_REGION  # Use me-central-1 for API Gateway
             )
             api_client.post_to_connection(
                 ConnectionId=connection_id,
