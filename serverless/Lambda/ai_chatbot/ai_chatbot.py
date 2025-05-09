@@ -12,18 +12,19 @@ from langchain_community.vectorstores import LanceDB
 # Configuration from environment variables with defaults - UPDATED to match indexer
 LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-interactive-labs-vector")
 KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID', "shell-scripts-knowledge-base")
-API_ENDPOINT = os.environ.get('API_ENDPOINT')
 DYNAMO_TABLE = os.environ.get('DYNAMO_TABLE', 'SessionTable')
 BEDROCK_REGION = 'us-east-1'  # Hardcode Bedrock region to us-east-1 where it's available
 DEFAULT_REGION = os.environ.get('AWS_REGION', 'me-central-1')  # Default to me-central-1
+API_ENDPOINT = None  # Will be dynamically determined from the event
 
 class BedrockStreamer:
-    def __init__(self, connectionId, session_id):
+    def __init__(self, connectionId, session_id, api_endpoint):
         """Initialize connections and parameters for Bedrock streaming."""
         self.region = DEFAULT_REGION  # Use me-central-1 as default region
+        self.api_endpoint = api_endpoint
         self.api_client = boto3.client(
             "apigatewaymanagementapi", 
-            endpoint_url=API_ENDPOINT, 
+            endpoint_url=self.api_endpoint, 
             region_name=self.region
         )
         # Use specific region for Bedrock only
@@ -346,9 +347,54 @@ def handle_disconnect(event, context):
         'body': json.dumps('Disconnected')
     }
 
+def get_api_endpoint_from_event(event):
+    """
+    Dynamically determine the API endpoint from the event data
+    Works with both custom domains and default API Gateway endpoints
+    """
+    # First check if it's explicitly set in environment variables
+    api_endpoint = os.environ.get('API_ENDPOINT')
+    if api_endpoint:
+        # Remove any trailing slashes
+        api_endpoint = api_endpoint.rstrip('/')
+        # If the endpoint starts with wss://, convert to https://
+        if api_endpoint.startswith('wss://'):
+            api_endpoint = 'https://' + api_endpoint[6:]
+        return api_endpoint
+        
+    # If not set, extract from the event
+    try:
+        # Get domain and stage from event requestContext
+        domain_name = event.get('requestContext', {}).get('domainName')
+        stage = event.get('requestContext', {}).get('stage')
+        
+        if domain_name and stage:
+            # Check if this is a custom domain (no 'execute-api' in the domain)
+            if 'execute-api' not in domain_name:
+                # Custom domain - just use the domain with https://
+                return f"https://{domain_name}/{stage}"
+            else:
+                # API Gateway default domain
+                return f"https://{domain_name}/{stage}"
+        else:
+            raise ValueError("Could not extract domain and stage from event")
+    except Exception as e:
+        print(f"Error determining API endpoint: {str(e)}")
+        raise ValueError("Failed to determine API Gateway endpoint. Please set API_ENDPOINT environment variable.")
+
 def handle_message(event, context):
     """Handle a message from the client and stream Bedrock responses."""
     connection_id = event.get('requestContext', {}).get('connectionId', '')
+    
+    # Get API endpoint for this request
+    try:
+        api_endpoint = get_api_endpoint_from_event(event)
+        print(f"Using API endpoint: {api_endpoint}")
+    except ValueError as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(str(e))
+        }
     
     # Parse the body from the WebSocket event
     body_str = event.get("body", "{}")
@@ -401,16 +447,9 @@ def handle_message(event, context):
             'body': json.dumps("Invalid input. top_k value must be between 0 and 500.")
         }
     
-    # Verify API endpoint is set
-    if not API_ENDPOINT:
-        return {
-            'statusCode': 400,
-            'body': json.dumps("Invalid configuration. API_ENDPOINT environment variable is not set.")
-        }
-    
     try:
-        # Initialize Bedrock streamer
-        streamer = BedrockStreamer(connection_id, session_id)
+        # Initialize Bedrock streamer with API endpoint
+        streamer = BedrockStreamer(connection_id, session_id, api_endpoint)
         
         # Create conversational RAG chain
         conversation = streamer.create_rag_chain(
@@ -436,7 +475,7 @@ def handle_message(event, context):
         try:
             api_client = boto3.client(
                 "apigatewaymanagementapi",
-                endpoint_url=API_ENDPOINT,
+                endpoint_url=api_endpoint,
                 region_name=DEFAULT_REGION  # Use me-central-1 for API Gateway
             )
             api_client.post_to_connection(
