@@ -419,25 +419,35 @@ def ensure_dynamodb_table_exists(region, table_name):
         print(f"DynamoDB table {table_name} created successfully")
 
 def get_api_endpoint_from_event(event):
-    api_endpoint = os.environ.get('API_ENDPOINT')
-    if api_endpoint:
-        api_endpoint = api_endpoint.rstrip('/')
-        if api_endpoint.startswith('wss://'):
-            api_endpoint = 'https://' + api_endpoint[6:]
-        return api_endpoint
-        
     try:
         domain_name = event.get('requestContext', {}).get('domainName')
         stage = event.get('requestContext', {}).get('stage')
         
-        if domain_name and stage:
+        # Check if it's a custom domain (doesn't contain execute-api)
+        if domain_name and 'execute-api' not in domain_name:
+            # For custom domains, don't add the stage
+            return f"https://{domain_name}"
+        elif domain_name and stage:
+            # Standard API Gateway URL format 
             return f"https://{domain_name}/{stage}"
         else:
-            raise ValueError("Could not extract domain and stage from event")
+            # Fallback to environment variable
+            api_endpoint = os.environ.get('API_ENDPOINT')
+            if api_endpoint:
+                # Convert WebSocket URL to HTTPS if needed
+                api_endpoint = api_endpoint.rstrip('/')
+                if api_endpoint.startswith('wss://'):
+                    api_endpoint = 'https://' + api_endpoint[6:]
+                return api_endpoint
+            else:
+                raise ValueError("Could not determine API endpoint: missing domain and environment variable")
     except Exception as e:
         print(f"Error determining API endpoint: {str(e)}")
-        raise ValueError("Failed to determine API Gateway endpoint")
-
+        # Final fallback to hardcoded URLs if everything else fails
+        if os.environ.get('AWS_REGION', '') == 'me-central-1':
+            return "https://501ttz2iuj.execute-api.me-central-1.amazonaws.com/dev"
+        raise ValueError(f"Failed to determine API Gateway endpoint: {str(e)}")
+    
 def handle_connect(event, context):
     connection_id = event.get('requestContext', {}).get('connectionId', '')
     print(f"New connection established: {connection_id}")
