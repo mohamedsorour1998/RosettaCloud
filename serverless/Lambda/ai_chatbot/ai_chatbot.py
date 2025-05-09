@@ -7,8 +7,10 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.chat_models.bedrock import BedrockChat
-from langchain_community.embeddings.bedrock import BedrockEmbeddings
+
+# Update imports to use the newer recommended packages
+from langchain_aws import ChatBedrock as BedrockChat
+from langchain_aws import BedrockEmbeddings
 
 from langchain_community.vectorstores import LanceDB
 from langchain_community.retrievers import TFIDFRetriever
@@ -250,10 +252,22 @@ class BedrockStreamer:
         # Initialize vector store retriever
         retriever = self.init_retriever(lancedb_uri, knowledge_base_id, file_filter)
 
+        # Prepare model kwargs based on the model being used
+        prepared_model_kwargs = model_kwargs.copy()
+        
         # Initialize Bedrock LLM with streaming enabled
+        if "claude" in bedrock_model_id.lower() or "anthropic" in bedrock_model_id.lower():
+            # For Claude models, ensure proper parameters are set
+            if "max_tokens_to_sample" not in prepared_model_kwargs:
+                prepared_model_kwargs["max_tokens_to_sample"] = 4096
+        elif "titan" in bedrock_model_id.lower():
+            # For Titan models, convert to the expected format
+            if "maxTokenCount" not in prepared_model_kwargs and "max_token_count" not in prepared_model_kwargs:
+                prepared_model_kwargs["maxTokenCount"] = 2048
+        
         llm = BedrockChat(
             model_id=bedrock_model_id,
-            model_kwargs=model_kwargs,
+            model_kwargs=prepared_model_kwargs,
             streaming=True,  # Enable streaming
             client=self.bedrock_client  # Use the same client for consistent region
         )
@@ -273,7 +287,7 @@ class BedrockStreamer:
             ),
             input_messages_key="input",
             history_messages_key="chat_history",
-            output_messages_key="answer",
+            output_key="output",  # Changed from output_messages_key="answer" to output_key="output"
         )
         return conversational_rag_chain
     
@@ -285,48 +299,89 @@ class BedrockStreamer:
         # Send a message that we're starting processing
         self._send_status_message("Analyzing your shell script question...")
         
-        # Stream the response
         try:
-            response = chain.stream(
+            # First try to create the DynamoDB table if it doesn't exist
+            try:
+                dynamo_client = boto3.client('dynamodb', region_name=self.region)
+                dynamo_client.describe_table(TableName=DYNAMO_TABLE)
+                print(f"DynamoDB table {DYNAMO_TABLE} exists")
+            except dynamo_client.exceptions.ResourceNotFoundException:
+                print(f"DynamoDB table {DYNAMO_TABLE} does not exist, creating it")
+                # Create the table
+                dynamo_client.create_table(
+                    TableName=DYNAMO_TABLE,
+                    KeySchema=[
+                        {'AttributeName': 'SessionId', 'KeyType': 'HASH'}
+                    ],
+                    AttributeDefinitions=[
+                        {'AttributeName': 'SessionId', 'AttributeType': 'S'}
+                    ],
+                    BillingMode='PAY_PER_REQUEST'
+                )
+                # Wait for table to be created
+                waiter = dynamo_client.get_waiter('table_exists')
+                waiter.wait(TableName=DYNAMO_TABLE)
+                print(f"DynamoDB table {DYNAMO_TABLE} created successfully")
+            
+            # Use invoke instead of stream to simplify troubleshooting
+            print(f"Invoking chain with prompt: {prompt}")
+            response = chain.invoke(
                 {"input": prompt},
                 config={"configurable": {"session_id": self.session_id}},
             )
             
-            # Process each chunk in the stream
-            for chunk in response:
-                for key in chunk:
-                    if key == 'answer':
-                        # Send answer chunks as JSON
-                        yield json.dumps({
-                            "type": "chunk",
-                            "content": chunk[key]
-                        })
-                    if key == 'context':
-                        # Extract document source information
-                        for doc in chunk[key]:
-                            # Extract all available metadata safely
-                            source_info = {
-                                "filename": doc.metadata.get("file_name", "Unknown"),
-                                "path": doc.metadata.get("full_path", "Unknown"),
-                                "bucket": doc.metadata.get("volume_junction_path", "Unknown")
-                            }
+            # Log the full response for debugging
+            print(f"Response structure: {response}")
+            
+            # Extract the answer from the response based on different possible structures
+            output_content = ""
+            if isinstance(response, dict):
+                # Try different possible keys
+                if "output" in response:
+                    output_content = response["output"]
+                elif "answer" in response:
+                    output_content = response["answer"]
+                elif "result" in response:
+                    output_content = response["result"]
+                else:
+                    # If we can't find a specific key, use the whole response
+                    output_content = str(response)
+            else:
+                # If response is not a dict, convert to string
+                output_content = str(response)
+            
+            # Send the response content
+            yield json.dumps({
+                "type": "chunk",
+                "content": output_content
+            })
+            
+            # Send document sources if available in the response
+            if "context" in response and isinstance(response["context"], list):
+                for doc in response["context"]:
+                    if hasattr(doc, "metadata"):
+                        source_info = {
+                            "filename": doc.metadata.get("file_name", "Unknown"),
+                            "path": doc.metadata.get("full_path", "Unknown"),
+                            "bucket": doc.metadata.get("volume_junction_path", "Unknown")
+                        }
+                        
+                        # Add MCQ info if available
+                        if "question_type" in doc.metadata and "mcq" in doc.metadata.get("question_type", "").lower():
+                            source_info["question_type"] = "MCQ"
+                            source_info["question"] = doc.metadata.get("question", "")
+                            source_info["answers"] = doc.metadata.get("answers_text", "")
+                            source_info["correct_answer"] = doc.metadata.get("correct_answer", "")
+                        
+                        # Add to sources if not already present
+                        if source_info not in self.doc_sources:
+                            self.doc_sources.append(source_info)
                             
-                            # Add MCQ info if available
-                            if "question_type" in doc.metadata and "mcq" in doc.metadata.get("question_type", "").lower():
-                                source_info["question_type"] = "MCQ"
-                                source_info["question"] = doc.metadata.get("question", "")
-                                source_info["answers"] = doc.metadata.get("answers_text", "")
-                                source_info["correct_answer"] = doc.metadata.get("correct_answer", "")
-                            
-                            # Add to sources if not already present
-                            if source_info not in self.doc_sources:
-                                self.doc_sources.append(source_info)
-                                
-                                # Send source information
-                                yield json.dumps({
-                                    "type": "source",
-                                    "content": source_info
-                                })
+                            # Send source information
+                            yield json.dumps({
+                                "type": "source",
+                                "content": source_info
+                            })
             
             # Send all collected document sources at the end
             if self.doc_sources:
@@ -334,7 +389,7 @@ class BedrockStreamer:
                     "type": "sources",
                     "content": self.doc_sources
                 })
-                
+            
             # Send completion message
             yield json.dumps({
                 "type": "complete",
@@ -486,8 +541,13 @@ def handle_message(event, context):
         
         # Stream responses back to the WebSocket
         for response in streamer.stream_response(conversation, prompt):
-            streamer.params["Data"] = response
-            streamer.api_client.post_to_connection(**streamer.params)
+            try:
+                streamer.params["Data"] = response
+                streamer.api_client.post_to_connection(**streamer.params)
+            except Exception as e:
+                print(f"Error posting to connection: {str(e)}")
+                # Continue trying to send other messages even if one fails
+                continue
         
         return {
             "statusCode": 200,
@@ -508,7 +568,7 @@ def handle_message(event, context):
             )
             api_client.post_to_connection(
                 ConnectionId=connection_id,
-                Data=json.dumps({"type": "error", "content": str(e)})
+                Data=json.dumps({"type": "error", "content": f"Error processing request: {str(e)}"})
             )
         except Exception:
             pass
