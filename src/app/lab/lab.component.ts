@@ -33,6 +33,7 @@ import {
 import { LabService } from '../services/lab.service';
 import { UserService } from '../services/user.service';
 import { FeedbackComponent } from '../feedback/feedback.component';
+import { ChatbotComponent } from "../chatbot/chatbot.component";
 
 /* ─── Types ──────────────────────────────────────────── */
 interface Question {
@@ -59,7 +60,7 @@ interface LabInfo {
 @Component({
   selector: 'app-lab',
   standalone: true,
-  imports: [CommonModule, FeedbackComponent],
+  imports: [CommonModule, FeedbackComponent, ChatbotComponent],
   templateUrl: './lab.component.html',
   styleUrls: ['./lab.component.scss'],
 })

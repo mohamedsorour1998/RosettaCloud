@@ -1,0 +1,100 @@
+<div class="chatbot-widget" [class.minimized]="isMinimized">
+  <div class="chatbot-header">
+    <div class="title-area">
+      <span class="status-indicator" [class.connected]="isConnected"></span>
+      <h3>RosettaCloud Assistant</h3>
+    </div>
+    <div class="actions">
+      <button class="action-btn" (click)="clearChat()" title="Clear chat">
+        <i class="bi bi-trash"></i>
+      </button>
+      <button
+        class="action-btn"
+        (click)="toggleSources()"
+        *ngIf="sources.length > 0"
+        title="Toggle sources"
+      >
+        <i
+          class="bi"
+          [class.bi-info-circle-fill]="showSources"
+          [class.bi-info-circle]="!showSources"
+        ></i>
+      </button>
+      <button class="action-btn" (click)="toggleMinimize()" title="Minimize">
+        <i
+          class="bi"
+          [class.bi-dash-lg]="!isMinimized"
+          [class.bi-plus-lg]="isMinimized"
+        ></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="chatbot-body" *ngIf="!isMinimized">
+    <!-- Sources panel (if visible) -->
+    <div class="sources-panel" *ngIf="showSources && sources.length > 0">
+      <h4>Reference Sources</h4>
+      <ul class="sources-list">
+        <li *ngFor="let source of sources">
+          <div class="source-item">
+            <i class="bi bi-file-earmark-code"></i>
+            <span class="source-name">{{ getSourceDisplayName(source) }}</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Chat messages -->
+    <div class="chat-container" #chatContainer>
+      <div class="message-wrapper" *ngFor="let message of messages">
+        <div class="message" [ngClass]="getRoleClass(message.role)">
+          <!-- Avatar/Icon based on role -->
+          <div
+            class="message-avatar"
+            *ngIf="message.role === 'user' || message.role === 'assistant'"
+          >
+            <i *ngIf="message.role === 'user'" class="bi bi-person-circle"></i>
+            <i *ngIf="message.role === 'assistant'" class="bi bi-robot"></i>
+          </div>
+
+          <!-- Message content -->
+          <div class="message-content">
+            <div class="message-bubble">
+              <div
+                class="message-text"
+                [innerHTML]="formatMessage(message.content)"
+              ></div>
+            </div>
+            <div class="message-time" *ngIf="message.role !== 'system'">
+              {{ message.timestamp | date : "shortTime" }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading indicator -->
+      <div class="loading-indicator" *ngIf="isLoading">
+        <div class="dot-typing"></div>
+      </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="input-area">
+      <textarea
+        #messageInput
+        class="message-input"
+        placeholder="Ask a lab question..."
+        [(ngModel)]="currentMessage"
+        (keydown)="onKeyDown($event)"
+        [disabled]="!isConnected || isLoading"
+      ></textarea>
+      <button
+        class="send-button"
+        (click)="sendMessage()"
+        [disabled]="!currentMessage.trim() || !isConnected || isLoading"
+      >
+        <i class="bi bi-send"></i>
+      </button>
+    </div>
+  </div>
+</div>
