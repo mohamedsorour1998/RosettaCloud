@@ -2,14 +2,14 @@ import json
 import os
 import boto3
 import lancedb
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-# Updated imports to match newer langchain package structure
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain.memory.chat_message_histories import DynamoDBChatMessageHistory
-from langchain.chains.history_aware_retriever import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_aws import BedrockChat, BedrockEmbeddings
 from langchain_community.vectorstores import LanceDB
+from langchain_community.retrievers import TFIDFRetriever
 
 # Configuration from environment variables with defaults
 LANCEDB_S3_URI = os.environ.get('LANCEDB_S3_URI', "s3://rosettacloud-shared-interactive-labs-vector")
@@ -19,9 +19,9 @@ BEDROCK_REGION = 'us-east-1'  # Hardcode Bedrock region to us-east-1 where it's 
 DEFAULT_REGION = os.environ.get('AWS_REGION', 'me-central-1')  # Default to me-central-1
 API_ENDPOINT = None  # Will be dynamically determined from the event
 
-# Implementation of functions from langchain.chains that may be missing
+# Define RAG chain creation functions
 def create_stuff_documents_chain(llm, prompt):
-    """Recreate the functionality of create_stuff_documents_chain"""
+    """Create a chain that stuffs documents into a prompt."""
     def format_docs(docs):
         return "\n\n".join([d.page_content for d in docs])
     
@@ -33,7 +33,7 @@ def create_stuff_documents_chain(llm, prompt):
     )
 
 def create_retrieval_chain(retriever, combine_docs_chain):
-    """Recreate the functionality of create_retrieval_chain"""
+    """Create a chain that retrieves documents and then combines them."""
     return (
         RunnablePassthrough.assign(
             context=lambda x: retriever.get_relevant_documents(x["input"])
@@ -42,19 +42,17 @@ def create_retrieval_chain(retriever, combine_docs_chain):
     )
 
 def create_history_aware_retriever(llm, retriever, prompt):
-    """Recreate the functionality of create_history_aware_retriever if needed"""
-    # Fallback implementation if the imported one doesn't work
-    # This is a simplified version - the original is more complex
+    """Create a retriever that's aware of chat history."""
     def get_context_aware_query(inputs):
         chat_history = inputs.get("chat_history", [])
         question = inputs["input"]
         if not chat_history:
             return question
         
-        # Use the llm to generate a new standalone question
-        context_prompt = prompt.format(chat_history=chat_history, input=question)
+        # Use the LLM to generate a standalone question
+        context_prompt = prompt.format_messages(chat_history=chat_history, input=question)
         response = llm.invoke(context_prompt)
-        standalone_question = response.content if hasattr(response, "content") else response
+        standalone_question = response.content if hasattr(response, "content") else str(response)
         
         return standalone_question
     
@@ -62,14 +60,14 @@ def create_history_aware_retriever(llm, retriever, prompt):
         def __init__(self, base_retriever):
             self.base_retriever = base_retriever
             
-        def get_relevant_documents(self, query, **kwargs):
+        def get_relevant_documents(self, query):
             if isinstance(query, dict) and "input" in query and "chat_history" in query:
                 # Process through context-aware logic
                 standalone_query = get_context_aware_query(query)
-                return self.base_retriever.get_relevant_documents(standalone_query, **kwargs)
+                return self.base_retriever.get_relevant_documents(standalone_query)
             else:
                 # Direct query
-                return self.base_retriever.get_relevant_documents(query, **kwargs)
+                return self.base_retriever.get_relevant_documents(query)
     
     return HistoryAwareRetriever(retriever)
 
@@ -108,7 +106,7 @@ class BedrockStreamer:
         contextualize_q_prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", contextualize_q_system_prompt),
-                MessagesPlaceholder("chat_history"),
+                MessagesPlaceholder(variable_name="chat_history"),
                 ("human", "{input}"),
             ]
         )
@@ -127,7 +125,7 @@ class BedrockStreamer:
         qa_prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_prompt),
-                MessagesPlaceholder("chat_history"),
+                MessagesPlaceholder(variable_name="chat_history"),
                 ("human", "{input}"),
             ]
         )
@@ -145,7 +143,6 @@ class BedrockStreamer:
         if knowledge_base_id not in db.table_names():
             self._send_status_message(f"Vector database {knowledge_base_id} not found. Try uploading some shell scripts first.")
             # Return a simple retriever that will always return empty results
-            from langchain.retrievers import TFIDFRetriever
             return TFIDFRetriever.from_texts(["No documents found in vector database"], k=1)
         
         # Open the table
@@ -154,7 +151,7 @@ class BedrockStreamer:
         # Get embedding dimensions from schema if available
         dimensions = 1536  # Default for titan-embed-text-v2
         try:
-            # Try to get dimensions from vector field
+            # Try to get dimensions from vector field using different approaches
             if hasattr(table.schema, 'field') and callable(getattr(table.schema, 'field', None)):
                 vector_field = table.schema.field("vector")
                 if hasattr(vector_field.type, 'list_size'):
@@ -173,8 +170,10 @@ class BedrockStreamer:
         bedrock_embeddings = BedrockEmbeddings(
             model_id="amazon.titan-embed-text-v2:0",
             client=self.bedrock_client,
-            model_kwargs={"dimensions": dimensions, 
-                          "embeddingTypes": ["float"]}  # Match indexer format
+            model_kwargs={
+                "dimensions": dimensions, 
+                "embeddingTypes": ["float"]  # Match indexer format
+            }
         )
         
         # Initialize vector store
@@ -205,11 +204,12 @@ class BedrockStreamer:
             try:
                 # Check if field_names exists and has file_type
                 if hasattr(table.schema, 'field_names') and callable(getattr(table.schema, 'field_names', None)):
-                    has_file_type = 'file_type' in table.schema.field_names
+                    field_names = table.schema.field_names()
+                    has_file_type = 'file_type' in field_names
                 # Alternative method to check
                 elif hasattr(table.schema, 'fields') and isinstance(table.schema.fields, list):
                     has_file_type = any(f.name == 'file_type' for f in table.schema.fields)
-                # Another way to check for field_names
+                # Another way to check for field names
                 elif hasattr(table.schema, 'names') and callable(getattr(table.schema, 'names', None)):
                     has_file_type = 'file_type' in table.schema.names()
             except Exception as e:
@@ -256,37 +256,10 @@ class BedrockStreamer:
             client=self.bedrock_client  # Use the same client for consistent region
         )
 
-        try:
-            # Try to use the imported function first
-            from langchain.chains import create_history_aware_retriever as import_history_aware_retriever
-            from langchain.chains import create_retrieval_chain as import_retrieval_chain
-            from langchain.chains import create_stuff_documents_chain as import_stuff_documents_chain
-            
-            # Create history-aware retriever
-            history_aware_retriever = import_history_aware_retriever(
-                llm, retriever, contextualize_q_prompt
-            )
-            
-            # Create chain for answering questions
-            question_answer_chain = import_stuff_documents_chain(llm, qa_prompt)
-            
-            # Create retrieval chain
-            rag_chain = import_retrieval_chain(history_aware_retriever, question_answer_chain)
-            
-        except (ImportError, AttributeError):
-            # If imports fail, use our local implementations
-            print("Using local implementations of langchain chain functions")
-            
-            # Create history-aware retriever
-            history_aware_retriever = create_history_aware_retriever(
-                llm, retriever, contextualize_q_prompt
-            )
-            
-            # Create chain for answering questions
-            question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-            
-            # Create retrieval chain
-            rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+        # Create history-aware retriever, QA chain, and retrieval chain
+        history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
+        question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
+        rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
         # Add message history to make it conversational
         conversational_rag_chain = RunnableWithMessageHistory(
@@ -294,7 +267,8 @@ class BedrockStreamer:
             lambda session_id: DynamoDBChatMessageHistory(
                 table_name=DYNAMO_TABLE,
                 session_id=self.session_id,
-                boto3_session=boto3.Session(region_name=self.region)),  # Use me-central-1 for DynamoDB
+                boto3_session=boto3.Session(region_name=self.region)
+            ),
             input_messages_key="input",
             history_messages_key="chat_history",
             output_messages_key="answer",
@@ -376,8 +350,8 @@ class BedrockStreamer:
 
 def get_api_endpoint_from_event(event):
     """
-    Dynamically determine the API endpoint from the event data
-    Works with both custom domains and default API Gateway endpoints
+    Dynamically determine the API endpoint from the event data.
+    Works with both custom domains and default API Gateway endpoints.
     """
     # First check if it's explicitly set in environment variables
     api_endpoint = os.environ.get('API_ENDPOINT')
