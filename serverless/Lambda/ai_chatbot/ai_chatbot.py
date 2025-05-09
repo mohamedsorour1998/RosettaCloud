@@ -20,7 +20,8 @@ KNOWLEDGE_BASE_ID = os.environ.get('KNOWLEDGE_BASE_ID', "shell-scripts-knowledge
 DYNAMO_TABLE = os.environ.get('DYNAMO_TABLE', 'SessionTable')
 BEDROCK_REGION = 'us-east-1'
 DEFAULT_REGION = os.environ.get('AWS_REGION', 'me-central-1')
-LAMBDA_TIMEOUT = int(os.environ.get('LAMBDA_TIMEOUT', '900'))  # 15 minutes max
+HEARTBEAT_INTERVAL = int(os.environ.get('HEARTBEAT_INTERVAL', '5'))
+MAX_RETRIEVAL_DOCS = int(os.environ.get('MAX_RETRIEVAL_DOCS', '2'))  # Reduced from 5 to 2
 
 def create_stuff_documents_chain(llm, prompt):
     def format_docs(docs):
@@ -36,7 +37,7 @@ def create_stuff_documents_chain(llm, prompt):
 def create_retrieval_chain(retriever, combine_docs_chain):
     return (
         RunnablePassthrough.assign(
-            context=lambda x: retriever.get_relevant_documents(x["input"])
+            context=lambda x: retriever.invoke(x["input"])
         )
         | combine_docs_chain
     )
@@ -56,13 +57,17 @@ def create_history_aware_retriever(llm, retriever, prompt):
     class HistoryAwareRetriever:
         def __init__(self, base_retriever):
             self.base_retriever = base_retriever
-            
-        def get_relevant_documents(self, query):
+        
+        def invoke(self, query):
             if isinstance(query, dict) and "input" in query and "chat_history" in query:
                 standalone_query = get_context_aware_query(query)
-                return self.base_retriever.get_relevant_documents(standalone_query)
+                return self.base_retriever.invoke(standalone_query)
             else:
-                return self.base_retriever.get_relevant_documents(query)
+                return self.base_retriever.invoke(query)
+                
+        # Keep for backwards compatibility
+        def get_relevant_documents(self, query):
+            return self.invoke(query)
     
     return HistoryAwareRetriever(retriever)
 
@@ -99,7 +104,7 @@ class BedrockStreamer:
                     )
                 except Exception:
                     break
-                time.sleep(10)  # Send heartbeat every 10 seconds
+                time.sleep(HEARTBEAT_INTERVAL)
         
         heartbeat_thread = threading.Thread(target=send_heartbeat)
         heartbeat_thread.daemon = True
@@ -108,7 +113,7 @@ class BedrockStreamer:
     def stop_heartbeat(self):
         self.heartbeat_active = False
     
-    def set_prompt(self):
+    def set_prompt(self, response_style="balanced"):
         contextualize_q_system_prompt = (
             "Given a chat history and the latest user question "
             "which might reference context in the chat history, "
@@ -126,10 +131,10 @@ class BedrockStreamer:
 
         system_prompt = (
             "You are an assistant specializing in shell scripts. "
+            f"Use a {response_style} style - be direct, clear and efficient. "
             "Use the following pieces of retrieved context to answer "
             "the question about shell scripts. If you don't know the answer, "
-            "say that you don't know. Be clear and concise, but provide "
-            "detailed technical information when necessary. When showing code examples, "
+            "say that you don't know. When showing code examples, "
             "format them properly with markdown syntax."
             "\n\n"
             "{context}"
@@ -144,56 +149,47 @@ class BedrockStreamer:
         return qa_prompt, contextualize_q_prompt
     
     def init_retriever(self, lancedb_uri, knowledge_base_id, file_filter=None):
-        db = lancedb.connect(lancedb_uri)
-        
-        self._send_status_message(f"Connecting to vector database: {knowledge_base_id}")
-        
-        if knowledge_base_id not in db.table_names():
-            self._send_status_message(f"Vector database {knowledge_base_id} not found. Try uploading some shell scripts first.")
-            return TFIDFRetriever.from_texts(["No documents found in vector database"], k=1)
-        
-        table = db.open_table(knowledge_base_id)
-        
-        dimensions = 1536
         try:
-            if hasattr(table.schema, 'field') and callable(getattr(table.schema, 'field', None)):
-                vector_field = table.schema.field("vector")
-                if hasattr(vector_field.type, 'list_size'):
-                    dimensions = vector_field.type.list_size
-            elif hasattr(table.schema, 'fields'):
-                for field in table.schema.fields:
-                    if field.name == "vector" and hasattr(field.type, 'list_size'):
-                        dimensions = field.type.list_size
-                        break
-        except Exception as e:
-            print(f"Could not determine vector dimensions from schema: {str(e)}")
+            db = lancedb.connect(lancedb_uri)
             
-        bedrock_embeddings = BedrockEmbeddings(
-            model_id="amazon.titan-embed-text-v2:0",
-            client=self.bedrock_client,
-            model_kwargs={"dimensions": dimensions, "embeddingTypes": ["float"]}
-        )
-        
-        vector_store = LanceDB(
-            uri=db.uri,
-            region=self.region,
-            embedding=bedrock_embeddings,
-            text_key='document',
-            table_name=knowledge_base_id   
-        )
-        
-        if file_filter and file_filter.strip():
-            self._send_status_message(f"Filtering results to file: {file_filter}")
-            retriever = vector_store.as_retriever(
-                search_kwargs={
-                    "filter": {
-                        'sql_filter': f"file_name='{file_filter}'",
-                        'prefilter': True
-                    },
-                    "k": 5
-                }
+            self._send_status_message(f"Connecting to vector database: {knowledge_base_id}")
+            
+            if knowledge_base_id not in db.table_names():
+                self._send_status_message(f"Vector database {knowledge_base_id} not found.")
+                return TFIDFRetriever.from_texts(["No documents found in vector database"], k=1)
+            
+            table = db.open_table(knowledge_base_id)
+            
+            # Default dimensions for titan-embed
+            dimensions = 1536
+            try:
+                if hasattr(table.schema, 'field') and callable(getattr(table.schema, 'field', None)):
+                    vector_field = table.schema.field("vector")
+                    if hasattr(vector_field.type, 'list_size'):
+                        dimensions = vector_field.type.list_size
+                elif hasattr(table.schema, 'fields'):
+                    for field in table.schema.fields:
+                        if field.name == "vector" and hasattr(field.type, 'list_size'):
+                            dimensions = field.type.list_size
+                            break
+            except Exception as e:
+                print(f"Could not determine vector dimensions: {str(e)}")
+                
+            bedrock_embeddings = BedrockEmbeddings(
+                model_id="amazon.titan-embed-text-v2:0",
+                client=self.bedrock_client,
+                model_kwargs={"dimensions": dimensions, "embeddingTypes": ["float"]}
             )
-        else:
+            
+            vector_store = LanceDB(
+                uri=db.uri,
+                region=self.region,
+                embedding=bedrock_embeddings,
+                text_key='document',
+                table_name=knowledge_base_id   
+            )
+            
+            # Check for file_type field
             has_file_type = False
             try:
                 if hasattr(table.schema, 'field_names') and callable(getattr(table.schema, 'field_names', None)):
@@ -206,18 +202,37 @@ class BedrockStreamer:
             except Exception as e:
                 print(f"Error checking for file_type field: {str(e)}")
             
-            retriever = vector_store.as_retriever(
-                search_kwargs={
-                    "filter": {
-                        'sql_filter': "file_type='shell_script'",
-                        'prefilter': True
-                    } if has_file_type else None,
-                    "k": 5
-                }
-            )
-        
-        self._send_status_message("Shell script retriever initialized")
-        return retriever
+            # Setup retriever with appropriate filtering
+            if file_filter and file_filter.strip():
+                self._send_status_message(f"Filtering to file: {file_filter}")
+                retriever = vector_store.as_retriever(
+                    search_kwargs={
+                        "filter": {
+                            'sql_filter': f"file_name='{file_filter}'",
+                            'prefilter': True
+                        },
+                        "k": MAX_RETRIEVAL_DOCS  # Reduced for performance
+                    }
+                )
+            else:
+                retriever = vector_store.as_retriever(
+                    search_kwargs={
+                        "filter": {
+                            'sql_filter': "file_type='shell_script'",
+                            'prefilter': True
+                        } if has_file_type else None,
+                        "k": MAX_RETRIEVAL_DOCS  # Reduced for performance
+                    }
+                )
+            
+            self._send_status_message("Shell script retriever initialized")
+            return retriever
+            
+        except Exception as e:
+            print(f"Error initializing retriever: {str(e)}")
+            self._send_status_message(f"Error connecting to vector database: {str(e)}")
+            # Return a fallback retriever that will just provide empty results
+            return TFIDFRetriever.from_texts(["Error connecting to vector database"], k=1)
     
     def _send_status_message(self, message):
         try:
@@ -229,19 +244,31 @@ class BedrockStreamer:
             print(f"Error sending status message: {str(e)}")
     
     def create_rag_chain(self, lancedb_uri, knowledge_base_id, bedrock_model_id, 
-                    model_kwargs, file_filter=None):
-        qa_prompt, contextualize_q_prompt = self.set_prompt()
+                    model_kwargs, file_filter=None, response_style="concise"):
+        # Get prompt templates with specified response style
+        qa_prompt, contextualize_q_prompt = self.set_prompt(response_style)
+        
+        # Init retriever
         retriever = self.init_retriever(lancedb_uri, knowledge_base_id, file_filter)
         
+        # Prepare model kwargs based on the model type
         prepared_model_kwargs = model_kwargs.copy()
         
+        # Set appropriate defaults for different model types
         if "claude" in bedrock_model_id.lower() or "anthropic" in bedrock_model_id.lower():
+            # Claude models
             if "max_tokens_to_sample" not in prepared_model_kwargs:
-                prepared_model_kwargs["max_tokens_to_sample"] = 4096
+                prepared_model_kwargs["max_tokens_to_sample"] = 1024  # Reduced for performance
         elif "titan" in bedrock_model_id.lower():
+            # Titan models
             if "maxTokenCount" not in prepared_model_kwargs and "max_token_count" not in prepared_model_kwargs:
-                prepared_model_kwargs["maxTokenCount"] = 2048
+                prepared_model_kwargs["maxTokenCount"] = 1024  # Reduced for performance
         
+        # Add timeout for all models if not already set
+        if "timeoutInMillis" not in prepared_model_kwargs:
+            prepared_model_kwargs["timeoutInMillis"] = 15000  # 15 second timeout
+        
+        # Initialize Bedrock LLM
         llm = BedrockChat(
             model_id=bedrock_model_id,
             model_kwargs=prepared_model_kwargs,
@@ -249,12 +276,15 @@ class BedrockStreamer:
             client=self.bedrock_client
         )
 
+        # Create chain components
         history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
         question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
         rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
+        # Ensure DynamoDB table exists
         ensure_dynamodb_table_exists(self.region, DYNAMO_TABLE)
         
+        # Create conversational chain
         conversational_rag_chain = RunnableWithMessageHistory(
             rag_chain,
             lambda session_id: DynamoDBChatMessageHistory(
@@ -270,21 +300,38 @@ class BedrockStreamer:
     
     def stream_response(self, chain, prompt):
         self.doc_sources = []
-        self._send_status_message("Analyzing your shell script question...")
+        self._send_status_message("Processing your question...")
         
         # Start heartbeat to keep WebSocket alive
         self.start_heartbeat()
         
         try:
             print(f"Invoking chain with prompt: {prompt}")
+            
+            # Use direct retrieval for first questions to improve performance
+            use_history = False
+            try:
+                # Try to get chat history
+                dynamo_client = boto3.client('dynamodb', region_name=self.region)
+                response = dynamo_client.get_item(
+                    TableName=DYNAMO_TABLE,
+                    Key={'SessionId': {'S': self.session_id}}
+                )
+                if 'Item' in response:
+                    use_history = True
+                    print("Using chat history for this session")
+            except Exception as e:
+                print(f"Error checking session history: {str(e)}")
+            
+            # Invoke chain with configurable session
             response = chain.invoke(
                 {"input": prompt},
                 config={"configurable": {"session_id": self.session_id}},
             )
             
-            print(f"Response structure: {response}")
+            print(f"Response received")
             
-            # Extract content
+            # Extract the answer
             output_content = ""
             if isinstance(response, dict):
                 if "output" in response:
@@ -304,7 +351,7 @@ class BedrockStreamer:
                 "content": output_content
             })
             
-            # Process document sources
+            # Extract and send sources
             if "context" in response and isinstance(response["context"], list):
                 for doc in response["context"]:
                     if hasattr(doc, "metadata"):
@@ -347,7 +394,7 @@ class BedrockStreamer:
                 "content": f"Error during processing: {str(e)}"
             })
         finally:
-            # Stop heartbeat
+            # Always stop heartbeat
             self.stop_heartbeat()
 
 def ensure_dynamodb_table_exists(region, table_name):
@@ -427,26 +474,32 @@ def handle_message(event, context):
         if field not in body:
             return {'statusCode': 400, 'body': json.dumps(f"Invalid input. Missing required field: {field}")}
     
+    # Extract fields with defaults
     prompt = body["prompt"]
     bedrock_model_id = body["bedrock_model_id"]
     model_kwargs = body["model_kwargs"]
     file_filter = body.get("file_filter", "")
     session_id = body["session_id"]
     knowledge_base_id = body.get("knowledge_base_id", KNOWLEDGE_BASE_ID)
+    response_style = body.get("response_style", "concise")  # Default to concise responses
     
     # Validate parameters
     if "temperature" in model_kwargs and not (0 <= model_kwargs["temperature"] <= 1):
-        return {'statusCode': 400, 'body': json.dumps("Invalid input. temperature value must be between 0 and 1.")}
+        return {'statusCode': 400, 'body': json.dumps("Temperature must be between 0 and 1")}
     
     if "top_p" in model_kwargs and not (0 <= model_kwargs["top_p"] <= 1):
-        return {'statusCode': 400, 'body': json.dumps("Invalid input. top_p value must be between 0 and 1.")}
-    
-    if "top_k" in model_kwargs and not (0 <= model_kwargs["top_k"] <= 500):
-        return {'statusCode': 400, 'body': json.dumps("Invalid input. top_k value must be between 0 and 500.")}
+        return {'statusCode': 400, 'body': json.dumps("Top_p must be between 0 and 1")}
     
     try:
         streamer = BedrockStreamer(connection_id, session_id, api_endpoint)
-        conversation = streamer.create_rag_chain(LANCEDB_S3_URI, knowledge_base_id, bedrock_model_id, model_kwargs, file_filter)
+        conversation = streamer.create_rag_chain(
+            LANCEDB_S3_URI, 
+            knowledge_base_id, 
+            bedrock_model_id, 
+            model_kwargs, 
+            file_filter,
+            response_style
+        )
         
         for response in streamer.stream_response(conversation, prompt):
             try:
@@ -471,12 +524,12 @@ def handle_message(event, context):
             )
             api_client.post_to_connection(
                 ConnectionId=connection_id,
-                Data=json.dumps({"type": "error", "content": f"Error processing request: {str(e)}"})
+                Data=json.dumps({"type": "error", "content": f"Error: {str(e)}"})
             )
         except Exception:
             pass
             
-        return {"statusCode": 500, "body": json.dumps(f"Error processing request: {str(e)}")}
+        return {"statusCode": 500, "body": json.dumps(f"Error: {str(e)}")}
 
 def lambda_handler(event, context):
     route_key = event.get('requestContext', {}).get('routeKey', '')
