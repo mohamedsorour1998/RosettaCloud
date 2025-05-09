@@ -2,5 +2,5 @@ boto3
 lancedb
 langchain
 langchain_aws
-langchain-community
-langchain-core
+langchain-community==0.0.29
+langchain-core==0.1.27

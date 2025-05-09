@@ -7,7 +7,9 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_aws import BedrockChat, BedrockEmbeddings
+from langchain_community.chat_models.bedrock import BedrockChat
+from langchain_community.embeddings.bedrock import BedrockEmbeddings
+
 from langchain_community.vectorstores import LanceDB
 from langchain_community.retrievers import TFIDFRetriever
 
