@@ -21,16 +21,11 @@ export class LoginComponent implements OnInit {
   constructor(private userService: UserService, private router: Router) {}
 
   ngOnInit(): void {
-    // Get redirect URL from session storage or default to dashboard
     const storedRedirectUrl = sessionStorage.getItem('redirectUrl');
     if (storedRedirectUrl) {
       this.redirectUrl = storedRedirectUrl;
-      // Clear it after getting its value
       sessionStorage.removeItem('redirectUrl');
     }
-
-    // Check if already logged in AND there's a redirect URL
-    // Only redirect automatically if we were sent here by the auth guard
     if (this.userService.getCurrentUserId() !== 'user12' && storedRedirectUrl) {
       this.router.navigate([this.redirectUrl]);
       return;
@@ -66,8 +61,6 @@ export class LoginComponent implements OnInit {
 
     this.isLoading = true;
     this.errorMessage = '';
-
-    // Create a basic user with the email and password
     const userData = {
       email: this.email,
       name: this.email.split('@')[0], // Simple name from email

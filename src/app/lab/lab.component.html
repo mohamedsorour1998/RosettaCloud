@@ -1,6 +1,4 @@
-<!-- lab.component.html -->
 <div class="lab-container">
-  <!-- ───── HEADER ───── -->
   <header class="lab-header">
     <div class="lab-title">
       <h4>DevLab</h4>
@@ -30,20 +28,13 @@
       </button>
     </div>
   </header>
-
-  <!-- connection lost banner -->
   <div class="api-connection-warning" *ngIf="showApiBanner">
     <i class="bi bi-wifi-off wifi-icon"></i> Connection to lab service lost.
     Retrying…
   </div>
-
-  <!-- ───── MAIN LAYOUT ───── -->
   <div class="lab-content">
-    <!-- ░░ Sidebar ░░ -->
     <aside class="lab-sidebar">
       <div class="sidebar-header"><h5>Lab Questions</h5></div>
-
-      <!-- navigation bar -->
       <div class="question-navigation" *ngIf="questions.length">
         <button
           class="nav-btn"
@@ -76,12 +67,8 @@
           &gt;
         </button>
       </div>
-
-      <!-- question body -->
       <div class="question-details" *ngIf="currentQuestion as cq">
         <h5 class="question-title">{{ cq.question }}</h5>
-
-        <!-- MCQ options -->
         <div
           class="question-options"
           *ngIf="cq.type === 'mcq' && cq.options?.length"
@@ -102,8 +89,6 @@
             <div class="option-text">{{ opt }}</div>
           </div>
         </div>
-
-        <!-- feedback -->
         <div class="feedback-area" *ngIf="showFeedback">
           <div
             class="feedback-message"
@@ -115,10 +100,7 @@
             {{ feedbackMessage }}
           </div>
         </div>
-
-        <!-- buttons under answers -->
         <div class="question-buttons">
-          <!-- submit/check -->
           <button
             class="btn-submit"
             [ngClass]="{ loading: checkInProgress }"
@@ -141,8 +123,6 @@
             <span class="spinner" *ngIf="checkInProgress"></span>
             <span class="btn-text">Check</span>
           </button>
-
-          <!-- next / skip -->
           <button
             class="btn-next"
             *ngIf="
@@ -176,7 +156,6 @@
           (terminateLabRequest)="terminateLab()"
         ></app-feedback>
       </div>
-      <!-- footer with progress -->
       <div class="sidebar-footer" *ngIf="questions.length">
         <div class="progress-indicator">
           <div class="progress-text">
@@ -193,10 +172,7 @@
         </div>
       </div>
     </aside>
-
-    <!-- ░░ Main panel ░░ -->
     <main class="lab-main">
-      <!-- loading overlay -->
       <div class="lab-loading" *ngIf="isLoading">
         <div class="spinner"></div>
         <p>
@@ -207,8 +183,6 @@
           }}
         </p>
       </div>
-
-      <!-- error overlay -->
       <div class="lab-error" *ngIf="!isLoading && errorMessage">
         <div class="error-icon"><i class="bi bi-exclamation-triangle"></i></div>
         <h5>Oops! Something went wrong</h5>
@@ -217,8 +191,6 @@
           Try Again
         </button>
       </div>
-
-      <!-- running lab -->
       <div class="lab-frame" *ngIf="!isLoading && isLabActive && codeServerUrl">
         <iframe
           class="code-server-iframe"
@@ -227,8 +199,6 @@
         ></iframe>
       </div>
     </main>
-
-    <!-- ░░ Chatbot panel ░░ -->
     <aside class="chatbot-panel">
       <app-chatbot></app-chatbot>
     </aside>

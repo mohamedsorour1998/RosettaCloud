@@ -21,13 +21,11 @@ export class ErrorInterceptor implements HttpInterceptor {
     return next.handle(req).pipe(
       catchError((error: HttpErrorResponse) => {
         if (error.status === 401) {
-          // Unauthorized - redirect to login
           localStorage.removeItem('auth_token');
           this.router.navigate(['/login']);
         }
 
         if (error.status === 403) {
-          // Forbidden - redirect to access denied page
           this.router.navigate(['/access-denied']);
         }
 

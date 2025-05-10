@@ -11,8 +11,6 @@ export class FeedbackService {
   private apiUrl =
     environment.feedbackApiUrl || 'https://api.dev.rosettacloud.app';
   private feedbackId: string | null = null;
-
-  // Subject to broadcast feedback when received from Momento
   private feedbackReceivedSubject = new Subject<any>();
   public feedbackReceived$ = this.feedbackReceivedSubject.asObservable();
 
@@ -37,10 +35,7 @@ export class FeedbackService {
     questions: any[],
     userProgress: any
   ): Observable<any> {
-    // Generate a unique feedback ID
     this.feedbackId = this.momentoService.generateFeedbackId();
-
-    // Prepare request payload
     const payload = {
       user_id: userId,
       module_uuid: moduleUuid,
@@ -49,11 +44,7 @@ export class FeedbackService {
       questions: questions,
       progress: userProgress,
     };
-
-    // Subscribe to Momento for this feedback ID
     this.setupMomentoSubscription(userId, this.feedbackId);
-
-    // Send request to API
     return new Observable((observer) => {
       this.http
         .post<any>(`${this.apiUrl}/feedback/request`, payload)
@@ -87,33 +78,21 @@ export class FeedbackService {
       console.log(
         `Setting up Momento subscription for feedback ID: ${feedbackId}`
       );
-
-      // Get token from vending endpoint
       const token = await this.momentoService.getToken(userId);
       console.log('Received Momento token');
-
-      // Initialize Momento client with token
       this.momentoService.initializeClient(token);
       console.log('Momento client initialized');
-
-      // Subscribe to topic for this feedback ID
       const success = await this.momentoService.subscribe(
         feedbackId,
-        // Message handler
         (data) => {
           console.log('Received feedback message:', data);
-          // Extract feedback content from the response
           const content = data.content || data.feedback || JSON.stringify(data);
           this.feedbackReceivedSubject.next(content);
         },
-        // Error handler
         async (error) => {
           if (error.type === 'token_expired') {
             console.log('Token expired, refreshing...');
-            // Clean up existing subscription
             this.momentoService.unsubscribe();
-
-            // Try again with a new token
             await this.setupMomentoSubscription(userId, feedbackId);
           }
         }
@@ -133,7 +112,6 @@ export class FeedbackService {
    * Connect to WebSocket (keeping for backward compatibility)
    */
   public connectToFeedbackWebSocket(): void {
-    // This method is intentionally left empty as we're now using Momento directly
     console.log('Using Momento for real-time updates instead of WebSocket');
   }
 
@@ -141,7 +119,6 @@ export class FeedbackService {
    * Disconnect from WebSocket (keeping for backward compatibility)
    */
   public disconnectFromFeedbackWebSocket(): void {
-    // Clean up Momento subscription instead
     this.momentoService.unsubscribe();
     this.feedbackId = null;
   }

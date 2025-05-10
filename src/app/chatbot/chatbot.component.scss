@@ -251,8 +251,6 @@
       margin-bottom: 0;
     }
   }
-
-  /* Special code blocks for shell scripts and normal code */
   .shell-script-container,
   .code-container {
     display: block !important;
@@ -281,8 +279,6 @@
     background-color: rgba(0, 0, 0, 0.03) !important;
     color: inherit !important;
   }
-
-  /* Special styling for shell scripts */
   .shell-script-container .shell-script {
     border-left: 3px solid #28a745 !important;
   }
@@ -388,8 +384,6 @@
     }
   }
 }
-
-/* Ensure tables and images display properly */
 .responsive-table {
   width: 100%;
   max-width: 100%;
@@ -446,8 +440,6 @@
       10014px 0 0 0 #6c757d;
   }
 }
-
-/* Responsive design to match lab component */
 @media (max-width: 768px) {
   .chatbot-widget {
     border-left: none;

@@ -1,7 +1,4 @@
-// src/custom-typings.d.ts
-// Ambient module declaration for @gomomento/sdk-web
 declare module '@gomomento/sdk-web' {
-  /** The main client constructor and instance type */
   export const TopicClient: {
     new (config: any): TopicClient;
   };
@@ -15,8 +12,6 @@ declare module '@gomomento/sdk-web' {
       }
     ): Promise<TopicSubscribeResponse>;
   };
-
-  /** The union of responses from subscribe() */
   export type TopicSubscribeResponse = SubscriptionResponse | ErrorResponse;
   export namespace TopicSubscribeResponse {
     export type Subscription = {
@@ -32,20 +27,14 @@ declare module '@gomomento/sdk-web' {
     };
     export const Error: { new (): ErrorResponse };
   }
-
-  /** CredentialProvider factory */
   export const CredentialProvider: {
     fromString(opts: { apiKey: string }): any;
   };
-
-  /** Configuration presets */
   export const Configurations: {
     Browser: {
       v1(): any;
     };
   };
-
-  /** Error code enum */
   export enum MomentoErrorCode {
     AUTHENTICATION_ERROR = 'AUTHENTICATION_ERROR',
   }

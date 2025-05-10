@@ -33,9 +33,7 @@ import {
 import { LabService } from '../services/lab.service';
 import { UserService } from '../services/user.service';
 import { FeedbackComponent } from '../feedback/feedback.component';
-import { ChatbotComponent } from "../chatbot/chatbot.component";
-
-/* ─── Types ──────────────────────────────────────────── */
+import { ChatbotComponent } from '../chatbot/chatbot.component';
 interface Question {
   id: number;
   question: string;
@@ -55,8 +53,6 @@ interface LabInfo {
   status: string;
   index: number;
 }
-
-/* ─── Component ──────────────────────────────────────── */
 @Component({
   selector: 'app-lab',
   standalone: true,
@@ -65,7 +61,6 @@ interface LabInfo {
   styleUrls: ['./lab.component.scss'],
 })
 export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
-  /* state */
   labId: string | null = null;
   labInfo$ = new BehaviorSubject<LabInfo | null>(null);
   codeServerUrl: SafeResourceUrl | null = null;
@@ -77,8 +72,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   get currentQuestion(): Question | null {
     return this.questions[this.currentQuestionIndex] || null;
   }
-
-  /* UI flags */
   selectedOption: number | null = null;
   showFeedback = false;
   feedbackMessage = '';
@@ -93,12 +86,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   errorMessage: string | null = null;
   timeRemaining$ = new BehaviorSubject<string>('');
   userProgressData: any = {};
-
-  /* route params */
   moduleUuid: string | null = null;
   lessonUuid: string | null = null;
-
-  /* subs */
   private timerSub?: Subscription;
   private pollSub?: Subscription;
   private apiSub?: Subscription;
@@ -117,10 +106,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     private sanitizer: DomSanitizer,
     private el: ElementRef
   ) {}
-
-  /* ─── LIFECYCLE ───────────────────────────────────── */
   ngOnInit(): void {
-    // Set up iframe URL updater with debounce
     this.iframeSub = this.iframeUrl$
       .pipe(
         debounceTime(1000), // Wait 1 second before processing URL changes
@@ -132,13 +118,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           this.lastIframeUrl = url;
           this.codeServerUrl =
             this.sanitizer.bypassSecurityTrustResourceUrl(url);
-
-          // Wait before trying to adjust iframe to allow it to load
           setTimeout(() => this.adjustIframe(), 1000);
         }
       });
-
-    // Ensure service is available before subscribing
     if (this.labSv && this.labSv.connectionStatus$) {
       this.apiSub = this.labSv.connectionStatus$.subscribe((ok) => {
         if (ok) {
@@ -153,8 +135,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       console.error('Lab service or connection status not available');
       this.isApiConnected = false;
     }
-
-    // Continue with the rest of the initialization
     this.moduleUuid = this.route.snapshot.paramMap.get('moduleUuid');
     this.lessonUuid = this.route.snapshot.paramMap.get('lessonUuid');
     if (!this.moduleUuid || !this.lessonUuid) {
@@ -165,20 +145,15 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.initLab();
   }
 
-  ngAfterViewInit(): void {
-    // No immediate iframe adjustment - will be triggered after URL is set
-  }
+  ngAfterViewInit(): void {}
 
   ngOnDestroy(): void {
-    // Clean up all subscriptions
     this.timerSub?.unsubscribe();
     this.pollSub?.unsubscribe();
     this.apiSub?.unsubscribe();
     this.progressSub?.unsubscribe();
     this.iframeSub?.unsubscribe();
   }
-
-  /* ─── LAB INIT / POLLING ─────────────────────────── */
   private initLab(): void {
     const cachedLab = sessionStorage.getItem('activeLabId');
     this.restoreQuestionState();
@@ -235,8 +210,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         tap((info) => this.handleLabInfo(info))
       )
       .subscribe();
-
-    /* first snapshot immediately */
     this.labSv.getLabInfo(this.labId).subscribe(
       (info) => this.handleLabInfo(info),
       (err) => {
@@ -258,55 +231,35 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const currentInfo = this.labInfo$.getValue();
     const wasNotActive = !this.isLabActive;
     const statusChanged = !currentInfo || currentInfo.status !== info.status;
-
-    // Update internal state
     this.labInfo$.next(info);
-
-    /* auto-recover from dead labs */
     if (['error', 'terminated'].includes(info.status)) {
-      // remove stale lab reference
       sessionStorage.removeItem('activeLabId');
       this.labId = null;
-      // launch a brand-new lab
       this.launchNewLab().subscribe();
       return; // stop processing the dead lab
     }
 
     if (info.status === 'running' && info.pod_ip) {
-      // Format URL properly
       const url = info.pod_ip.includes('://')
         ? info.pod_ip
         : `https://${info.pod_ip}/`;
-
-      // Only update the iframe URL if it's changed or the status has changed
       if (this.lastIframeUrl !== url || statusChanged) {
-        // Push to the debounced URL handler
         this.iframeUrl$.next(url);
       }
-
-      // Update status flags
       this.isLabActive = true;
       this.isLoading = false;
       this.isInitializing = false;
-
-      // Handle timer
       if (info.time_remaining) {
         this.updateTime(info.time_remaining);
-
-        // Only start a new timer if we don't have one running or the status just changed
         if (!this.timerSub || statusChanged) {
           this.startTimer(info.time_remaining);
         }
       } else {
         this.timeRemaining$.next('Time unknown');
       }
-
-      // If the lab just became active and we have questions, set up question 1
       if (wasNotActive && this.questions.length > 0) {
         console.log('Lab became active, setting up question 1 automatically');
         this.setupQuestion(1);
-
-        // Also load user progress to update completed questions
         this.loadUserProgress();
       }
     } else if (info.status === 'pending') {
@@ -320,8 +273,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isLoading = false;
     }
   }
-
-  /* --- Load User Progress --- */
   private loadUserProgress(): void {
     if (!this.moduleUuid || !this.lessonUuid) return;
 
@@ -333,11 +284,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe({
         next: (progress) => {
           console.log('User progress loaded:', progress);
-          // Store progress data for feedback component
           this.userProgressData = progress;
 
           if (progress && Object.keys(progress).length > 0) {
-            // Update questions with completion status
             this.questions.forEach((question) => {
               const questionKey = question.id.toString();
               if (progress[questionKey] === true) {
@@ -356,12 +305,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         },
       });
   }
-
-  /* ─── QUESTIONS ─────────────────────────────────── */
   private loadQuestions(): void {
     if (!this.moduleUuid || !this.lessonUuid) return;
-
-    // Load both questions and user progress
     forkJoin({
       questions: this.labSv.getQuestions(this.moduleUuid, this.lessonUuid),
       progress: this.userSv.getUserProgress(
@@ -371,7 +316,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       ),
     }).subscribe({
       next: (result) => {
-        // Map questions from API
         this.questions = result.questions.questions.map(
           (q: any): Question => ({
             id: q.question_number,
@@ -385,8 +329,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             wrongAttempt: false,
           })
         );
-
-        // Apply user progress to mark completed questions
         const progress = result.progress;
         if (progress && Object.keys(progress).length > 0) {
           this.questions.forEach((question) => {
@@ -400,12 +342,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             }
           });
         }
-
-        // Restore any session state (may override progress from API)
         this.restoreQuestionState();
-
-        // Only set up question 1 if lab is already active, otherwise it will be done
-        // when the lab becomes active in handleLabInfo
         if (this.questions.length && this.isLabActive) {
           this.setupQuestion(1);
         }
@@ -414,8 +351,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         console.error('Error loading questions or progress:', err),
     });
   }
-
-  /* ─── Navigation helpers ────────────────────────── */
   navigateToPrevQuestion(): void {
     if (this.currentQuestionIndex > 0) {
       this.resetUI();
@@ -436,45 +371,30 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.setupQuestion(n);
     }
   }
-
-  /* ─── Question setup / UI reset ─────────────────── */
   resetAnswerAttempt(): void {
     const currentQuestion = this.questions[this.currentQuestionIndex];
     this.selectedOption = null;
     this.showFeedback = false;
     this.feedbackMessage = '';
-
-    // Don't reset wrongAttempt flag - we still want to show retry button
   }
-  // Modify the resetUI method around line 412
   private resetUI(): void {
     this.selectedOption = null;
     this.showFeedback = false;
     this.feedbackMessage = '';
     this.isAnswerCorrect = false;
-
-    // If this is the last question and it had a wrong attempt,
-    // make sure the wrongAttempt flag is preserved for UI display purposes
     if (this.currentQuestionIndex === this.questions.length - 1) {
       const lastQuestion = this.questions[this.currentQuestionIndex];
       if (lastQuestion && !lastQuestion.completed) {
-        // Keep the wrongAttempt flag if we're staying on the same question
-        // This ensures the retry UI remains visible
       } else {
-        // Reset wrongAttempt only if we're changing questions or it's completed
         lastQuestion.wrongAttempt = false;
       }
     }
   }
-
-  // Add this helper method
   resetCurrentQuestionAttempt(): void {
     this.selectedOption = null;
     this.showFeedback = false;
     this.feedbackMessage = '';
     this.isAnswerCorrect = false;
-
-    // Don't reset the wrongAttempt flag to preserve UI state
   }
 
   private setupQuestion(n: number): void {
@@ -494,8 +414,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         element.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }, 100);
-
-    // Always call setup for all question types
     console.log(`Setting up question ${n} with pod index: ${labInfo.index}`);
     this.labSv
       .setupQuestion(
@@ -515,11 +433,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     const q = this.currentQuestion!;
     this.showFeedback = true;
-
-    // Get the selected answer text
     const selectedAnswerText = q.options![this.selectedOption];
-
-    // Compare with the correct answer
     const isCorrect = selectedAnswerText === q.correctAnswer;
 
     if (isCorrect) {
@@ -527,8 +441,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.feedbackMessage = 'Correct! Well done.';
       q.completed = true;
       q.wrongAttempt = false;
-
-      // Track progress in user service
       if (this.moduleUuid && this.lessonUuid) {
         this.userSv
           .updateUserProgress(
@@ -549,8 +461,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     } else {
       this.isAnswerCorrect = false;
       this.feedbackMessage = 'Incorrect. Try again or skip.';
-
-      // Add the incorrect option to disabled options
       if (!q.disabledOptions.includes(this.selectedOption)) {
         q.disabledOptions.push(this.selectedOption);
       }
@@ -570,14 +480,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
 
     const q = this.currentQuestion!;
-
-    // For MCQ questions, check locally without API call
     if (q.type === 'mcq') {
       this.checkMCQAnswer();
       return;
     }
-
-    // For Check questions, use the original API call logic
     const labInfo = this.labInfo$.getValue();
     if (!labInfo) return;
 
@@ -670,8 +576,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         },
       });
   }
-
-  /* selection click */
   setSelectedOption(i: number): void {
     const q = this.currentQuestion!;
     if (q.disabledOptions.includes(i)) return;
@@ -681,13 +585,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     this.selectedOption = i;
   }
-
-  /* ─── Completion / state persistence ─────────────── */
   private markCompleted(id: number): void {
-    // Save to session storage
     this.saveQuestionState();
-
-    // Update user progress in backend
     if (this.moduleUuid && this.lessonUuid) {
       this.userSv
         .updateUserProgress(
@@ -743,7 +642,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   public initializeNewLab(): void {
-    // Clear question state when starting a new lab
     try {
       sessionStorage.removeItem(this.qStateKey);
       this.questions = [];
@@ -751,12 +649,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     } catch (e) {
       console.error('Error clearing question state:', e);
     }
-
-    // Launch new lab
     this.launchNewLab().subscribe();
   }
-
-  /* ─── Terminate ─────────────────────────────────── */
   terminateLab(): void {
     if (!this.labId) return;
     this.isLoading = true;
@@ -764,7 +658,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       .terminateLab(this.labId, this.labSv.getCurrentUserId())
       .subscribe({
         next: () => {
-          // Clear local storage
           try {
             sessionStorage.removeItem('activeLabId');
             sessionStorage.removeItem(this.qStateKey);
@@ -773,8 +666,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           } catch (e) {
             console.error('Error clearing session storage:', e);
           }
-
-          // Navigate away
           this.router.navigate(['/dashboard']);
         },
         error: (err) => {
@@ -783,14 +674,11 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         },
       });
   }
-
-  /* ─── Timer helpers ─────────────────────────────── */
   private startTimer(t: {
     hours: number;
     minutes: number;
     seconds: number;
   }): void {
-    // Clean up existing timer if present
     this.timerSub?.unsubscribe();
 
     let seconds = t.hours * 3600 + t.minutes * 60 + t.seconds;
@@ -810,11 +698,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   private updateTime(t: { hours: number; minutes: number; seconds: number }) {
     this.timeRemaining$.next(`${t.hours}h ${t.minutes}m ${t.seconds}s`);
   }
-
-  /* ─── Misc helpers ──────────────────────────────── */
   @HostListener('window:resize')
   onResize() {
-    // Debounce iframe adjustment to prevent too many calls
     setTimeout(() => this.adjustIframe(), 500);
   }
 
@@ -843,20 +728,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       !this.isLoading // not in global spinner
     );
   }
-  // New computed property to determine when to show the feedback button
-  // Update the showFeedbackButton getter
   get showFeedbackButton(): boolean {
-    // Show feedback button when either:
-    // 1. User has reached the last question (whether completed or not)
-    // 2. User has completed 75% or more of all questions
     const completedCount = this.getCompletedQuestionsCount();
     const totalCount = this.questions.length;
 
     return (
       totalCount > 0 &&
-      // First condition: User is at the last question
       (this.currentQuestionIndex === this.questions.length - 1 ||
-        // Second condition: User has completed at least 75% of questions
         completedCount / totalCount >= 0.75)
     );
   }

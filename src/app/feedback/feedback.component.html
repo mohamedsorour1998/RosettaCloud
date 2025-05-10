@@ -1,7 +1,4 @@
-<!-- feedback.component.html -->
-<!-- Main component container -->
 <div class="feedback-wrapper">
-  <!-- Request Feedback Button Section - Only shown initially -->
   <div *ngIf="!feedbackRequested" class="feedback-button-container">
     <button
       class="btn btn-success btn-lg w-100 py-3"
@@ -17,8 +14,6 @@
       performance.
     </p>
   </div>
-
-  <!-- Loading State - Shown when requesting feedback -->
   <div *ngIf="loading" class="loading-container text-center">
     <div class="spinner-border text-success" role="status">
       <span class="visually-hidden">Loading...</span>
@@ -29,11 +24,8 @@
       performance.
     </p>
   </div>
-
-  <!-- Feedback Content - Fullscreen modal overlay -->
   <div *ngIf="feedback && !loading" class="feedback-modal-overlay">
     <div class="feedback-modal">
-      <!-- Auto-terminate countdown banner -->
       <div class="terminate-countdown-banner">
         <div class="d-flex justify-content-between align-items-center">
           <div>
@@ -60,8 +52,6 @@
           Feedback
         </h2>
       </div>
-
-      <!-- Scrollable Feedback Area -->
       <div class="feedback-modal-body">
         <div class="feedback-scroll-container">
           <div
@@ -70,8 +60,6 @@
           ></div>
         </div>
       </div>
-
-      <!-- Modal footer with action buttons -->
       <div class="feedback-modal-footer">
         <button class="btn btn-outline-primary" (click)="saveFeedback()">
           <i class="bi bi-download me-2"></i> Download Feedback
@@ -81,8 +69,6 @@
         </button>
       </div>
     </div>
-
-    <!-- Save Success Toast -->
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 1100">
       <div
         class="toast align-items-center text-white bg-success border-0"

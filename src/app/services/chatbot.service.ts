@@ -22,21 +22,16 @@ export class ChatbotService {
   private apiUrl = environment.chatbotApiUrl;
   private socket: WebSocket | null = null;
   private sessionId: string = '';
-
-  // Observable sources
   private messagesSubject = new BehaviorSubject<ChatMessage[]>([]);
   private sourcesSubject = new BehaviorSubject<Source[]>([]);
   private loadingSubject = new BehaviorSubject<boolean>(false);
   private connectedSubject = new BehaviorSubject<boolean>(false);
-
-  // Observables for components to subscribe to
   public messages$ = this.messagesSubject.asObservable();
   public sources$ = this.sourcesSubject.asObservable();
   public loading$ = this.loadingSubject.asObservable();
   public connected$ = this.connectedSubject.asObservable();
 
   constructor(private http: HttpClient) {
-    // Initialize the session ID - use a random ID for now
     this.sessionId = 'session-' + Math.random().toString(36).substring(2, 15);
     this.connect();
   }
@@ -56,8 +51,6 @@ export class ChatbotService {
       this.socket.onopen = () => {
         console.log('Connected to RosettaCloud Assistant');
         this.connectedSubject.next(true);
-
-        // Add system message
         this.addMessage({
           role: 'system',
           content:
@@ -83,8 +76,6 @@ export class ChatbotService {
       this.socket.onclose = () => {
         console.log('Disconnected from RosettaCloud Assistant');
         this.connectedSubject.next(false);
-
-        // Try to reconnect after 5 seconds
         setTimeout(() => this.connect(), 5000);
       };
 
@@ -106,28 +97,23 @@ export class ChatbotService {
   private handleResponse(response: any): void {
     switch (response.type) {
       case 'status':
-        // Status updates don't need to be shown as messages
         console.log('Status update:', response.content);
         break;
 
       case 'chunk':
-        // Add or update assistant message
         this.updateOrAddAssistantMessage(response.content);
         break;
 
       case 'source':
-        // Add source to sources list
         const currentSources = this.sourcesSubject.getValue();
         this.sourcesSubject.next([...currentSources, response.content]);
         break;
 
       case 'sources':
-        // Replace entire sources list
         this.sourcesSubject.next(response.content);
         break;
 
       case 'error':
-        // Add error message
         this.addMessage({
           role: 'error',
           content: response.content,
@@ -137,13 +123,11 @@ export class ChatbotService {
         break;
 
       case 'complete':
-        // Mark that the response is complete
         console.log('Response complete');
         this.loadingSubject.next(false);
         break;
 
       case 'heartbeat':
-        // Heartbeat to keep connection alive
         console.log('Heartbeat received');
         break;
 
@@ -157,7 +141,6 @@ export class ChatbotService {
     const lastMessage = currentMessages[currentMessages.length - 1];
 
     if (lastMessage && lastMessage.role === 'assistant') {
-      // Update the last message
       const updatedMessages = [...currentMessages];
       updatedMessages[updatedMessages.length - 1] = {
         ...lastMessage,
@@ -165,7 +148,6 @@ export class ChatbotService {
       };
       this.messagesSubject.next(updatedMessages);
     } else {
-      // Add a new message
       this.addMessage({
         role: 'assistant',
         content: content,
@@ -198,21 +180,13 @@ export class ChatbotService {
       });
       return;
     }
-
-    // Add user message to messages list
     this.addMessage({
       role: 'user',
       content: message,
       timestamp: new Date(),
     });
-
-    // Clear sources for new query
     this.sourcesSubject.next([]);
-
-    // Set loading state
     this.loadingSubject.next(true);
-
-    // Send the message to the server
     const request = {
       session_id: this.sessionId,
       prompt: message,
@@ -239,7 +213,6 @@ export class ChatbotService {
   }
 
   public clearChat(): void {
-    // Clear messages and sources
     this.messagesSubject.next([
       {
         role: 'system',

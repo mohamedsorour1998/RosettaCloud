@@ -2,8 +2,6 @@ import { Injectable, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { lastValueFrom } from 'rxjs';
-
-// ES imports now work because of our ambient module stub
 import {
   TopicClient,
   TopicSubscribeResponse,
@@ -24,8 +22,6 @@ export class MomentoService {
   private subscription: TopicSubscribeResponse['Subscription'] | null = null;
 
   constructor(private http: HttpClient, private zone: NgZone) {}
-
-  /** Fetch a short-lived subscribe token from your backend */
   async getToken(userId: string): Promise<string> {
     const url =
       `${this.apiUrl}/auth/momento/token` +
@@ -39,8 +35,6 @@ export class MomentoService {
       throw err;
     }
   }
-
-  /** Initialize the Momento TopicClient */
   initializeClient(token: string): TopicClient {
     this.topicClient = new TopicClient({
       configuration: Configurations.Browser.v1(),
@@ -97,14 +91,10 @@ export class MomentoService {
       return false;
     }
   }
-
-  /** Tear down the current Momento subscription */
   unsubscribe(): void {
     this.subscription?.unsubscribe();
     this.subscription = null;
   }
-
-  /** Generate a short random feedback ID */
   generateFeedbackId(): string {
     return 'fb-' + Math.random().toString(36).slice(2, 10);
   }

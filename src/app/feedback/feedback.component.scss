@@ -1,18 +1,11 @@
-/* feedback.component.scss - Modal version with countdown */
-
-// Wrapper container
 .feedback-wrapper {
   width: 100%;
   margin-top: 1rem;
 }
-
-// Button container
 .feedback-button-container {
   width: 100%;
   padding: 0.5rem;
 }
-
-// Loading container
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -26,8 +19,6 @@
   max-width: 500px;
   margin: 0 auto;
 }
-
-// Modal overlay (fullscreen with no exit)
 .feedback-modal-overlay {
   position: fixed;
   top: 0;
@@ -42,8 +33,6 @@
   justify-content: center;
   padding: 1rem;
 }
-
-// Modal container
 .feedback-modal {
   width: 90%;
   max-width: 800px;
@@ -57,8 +46,6 @@
   overflow: hidden;
   position: relative;
 }
-
-// Auto-terminate countdown banner
 .terminate-countdown-banner {
   position: relative;
   top: 0;
@@ -75,8 +62,6 @@
     background-color: #e9ffe3; // Lighter green background for progress
   }
 }
-
-// Modal header
 .feedback-modal-header {
   padding: 1.5rem;
   border-bottom: 1px solid #e9ecef;
@@ -88,22 +73,16 @@
     font-size: 1.5rem;
   }
 }
-
-// Modal body
 .feedback-modal-body {
   flex: 1;
   padding: 0;
   overflow: hidden;
   position: relative;
 }
-
-// Scrollable container for feedback text
 .feedback-scroll-container {
   height: 100%;
   overflow-y: auto;
   padding: 1.5rem;
-
-  // Custom scrollbar styling
   &::-webkit-scrollbar {
     width: 10px;
   }
@@ -123,8 +102,6 @@
     background: #0d6e4b;
   }
 }
-
-// Modal footer
 .feedback-modal-footer {
   padding: 1.5rem;
   border-top: 1px solid #e9ecef;
@@ -132,13 +109,9 @@
   display: flex;
   justify-content: space-between;
 }
-
-// Feedback text styling for markdown
 .feedback-text {
   line-height: 1.7;
   color: #212529;
-
-  // Heading styles
   h3 {
     color: #198754; // Bootstrap success color
     font-weight: 600;
@@ -148,20 +121,14 @@
     margin-bottom: 1rem;
     font-size: 1.25rem;
   }
-
-  // Strong text styling
   strong,
   b {
     font-weight: 600;
     color: #000;
   }
-
-  // Paragraph spacing
   p {
     margin-bottom: 1rem;
   }
-
-  // List styling
   ul,
   ol {
     margin-bottom: 1rem;
@@ -171,8 +138,6 @@
   li {
     margin-bottom: 0.5rem;
   }
-
-  // Special sections
   .feedback-section {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
@@ -183,8 +148,6 @@
     }
   }
 }
-
-// Toast animation
 .toast {
   transition: opacity 0.5s ease-in-out;
   opacity: 0;

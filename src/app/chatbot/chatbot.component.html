@@ -20,12 +20,10 @@
           [class.bi-info-circle]="!showSources"
         ></i>
       </button>
-      <!-- No minimize button as requested -->
     </div>
   </div>
 
   <div class="chatbot-body">
-    <!-- Sources panel (if visible) -->
     <div class="sources-panel" *ngIf="showSources && sources.length > 0">
       <h4>Reference Sources</h4>
       <ul class="sources-list">
@@ -37,12 +35,9 @@
         </li>
       </ul>
     </div>
-
-    <!-- Chat messages -->
     <div class="chat-container" #chatContainer (scroll)="onScroll($event)">
       <div class="message-wrapper" *ngFor="let message of messages">
         <div class="message" [ngClass]="getRoleClass(message.role)">
-          <!-- Avatar/Icon based on role -->
           <div
             class="message-avatar"
             *ngIf="message.role === 'user' || message.role === 'assistant'"
@@ -50,8 +45,6 @@
             <i *ngIf="message.role === 'user'" class="bi bi-person-circle"></i>
             <i *ngIf="message.role === 'assistant'" class="bi bi-robot"></i>
           </div>
-
-          <!-- Message content -->
           <div class="message-content">
             <div class="message-bubble">
               <div
@@ -65,14 +58,10 @@
           </div>
         </div>
       </div>
-
-      <!-- Loading indicator -->
       <div class="loading-indicator" *ngIf="isLoading">
         <div class="dot-typing"></div>
       </div>
     </div>
-
-    <!-- Input area -->
     <div class="input-area">
       <textarea
         #messageInput
