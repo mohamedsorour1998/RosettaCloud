@@ -1,14 +1,13 @@
 #!/bin/bash
 
 # Question Number: 1
-# Question: Create a directory at /home/ubuntu
+# Question: Create a directory at /home/ubuntu named my_new_directory.
 # Question Type: Check
 # Question Difficulty: Medium
 
 # -q flag: Create the directory
 if [[ "$1" == "-q" ]]; then
-  mkdir -p /home/ubuntu/my_new_directory
-  echo "Directory created at /home/ubuntu/my_new_directory"
+    echo "No setup required for this Check."
   exit 0
 fi
 
