@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Question Number: 3
-# Question: Create a Docker container running nginx and expose it on port 8080 of the host machine. The container should be named "nginx-test" and store its logs in /home/coder/lab/nginx-logs.
+# Question: Create a Docker container running nginx and expose it on port 8081 of the host machine. The container should be named "nginx-test" and store its logs in /home/coder/lab/nginx-logs.
 # Question Type: Check
 # Question Difficulty: Medium
 
@@ -13,16 +13,16 @@ if [[ "$1" == "-q" ]]; then
   exit 0
 fi
 
-# -c flag: Check if the container is running and exposing port 8080
+# -c flag: Check if the container is running and exposing port 8081
 if [[ "$1" == "-c" ]]; then
   # Check if container exists and is running
   if docker ps | grep -q "nginx-test"; then
-    # Check if port 8080 is mapped
+    # Check if port 8081 is mapped
     port_mapping=$(docker port nginx-test)
     # Check if the volume is mounted correctly
     volume_mapping=$(docker inspect nginx-test --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')
     
-    if [[ "$port_mapping" == *"8080"* && "$port_mapping" == *"80"* && 
+    if [[ "$port_mapping" == *"8081"* && "$port_mapping" == *"80"* && 
           "$volume_mapping" == *"/home/coder/lab/nginx-logs"* ]]; then
       echo "Container 'nginx-test' is running with correct port and volume mapping."
       exit 0

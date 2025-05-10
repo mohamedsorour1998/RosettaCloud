@@ -18,17 +18,33 @@ if [[ "$1" == "-c" ]]; then
   if [ -f "/home/coder/lab/app-config.yaml" ]; then
     content=$(cat /home/coder/lab/app-config.yaml)
     
-    # Check for essential parts of a ConfigMap
-    if [[ "$content" == *"kind: ConfigMap"* && 
-          "$content" == *"name: app-config"* && 
-          "$content" == *"DATABASE_URL"* && 
-          "$content" == *"postgres://user:password@db:5432/app"* ]]; then
-      echo "ConfigMap manifest contains required configuration."
-      exit 0
-    else
-      echo "ConfigMap manifest exists but does not contain all required configuration."
+    # Check if it's a ConfigMap
+    if [[ "$content" != *"kind: ConfigMap"* ]]; then
+      echo "Error: The manifest does not define a ConfigMap resource."
       exit 1
     fi
+    
+    # More precise check for the name using grep with word boundaries
+    if ! grep -q "name:[ ]*app-config[ ]*$" "/home/coder/lab/app-config.yaml"; then
+      echo "Error: The ConfigMap is not named 'app-config' as required."
+      exit 1
+    fi
+    
+    # Check for DATABASE_URL key
+    if [[ "$content" != *"DATABASE_URL"* ]]; then
+      echo "Error: The ConfigMap does not contain the 'DATABASE_URL' key."
+      exit 1
+    fi
+    
+    # Check for correct value using grep
+    if ! grep -q "postgres://user:password@db:5432/app" "/home/coder/lab/app-config.yaml"; then
+      echo "Error: The DATABASE_URL value is not set correctly."
+      exit 1
+    fi
+    
+    # If we reach here, all checks passed
+    echo "ConfigMap manifest contains all required configuration."
+    exit 0
   else
     echo "ConfigMap manifest does not exist at /home/coder/lab/app-config.yaml."
     exit 1

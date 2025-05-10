@@ -15,17 +15,30 @@ fi
 # -c flag: Check if the file exists and has the correct content
 if [[ "$1" == "-c" ]]; then
   if [ -f "/home/coder/lab/nginx-deployment.yaml" ]; then
-    # Check for essential parts of a deployment with 3 replicas of nginx
+    # Check for essential parts of a deployment with 3 replicas of nginx:latest
     content=$(cat /home/coder/lab/nginx-deployment.yaml)
-    if [[ "$content" == *"kind: Deployment"* && 
-          "$content" == *"replicas: 3"* && 
-          "$content" == *"image: nginx"* ]]; then
-      echo "Deployment manifest contains required configuration."
-      exit 0
-    else
-      echo "Deployment manifest exists but does not contain all required configuration."
+    
+    # Check if it's a Deployment
+    if [[ "$content" != *"kind: Deployment"* ]]; then
+      echo "Error: The manifest does not define a Deployment resource."
       exit 1
     fi
+    
+    # Check if it has 3 replicas
+    if [[ "$content" != *"replicas: 3"* ]]; then
+      echo "Error: The deployment does not specify 3 replicas."
+      exit 1
+    fi
+    
+    # Check for nginx:latest image (accepting both formats)
+    if [[ "$content" != *"image: nginx:latest"* ]]; then
+      echo "Error: The deployment does not use the nginx or nginx:latest image."
+      exit 1
+    fi
+    
+    # If we reach here, all checks passed
+    echo "Deployment manifest contains all required configuration."
+    exit 0
   else
     echo "Deployment manifest does not exist at /home/coder/lab/nginx-deployment.yaml."
     exit 1
