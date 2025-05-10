@@ -70,8 +70,7 @@ export class UserService {
   private getApiUrl(): string {
     return (
       environment.apiUrl ||
-      (window as any).__RC_API__ ||
-      'http://51.112.10.4:30085'
+      (window as any).__RC_API__
     );
   }
   private checkApiConnection(): void {
