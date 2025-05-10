@@ -1,1 +1,166 @@
-<p>instructors works!</p>
+<div class="instructors-hero">
+  <div class="container text-center py-5">
+    <h1 class="display-4 mb-3">Learn from Industry Experts</h1>
+    <p class="lead mb-4">
+      Our instructors bring real-world experience from top tech companies to
+      your learning journey
+    </p>
+  </div>
+</div>
+
+<div class="container py-5">
+  <!-- Instructor Highlights -->
+  <div class="featured-instructors mb-5">
+    <h2 class="text-center mb-5">Featured Instructors</h2>
+
+    <div class="row">
+      <div *ngFor="let instructor of featuredInstructors" class="col-md-4 mb-4">
+        <div class="card featured-instructor-card h-100">
+          <div class="instructor-img-container">
+            <img
+              [src]="instructor.imageUrl"
+              [alt]="instructor.name"
+              class="card-img-top instructor-img"
+              onerror="this.src='https://via.placeholder.com/300x300?text=Instructor'"
+            />
+          </div>
+          <div class="card-body">
+            <h3 class="card-title">{{ instructor.name }}</h3>
+            <p class="card-subtitle mb-3 text-primary">{{ instructor.role }}</p>
+            <p class="card-text">{{ instructor.bio }}</p>
+
+            <div class="expertise-tags mb-3">
+              <span
+                *ngFor="let skill of instructor.expertise"
+                class="badge bg-light text-dark me-2 mb-2"
+              >
+                {{ skill }}
+              </span>
+            </div>
+
+            <div class="social-links" *ngIf="instructor.socialLinks">
+              <a
+                *ngIf="instructor.socialLinks.twitter"
+                [href]="instructor.socialLinks.twitter"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+              >
+                <i class="bi bi-twitter"></i>
+              </a>
+              <a
+                *ngIf="instructor.socialLinks.linkedin"
+                [href]="instructor.socialLinks.linkedin"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+              >
+                <i class="bi bi-linkedin"></i>
+              </a>
+              <a
+                *ngIf="instructor.socialLinks.github"
+                [href]="instructor.socialLinks.github"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+              >
+                <i class="bi bi-github"></i>
+              </a>
+              <a
+                *ngIf="instructor.socialLinks.website"
+                [href]="instructor.socialLinks.website"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+              >
+                <i class="bi bi-globe"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="instructor-stats py-5 my-5 text-center">
+    <div class="row">
+      <div class="col-md-3 mb-4 mb-md-0">
+        <div class="stat-item">
+          <div class="stat-number">25+</div>
+          <div class="stat-label">Expert Instructors</div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-4 mb-md-0">
+        <div class="stat-item">
+          <div class="stat-number">15+</div>
+          <div class="stat-label">Years Avg. Experience</div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-4 mb-md-0">
+        <div class="stat-item">
+          <div class="stat-number">50k+</div>
+          <div class="stat-label">Students Taught</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-item">
+          <div class="stat-number">98%</div>
+          <div class="stat-label">Satisfaction Rate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- All Instructors -->
+  <div class="all-instructors">
+    <h2 class="text-center mb-5">Meet Our Instructors</h2>
+
+    <div class="row">
+      <div
+        *ngFor="let instructor of instructors"
+        class="col-md-6 col-lg-4 mb-4"
+      >
+        <div class="card instructor-card h-100">
+          <div class="row g-0">
+            <div class="col-4">
+              <img
+                [src]="instructor.imageUrl"
+                [alt]="instructor.name"
+                class="img-fluid rounded-start instructor-thumbnail"
+                onerror="this.src='https://via.placeholder.com/150x150?text=Instructor'"
+              />
+            </div>
+            <div class="col-8">
+              <div class="card-body">
+                <h5 class="card-title">{{ instructor.name }}</h5>
+                <p class="card-subtitle mb-2 text-primary small">
+                  {{ instructor.role }}
+                </p>
+                <div class="expertise-tags small mb-2">
+                  <span
+                    *ngFor="let skill of instructor.expertise.slice(0, 2)"
+                    class="badge bg-light text-dark me-1"
+                  >
+                    {{ skill }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Become an Instructor -->
+  <div class="become-instructor text-center py-5 my-5 bg-light rounded">
+    <h2>Interested in Teaching with Us?</h2>
+    <p class="lead mb-4">
+      Join our team of educators and share your expertise with students around
+      the world
+    </p>
+    <a href="mailto:instructors@rosettacloud.app" class="btn btn-primary"
+      >Apply to Teach</a
+    >
+  </div>
+</div>

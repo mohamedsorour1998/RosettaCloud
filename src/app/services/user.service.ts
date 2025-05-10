@@ -3,11 +3,21 @@ import {
   HttpClient,
   HttpErrorResponse,
   HttpHeaders,
-  HttpParams,
 } from '@angular/common/http';
-import { Observable, throwError, of, BehaviorSubject } from 'rxjs';
-import { catchError, map, tap, retry } from 'rxjs/operators';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+
+export interface User {
+  user_id: string;
+  email: string;
+  name: string;
+  role: string;
+  created_at?: number;
+  updated_at?: number;
+  metadata?: any;
+}
+
 export interface UserCreate {
   email: string;
   name: string;
@@ -24,89 +34,70 @@ export interface UserUpdate {
   metadata?: any;
 }
 
-export interface User {
-  user_id: string;
-  email: string;
-  name: string;
-  role: string;
-  created_at?: number;
-  updated_at?: number;
-  metadata?: any;
-}
-
 export interface UserList {
   users: User[];
   count: number;
   last_key?: string;
 }
 
-export interface UserProgress {
-  [key: string]: any;
-}
-
-export interface UserLabs {
-  labs: string[];
-}
-
 @Injectable({
   providedIn: 'root',
 })
 export class UserService {
-  private apiUrl = environment.apiUrl || this.getApiUrl();
+  listUsers(arg0: number) {
+    throw new Error('Method not implemented.');
+  }
+
+  private apiUrl = environment.apiUrl;
+  private currentUserSubject = new BehaviorSubject<User | null>(null);
+  public currentUser$ = this.currentUserSubject.asObservable();
+
+  // Connection status
   private connectionStatus = new BehaviorSubject<boolean>(true);
   public connectionStatus$ = this.connectionStatus.asObservable();
-  private currentUser = new BehaviorSubject<User | null>(null);
-  public currentUser$ = this.currentUser.asObservable();
 
   constructor(private http: HttpClient) {
-    try {
-      this.checkApiConnection();
-      this.loadUserFromStorage();
-    } catch (err) {
-      console.error('Error initializing user service:', err);
-      this.connectionStatus.next(false);
-    }
+    this.loadUserFromStorage();
+    this.checkApiConnection();
   }
-  private getApiUrl(): string {
-    return (
-      environment.apiUrl ||
-      (window as any).__RC_API__
-    );
-  }
+
+  // Check API connection
   private checkApiConnection(): void {
     this.http
-      .get(`${this.apiUrl}/health-check`, {
-        headers: this.getHeaders(),
-        responseType: 'text',
-      })
+      .get(`${this.apiUrl}/health-check`, { responseType: 'text' })
       .pipe(
         catchError(() => {
           this.connectionStatus.next(false);
-          return of('error');
+          return throwError(() => new Error('API connection failed'));
         })
       )
-      .subscribe((response) => {
-        this.connectionStatus.next(response !== 'error');
+      .subscribe(() => {
+        this.connectionStatus.next(true);
       });
   }
+
+  // Get HTTP headers
   private getHeaders(): HttpHeaders {
     return new HttpHeaders({
       'Content-Type': 'application/json',
-      Accept: 'application/json',
     });
   }
+
+  // Load user from storage
   private loadUserFromStorage(): void {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
+    const userJson = localStorage.getItem('currentUser');
+    if (userJson) {
       try {
-        const user = JSON.parse(storedUser);
-        this.currentUser.next(user);
-      } catch (e) {
-        console.error('Failed to parse stored user:', e);
+        const user = JSON.parse(userJson);
+        this.currentUserSubject.next(user);
+      } catch (error) {
+        console.error('Failed to parse stored user', error);
         localStorage.removeItem('currentUser');
       }
     }
   }
+
+  // Register new user
   register(userData: UserCreate): Observable<User> {
     return this.http
       .post<User>(`${this.apiUrl}/users`, userData, {
@@ -114,19 +105,20 @@ export class UserService {
       })
       .pipe(
         tap((user) => {
-          localStorage.setItem('currentUser', JSON.stringify(user));
-          localStorage.setItem('userId', user.user_id);
-          this.currentUser.next(user);
+          this.storeUser(user);
         }),
         catchError(this.handleError)
       );
   }
 
+  // Login user
   login(email: string, password: string): Observable<User> {
+    // In a real app, this would be a POST request with credentials
+    // For this example, we're using the existing endpoint to find the user by email
     return this.http
-      .get<UserList>(`${this.apiUrl}/users`, {
+      .get<{ users: User[] }>(`${this.apiUrl}/users`, {
         headers: this.getHeaders(),
-        params: new HttpParams().set('limit', '100'),
+        params: { email },
       })
       .pipe(
         map((response) => {
@@ -134,45 +126,62 @@ export class UserService {
           if (!user) {
             throw new Error('User not found');
           }
-          localStorage.setItem('currentUser', JSON.stringify(user));
-          localStorage.setItem('userId', user.user_id);
-          this.currentUser.next(user);
 
+          // In a real app, password verification would happen on the server
+          // Here we just simulate a successful login
+          this.storeUser(user);
           return user;
         }),
         catchError(this.handleError)
       );
   }
 
+  // Store user in local storage and update subject
+  private storeUser(user: User): void {
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    localStorage.setItem('userId', user.user_id);
+    this.currentUserSubject.next(user);
+  }
+
+  // Logout user
   logout(): void {
     localStorage.removeItem('currentUser');
-    this.currentUser.next(null);
+    localStorage.removeItem('userId');
+    localStorage.removeItem('rememberUser');
+    this.currentUserSubject.next(null);
   }
 
+  // Get current user
+  getCurrentUser(): User | null {
+    return this.currentUserSubject.value;
+  }
+
+  // Get current user ID
   getCurrentUserId(): string | null {
-    const user = this.currentUser.getValue();
-    if (user) {
-      return user.user_id;
+    const currentUser = this.getCurrentUser();
+    if (currentUser) {
+      return currentUser.user_id;
     }
+
     const storedId = localStorage.getItem('userId');
-    if (storedId) {
-      return storedId;
-    }
-    return null;
+    return storedId;
   }
 
+  // Check if user is logged in
   isLoggedIn(): boolean {
     return !!this.getCurrentUserId();
   }
 
+  // Get user by ID
   getUser(userId: string): Observable<User> {
     return this.http
       .get<User>(`${this.apiUrl}/users/${userId}`, {
         headers: this.getHeaders(),
       })
-      .pipe(retry(1), catchError(this.handleError));
+      .pipe(catchError(this.handleError));
   }
 
+  // Update user
   updateUser(userId: string, updates: UserUpdate): Observable<User> {
     return this.http
       .put<User>(`${this.apiUrl}/users/${userId}`, updates, {
@@ -180,16 +189,17 @@ export class UserService {
       })
       .pipe(
         tap((updatedUser) => {
-          const currentUser = this.currentUser.getValue();
+          // Update stored user if it's the current user
+          const currentUser = this.getCurrentUser();
           if (currentUser && currentUser.user_id === userId) {
-            localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-            this.currentUser.next(updatedUser);
+            this.storeUser(updatedUser);
           }
         }),
         catchError(this.handleError)
       );
   }
 
+  // Delete user
   deleteUser(userId: string): Observable<void> {
     return this.http
       .delete<void>(`${this.apiUrl}/users/${userId}`, {
@@ -197,7 +207,8 @@ export class UserService {
       })
       .pipe(
         tap(() => {
-          const currentUser = this.currentUser.getValue();
+          // Logout if deleting current user
+          const currentUser = this.getCurrentUser();
           if (currentUser && currentUser.user_id === userId) {
             this.logout();
           }
@@ -205,23 +216,55 @@ export class UserService {
         catchError(this.handleError)
       );
   }
+
+  // Request password reset
+  requestPasswordReset(email: string): Observable<any> {
+    return this.http
+      .post<any>(
+        `${this.apiUrl}/auth/reset-password`,
+        { email },
+        { headers: this.getHeaders() }
+      )
+      .pipe(catchError(this.handleError));
+  }
+
+  // Reset password with token
+  resetPassword(
+    token: string,
+    userId: string,
+    newPassword: string
+  ): Observable<any> {
+    return this.http
+      .post<any>(
+        `${this.apiUrl}/auth/reset-password/confirm`,
+        {
+          token,
+          userId,
+          password: newPassword,
+        },
+        { headers: this.getHeaders() }
+      )
+      .pipe(catchError(this.handleError));
+  }
+
+  // Get user's progress
   getUserProgress(
     userId: string,
     moduleUuid?: string,
     lessonUuid?: string
-  ): Observable<UserProgress> {
+  ): Observable<any> {
     let url = `${this.apiUrl}/users/${userId}/progress`;
-    let params = new HttpParams();
+    let params: any = {};
 
     if (moduleUuid) {
-      params = params.set('module_uuid', moduleUuid);
+      params.module_uuid = moduleUuid;
       if (lessonUuid) {
-        params = params.set('lesson_uuid', lessonUuid);
+        params.lesson_uuid = lessonUuid;
       }
     }
 
     return this.http
-      .get<{ progress: UserProgress }>(url, {
+      .get<{ progress: any }>(url, {
         headers: this.getHeaders(),
         params,
       })
@@ -231,53 +274,75 @@ export class UserService {
       );
   }
 
+  // Update user's progress
   updateUserProgress(
     userId: string,
     moduleUuid: string,
     lessonUuid: string,
     questionNumber: number,
     completed: boolean
-  ): Observable<{ updated: boolean }> {
+  ): Observable<any> {
     return this.http
-      .post<{ updated: boolean }>(
+      .post<any>(
         `${this.apiUrl}/users/${userId}/progress/${moduleUuid}/${lessonUuid}/${questionNumber}`,
         { completed },
         { headers: this.getHeaders() }
       )
       .pipe(catchError(this.handleError));
   }
-  getUserLabs(userId: string): Observable<UserLabs> {
+
+  // Get user's labs
+  getUserLabs(userId: string): Observable<{ labs: string[] }> {
     return this.http
-      .get<UserLabs>(`${this.apiUrl}/users/${userId}/labs`, {
+      .get<{ labs: string[] }>(`${this.apiUrl}/users/${userId}/labs`, {
         headers: this.getHeaders(),
       })
       .pipe(catchError(this.handleError));
   }
+
+  // Link lab to user
+  linkLabToUser(userId: string, labId: string): Observable<any> {
+    return this.http
+      .post<any>(
+        `${this.apiUrl}/users/${userId}/labs/${labId}`,
+        {},
+        { headers: this.getHeaders() }
+      )
+      .pipe(catchError(this.handleError));
+  }
+
+  // Unlink lab from user
+  unlinkLabFromUser(userId: string, labId: string): Observable<any> {
+    return this.http
+      .delete<any>(`${this.apiUrl}/users/${userId}/labs/${labId}`, {
+        headers: this.getHeaders(),
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  // Generic error handler
   private handleError(error: HttpErrorResponse) {
-    let errorMessage = 'An unknown error occurred';
+    let errorMessage = 'Something went wrong';
 
     if (error.error instanceof ErrorEvent) {
-      errorMessage = `Client Error: ${error.error.message}`;
+      // Client-side error
+      errorMessage = `Error: ${error.error.message}`;
     } else {
-      errorMessage = `Server Error: ${error.status} - ${error.message}`;
+      // Server-side error
       if (error.error && typeof error.error === 'object') {
-        if ('detail' in error.error) {
-          errorMessage = error.error.detail;
-        } else if ('message' in error.error) {
-          errorMessage = error.error.message;
-        }
+        errorMessage =
+          error.error.detail ||
+          error.error.message ||
+          `Error ${error.status}: ${error.statusText}`;
+      } else {
+        errorMessage = `Error ${error.status}: ${error.statusText}`;
       }
     }
-    console.error('API Error:', {
-      message: errorMessage,
-      status: error.status,
-      url: error.url || 'unknown',
-      timestamp: new Date().toISOString(),
-    });
-    if (error.status === 0) {
-      this.connectionStatus.next(false);
-    }
 
+    console.error('API Error:', error);
     return throwError(() => new Error(errorMessage));
+  }
+  resendVerificationEmail(userId: string) {
+    throw new Error('Method not implemented.');
   }
 }

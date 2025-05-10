@@ -1,0 +1,54 @@
+<div class="verification-container">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-8 col-lg-6">
+        <div class="card shadow verification-card">
+          <!-- Loading State -->
+          <div *ngIf="isLoading" class="card-body p-5 text-center">
+            <div class="spinner-border text-primary mb-3" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mb-0">Verifying your account...</p>
+          </div>
+
+          <!-- Error State -->
+          <div *ngIf="!isLoading && errorMessage" class="card-body p-5 text-center">
+            <div class="verification-icon error">
+              <i class="bi bi-x-circle"></i>
+            </div>
+            <h2 class="mt-4 mb-3">Verification Failed</h2>
+            <p class="text-muted mb-4">{{ errorMessage }}</p>
+            <div class="d-grid gap-3">
+              <!-- <button (click)="resendVerification()" class="btn btn-primary" [disabled]="isResending">
+                <span *ngIf="isResending" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Resend Verification Email
+              </button> -->
+              <a routerLink="/login" class="btn btn-outline-secondary">Back to Login</a>
+            </div>
+          </div>
+
+          <!-- Success State -->
+          <div *ngIf="!isLoading && isVerified" class="card-body p-5 text-center">
+            <div class="verification-icon success">
+              <i class="bi bi-check-circle"></i>
+            </div>
+            <h2 class="mt-4 mb-3">Email Verified Successfully!</h2>
+            <p class="text-muted mb-4">Your account has been verified. You can now access all features of RosettaCloud.</p>
+            <div class="d-grid gap-3">
+              <a routerLink="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+              <a routerLink="/profile" class="btn btn-outline-secondary">Complete Your Profile</a>
+            </div>
+          </div>
+
+          <!-- Resend Success Message -->
+          <div *ngIf="resendSuccess" class="card-footer bg-light p-3 text-center">
+            <div class="alert alert-success mb-0">
+              <i class="bi bi-envelope-check me-2"></i>
+              Verification email sent! Please check your inbox.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

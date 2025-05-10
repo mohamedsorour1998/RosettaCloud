@@ -1,0 +1,570 @@
+<div class="wizard-container">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-8">
+        <!-- Loading State -->
+        <div *ngIf="isLoading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-2">Setting up your profile...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div
+          *ngIf="errorMessage && !isLoading"
+          class="alert alert-danger"
+          role="alert"
+        >
+          {{ errorMessage }}
+        </div>
+
+        <!-- Wizard Content -->
+        <div *ngIf="!isLoading && !errorMessage" class="wizard">
+          <!-- Progress -->
+          <div class="wizard-progress mb-4">
+            <div class="progress-steps">
+              <div
+                *ngFor="let step of steps; let i = index"
+                class="progress-step"
+                [class.active]="currentStep === i"
+                [class.completed]="currentStep > i"
+              >
+                <div class="step-number">
+                  <span *ngIf="currentStep <= i">{{ i + 1 }}</span>
+                  <i *ngIf="currentStep > i" class="bi bi-check"></i>
+                </div>
+                <div class="step-label">{{ step.label }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card shadow">
+            <div class="card-body p-4 p-md-5">
+              <!-- Step 1: Personal Information -->
+              <form
+                *ngIf="currentStep === 0"
+                [formGroup]="personalInfoForm"
+                (ngSubmit)="nextStep()"
+              >
+                <h2 class="mb-4">Personal Information</h2>
+
+                <div class="mb-3">
+                  <label for="fullName" class="form-label">Full Name</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="fullName"
+                    formControlName="fullName"
+                  />
+                  <div
+                    *ngIf="
+                      personalInfoForm.get('fullName')?.invalid &&
+                      personalInfoForm.get('fullName')?.touched
+                    "
+                    class="text-danger small mt-1"
+                  >
+                    Full name is required
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="displayName" class="form-label"
+                    >Display Name (Visible to others)</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="displayName"
+                    formControlName="displayName"
+                  />
+                  <div
+                    *ngIf="
+                      personalInfoForm.get('displayName')?.invalid &&
+                      personalInfoForm.get('displayName')?.touched
+                    "
+                    class="text-danger small mt-1"
+                  >
+                    Display name is required
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="bio" class="form-label"
+                    >Bio (Tell us about yourself)</label
+                  >
+                  <textarea
+                    class="form-control"
+                    id="bio"
+                    rows="3"
+                    formControlName="bio"
+                  ></textarea>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label for="country" class="form-label">Country</label>
+                    <select
+                      class="form-select"
+                      id="country"
+                      formControlName="country"
+                    >
+                      <option value="">Select country</option>
+                      <option value="Egypt">Egypt</option>
+                      <option value="UAE">United Arab Emirates</option>
+                      <option value="Saudi Arabia">Saudi Arabia</option>
+                      <option value="Jordan">Jordan</option>
+                      <option value="Lebanon">Lebanon</option>
+                      <option value="Qatar">Qatar</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <div
+                      *ngIf="
+                        personalInfoForm.get('country')?.invalid &&
+                        personalInfoForm.get('country')?.touched
+                      "
+                      class="text-danger small mt-1"
+                    >
+                      Please select your country
+                    </div>
+                  </div>
+
+                  <div class="col-md-6 mb-3">
+                    <label for="language" class="form-label"
+                      >Preferred Language</label
+                    >
+                    <select
+                      class="form-select"
+                      id="language"
+                      formControlName="language"
+                    >
+                      <option value="en">English</option>
+                      <option value="ar">Arabic</option>
+                      <option value="fr">French</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
+                  <button
+                    type="submit"
+                    class="btn btn-primary"
+                    [disabled]="personalInfoForm.invalid"
+                  >
+                    Next <i class="bi bi-arrow-right ms-2"></i>
+                  </button>
+                </div>
+              </form>
+
+              <!-- Step 2: Professional Information -->
+              <form
+                *ngIf="currentStep === 1"
+                [formGroup]="professionalInfoForm"
+                (ngSubmit)="nextStep()"
+              >
+                <h2 class="mb-4">Professional Information</h2>
+
+                <div class="mb-3">
+                  <label for="profession" class="form-label">Profession</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="profession"
+                    formControlName="profession"
+                  />
+                </div>
+
+                <div class="mb-3">
+                  <label for="company" class="form-label"
+                    >Company/Institution</label
+                  >
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="company"
+                    formControlName="company"
+                  />
+                </div>
+
+                <div class="mb-3">
+                  <label for="education" class="form-label"
+                    >Highest Education</label
+                  >
+                  <select
+                    class="form-select"
+                    id="education"
+                    formControlName="education"
+                  >
+                    <option value="">Select education level</option>
+                    <option value="high_school">High School</option>
+                    <option value="associate">Associate Degree</option>
+                    <option value="bachelor">Bachelor's Degree</option>
+                    <option value="master">Master's Degree</option>
+                    <option value="doctorate">Doctorate</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Areas of Interest</label>
+                  <div class="interest-checkboxes">
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="web-dev"
+                        formControlName="webDevelopment"
+                      />
+                      <label class="form-check-label" for="web-dev"
+                        >Web Development</label
+                      >
+                    </div>
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="mobile-dev"
+                        formControlName="mobileDevelopment"
+                      />
+                      <label class="form-check-label" for="mobile-dev"
+                        >Mobile Development</label
+                      >
+                    </div>
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="data-science"
+                        formControlName="dataScience"
+                      />
+                      <label class="form-check-label" for="data-science"
+                        >Data Science & Analytics</label
+                      >
+                    </div>
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="ai-ml"
+                        formControlName="aiMl"
+                      />
+                      <label class="form-check-label" for="ai-ml"
+                        >AI & Machine Learning</label
+                      >
+                    </div>
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="cloud"
+                        formControlName="cloud"
+                      />
+                      <label class="form-check-label" for="cloud"
+                        >Cloud Computing</label
+                      >
+                    </div>
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="cybersecurity"
+                        formControlName="cybersecurity"
+                      />
+                      <label class="form-check-label" for="cybersecurity"
+                        >Cybersecurity</label
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="prevStep()"
+                  >
+                    <i class="bi bi-arrow-left me-2"></i> Previous
+                  </button>
+                  <button type="submit" class="btn btn-primary">
+                    Next <i class="bi bi-arrow-right ms-2"></i>
+                  </button>
+                </div>
+              </form>
+
+              <!-- Step 3: Learning Goals -->
+              <form
+                *ngIf="currentStep === 2"
+                [formGroup]="learningGoalsForm"
+                (ngSubmit)="nextStep()"
+              >
+                <h2 class="mb-4">Learning Goals</h2>
+
+                <div class="mb-3">
+                  <label for="experience" class="form-label"
+                    >Coding Experience Level</label
+                  >
+                  <select
+                    class="form-select"
+                    id="experience"
+                    formControlName="experience"
+                  >
+                    <option value="beginner">Beginner (0-1 years)</option>
+                    <option value="intermediate">
+                      Intermediate (1-3 years)
+                    </option>
+                    <option value="advanced">Advanced (3-5 years)</option>
+                    <option value="expert">Expert (5+ years)</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label for="goals" class="form-label"
+                    >What are your learning goals?</label
+                  >
+                  <textarea
+                    class="form-control"
+                    id="goals"
+                    rows="3"
+                    formControlName="goals"
+                  ></textarea>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Learning Preferences</label>
+                  <div class="learning-preferences-checkboxes">
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="pref-video"
+                        formControlName="prefersVideo"
+                      />
+                      <label class="form-check-label" for="pref-video"
+                        >Video tutorials</label
+                      >
+                    </div>
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="pref-reading"
+                        formControlName="prefersReading"
+                      />
+                      <label class="form-check-label" for="pref-reading"
+                        >Reading & documentation</label
+                      >
+                    </div>
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="pref-practical"
+                        formControlName="prefersPractical"
+                      />
+                      <label class="form-check-label" for="pref-practical"
+                        >Hands-on exercises</label
+                      >
+                    </div>
+                    <div class="form-check mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="pref-peer"
+                        formControlName="prefersPeerLearning"
+                      />
+                      <label class="form-check-label" for="pref-peer"
+                        >Group/peer learning</label
+                      >
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="timeCommitment" class="form-label"
+                    >Weekly Time Commitment</label
+                  >
+                  <select
+                    class="form-select"
+                    id="timeCommitment"
+                    formControlName="timeCommitment"
+                  >
+                    <option value="less_than_5">Less than 5 hours</option>
+                    <option value="5_to_10">5-10 hours</option>
+                    <option value="10_to_20">10-20 hours</option>
+                    <option value="more_than_20">More than 20 hours</option>
+                  </select>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="prevStep()"
+                  >
+                    <i class="bi bi-arrow-left me-2"></i> Previous
+                  </button>
+                  <button type="submit" class="btn btn-primary">
+                    Next <i class="bi bi-arrow-right ms-2"></i>
+                  </button>
+                </div>
+              </form>
+
+              <!-- Step 4: Privacy Preferences -->
+              <form
+                *ngIf="currentStep === 3"
+                [formGroup]="privacyForm"
+                (ngSubmit)="completeWizard()"
+              >
+                <h2 class="mb-4">Privacy Preferences</h2>
+
+                <div class="mb-3">
+                  <label class="form-label">Profile Visibility</label>
+                  <div class="form-check mb-2">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      id="vis-public"
+                      value="public"
+                      formControlName="profileVisibility"
+                    />
+                    <label class="form-check-label" for="vis-public">
+                      <strong>Public</strong> - Everyone can see your profile
+                    </label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      id="vis-students"
+                      value="students"
+                      formControlName="profileVisibility"
+                    />
+                    <label class="form-check-label" for="vis-students">
+                      <strong>Students & Instructors</strong> - Only
+                      RosettaCloud members can see your profile
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      id="vis-private"
+                      value="private"
+                      formControlName="profileVisibility"
+                    />
+                    <label class="form-check-label" for="vis-private">
+                      <strong>Private</strong> - Only you can see your profile
+                    </label>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Communication Preferences</label>
+                  <div class="form-check mb-2">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="email-course"
+                      formControlName="emailCourseUpdates"
+                    />
+                    <label class="form-check-label" for="email-course"
+                      >Receive email notifications for course updates</label
+                    >
+                  </div>
+                  <div class="form-check mb-2">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="email-reminder"
+                      formControlName="emailReminders"
+                    />
+                    <label class="form-check-label" for="email-reminder"
+                      >Receive email reminders for assignments</label
+                    >
+                  </div>
+                  <div class="form-check mb-2">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="email-marketing"
+                      formControlName="emailMarketing"
+                    />
+                    <label class="form-check-label" for="email-marketing"
+                      >Receive marketing emails & newsletter</label
+                    >
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="agree-terms"
+                      formControlName="agreeTerms"
+                    />
+                    <label class="form-check-label" for="agree-terms">
+                      I agree to the <a href="#">Terms of Service</a> and
+                      <a href="#">Privacy Policy</a>
+                    </label>
+                    <div
+                      *ngIf="
+                        privacyForm.get('agreeTerms')?.invalid &&
+                        privacyForm.get('agreeTerms')?.touched
+                      "
+                      class="text-danger small mt-1"
+                    >
+                      You must agree to the terms to continue
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="prevStep()"
+                  >
+                    <i class="bi bi-arrow-left me-2"></i> Previous
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn btn-success"
+                    [disabled]="privacyForm.invalid || isSaving"
+                  >
+                    <span
+                      *ngIf="isSaving"
+                      class="spinner-border spinner-border-sm me-2"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                    Complete Profile
+                  </button>
+                </div>
+              </form>
+
+              <!-- Completion Step -->
+              <div *ngIf="currentStep === 4" class="text-center py-4">
+                <div class="completion-icon">
+                  <i class="bi bi-check-circle"></i>
+                </div>
+                <h2 class="mt-4 mb-3">Profile Completed!</h2>
+                <p class="text-muted mb-4">
+                  Your profile is now set up and you're ready to start learning.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                  <a routerLink="/dashboard" class="btn btn-primary"
+                    >Go to Dashboard</a
+                  >
+                  <a routerLink="/profile" class="btn btn-outline-secondary"
+                    >View Profile</a
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,381 @@
+<div class="profile-container">
+  <div class="container py-5">
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2">Loading profile...</p>
+    </div>
+
+    <!-- Error Message -->
+    <div
+      *ngIf="errorMessage && !isLoading"
+      class="alert alert-danger"
+      role="alert"
+    >
+      {{ errorMessage }}
+    </div>
+
+    <!-- Profile Content -->
+    <div *ngIf="user && !isLoading" class="row">
+      <!-- Left Column - Profile Overview -->
+      <div class="col-lg-4 mb-4">
+        <div class="card shadow profile-card">
+          <!-- Profile Header -->
+          <div class="card-body p-4 text-center">
+            <div class="profile-avatar">
+              <span>{{ getProfileInitials() }}</span>
+            </div>
+
+            <h3 class="profile-name mt-3">{{ user.name }}</h3>
+            <p class="text-muted">{{ user.email }}</p>
+
+            <div class="d-grid gap-2 mt-4">
+              <button class="btn btn-primary" (click)="toggleEditMode()">
+                <i class="bi bi-pencil me-2"></i>Edit Profile
+              </button>
+            </div>
+          </div>
+
+          <!-- Profile Stats -->
+          <div class="card-footer p-0">
+            <div class="row g-0 text-center">
+              <div class="col-4 p-3 border-end">
+                <h4 class="profile-stat-value">
+                  {{ userModules?.length || 0 }}
+                </h4>
+                <p class="profile-stat-label">Courses</p>
+              </div>
+              <div class="col-4 p-3 border-end">
+                <h4 class="profile-stat-value">{{ completedLessons }}</h4>
+                <p class="profile-stat-label">Lessons</p>
+              </div>
+              <div class="col-4 p-3">
+                <h4 class="profile-stat-value">{{ userLabs?.length || 0 }}</h4>
+                <p class="profile-stat-label">Labs</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Profile Details -->
+      <div class="col-lg-8">
+        <!-- Success Message -->
+        <div
+          *ngIf="successMessage"
+          class="alert alert-success alert-dismissible fade show"
+          role="alert"
+        >
+          {{ successMessage }}
+          <button
+            type="button"
+            class="btn-close"
+            (click)="successMessage = ''"
+          ></button>
+        </div>
+
+        <!-- Profile Information Card -->
+        <div class="card shadow mb-4">
+          <div
+            class="card-header d-flex justify-content-between align-items-center"
+          >
+            <h5 class="mb-0">
+              {{ isEditMode ? "Edit Profile" : "Profile Information" }}
+            </h5>
+            <button
+              *ngIf="isEditMode"
+              class="btn btn-link text-secondary"
+              (click)="toggleEditMode()"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <div class="card-body p-4">
+            <!-- View Mode -->
+            <div *ngIf="!isEditMode">
+              <div class="profile-info-row">
+                <div class="profile-info-label">Full Name</div>
+                <div class="profile-info-value">{{ user.name }}</div>
+              </div>
+
+              <div class="profile-info-row">
+                <div class="profile-info-label">Email</div>
+                <div class="profile-info-value">{{ user.email }}</div>
+              </div>
+
+              <div class="profile-info-row">
+                <div class="profile-info-label">Role</div>
+                <div class="profile-info-value">
+                  <span class="badge bg-primary">{{
+                    user.role || "User"
+                  }}</span>
+                </div>
+              </div>
+
+              <div class="profile-info-row">
+                <div class="profile-info-label">Member Since</div>
+                <div class="profile-info-value">
+                  {{
+                    user.created_at
+                      ? (user.created_at * 1000 | date : "mediumDate")
+                      : "N/A"
+                  }}
+                </div>
+              </div>
+
+              <div class="profile-info-row" *ngIf="user.metadata">
+                <div class="profile-info-label">Country</div>
+                <div class="profile-info-value">
+                  {{ user.metadata.country || "Not specified" }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Edit Mode -->
+            <form
+              *ngIf="isEditMode"
+              [formGroup]="profileForm"
+              (ngSubmit)="updateProfile()"
+            >
+              <div class="mb-3">
+                <label for="name" class="form-label">Full Name</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="name"
+                  formControlName="name"
+                  [ngClass]="{
+                    'is-invalid': submitted && profileForm.get('name')?.errors
+                  }"
+                />
+                <div
+                  *ngIf="submitted && profileForm.get('name')?.errors"
+                  class="invalid-feedback"
+                >
+                  <span *ngIf="profileForm.get('name')?.errors?.['required']"
+                    >Name is required</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input
+                  type="email"
+                  class="form-control"
+                  id="email"
+                  formControlName="email"
+                  [ngClass]="{
+                    'is-invalid': submitted && profileForm.get('email')?.errors
+                  }"
+                />
+                <div
+                  *ngIf="submitted && profileForm.get('email')?.errors"
+                  class="invalid-feedback"
+                >
+                  <span *ngIf="profileForm.get('email')?.errors?.['required']"
+                    >Email is required</span
+                  >
+                  <span *ngIf="profileForm.get('email')?.errors?.['email']"
+                    >Enter a valid email</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="country" class="form-label">Country</label>
+                <select
+                  class="form-select"
+                  id="country"
+                  formControlName="country"
+                >
+                  <option value="">Select country</option>
+                  <option value="Egypt">Egypt</option>
+                  <option value="UAE">United Arab Emirates</option>
+                  <option value="Saudi Arabia">Saudi Arabia</option>
+                  <option value="Qatar">Qatar</option>
+                  <option value="Kuwait">Kuwait</option>
+                  <option value="Bahrain">Bahrain</option>
+                  <option value="Jordan">Jordan</option>
+                  <option value="Lebanon">Lebanon</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <hr class="my-4" />
+              <h5 class="mb-3">Change Password</h5>
+              <p class="text-muted small mb-3">
+                Leave blank to keep current password
+              </p>
+
+              <div class="mb-3">
+                <label for="currentPassword" class="form-label"
+                  >Current Password</label
+                >
+                <input
+                  type="password"
+                  class="form-control"
+                  id="currentPassword"
+                  formControlName="currentPassword"
+                  [ngClass]="{
+                    'is-invalid':
+                      submitted && profileForm.get('currentPassword')?.errors
+                  }"
+                />
+                <div
+                  *ngIf="
+                    submitted && profileForm.get('currentPassword')?.errors
+                  "
+                  class="invalid-feedback"
+                >
+                  <span
+                    *ngIf="profileForm.get('currentPassword')?.errors?.['required']"
+                    >Current password is required to change password</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="newPassword" class="form-label">New Password</label>
+                <input
+                  type="password"
+                  class="form-control"
+                  id="newPassword"
+                  formControlName="newPassword"
+                  [ngClass]="{
+                    'is-invalid':
+                      submitted && profileForm.get('newPassword')?.errors
+                  }"
+                />
+                <div
+                  *ngIf="submitted && profileForm.get('newPassword')?.errors"
+                  class="invalid-feedback"
+                >
+                  <span
+                    *ngIf="profileForm.get('newPassword')?.errors?.['minlength']"
+                    >Password must be at least 6 characters</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="confirmPassword" class="form-label"
+                  >Confirm Password</label
+                >
+                <input
+                  type="password"
+                  class="form-control"
+                  id="confirmPassword"
+                  formControlName="confirmPassword"
+                  [ngClass]="{
+                    'is-invalid':
+                      submitted && profileForm.get('confirmPassword')?.errors
+                  }"
+                />
+                <div
+                  *ngIf="
+                    submitted && profileForm.get('confirmPassword')?.errors
+                  "
+                  class="invalid-feedback"
+                >
+                  <span
+                    *ngIf="profileForm.get('confirmPassword')?.errors?.['passwordMismatch']"
+                    >Passwords do not match</span
+                  >
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-between mt-4">
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  [disabled]="isUpdating"
+                >
+                  <span
+                    *ngIf="isUpdating"
+                    class="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  (click)="confirmDeleteAccount()"
+                >
+                  Delete Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Learning Progress Card -->
+        <div class="card shadow">
+          <div class="card-header">
+            <h5 class="mb-0">Learning Progress</h5>
+          </div>
+
+          <div class="card-body p-4">
+            <div
+              *ngIf="!userProgress || Object.keys(userProgress).length === 0"
+              class="text-center py-4"
+            >
+              <div class="empty-state">
+                <i class="bi bi-book display-1 text-muted"></i>
+                <p class="mt-3">You haven't started any courses yet</p>
+                <a routerLink="/courses" class="btn btn-primary mt-2"
+                  >Browse Courses</a
+                >
+              </div>
+            </div>
+
+            <div *ngIf="userProgress && Object.keys(userProgress).length > 0">
+              <div *ngFor="let moduleId of userModules" class="mb-4">
+                <div
+                  class="d-flex justify-content-between align-items-center mb-2"
+                >
+                  <h6 class="mb-0">Module: {{ moduleId }}</h6>
+                  <a
+                    [routerLink]="['/courses', moduleId]"
+                    class="btn btn-sm btn-outline-primary"
+                  >
+                    Continue
+                  </a>
+                </div>
+
+                <div
+                  *ngFor="let lessonId of getModuleLessons(moduleId)"
+                  class="progress-item mb-3"
+                >
+                  <div
+                    class="d-flex justify-content-between align-items-center mb-1"
+                  >
+                    <span class="small">{{ lessonId }}</span>
+                    <span class="small text-muted">
+                      {{ getCompletedQuestionsCount(moduleId, lessonId) }}/{{
+                        getTotalQuestionsCount(moduleId, lessonId)
+                      }}
+                    </span>
+                  </div>
+                  <div class="progress" style="height: 8px">
+                    <div
+                      class="progress-bar"
+                      [style.width.%]="
+                        getLessonProgressPercentage(moduleId, lessonId)
+                      "
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

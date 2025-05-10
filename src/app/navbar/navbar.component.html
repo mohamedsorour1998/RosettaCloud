@@ -1,0 +1,112 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container">
+    <a class="navbar-brand" routerLink="/">RosettaCloud</a>
+
+    <button
+      class="navbar-toggler"
+      type="button"
+      (click)="toggleNavbar()"
+      aria-controls="navbarNav"
+      aria-expanded="false"
+      aria-label="Toggle navigation"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div
+      class="collapse navbar-collapse"
+      [ngClass]="{ show: !isCollapsed }"
+      id="navbarNav"
+    >
+      <ul class="navbar-nav ms-auto">
+        <!-- Features -->
+        <li class="nav-item">
+          <a
+            class="nav-link"
+            routerLink="/features"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+          >
+            Features
+          </a>
+        </li>
+
+        <!-- Pricing -->
+        <li class="nav-item">
+          <a
+            class="nav-link"
+            routerLink="/pricing"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+          >
+            Pricing
+          </a>
+        </li>
+
+        <!-- Instructors -->
+        <li class="nav-item">
+          <a
+            class="nav-link"
+            routerLink="/instructors"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+          >
+            Instructors
+          </a>
+        </li>
+
+        <!-- Not Logged In -->
+        <ng-container *ngIf="!isLoggedIn">
+          <li class="nav-item">
+            <a class="btn btn-outline-light me-2" routerLink="/login">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-primary" routerLink="/register">Sign Up</a>
+          </li>
+        </ng-container>
+
+        <!-- Logged In -->
+        <li class="nav-item dropdown" *ngIf="isLoggedIn">
+          <a
+            class="nav-link dropdown-toggle user-dropdown-toggle"
+            href="#"
+            id="navbarDropdown"
+            role="button"
+            (click)="toggleDropdown($event)"
+          >
+            <div class="user-avatar">
+              <span>{{ getUserInitials() }}</span>
+            </div>
+          </a>
+
+          <ul
+            class="dropdown-menu dropdown-menu-end"
+            [class.show]="isDropdownOpen"
+            aria-labelledby="navbarDropdown"
+          >
+            <li class="dropdown-header">
+              <strong>{{ currentUser?.name }}</strong>
+              <div class="text-muted small">{{ currentUser?.email }}</div>
+            </li>
+
+            <li><hr class="dropdown-divider" /></li>
+
+            <li>
+              <a class="dropdown-item" routerLink="/dashboard">Dashboard</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/profile">My Profile</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/settings">Settings</a>
+            </li>
+
+            <li><hr class="dropdown-divider" /></li>
+
+            <li><a class="dropdown-item" (click)="logout()">Logout</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>

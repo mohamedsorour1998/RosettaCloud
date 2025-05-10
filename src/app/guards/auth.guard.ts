@@ -4,7 +4,9 @@ import {
   ActivatedRouteSnapshot,
   RouterStateSnapshot,
   Router,
+  UrlTree,
 } from '@angular/router';
+import { Observable } from 'rxjs';
 import { UserService } from '../services/user.service';
 
 @Injectable({
@@ -16,19 +18,37 @@ export class AuthGuard implements CanActivate {
   canActivate(
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
-  ): boolean {
-    const isLoggedIn = this.checkIfUserIsLoggedIn();
+  ):
+    | Observable<boolean | UrlTree>
+    | Promise<boolean | UrlTree>
+    | boolean
+    | UrlTree {
+    // Check if user is logged in
+    if (this.userService.isLoggedIn()) {
+      // Check role restrictions if specified
+      const requiredRole = route.data['requiredRole'] as string;
 
-    if (!isLoggedIn) {
-      sessionStorage.setItem('redirectUrl', state.url);
-      this.router.navigate(['/login']);
-      return false;
+      if (requiredRole) {
+        const user = this.userService.getCurrentUser();
+
+        if (user && user.role === requiredRole) {
+          return true;
+        } else {
+          // Redirect to unauthorized page if role doesn't match
+          return this.router.createUrlTree(['/unauthorized']);
+        }
+      }
+
+      // No role restrictions or role matches
+      return true;
     }
 
-    return true;
-  }
+    // Store the attempted URL for redirecting after login
+    const returnUrl = state.url;
 
-  private checkIfUserIsLoggedIn(): boolean {
-    return this.userService.isLoggedIn();
+    // Redirect to login page with return URL
+    return this.router.createUrlTree(['/login'], {
+      queryParams: { returnUrl },
+    });
   }
 }

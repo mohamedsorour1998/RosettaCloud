@@ -1,0 +1,167 @@
+.profile-container {
+  background-color: #f8f9fa;
+  min-height: calc(100vh - 56px); // Adjust based on your navbar height
+}
+
+// Profile Card
+.profile-card {
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.profile-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin: 0 auto;
+}
+
+.profile-name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.profile-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.profile-stat-label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 0;
+}
+
+// Card Styling
+.card {
+  border: none;
+  border-radius: 10px;
+  overflow: hidden;
+
+  .card-header {
+    background-color: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 1.25rem 1.5rem;
+  }
+}
+
+// Profile Info
+.profile-info-row {
+  display: flex;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.profile-info-label {
+  width: 200px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.profile-info-value {
+  flex: 1;
+  color: #212529;
+}
+
+// Form Styling
+.form-control, .form-select {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+
+  &:focus {
+    box-shadow: 0 0 0 0.25rem rgba(37, 117, 252, 0.25);
+    border-color: #2575fc;
+  }
+}
+
+// Progress
+.progress-item {
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.progress {
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.progress-bar {
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+}
+
+// Empty State
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #6c757d;
+  padding: 2rem 0;
+}
+
+// Buttons
+.btn-primary {
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  border: none;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #5910b0 0%, #1e67e0 100%);
+    transform: translateY(-1px);
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 0.25rem rgba(37, 117, 252, 0.25);
+  }
+}
+
+.btn-outline-primary {
+  color: #2575fc;
+  border-color: #2575fc;
+
+  &:hover {
+    background-color: #2575fc;
+    border-color: #2575fc;
+  }
+}
+
+.btn-outline-danger {
+  color: #dc3545;
+  border-color: #dc3545;
+
+  &:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+  }
+}
+
+// Loading spinner
+.spinner-border {
+  width: 2rem;
+  height: 2rem;
+}
+
+// Responsive adjustments
+@media (max-width: 992px) {
+  .profile-info-row {
+    flex-direction: column;
+  }
+
+  .profile-info-label {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}
