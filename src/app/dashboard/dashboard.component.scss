@@ -1,12 +1,9 @@
-// Variables
-$primary-color: #2575fc;
-$primary-gradient: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-$success-color: #10b981;
-$info-color: #3b82f6;
-
+// Dashboard Component SCSS
 .dashboard-container {
-  background-color: #f8f9fa;
-  min-height: calc(100vh - 56px); // Adjust based on your navbar height
+  min-height: calc(
+    100vh - 3.5rem
+  ); // Consistent with other components (3.5rem = 56px)
+  transition: background-color 0.3s ease;
 }
 
 // Loading State
@@ -15,60 +12,52 @@ $info-color: #3b82f6;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 56px);
-  color: #6c757d;
-
-  .spinner-border {
-    width: 3rem;
-    height: 3rem;
-  }
+  min-height: calc(100vh - 3.5rem);
+  transition: all 0.3s ease;
 }
 
 // Welcome Banner
 .welcome-banner {
-  background-color: white;
-  border-radius: 15px;
+  border-radius: 0.9375rem; // Convert from 15px
   padding: 2rem;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
 .welcome-title {
   font-size: 2rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  background: $primary-gradient;
+  background: var(--primary-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .welcome-subtitle {
   font-size: 1.1rem;
-  color: #6c757d;
   margin-bottom: 0;
+  transition: color 0.3s ease;
 }
 
 // Stat Cards
 .stat-card {
-  background-color: white;
-  border-radius: 15px;
+  border-radius: 0.9375rem; // Convert from 15px
   padding: 1.5rem;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
   gap: 1.25rem;
   height: 100%;
-  transition: transform 0.3s ease;
+  transition: all 0.3s ease, transform 0.3s ease;
 
   &:hover {
-    transform: translateY(-5px);
+    transform: translateY(-0.3125rem); // Convert from -5px
   }
 }
 
 .stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  background: $primary-gradient;
+  width: 3.75rem; // Convert from 60px
+  height: 3.75rem;
+  border-radius: 0.75rem; // Convert from 12px
+  background: var(--primary-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -92,25 +81,26 @@ $info-color: #3b82f6;
   font-size: 2rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
-  color: #212529;
+  transition: color 0.3s ease;
 }
 
 .stat-label {
   font-size: 0.9rem;
-  color: #6c757d;
   margin-bottom: 0;
+  transition: color 0.3s ease;
 }
 
 // Cards
 .card {
   border: none;
-  border-radius: 15px;
+  border-radius: 0.9375rem; // Convert from 15px
   overflow: hidden;
+  transition: all 0.3s ease;
 
   .card-header {
-    background-color: white;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     padding: 1.25rem 1.5rem;
+    transition: all 0.3s ease;
   }
 }
 
@@ -123,14 +113,15 @@ $info-color: #3b82f6;
 
   i {
     font-size: 4rem;
-    color: rgba(0, 0, 0, 0.1);
     margin-bottom: 1rem;
+    transition: color 0.3s ease;
   }
 }
 
 // Course List
 .course-item {
   padding: 1.5rem 0;
+  transition: border-color 0.3s ease;
 
   &.border-bottom {
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -140,30 +131,31 @@ $info-color: #3b82f6;
 .course-title {
   font-weight: 600;
   margin-bottom: 1rem;
+  transition: color 0.3s ease;
 }
 
 .progress {
-  height: 10px;
-  border-radius: 5px;
-  background-color: rgba(0, 0, 0, 0.05);
+  height: 0.625rem; // Convert from 10px
+  border-radius: 0.3125rem; // Convert from 5px
+  transition: background-color 0.3s ease;
 }
 
 .progress-bar {
-  background: $primary-gradient;
-  border-radius: 5px;
+  background: var(--primary-gradient);
+  border-radius: 0.3125rem; // Convert from 5px
 }
 
 // Lesson List
 .lesson-list {
-  background-color: #f8f9fa;
-  border-radius: 10px;
+  border-radius: 0.625rem; // Convert from 10px
   padding: 1rem;
   margin-bottom: 1rem;
+  transition: background-color 0.3s ease;
 }
 
 .lesson-item {
   padding: 0.75rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: border-color 0.3s ease;
 
   &:last-child {
     border-bottom: none;
@@ -171,45 +163,43 @@ $info-color: #3b82f6;
 }
 
 .lesson-status {
-  width: 24px;
-  height: 24px;
+  width: 1.5rem; // Convert from 24px
+  height: 1.5rem;
   border-radius: 50%;
-  background-color: #f8f9fa;
-  border: 2px solid #dee2e6;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 1rem;
   font-size: 0.9rem;
   color: transparent;
+  transition: all 0.3s ease;
 
   &.completed {
-    background-color: $success-color;
-    border-color: $success-color;
+    background-color: #10b981; // Keep success color
+    border-color: #10b981;
     color: white;
   }
 }
 
 .lesson-name {
   font-weight: 500;
+  transition: color 0.3s ease;
 }
 
 .lesson-progress {
-  color: #6c757d;
+  transition: color 0.3s ease;
 }
 
 // Lab Cards
 .lab-card {
-  background-color: white;
-  border-radius: 15px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+  border-radius: 0.9375rem; // Convert from 15px
   padding: 1.5rem;
   height: 100%;
   position: relative;
-  transition: transform 0.3s ease;
+  transition: all 0.3s ease, transform 0.3s ease;
 
   &:hover {
-    transform: translateY(-5px);
+    transform: translateY(-0.3125rem); // Convert from -5px
   }
 }
 
@@ -220,54 +210,276 @@ $info-color: #3b82f6;
 }
 
 .lab-icon {
-  width: 60px;
-  height: 60px;
+  width: 3.75rem; // Convert from 60px
+  height: 3.75rem;
   border-radius: 50%;
-  background-color: rgba(59, 130, 246, 0.1);
-  color: $info-color;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.75rem;
   margin-bottom: 1rem;
+  transition: all 0.3s ease;
 }
 
 .lab-title {
   font-weight: 600;
   margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
 }
 
 .lab-description {
-  color: #6c757d;
   margin-bottom: 1.5rem;
   font-size: 0.9rem;
+  transition: color 0.3s ease;
 }
 
 // Buttons
 .btn-primary {
-  background: $primary-gradient;
+  background: var(--primary-gradient);
   border: none;
+  transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #5910b0 0%, #1e67e0 100%);
+    background: var(--primary-darker-gradient);
+    transform: translateY(-0.0625rem); // Consistent with other components
+    box-shadow: 0 0.25rem 0.625rem rgba(0, 0, 0, 0.1);
   }
 }
 
 .btn-outline-primary {
-  color: $primary-color;
-  border-color: $primary-color;
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: $primary-color;
-    border-color: $primary-color;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
   }
 }
 
 .btn-link {
-  color: $primary-color;
+  color: var(--primary-color);
+  transition: color 0.2s ease;
 
   &:hover {
     color: #6a11cb;
+  }
+}
+
+// Dark mode styles
+[data-bs-theme="dark"] {
+  .dashboard-container {
+    background-color: var(--dark-bg);
+  }
+
+  .loading-container {
+    color: var(--dark-text-muted);
+  }
+
+  .welcome-banner {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+  }
+
+  .welcome-subtitle {
+    color: var(--dark-text-muted);
+  }
+
+  .stat-card {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+  }
+
+  .stat-number {
+    color: var(--dark-text);
+  }
+
+  .stat-label {
+    color: var(--dark-text-muted);
+  }
+
+  .card {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+
+    .card-header {
+      background-color: var(--dark-card-bg);
+      border-bottom: 1px solid var(--dark-border-color);
+      color: var(--dark-text);
+    }
+
+    .card-body {
+      background-color: var(--dark-card-bg);
+      color: var(--dark-text);
+    }
+  }
+
+  .empty-state {
+    i {
+      color: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .course-item {
+    &.border-bottom {
+      border-bottom: 1px solid var(--dark-border-color);
+    }
+  }
+
+  .course-title {
+    color: var(--dark-text);
+  }
+
+  .progress {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .lesson-list {
+    background-color: var(--dark-secondary-bg);
+  }
+
+  .lesson-item {
+    border-bottom: 1px solid var(--dark-border-color);
+  }
+
+  .lesson-status {
+    background-color: var(--dark-secondary-bg);
+    border: 2px solid var(--dark-border-color);
+  }
+
+  .lesson-name {
+    color: var(--dark-text);
+  }
+
+  .lesson-progress {
+    color: var(--dark-text-muted);
+  }
+
+  .lab-card {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+  }
+
+  .lab-icon {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #60a5fa; // Lighter shade for dark mode
+  }
+
+  .lab-title {
+    color: var(--dark-text);
+  }
+
+  .lab-description {
+    color: var(--dark-text-muted);
+  }
+
+  .text-muted {
+    color: var(--dark-text-muted) !important;
+  }
+
+  .btn-outline-primary {
+    color: #60a5fa; // Lighter blue for dark mode
+    border-color: #60a5fa;
+
+    &:hover {
+      background-color: var(--primary-color);
+      border-color: var(--primary-color);
+      color: var(--dark-bg);
+    }
+  }
+
+  .btn-link {
+    color: #60a5fa;
+
+    &:hover {
+      color: #80b5fa;
+    }
+  }
+}
+
+// Light mode styles
+[data-bs-theme="light"] {
+  .dashboard-container {
+    background-color: var(--light-secondary-bg);
+  }
+
+  .loading-container {
+    color: var(--light-text-muted);
+  }
+
+  .welcome-banner {
+    background-color: var(--light-card-bg);
+    box-shadow: var(--shadow);
+  }
+
+  .welcome-subtitle {
+    color: var(--light-text-muted);
+  }
+
+  .stat-card {
+    background-color: var(--light-card-bg);
+    box-shadow: var(--shadow);
+  }
+
+  .stat-number {
+    color: var(--light-text);
+  }
+
+  .stat-label {
+    color: var(--light-text-muted);
+  }
+
+  .card {
+    background-color: var(--light-card-bg);
+    box-shadow: var(--shadow);
+
+    .card-header {
+      background-color: var(--light-card-bg);
+      border-bottom: 1px solid var(--light-border-color);
+    }
+  }
+
+  .empty-state {
+    i {
+      color: rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .course-item {
+    &.border-bottom {
+      border-bottom: 1px solid var(--light-border-color);
+    }
+  }
+
+  .progress {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .lesson-list {
+    background-color: var(--light-secondary-bg);
+  }
+
+  .lesson-item {
+    border-bottom: 1px solid var(--light-border-color);
+  }
+
+  .lesson-status {
+    background-color: var(--light-secondary-bg);
+    border: 2px solid var(--light-border-color);
+  }
+
+  .lab-card {
+    background-color: var(--light-card-bg);
+    box-shadow: var(--shadow);
+  }
+
+  .lab-icon {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+  }
+
+  .text-muted {
+    color: var(--light-text-muted) !important;
   }
 }
 

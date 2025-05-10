@@ -1,36 +1,30 @@
+// Base component styles (theme-agnostic where possible)
 .features-hero {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  background: var(--primary-gradient);
   color: white;
   padding: 6rem 0 4rem;
-
-  .btn-outline-light:hover {
-    color: #6a11cb;
-  }
 }
 
 // Feature Cards
 .feature-card {
   padding: 2rem;
-  border-radius: 15px;
-  background-color: white;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-radius: 0.9375rem; // Convert from 15px
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 
   &:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    transform: translateY(-0.625rem); // Convert from -10px
   }
 
   .feature-icon {
     font-size: 2.5rem;
     margin-bottom: 1.5rem;
-    color: #6a11cb;
-    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    background: var(--primary-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .feature-title {
@@ -40,7 +34,6 @@
   }
 
   .feature-description {
-    color: #6c757d;
     margin-bottom: 0;
     line-height: 1.6;
   }
@@ -55,7 +48,6 @@
     }
 
     .lead {
-      color: #495057;
       margin-bottom: 2rem;
     }
   }
@@ -77,15 +69,13 @@
 
       span {
         font-size: 1.1rem;
-        color: #343a40;
       }
     }
   }
 
   .demo-image {
     img {
-      border-radius: 10px;
-      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      border-radius: 0.625rem; // Convert from 10px
       transition: transform 0.3s ease;
 
       &:hover {
@@ -96,26 +86,28 @@
 }
 
 // Key Features
+.key-features {
+  border-radius: 0.5rem;
+}
+
 .key-feature-card {
   padding: 2.5rem 2rem;
-  border-radius: 15px;
-  background-color: white;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+  border-radius: 0.9375rem; // Convert from 15px
   transition: transform 0.3s ease;
 
   &:hover {
-    transform: translateY(-5px);
+    transform: translateY(-0.3125rem); // Convert from -5px
   }
 
   .key-feature-icon {
     font-size: 3rem;
     margin-bottom: 1.5rem;
-    color: #2575fc;
 
     i {
-      background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+      background: var(--primary-gradient);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
   }
 
@@ -124,23 +116,16 @@
     font-weight: 600;
     margin-bottom: 1rem;
   }
-
-  .key-feature-description {
-    color: #6c757d;
-  }
 }
 
 // Testimonials
 .testimonial-card {
   padding: 2.5rem;
-  border-radius: 15px;
-  background-color: white;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  border-radius: 0.9375rem; // Convert from 15px
   position: relative;
 
   .quote-icon {
     font-size: 4rem;
-    color: rgba(37, 117, 252, 0.1);
     position: absolute;
     top: 1.5rem;
     right: 1.5rem;
@@ -149,7 +134,6 @@
   .testimonial-quote {
     font-size: 1.1rem;
     line-height: 1.6;
-    color: #495057;
     margin-bottom: 2rem;
     position: relative;
     z-index: 1;
@@ -160,12 +144,12 @@
     align-items: center;
 
     .author-image {
-      width: 60px;
-      height: 60px;
+      width: 3.75rem; // Convert from 60px
+      height: 3.75rem; // Convert from 60px
       border-radius: 50%;
       object-fit: cover;
       margin-right: 1rem;
-      border: 3px solid rgba(37, 117, 252, 0.1);
+      border: 0.1875rem solid rgba(37, 117, 252, 0.2); // Convert from 3px
     }
 
     .author-info {
@@ -176,7 +160,6 @@
       }
 
       .author-role {
-        color: #6c757d;
         font-size: 0.9rem;
         margin-bottom: 0;
       }
@@ -187,7 +170,7 @@
 // Partners
 .partner-logos {
   .partner-logo {
-    max-height: 60px;
+    max-height: 3.75rem; // Convert from 60px
     filter: grayscale(100%);
     opacity: 0.7;
     transition: all 0.3s ease;
@@ -201,17 +184,227 @@
 
 // CTA Section
 .cta {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  background: var(--primary-gradient);
   padding: 4rem 2rem !important;
 
   h2 {
     font-weight: 700;
   }
+}
 
-  .btn-outline-light {
-    &:hover {
-      color: #6a11cb;
+// Dark mode styles
+[data-bs-theme="dark"] {
+  .features-hero {
+    .btn-outline-secondary {
+      color: var(--dark-text);
+      border-color: var(--dark-text);
+
+      &:hover {
+        color: #6a11cb;
+        background-color: var(--dark-text);
+      }
     }
+  }
+
+  .feature-card {
+    background-color: var(--dark-card-bg);
+    color: var(--dark-text);
+    box-shadow: var(--shadow-dark);
+
+    .feature-title {
+      color: var(--dark-text);
+    }
+
+    .feature-description {
+      color: var(--dark-text-muted);
+    }
+  }
+
+  .interactive-demo {
+    .demo-content {
+      h2 {
+        color: var(--dark-text);
+      }
+
+      .lead {
+        color: var(--dark-text-muted);
+      }
+    }
+
+    .demo-features li span {
+      color: var(--dark-text);
+    }
+
+    .demo-image img {
+      box-shadow: var(--shadow-dark);
+    }
+  }
+
+  .key-features {
+    background-color: var(--dark-secondary-bg);
+
+    h2 {
+      color: var(--dark-text);
+    }
+  }
+
+  .key-feature-card {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+    color: var(--dark-text);
+
+    .key-feature-title {
+      color: var(--dark-text);
+    }
+
+    .key-feature-description {
+      color: var(--dark-text-muted);
+    }
+  }
+
+  .testimonials {
+    h2 {
+      color: var(--dark-text);
+    }
+  }
+
+  .testimonial-card {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+
+    .quote-icon {
+      color: rgba(37, 117, 252, 0.2);
+    }
+
+    .testimonial-quote {
+      color: var(--dark-text);
+    }
+
+    .author-name {
+      color: var(--dark-text);
+    }
+
+    .author-role {
+      color: var(--dark-text-muted);
+    }
+  }
+
+  .partners {
+    h2 {
+      color: var(--dark-text);
+    }
+  }
+
+  .text-muted {
+    color: var(--dark-text-muted) !important;
+  }
+}
+
+// Light mode styles
+[data-bs-theme="light"] {
+  .features-hero {
+    .btn-outline-secondary {
+      color: white;
+      border-color: white;
+
+      &:hover {
+        color: #6a11cb;
+        background-color: white;
+      }
+    }
+  }
+
+  .feature-card {
+    background-color: var(--light-card-bg);
+    color: var(--light-text);
+    box-shadow: var(--shadow);
+
+    .feature-title {
+      color: var(--light-text);
+    }
+
+    .feature-description {
+      color: var(--light-text-muted);
+    }
+  }
+
+  .interactive-demo {
+    .demo-content {
+      h2 {
+        color: var(--light-text);
+      }
+
+      .lead {
+        color: var(--light-text-muted);
+      }
+    }
+
+    .demo-features li span {
+      color: var(--light-text);
+    }
+
+    .demo-image img {
+      box-shadow: var(--shadow);
+    }
+  }
+
+  .key-features {
+    background-color: var(--light-secondary-bg);
+
+    h2 {
+      color: var(--light-text);
+    }
+  }
+
+  .key-feature-card {
+    background-color: var(--light-card-bg);
+    box-shadow: var(--shadow);
+    color: var(--light-text);
+
+    .key-feature-title {
+      color: var(--light-text);
+    }
+
+    .key-feature-description {
+      color: var(--light-text-muted);
+    }
+  }
+
+  .testimonials {
+    h2 {
+      color: var(--light-text);
+    }
+  }
+
+  .testimonial-card {
+    background-color: var(--light-card-bg);
+    box-shadow: var(--shadow);
+
+    .quote-icon {
+      color: rgba(37, 117, 252, 0.1);
+    }
+
+    .testimonial-quote {
+      color: var(--light-text);
+    }
+
+    .author-name {
+      color: var(--light-text);
+    }
+
+    .author-role {
+      color: var(--light-text-muted);
+    }
+  }
+
+  .partners {
+    h2 {
+      color: var(--light-text);
+    }
+  }
+
+  .text-muted {
+    color: var(--light-text-muted) !important;
   }
 }
 
@@ -256,7 +449,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    max-width: 300px;
+    max-width: 18.75rem; // Convert from 300px
     margin: 0 auto;
 
     .btn {

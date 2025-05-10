@@ -1,6 +1,29 @@
 footer {
   a {
-    color: #fff;
     text-decoration: underline;
+  }
+}
+
+// Dark mode styles
+[data-bs-theme="dark"] {
+  footer {
+    background-color: var(--dark-bg) !important;
+    color: var(--dark-text) !important;
+
+    a {
+      color: var(--dark-text);
+    }
+  }
+}
+
+// Light mode styles
+[data-bs-theme="light"] {
+  footer {
+    background-color: var(--light-secondary-bg) !important;
+    color: var(--light-text) !important;
+
+    a {
+      color: var(--light-text);
+    }
   }
 }

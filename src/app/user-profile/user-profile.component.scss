@@ -1,19 +1,20 @@
 .profile-container {
-  background-color: #f8f9fa;
-  min-height: calc(100vh - 56px); // Adjust based on your navbar height
+  min-height: calc(100vh - 3.5rem); // Convert from 56px
+  transition: background-color 0.3s ease;
 }
 
 // Profile Card
 .profile-card {
   margin-bottom: 1.5rem;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .profile-avatar {
-  width: 100px;
-  height: 100px;
+  width: 6.25rem; // Convert from 100px
+  height: 6.25rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  background: var(--primary-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -26,30 +27,37 @@
 .profile-name {
   font-weight: 600;
   margin-bottom: 0.25rem;
+  transition: color 0.3s ease;
 }
 
 .profile-stat-value {
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
+  transition: color 0.3s ease;
 }
 
 .profile-stat-label {
   font-size: 0.85rem;
-  color: #6c757d;
   margin-bottom: 0;
+  transition: color 0.3s ease;
 }
 
 // Card Styling
 .card {
   border: none;
-  border-radius: 10px;
+  border-radius: 0.625rem; // Convert from 10px
   overflow: hidden;
+  transition: all 0.3s ease;
 
   .card-header {
-    background-color: white;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid;
     padding: 1.25rem 1.5rem;
+    transition: all 0.3s ease;
+  }
+
+  .card-footer {
+    transition: all 0.3s ease;
   }
 }
 
@@ -57,7 +65,8 @@
 .profile-info-row {
   display: flex;
   padding: 1rem 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid;
+  transition: border-color 0.3s ease;
 
   &:last-child {
     border-bottom: none;
@@ -65,42 +74,46 @@
 }
 
 .profile-info-label {
-  width: 200px;
+  width: 12.5rem; // Convert from 200px
   font-weight: 500;
-  color: #495057;
+  transition: color 0.3s ease;
 }
 
 .profile-info-value {
   flex: 1;
-  color: #212529;
+  transition: color 0.3s ease;
 }
 
 // Form Styling
-.form-control, .form-select {
+.form-control,
+.form-select {
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: 0.5rem; // Convert from 8px
+  transition: all 0.3s ease;
 
   &:focus {
     box-shadow: 0 0 0 0.25rem rgba(37, 117, 252, 0.25);
-    border-color: #2575fc;
+    border-color: var(--primary-color);
   }
 }
 
 // Progress
 .progress-item {
   padding: 0.75rem;
-  background-color: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 0.5rem; // Convert from 8px
   margin-bottom: 0.75rem;
+  transition: background-color 0.3s ease;
 }
 
 .progress {
-  border-radius: 4px;
-  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 0.25rem; // Convert from 4px
+  height: 0.5rem; // Convert from 8px
+  transition: background-color 0.3s ease;
 }
 
 .progress-bar {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  background: var(--primary-gradient);
+  transition: width 0.3s ease;
 }
 
 // Empty State
@@ -108,18 +121,24 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #6c757d;
   padding: 2rem 0;
+  transition: color 0.3s ease;
+
+  i {
+    transition: color 0.3s ease;
+  }
 }
 
 // Buttons
 .btn-primary {
-  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  background: var(--primary-gradient);
   border: none;
+  transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #5910b0 0%, #1e67e0 100%);
-    transform: translateY(-1px);
+    background: var(--primary-darker-gradient);
+    transform: translateY(-0.0625rem); // Convert from -1px
+    box-shadow: 0 0.25rem 0.625rem rgba(0, 0, 0, 0.1);
   }
 
   &:focus {
@@ -128,23 +147,26 @@
 }
 
 .btn-outline-primary {
-  color: #2575fc;
-  border-color: #2575fc;
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: #2575fc;
-    border-color: #2575fc;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
   }
 }
 
 .btn-outline-danger {
   color: #dc3545;
   border-color: #dc3545;
+  transition: all 0.2s ease;
 
   &:hover {
     background-color: #dc3545;
     border-color: #dc3545;
     color: white;
+    transform: translateY(-0.0625rem); // Convert from -1px
   }
 }
 
@@ -152,6 +174,217 @@
 .spinner-border {
   width: 2rem;
   height: 2rem;
+}
+
+// Dark mode styles
+[data-bs-theme="dark"] {
+  .profile-container {
+    background-color: var(--dark-bg);
+  }
+
+  .card {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+
+    .card-header {
+      background-color: var(--dark-card-bg);
+      border-bottom-color: var(--dark-border-color);
+      color: var(--dark-text);
+    }
+
+    .card-footer {
+      background-color: var(--dark-secondary-bg);
+      border-top-color: var(--dark-border-color);
+    }
+  }
+
+  .profile-name {
+    color: var(--dark-text);
+  }
+
+  .text-muted {
+    color: var(--dark-text-muted) !important;
+  }
+
+  .profile-stat-value {
+    color: var(--dark-text);
+  }
+
+  .profile-stat-label {
+    color: var(--dark-text-muted);
+  }
+
+  .border-end {
+    border-right-color: var(--dark-border-color) !important;
+  }
+
+  .profile-info-row {
+    border-bottom-color: var(--dark-border-color);
+  }
+
+  .profile-info-label {
+    color: var(--dark-text-secondary);
+  }
+
+  .profile-info-value {
+    color: var(--dark-text);
+  }
+
+  .form-control,
+  .form-select {
+    background-color: var(--dark-secondary-bg);
+    border-color: var(--dark-border-color);
+    color: var(--dark-text);
+
+    &:focus {
+      background-color: var(--dark-secondary-bg);
+      border-color: var(--primary-color);
+      color: var(--dark-text);
+    }
+  }
+
+  .progress-item {
+    background-color: var(--dark-secondary-bg);
+  }
+
+  .progress {
+    background-color: var(--dark-tertiary-bg);
+  }
+
+  .empty-state {
+    color: var(--dark-text-muted);
+
+    i {
+      color: var(--dark-text-muted);
+    }
+  }
+
+  .btn-link {
+    color: var(--dark-text-secondary);
+
+    &:hover {
+      color: var(--dark-text);
+    }
+  }
+
+  .btn-outline-primary {
+    color: #60a5fa; // Lighter blue for dark mode
+    border-color: #60a5fa;
+
+    &:hover {
+      background-color: var(--primary-color);
+      border-color: var(--primary-color);
+      color: var(--dark-bg);
+    }
+  }
+
+  hr {
+    border-color: var(--dark-border-color);
+  }
+
+  .alert-success {
+    background-color: rgba(25, 135, 84, 0.15);
+    color: #d1e7dd;
+    border-color: rgba(25, 135, 84, 0.4);
+  }
+
+  .alert-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: #f8d7da;
+    border-color: rgba(220, 53, 69, 0.4);
+  }
+
+  .form-label {
+    color: var(--dark-text);
+  }
+
+  .invalid-feedback {
+    color: #f77;
+  }
+}
+
+// Light mode styles
+[data-bs-theme="light"] {
+  .profile-container {
+    background-color: var(--light-secondary-bg);
+  }
+
+  .card {
+    background-color: var(--light-card-bg);
+    box-shadow: var(--shadow);
+
+    .card-header {
+      background-color: var(--light-card-bg);
+      border-bottom-color: var(--light-border-color);
+      color: var(--light-text);
+    }
+
+    .card-footer {
+      background-color: var(--light-secondary-bg);
+      border-top-color: var(--light-border-color);
+    }
+  }
+
+  .profile-name {
+    color: var(--light-text);
+  }
+
+  .text-muted {
+    color: var(--light-text-muted) !important;
+  }
+
+  .profile-stat-value {
+    color: var(--light-text);
+  }
+
+  .profile-stat-label {
+    color: var(--light-text-muted);
+  }
+
+  .border-end {
+    border-right-color: var(--light-border-color) !important;
+  }
+
+  .profile-info-row {
+    border-bottom-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .profile-info-label {
+    color: var(--light-text-secondary);
+  }
+
+  .profile-info-value {
+    color: var(--light-text);
+  }
+
+  .form-control,
+  .form-select {
+    background-color: var(--light-bg);
+    border-color: var(--light-border-color);
+    color: var(--light-text);
+
+    &:focus {
+      background-color: var(--light-bg);
+      border-color: var(--primary-color);
+      color: var(--light-text);
+    }
+  }
+
+  .progress-item {
+    background-color: var(--light-secondary-bg);
+  }
+
+  .progress {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .empty-state {
+    color: var(--light-text-muted);
+
+    i {
+      color: rgba(0, 0, 0, 0.1);
+    }
+  }
 }
 
 // Responsive adjustments

@@ -1,2 +1,228 @@
 @import "bootstrap/dist/css/bootstrap.min.css";
 @import "bootstrap-icons/font/bootstrap-icons.css";
+
+// Define root variables
+:root {
+  // Dark Mode Colors
+  --dark-bg: #212529;
+  --dark-card-bg: #2a2d31;
+  --dark-secondary-bg: #343a40;
+  --dark-tertiary-bg: #2d2d2d;
+  --dark-text: #f8f9fa;
+  --dark-text-secondary: rgba(255, 255, 255, 0.75);
+  --dark-text-muted: #adb5bd;
+  --dark-border-color: rgba(255, 255, 255, 0.15);
+
+  // Light Mode Colors
+  --light-bg: #ffffff;
+  --light-card-bg: #ffffff;
+  --light-secondary-bg: #f8f9fa;
+  --light-tertiary-bg: #e9ecef;
+  --light-text: #212529;
+  --light-text-secondary: #495057;
+  --light-text-muted: #6c757d;
+  --light-border-color: rgba(0, 0, 0, 0.125);
+
+  // Brand Colors
+  --primary-color: #2575fc;
+  --primary-gradient: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  --primary-darker-gradient: linear-gradient(135deg, #5910b0 0%, #1e67e0 100%);
+
+  // Shadow Values
+  --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+
+  // Shadow Values (Dark Mode)
+  --shadow-sm-dark: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+  --shadow-dark: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+  --shadow-lg-dark: 0 1rem 3rem rgba(0, 0, 0, 0.4);
+}
+
+// Only minimal baseline styles
+body {
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+// Theme toggle button
+.theme-toggle {
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: inherit;
+
+  &:hover {
+    background-color: rgba(var(--bs-body-color-rgb), 0.1);
+  }
+
+  i {
+    font-size: 1.25rem;
+  }
+}
+
+// Dark mode - minimal necessary overrides
+[data-bs-theme="dark"] {
+  color-scheme: dark;
+
+  // Base colors
+  --bs-body-bg: var(--dark-bg);
+  --bs-body-color: var(--dark-text);
+
+  // Text colors for consistency
+  .text-muted {
+    color: var(--dark-text-muted) !important;
+  }
+
+  // Link colors
+  a:not(.btn):not(.nav-link):not(.card-link):not(.dropdown-item):not(
+      .page-link
+    ) {
+    color: #6ea8fe;
+
+    &:hover {
+      color: #8bb9fe;
+    }
+  }
+
+  // Input placeholder
+  ::placeholder {
+    color: var(--dark-text-muted);
+  }
+
+  // Alerts
+  .alert-success {
+    background-color: rgba(25, 135, 84, 0.15);
+    color: #d1e7dd;
+    border-color: rgba(25, 135, 84, 0.4);
+  }
+
+  .alert-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: #f8d7da;
+    border-color: rgba(220, 53, 69, 0.4);
+  }
+
+  .alert-warning {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #fff3cd;
+    border-color: rgba(255, 193, 7, 0.4);
+  }
+
+  .alert-info {
+    background-color: rgba(13, 202, 240, 0.15);
+    color: #cff4fc;
+    border-color: rgba(13, 202, 240, 0.4);
+  }
+
+  // Modal dialog
+  .modal-content {
+    background-color: var(--dark-card-bg);
+    border-color: var(--dark-border-color);
+  }
+
+  .modal-header,
+  .modal-footer {
+    border-color: var(--dark-border-color);
+  }
+}
+
+// Light mode - minimal necessary overrides
+[data-bs-theme="light"] {
+  color-scheme: light;
+
+  // Base colors
+  --bs-body-bg: var(--light-bg);
+  --bs-body-color: var(--light-text);
+
+  // Text colors
+  .text-muted {
+    color: var(--light-text-muted) !important;
+  }
+
+  // Link colors
+  a:not(.btn):not(.nav-link):not(.card-link):not(.dropdown-item):not(
+      .page-link
+    ) {
+    color: var(--primary-color);
+
+    &:hover {
+      color: #0d6efd;
+    }
+  }
+
+  // Alerts
+  .alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border-color: #badbcc;
+  }
+
+  .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+  }
+
+  .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border-color: #ffeeba;
+  }
+
+  .alert-info {
+    background-color: #cff4fc;
+    color: #055160;
+    border-color: #b6effb;
+  }
+}
+
+// Animation keyframes (without redefinition in components)
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// Animation utility classes
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-in-out;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.8s ease-in-out;
+}

@@ -13,7 +13,7 @@ import { CommonModule } from '@angular/common';
 import { Subscription, filter } from 'rxjs';
 
 import { UserService, User } from '../services/user.service';
-
+import { ThemeService } from '../services/theme.service';
 /* Bootstrap ESM modules */
 import Collapse from 'bootstrap/js/dist/collapse';
 import Dropdown from 'bootstrap/js/dist/dropdown';
@@ -43,7 +43,11 @@ export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
   private subs: Subscription[] = [];
 
   /* ------------------------------------------------------------------ */
-  constructor(private userSvc: UserService, private router: Router) {}
+  constructor(
+    private userSvc: UserService,
+    private router: Router,
+    public themeService: ThemeService
+  ) {}
 
   ngOnInit(): void {
     this.subs.push(
@@ -83,6 +87,10 @@ export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
     this.userSvc.logout();
     this.router.navigate(['/']);
     this.collapse?.hide();
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   /* ------------------------------------------------------------------ */
