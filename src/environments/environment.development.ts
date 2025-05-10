@@ -8,7 +8,7 @@ export const environment = {
     feedbackTopic: 'FeedbackGiven',
   },
   labDefaultTimeout: {
-    hours: 2,
+    hours: 1,
     minutes: 0,
     seconds: 0,
   },
