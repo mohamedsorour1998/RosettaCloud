@@ -12,5 +12,5 @@ export const environment = {
     minutes: 30,
     seconds: 0,
   },
-  pollingInterval: 30000, // 30 seconds for production to reduce API calls
+  pollingInterval: 30000,
 };

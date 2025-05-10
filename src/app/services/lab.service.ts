@@ -76,7 +76,7 @@ export class LabService {
     return (
       environment.apiUrl ||
       (window as any).__RC_API__ ||
-      'http://51.112.10.4:30085' // Updated to your actual API URL
+      'http://51.112.10.4:30085'
     );
   }
   private checkApiConnection(): void {
@@ -240,7 +240,7 @@ export class LabService {
     moduleUuid: string,
     lessonUuid: string,
     questionNumber: number,
-    podIdx?: number // Add optional index parameter
+    podIdx?: number
   ): Observable<QuestionSetupResponse> {
     const userId = this.getCurrentUserId();
     const formattedPodName =
@@ -265,7 +265,7 @@ export class LabService {
     lessonUuid: string,
     questionNumber: number,
     additionalData?: any,
-    podIdx?: number // Add optional index parameter
+    podIdx?: number
   ): Observable<QuestionCheckResponse> {
     const userId = this.getCurrentUserId();
     const formattedPodName =

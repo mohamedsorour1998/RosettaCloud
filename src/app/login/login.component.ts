@@ -63,7 +63,7 @@ export class LoginComponent implements OnInit {
     this.errorMessage = '';
     const userData = {
       email: this.email,
-      name: this.email.split('@')[0], // Simple name from email
+      name: this.email.split('@')[0],
       password: this.password,
       role: 'student',
       metadata: {},

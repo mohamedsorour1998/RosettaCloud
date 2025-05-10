@@ -95,9 +95,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   private iframeSub?: Subscription;
 
   private readonly qStateKey = 'lab-question-state';
-  private readonly pollInterval = 30000; // 30 seconds between polls
-  private readonly retryDelay = 5000; // 5 seconds between retries
-
+  private readonly pollInterval = 30000;
+  private readonly retryDelay = 5000;
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -108,10 +107,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   ) {}
   ngOnInit(): void {
     this.iframeSub = this.iframeUrl$
-      .pipe(
-        debounceTime(1000), // Wait 1 second before processing URL changes
-        distinctUntilChanged() // Only process when URL actually changes
-      )
+      .pipe(debounceTime(1000), distinctUntilChanged())
       .subscribe((url) => {
         console.log('Updating iframe URL:', url);
         if (url !== this.lastIframeUrl) {
@@ -125,9 +121,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.apiSub = this.labSv.connectionStatus$.subscribe((ok) => {
         if (ok) {
           this.hadSuccessfulConnection = true;
-          this.lostConnectionCount = 0; // reset on any success
+          this.lostConnectionCount = 0;
         } else if (this.hadSuccessfulConnection) {
-          this.lostConnectionCount++; // count only after first success
+          this.lostConnectionCount++;
         }
         this.isApiConnected = ok;
       });
@@ -236,7 +232,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       sessionStorage.removeItem('activeLabId');
       this.labId = null;
       this.launchNewLab().subscribe();
-      return; // stop processing the dead lab
+      return;
     }
 
     if (info.status === 'running' && info.pod_ip) {
@@ -722,10 +718,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
   get showApiBanner(): boolean {
     return (
-      this.lostConnectionCount >= 3 && // 3 × polls ≈ offline for a while
-      this.isLabActive && // lab is running
-      !this.isInitializing && // not in init
-      !this.isLoading // not in global spinner
+      this.lostConnectionCount >= 3 &&
+      this.isLabActive &&
+      !this.isInitializing &&
+      !this.isLoading
     );
   }
   get showFeedbackButton(): boolean {

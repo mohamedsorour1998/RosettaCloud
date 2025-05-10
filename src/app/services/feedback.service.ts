@@ -40,7 +40,7 @@ export class FeedbackService {
       user_id: userId,
       module_uuid: moduleUuid,
       lesson_uuid: lessonUuid,
-      feedback_id: this.feedbackId, // Include feedback_id in the request
+      feedback_id: this.feedbackId,
       questions: questions,
       progress: userProgress,
     };

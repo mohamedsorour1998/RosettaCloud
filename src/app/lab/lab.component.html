@@ -1,7 +1,7 @@
 <div class="lab-container">
   <header class="lab-header">
     <div class="lab-title">
-      <h4>DevLab</h4>
+      <h4>RosettaCloud Lab</h4>
       <div class="lab-status" *ngIf="labInfo$ | async as labInfo">
         <span
           class="status-indicator"
@@ -13,7 +13,7 @@
         ></span>
         <span class="status-text">{{ labInfo.status | titlecase }}</span>
         <span class="time-remaining" *ngIf="timeRemaining$ | async as t">
-          <i class="bi bi-clock"></i>{{ t }}
+          <i class="bi bi-clock"></i> {{ t }}
         </span>
       </div>
     </div>

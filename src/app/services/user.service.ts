@@ -41,7 +41,7 @@ export interface UserList {
 }
 
 export interface UserProgress {
-  [key: string]: any; // Module/lesson/question structure
+  [key: string]: any;
 }
 
 export interface UserLabs {

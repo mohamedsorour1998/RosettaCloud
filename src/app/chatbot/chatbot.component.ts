@@ -117,7 +117,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
               code
             )}</pre></div>`;
           }
-          return match; // Should be caught by first regex
+          return match;
         })
         .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
         .replace(/\n/g, '<br>')

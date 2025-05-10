@@ -12,5 +12,5 @@ export const environment = {
     minutes: 0,
     seconds: 0,
   },
-  pollingInterval: 10000, // 10 seconds
+  pollingInterval: 10000,
 };

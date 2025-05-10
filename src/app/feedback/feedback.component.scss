@@ -59,7 +59,7 @@
   z-index: 10;
 
   .progress {
-    background-color: #e9ffe3; // Lighter green background for progress
+    background-color: #e9ffe3;
   }
 }
 .feedback-modal-header {
@@ -93,7 +93,7 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #198754; // Bootstrap success color
+    background: #198754;
     border-radius: 10px;
     border: 2px solid #f1f1f1;
   }
@@ -113,7 +113,7 @@
   line-height: 1.7;
   color: #212529;
   h3 {
-    color: #198754; // Bootstrap success color
+    color: #198754;
     font-weight: 600;
     border-bottom: 1px solid #e9ecef;
     padding-bottom: 0.5rem;

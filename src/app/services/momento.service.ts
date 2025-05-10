@@ -18,7 +18,7 @@ export class MomentoService {
   private cacheName = 'interactive-labs';
   private topicName = 'FeedbackGiven';
   private topicClient: TopicClient | null = null;
-  private tokenExpiry = 60; // minutes
+  private tokenExpiry = 60;
   private subscription: TopicSubscribeResponse['Subscription'] | null = null;
 
   constructor(private http: HttpClient, private zone: NgZone) {}

@@ -31,7 +31,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   loading = false;
   feedbackId: string | null = null;
   showSaveSuccess = false;
-  readonly COUNTDOWN_DURATION = 5 * 60; // 5 minutes in seconds
+  readonly COUNTDOWN_DURATION = 5 * 60;
   remainingSeconds = this.COUNTDOWN_DURATION;
   countdownMinutes: string = '5';
   countdownSeconds: string = '00';
