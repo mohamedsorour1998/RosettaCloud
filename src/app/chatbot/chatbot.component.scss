@@ -1,35 +1,24 @@
 .chatbot-widget {
-  position: fixed; /* Using fixed position to ensure it stays in view */
-  bottom: 20px;
-  right: 20px;
-  width: 380px;
-  max-width: calc(100vw - 40px); /* Prevent overflow on small screens */
-  height: 550px;
-  max-height: calc(100vh - 100px); /* Prevent overflow */
-  border-radius: 12px;
-  background-color: #ffffff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #f8f9fa; /* Matching the lab component background */
   overflow: hidden;
-  transition: all 0.3s ease;
-  z-index: 1000; /* High z-index to ensure it appears above other elements */
-
-  &.minimized {
-    height: 60px;
-    width: 240px;
-  }
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .chatbot-header {
-  padding: 12px 16px;
-  background-color: #1e293b;
-  color: white;
+  padding: 0.75rem 1.25rem;
+  background-color: #fff; /* Match lab header background */
+  color: #212529; /* Match lab header text color */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  height: 60px; /* Match lab header height */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Match lab header shadow */
+  flex-shrink: 0; /* Prevent header from shrinking */
 
   .title-area {
     display: flex;
@@ -38,7 +27,7 @@
 
     h3 {
       margin: 0;
-      font-size: 16px;
+      font-size: 1.25rem;
       font-weight: 600;
     }
 
@@ -46,10 +35,10 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background-color: #dc3545;
+      background-color: #6c757d; /* Default status color matching lab */
 
       &.connected {
-        background-color: #28a745;
+        background-color: #28a745; /* Match lab active indicator */
       }
     }
   }
@@ -61,7 +50,7 @@
     .action-btn {
       background: none;
       border: none;
-      color: white;
+      color: #212529; /* Match lab text color */
       cursor: pointer;
       padding: 4px;
       font-size: 14px;
@@ -71,19 +60,18 @@
 
       &:hover {
         opacity: 1;
-        background-color: rgba(255, 255, 255, 0.1);
+        background-color: rgba(0, 0, 0, 0.05);
       }
     }
   }
 }
 
 .chatbot-body {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  height: calc(100% - 60px);
-  overflow-x: hidden; /* Prevent horizontal scrolling in body */
-  max-width: 100%;
+  flex: 1 1 auto; /* Take remaining space */
+  overflow: hidden; /* Hide overflow for child layouts */
+  min-height: 0; /* Critical for flexbox scrolling */
 }
 
 .sources-panel {
@@ -92,7 +80,8 @@
   border-bottom: 1px solid #e9ecef;
   max-height: 30%;
   overflow-y: auto;
-  overflow-x: hidden; /* Prevent horizontal scrolling in sources panel */
+  overflow-x: hidden;
+  flex-shrink: 0; /* Prevent from shrinking */
 
   h4 {
     margin: 0 0 8px 0;
@@ -117,7 +106,7 @@
         color: #6c757d;
 
         i {
-          color: #0d6efd;
+          color: #007bff; /* Match lab primary color */
         }
       }
     }
@@ -125,28 +114,26 @@
 }
 
 .chat-container {
-  flex: 1;
+  flex: 1 1 auto; /* Grow and shrink as needed, with auto basis */
   padding: 16px;
-  overflow-y: auto;
-  overflow-x: hidden; /* Prevent horizontal scrolling */
+  overflow-y: auto; /* Show scrollbar only when needed */
+  overflow-x: hidden;
   background-color: #f8f9fa;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  scroll-behavior: smooth; /* For smoother scrolling */
-  max-width: 100%; /* Ensure it doesn't exceed the parent width */
+  min-height: 0; /* Critical for flexbox scrolling */
 }
 
 .message-wrapper {
   display: flex;
   width: 100%;
   max-width: 100%;
-  margin: 0;
-  padding: 0;
+  margin-bottom: 8px; /* Add space between messages */
 }
 
 .message {
-  max-width: 85%;
+  max-width: 90%;
   display: flex;
   gap: 8px;
 
@@ -155,20 +142,9 @@
     margin-left: auto;
 
     .message-bubble {
-      background-color: #0d6efd;
+      background-color: #007bff; /* Match lab primary color */
       color: white;
       border-radius: 18px 18px 4px 18px;
-
-      pre {
-        background-color: rgba(255, 255, 255, 0.2);
-        border-color: rgba(255, 255, 255, 0.3);
-      }
-
-      code {
-        color: white;
-        background-color: rgba(255, 255, 255, 0.2);
-        white-space: pre-wrap; /* Allow code to wrap */
-      }
     }
 
     .message-time {
@@ -184,17 +160,6 @@
       color: #212529;
       border-radius: 18px 18px 18px 4px;
       border: 1px solid #e9ecef;
-
-      pre {
-        background-color: #f8f9fa;
-        border-color: #e9ecef;
-      }
-
-      code {
-        color: #212529;
-        background-color: #f8f9fa;
-        white-space: pre-wrap; /* Allow code to wrap */
-      }
     }
   }
 
@@ -232,8 +197,8 @@
 }
 
 .message-avatar {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -241,10 +206,10 @@
   flex-shrink: 0;
 
   i {
-    font-size: 18px;
+    font-size: 16px;
 
     &.bi-person-circle {
-      color: #0d6efd;
+      color: #007bff; /* Match lab primary color */
     }
 
     &.bi-robot {
@@ -258,7 +223,7 @@
   flex-direction: column;
   gap: 4px;
   max-width: 100%;
-  min-width: 0; /* This is important to allow flex items to shrink below their content size */
+  min-width: 0;
 }
 
 .message-bubble {
@@ -266,15 +231,16 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   max-width: 100%;
   word-wrap: break-word;
-  white-space: normal; /* Prevent white-space issues */
-  overflow-wrap: break-word; /* Modern browsers */
-  hyphens: auto; /* Allow hyphenation */
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .message-text {
   font-size: 14px;
   line-height: 1.5;
   max-width: 100%;
+  overflow-wrap: break-word; /* Ensure text wraps properly */
 
   p {
     margin: 0 0 8px 0;
@@ -286,21 +252,54 @@
     }
   }
 
-  pre {
-    padding: 10px;
-    border-radius: 6px;
-    overflow-x: auto; /* Allow scrolling in code blocks instead of expanding the container */
-    margin: 8px 0;
-    font-size: 13px;
-    max-width: 100%;
+  /* Special code blocks for shell scripts and normal code */
+  .shell-script-container,
+  .code-container {
+    display: block !important;
+    margin: 8px 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
   }
 
-  code {
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-size: 90%;
-    max-width: 100%;
-    white-space: pre-wrap; /* Allow wrapping for inline code */
+  .shell-script,
+  .code-content {
+    display: block !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: pre !important;
+    word-break: keep-all !important;
+    word-wrap: normal !important;
+    font-family: monospace, monospace !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    padding: 10px !important;
+    margin: 0 !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border-radius: 6px !important;
+    background-color: rgba(0, 0, 0, 0.03) !important;
+    color: inherit !important;
+  }
+
+  /* Special styling for shell scripts */
+  .shell-script-container .shell-script {
+    border-left: 3px solid #28a745 !important;
+  }
+
+  .code-container .code-content {
+    border-left: 1px solid rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .inline-code {
+    font-family: monospace, monospace !important;
+    font-size: 90% !important;
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    padding: 2px 4px !important;
+    border-radius: 4px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    color: inherit !important;
   }
 }
 
@@ -335,6 +334,7 @@
   display: flex;
   gap: 8px;
   background-color: white;
+  flex-shrink: 0; /* Prevent from shrinking */
 
   .message-input {
     flex: 1;
@@ -349,8 +349,8 @@
     min-height: 42px;
 
     &:focus {
-      border-color: #0d6efd;
-      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+      border-color: #007bff; /* Match lab primary color */
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     }
 
     &:disabled {
@@ -363,7 +363,7 @@
     width: 42px;
     height: 42px;
     border-radius: 50%;
-    background-color: #0d6efd;
+    background-color: #007bff; /* Match lab primary color */
     color: white;
     border: none;
     display: flex;
@@ -374,7 +374,7 @@
     transition: background-color 0.2s;
 
     &:hover:not(:disabled) {
-      background-color: #0b5ed7;
+      background-color: #0069d9;
     }
 
     &:disabled {
@@ -389,7 +389,7 @@
   }
 }
 
-/* Additional responsive element classes */
+/* Ensure tables and images display properly */
 .responsive-table {
   width: 100%;
   max-width: 100%;
@@ -409,25 +409,11 @@
   overflow-wrap: break-word;
 }
 
-/* Force images and other media to fit within the container */
 .message-text img,
 .message-text video,
 .message-text iframe {
   max-width: 100%;
   height: auto;
-}
-
-/* For mobile/tablet responsiveness */
-@media (max-width: 768px) {
-  .chatbot-widget {
-    width: 320px;
-    bottom: 15px;
-    right: 15px;
-
-    &.minimized {
-      width: 200px;
-    }
-  }
 }
 
 @keyframes dot-typing {
@@ -458,5 +444,13 @@
   100% {
     box-shadow: 9984px 0 0 0 #6c757d, 9999px 0 0 0 #6c757d,
       10014px 0 0 0 #6c757d;
+  }
+}
+
+/* Responsive design to match lab component */
+@media (max-width: 768px) {
+  .chatbot-widget {
+    border-left: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
   }
 }

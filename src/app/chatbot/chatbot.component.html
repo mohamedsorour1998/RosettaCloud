@@ -1,4 +1,4 @@
-<div class="chatbot-widget" [class.minimized]="isMinimized">
+<div class="chatbot-widget">
   <div class="chatbot-header">
     <div class="title-area">
       <span class="status-indicator" [class.connected]="isConnected"></span>
@@ -20,17 +20,11 @@
           [class.bi-info-circle]="!showSources"
         ></i>
       </button>
-      <button class="action-btn" (click)="toggleMinimize()" title="Minimize">
-        <i
-          class="bi"
-          [class.bi-dash-lg]="!isMinimized"
-          [class.bi-plus-lg]="isMinimized"
-        ></i>
-      </button>
+      <!-- No minimize button as requested -->
     </div>
   </div>
 
-  <div class="chatbot-body" *ngIf="!isMinimized">
+  <div class="chatbot-body">
     <!-- Sources panel (if visible) -->
     <div class="sources-panel" *ngIf="showSources && sources.length > 0">
       <h4>Reference Sources</h4>
@@ -45,7 +39,7 @@
     </div>
 
     <!-- Chat messages -->
-    <div class="chat-container" #chatContainer>
+    <div class="chat-container" #chatContainer (scroll)="onScroll($event)">
       <div class="message-wrapper" *ngFor="let message of messages">
         <div class="message" [ngClass]="getRoleClass(message.role)">
           <!-- Avatar/Icon based on role -->

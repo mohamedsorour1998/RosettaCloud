@@ -7,8 +7,6 @@ import {
   ViewChild,
   ElementRef,
   AfterViewChecked,
-  Output,
-  EventEmitter,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -32,7 +30,6 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('chatContainer') chatContainer!: ElementRef;
   @ViewChild('messageInput') messageInput!: ElementRef;
-  @Output() toggleChatbot = new EventEmitter<void>();
 
   messages: ChatMessage[] = [];
   sources: Source[] = [];
@@ -40,7 +37,11 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   isConnected = false;
   currentMessage = '';
   showSources = false;
-  isMinimized = false;
+
+  // Track scroll position
+  private shouldAutoScroll = true;
+  private lastScrollHeight = 0;
+  private pendingMessages = false;
 
   private subscriptions: Subscription[] = [];
 
@@ -54,8 +55,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.push(
       this.chatbotService.messages$.subscribe((messages) => {
         this.messages = messages;
-        // Ensure proper scrolling when messages are updated
-        this.ensureProperScrolling();
+        this.pendingMessages = true;
       })
     );
 
@@ -82,8 +82,11 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngAfterViewChecked(): void {
-    // Skip the automatic scrolling here to avoid conflicts with controlled scrolling
-    // We'll handle scrolling explicitly in message updates and sends
+    // Check if we need to scroll after view update
+    if (this.pendingMessages) {
+      this.scrollToBottom();
+      this.pendingMessages = false;
+    }
   }
 
   ngOnDestroy(): void {
@@ -95,24 +98,16 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     const message = this.currentMessage.trim();
     if (!message) return;
 
+    // Always auto-scroll when user sends a message
+    this.shouldAutoScroll = true;
+
     this.chatbotService.sendMessage(message);
     this.currentMessage = '';
 
-    // Wait for change detection to complete before scrolling
-    setTimeout(() => {
-      this.scrollToBottom();
-
-      // Focus back on input field
-      if (this.messageInput?.nativeElement) {
-        this.messageInput.nativeElement.focus();
-      }
-    }, 50); // Increased timeout to ensure DOM updates
-  }
-
-  // Add a method to ensure proper scrolling when new messages arrive
-  ensureProperScrolling(): void {
-    // Wait for the changes to be applied to the DOM
-    setTimeout(() => this.scrollToBottom(), 50);
+    // Focus back on input field
+    if (this.messageInput?.nativeElement) {
+      this.messageInput.nativeElement.focus();
+    }
   }
 
   clearChat(): void {
@@ -123,43 +118,49 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.showSources = !this.showSources;
   }
 
-  toggleMinimize(): void {
-    this.isMinimized = !this.isMinimized;
-    this.toggleChatbot.emit();
-  }
-
-  // Improved message formatting function
+  // Specialized format message function for handling shell scripts
   formatMessage(content: string): SafeHtml {
     try {
-      // Basic formatting for code blocks
+      // First look for shell script blocks with shebang
       let formattedContent = content
-        // Format code blocks with triple backticks - ensure they don't expand beyond container
+        // Special handling for code blocks with shebang (#!)
         .replace(
-          /```([a-zA-Z]*)([\s\S]*?)```/g,
-          '<pre><code class="$1">$2</code></pre>'
+          /```([a-zA-Z]*)([\s\S]*?)(#!\/bin\/[a-z]*[\s\S]*?)```/g,
+          (match, language, beforeShebang, fromShebangOn) => {
+            // Create a container div with special styling
+            return `<div class="shell-script-container"><pre class="shell-script">${this.escapeHtml(
+              beforeShebang + fromShebangOn
+            )}</pre></div>`;
+          }
         )
-        // Format inline code with single backticks
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        // Convert newlines to line breaks
+        // Handle regular code blocks
+        .replace(/```([a-zA-Z]*)([\s\S]*?)```/g, (match, language, code) => {
+          // Only apply if the previous regex didn't match
+          if (!match.includes('#!/bin/')) {
+            return `<div class="code-container"><pre class="code-content">${this.escapeHtml(
+              code
+            )}</pre></div>`;
+          }
+          return match; // Should be caught by first regex
+        })
+        // Handle inline code
+        .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+        // Convert newlines to breaks
         .replace(/\n/g, '<br>')
-        // Handle paragraphs for readability
+        // Paragraph handling
         .replace(/<br><br>/g, '</p><p>');
 
-      // Wrap in paragraph if not already wrapped
+      // Wrap in paragraph if not already
       if (!formattedContent.startsWith('<p>')) {
         formattedContent = '<p>' + formattedContent + '</p>';
       }
 
-      // Remove any horizontal overflow causing elements
+      // Additional replacements for responsive elements
       formattedContent = formattedContent
-        // Add class to ensure tables don't cause overflow
         .replace(/<table/g, '<table class="responsive-table"')
-        // Add classes to images to ensure they're responsive
         .replace(/<img/g, '<img class="responsive-img"')
-        // Ensure links don't overflow
         .replace(/<a /g, '<a class="break-word" ');
 
-      // Sanitize HTML to prevent XSS
       return this.sanitizer.bypassSecurityTrustHtml(formattedContent);
     } catch (error) {
       console.error('Error formatting message:', error);
@@ -167,15 +168,29 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  // Improved scrolling function using requestAnimationFrame
+  // Helper to escape HTML special characters
+  private escapeHtml(unsafe: string): string {
+    return unsafe
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Scrolling function - reliable for Angular
   private scrollToBottom(): void {
     try {
-      if (this.chatContainer) {
-        // Use requestAnimationFrame to ensure the DOM has updated before scrolling
-        window.requestAnimationFrame(() => {
-          const container = this.chatContainer.nativeElement;
+      if (this.chatContainer && this.shouldAutoScroll) {
+        const container = this.chatContainer.nativeElement;
+
+        // Use setTimeout to ensure this happens after layout calculations
+        setTimeout(() => {
           container.scrollTop = container.scrollHeight;
-        });
+
+          // Record last scroll height
+          this.lastScrollHeight = container.scrollHeight;
+        }, 0);
       }
     } catch (err) {
       console.error('Error scrolling to bottom:', err);
@@ -190,8 +205,25 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
+  // Track when user manually scrolls
+  onScroll(event: Event): void {
+    if (this.chatContainer) {
+      const element = this.chatContainer.nativeElement;
+
+      // Check if scrolled near bottom (within 30px)
+      const atBottom =
+        Math.abs(
+          element.scrollHeight - element.clientHeight - element.scrollTop
+        ) < 30;
+
+      this.shouldAutoScroll = atBottom;
+
+      // Track last known scroll height
+      this.lastScrollHeight = element.scrollHeight;
+    }
+  }
+
   getSourceDisplayName(source: Source): string {
-    // Extract filename from path if available
     return (
       source.filename ||
       (source.path ? source.path.split('/').pop() || '' : 'Unknown file')
