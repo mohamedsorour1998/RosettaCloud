@@ -404,7 +404,13 @@
   display: flex;
   flex-direction: column;
 }
-
+.chatbot-panel > app-chatbot {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
 /* overlays */
 .lab-loading,
 .lab-error {
@@ -504,4 +510,14 @@
 .wifi-icon {
   margin-right: 0.4rem;
   font-size: 1rem;
+}
+@media (max-width: 768px) {
+  .chatbot-panel {
+    width: 100%;
+    min-width: 100%;
+    height: 400px; /* Fixed height on mobile */
+    order: 3;
+    border-left: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
 }
