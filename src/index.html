@@ -6,25 +6,21 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
-    />
     <meta
       http-equiv="Content-Security-Policy"
       content="
-default-src 'self';
-script-src 'self' https: 'unsafe-inline' 'unsafe-eval';
-worker-src 'self' blob:;
-frame-src 'self' https: http:;
-style-src 'self' 'unsafe-inline' https:;
-font-src 'self' https:;
-img-src 'self' data: https:;
-connect-src 'self' http: https: ws: wss:;
-"
+               default-src 'self';
+               script-src 'self' https: 'unsafe-inline' 'unsafe-eval';
+               worker-src 'self' blob:;
+               frame-src 'self' https: http:;
+               style-src 'self' 'unsafe-inline' https:;
+               font-src 'self' https:;
+               img-src 'self' data: https:;
+               connect-src 'self' http: https: ws: wss:;
+               "
     />
   </head>
-  <body>
+  <body data-bs-theme="dark">
     <app-root></app-root>
   </body>
 </html>

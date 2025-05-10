@@ -100,19 +100,34 @@
 }
 
 .feature-card {
+  /* basic appearance --------------------------------------------------- */
   border-radius: 1rem;
   overflow: hidden;
   border: none;
   background-color: #212529;
-  color: white;
+  color: #fff;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  /* NEW: make every card equal‑height & vertically centred ------------- */
+  display: flex; /* card itself is a flex‑box                 */
+  flex-direction: column; /* stack body content top‑to‑bottom           */
+  height: 100%;
+
+  .card-body {
+    flex: 1 1 auto; /* stretch to fill unused space               */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* centre icon/text vertically                */
+    padding: 2rem; /* consistent inner spacing                   */
+  }
 
   &:hover {
     transform: translateY(-10px);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   }
 
+  /* highlighted (middle) card ----------------------------------------- */
   &.featured {
     background: linear-gradient(135deg, #1a0536 0%, #1e3c72 100%);
     position: relative;
@@ -133,10 +148,11 @@
     }
   }
 
+  /* icon circle -------------------------------------------------------- */
   .icon-wrapper {
     width: 80px;
     height: 80px;
-    margin: 0 auto;
+    margin: 0 auto 1.5rem;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 50%;
     display: flex;
@@ -157,6 +173,13 @@
     font-size: 1rem;
     line-height: 1.6;
     color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* Prevent overlap with hero on very small screens */
+@media (max-width: 576px) {
+  .features-section {
+    margin-top: 0;
   }
 }
 

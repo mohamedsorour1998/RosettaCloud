@@ -1,15 +1,22 @@
 import {
   Component,
   OnInit,
-  HostListener,
-  ElementRef,
+  AfterViewInit,
   OnDestroy,
+  ViewChild,
+  ViewChildren,
+  ElementRef,
+  QueryList,
 } from '@angular/core';
+import { Router, NavigationStart, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router, NavigationStart } from '@angular/router';
+import { Subscription, filter } from 'rxjs';
+
 import { UserService, User } from '../services/user.service';
-import { Subscription } from 'rxjs';
-import { filter } from 'rxjs/operators';
+
+/* Bootstrap ESM modules */
+import Collapse from 'bootstrap/js/dist/collapse';
+import Dropdown from 'bootstrap/js/dist/dropdown';
 
 @Component({
   selector: 'app-navbar',
@@ -18,90 +25,83 @@ import { filter } from 'rxjs/operators';
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss'],
 })
-export class NavbarComponent implements OnInit, OnDestroy {
-  isCollapsed = true;
+export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
+  /* ------------------------------------------------------------------ */
   isLoggedIn = false;
-  isDropdownOpen = false;
   currentUser: User | null = null;
 
-  private subscriptions: Subscription[] = [];
+  /* collapse (burger) */
+  @ViewChild('collapseRef', { static: false })
+  collapseEl!: ElementRef<HTMLElement>;
+  private collapse?: Collapse;
 
-  constructor(
-    private userService: UserService,
-    private router: Router,
-    private elementRef: ElementRef
-  ) {}
+  /* avatar dropdowns */
+  @ViewChildren('dropToggle')
+  dropToggles!: QueryList<ElementRef<HTMLElement>>;
+  private dropdowns: Dropdown[] = [];
+
+  private subs: Subscription[] = [];
+
+  /* ------------------------------------------------------------------ */
+  constructor(private userSvc: UserService, private router: Router) {}
 
   ngOnInit(): void {
-    // Subscribe to user changes
-    this.subscriptions.push(
-      this.userService.currentUser$.subscribe((user) => {
-        this.currentUser = user;
-        this.isLoggedIn = !!user;
+    this.subs.push(
+      this.userSvc.currentUser$.subscribe((u) => {
+        this.currentUser = u;
+        this.isLoggedIn = !!u;
+        this.refreshDropdowns();
       })
     );
 
-    // Close dropdown on navigation
-    this.subscriptions.push(
+    /* Auto‑close burger when navigating */
+    this.subs.push(
       this.router.events
-        .pipe(filter((event) => event instanceof NavigationStart))
-        .subscribe(() => {
-          this.isDropdownOpen = false;
-          this.isCollapsed = true;
-        })
+        .pipe(filter((e) => e instanceof NavigationStart))
+        .subscribe(() => this.collapse?.hide())
     );
   }
 
-  ngOnDestroy(): void {
-    // Clean up subscriptions
-    this.subscriptions.forEach((sub) => sub.unsubscribe());
+  ngAfterViewInit(): void {
+    this.collapse = new Collapse(this.collapseEl.nativeElement, {
+      toggle: false,
+    });
+
+    /* build dropdowns initially + whenever toggles list changes */
+    this.dropToggles.changes.subscribe(() => this.refreshDropdowns());
+    this.refreshDropdowns();
   }
 
-  toggleNavbar(): void {
-    this.isCollapsed = !this.isCollapsed;
-  }
-
-  toggleDropdown(event: Event): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDropdownOpen = !this.isDropdownOpen;
-  }
-
-  // Close dropdown when clicking outside
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    // Check if click target is outside the component
-    if (!this.elementRef.nativeElement.contains(event.target)) {
-      this.isDropdownOpen = false;
-      return;
-    }
-
-    // Check if click target is outside the dropdown
-    const target = event.target as HTMLElement;
-    if (
-      this.isDropdownOpen &&
-      !target.closest('.dropdown-menu') &&
-      !target.closest('.user-dropdown-toggle')
-    ) {
-      this.isDropdownOpen = false;
-    }
-  }
-
-  getUserInitials(): string {
+  /* ------------------------------------------------------------------ */
+  get initials(): string {
     if (!this.currentUser?.name) return 'U';
-
-    const nameParts = this.currentUser.name.split(' ');
-    if (nameParts.length === 1) {
-      return nameParts[0].charAt(0).toUpperCase();
-    }
-
-    return (
-      nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)
-    ).toUpperCase();
+    const p = this.currentUser.name.trim().split(/\s+/);
+    return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
   }
 
   logout(): void {
-    this.userService.logout();
+    this.userSvc.logout();
     this.router.navigate(['/']);
+    this.collapse?.hide();
+  }
+
+  /* ------------------------------------------------------------------ */
+  private refreshDropdowns(): void {
+    /* dispose old instances */
+    this.dropdowns.forEach((d) => d.dispose());
+    this.dropdowns = [];
+
+    /* create new ones if logged‑in */
+    if (this.isLoggedIn) {
+      this.dropdowns = this.dropToggles.map(
+        (el) => new Dropdown(el.nativeElement) // default autoClose behaviour
+      );
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.subs.forEach((s) => s.unsubscribe());
+    this.dropdowns.forEach((d) => d.dispose());
+    this.collapse?.dispose();
   }
 }

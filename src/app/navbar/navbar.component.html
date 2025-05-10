@@ -1,88 +1,84 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
-    <a class="navbar-brand" routerLink="/">RosettaCloud</a>
-
+    <!-- Brand -->
+    <a class="navbar-brand d-flex align-items-center gap-2" routerLink="/">
+      <img src="/rosettacloud.jpg" alt="RosettaCloud logo" class="brand-logo" />
+      <span class="brand-text">RosettaCloud</span>
+    </a>
+    <!-- Burger button -->
     <button
       class="navbar-toggler"
       type="button"
-      (click)="toggleNavbar()"
-      aria-controls="navbarNav"
+      data-bs-toggle="collapse"
+      data-bs-target="#rcCollapse"
+      aria-controls="rcCollapse"
       aria-expanded="false"
       aria-label="Toggle navigation"
     >
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <div
-      class="collapse navbar-collapse"
-      [ngClass]="{ show: !isCollapsed }"
-      id="navbarNav"
-    >
+    <!-- Collapsible area -->
+    <div #collapseRef id="rcCollapse" class="collapse navbar-collapse">
       <ul class="navbar-nav ms-auto">
-        <!-- Features -->
+        <!-- Static links -->
         <li class="nav-item">
           <a
             class="nav-link"
             routerLink="/features"
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }"
+            >Features</a
           >
-            Features
-          </a>
         </li>
-
-        <!-- Pricing -->
         <li class="nav-item">
           <a
             class="nav-link"
             routerLink="/pricing"
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }"
+            >Pricing</a
           >
-            Pricing
-          </a>
         </li>
-
-        <!-- Instructors -->
         <li class="nav-item">
           <a
             class="nav-link"
             routerLink="/instructors"
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }"
+            >Instructors</a
           >
-            Instructors
-          </a>
         </li>
 
-        <!-- Not Logged In -->
+        <!-- Guest -->
         <ng-container *ngIf="!isLoggedIn">
           <li class="nav-item">
             <a class="btn btn-outline-light me-2" routerLink="/login">Login</a>
           </li>
           <li class="nav-item">
-            <a class="btn btn-primary" routerLink="/register">Sign Up</a>
+            <a class="btn btn-primary" routerLink="/register">Sign Up</a>
           </li>
         </ng-container>
 
-        <!-- Logged In -->
-        <li class="nav-item dropdown" *ngIf="isLoggedIn">
+        <!-- Logged‑in user -->
+        <li *ngIf="isLoggedIn" class="nav-item dropdown">
           <a
-            class="nav-link dropdown-toggle user-dropdown-toggle"
+            #dropToggle
+            class="nav-link dropdown-toggle d-flex align-items-center"
             href="#"
-            id="navbarDropdown"
+            id="userDrop"
             role="button"
-            (click)="toggleDropdown($event)"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
           >
             <div class="user-avatar">
-              <span>{{ getUserInitials() }}</span>
+              <span>{{ initials }}</span>
             </div>
           </a>
 
           <ul
             class="dropdown-menu dropdown-menu-end"
-            [class.show]="isDropdownOpen"
-            aria-labelledby="navbarDropdown"
+            aria-labelledby="userDrop"
           >
             <li class="dropdown-header">
               <strong>{{ currentUser?.name }}</strong>
