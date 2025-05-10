@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Question Number: 5
+# Question Number: 6
 # Question: Create a Kubernetes deployment manifest file at /home/coder/lab/nginx-deployment.yaml that deploys 3 replicas of the nginx:latest image.
 # Question Type: Check
 # Question Difficulty: Medium

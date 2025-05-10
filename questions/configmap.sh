@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Question Number: 4
+# Question Number: 5
 # Question: Create a Kubernetes ConfigMap manifest at /home/coder/lab/app-config.yaml that defines a ConfigMap named "app-config" in the default namespace with a key "DATABASE_URL" set to "postgres://user:password@db:5432/app".
 # Question Type: Check
 # Question Difficulty: Medium
