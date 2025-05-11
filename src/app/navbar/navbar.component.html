@@ -10,8 +10,7 @@
     <button
       class="navbar-toggler"
       type="button"
-      data-bs-toggle="collapse"
-      data-bs-target="#rcCollapse"
+      (click)="toggleMenu()"
       aria-controls="rcCollapse"
       aria-expanded="false"
       aria-label="Toggle navigation"
@@ -52,8 +51,12 @@
         </li>
 
         <!-- Theme Toggle -->
-        <li class="nav-item d-flex align-items-center me-2">
-          <button class="theme-toggle" (click)="toggleTheme()">
+        <li class="nav-item d-flex align-items-center">
+          <button
+            class="theme-toggle"
+            (click)="toggleTheme()"
+            aria-label="Toggle dark mode"
+          >
             <i
               class="bi"
               [ngClass]="{
@@ -64,21 +67,21 @@
           </button>
         </li>
 
-        <!-- Guest -->
+        <!-- Guest - Grouped in auth-buttons container -->
         <ng-container *ngIf="!isLoggedIn">
-          <li class="nav-item">
-            <a class="btn btn-outline-light me-2" routerLink="/login">Login</a>
-          </li>
-          <li class="nav-item">
-            <a class="btn btn-primary" routerLink="/register">Sign Up</a>
-          </li>
+          <div class="auth-buttons">
+            <li class="nav-item">
+              <a class="btn btn-outline-primary" routerLink="/login">Login</a>
+            </li>
+            <li class="nav-item">
+              <a class="btn btn-primary" routerLink="/register">Sign Up</a>
+            </li>
+          </div>
         </ng-container>
 
         <!-- Logged‑in user -->
         <li *ngIf="isLoggedIn" class="nav-item dropdown">
           <a
-            #dropToggle
-            id="userDrop"
             class="nav-link dropdown-toggle d-flex align-items-center"
             href="#"
             role="button"

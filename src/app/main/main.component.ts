@@ -54,5 +54,22 @@ export class MainComponent implements OnInit {
     { value: '92%', label: 'Employment Rate', icon: 'bi-briefcase-fill' },
   ];
 
-  ngOnInit(): void {}
+  constructor() {}
+
+  ngOnInit(): void {
+    // Initialize any future component setup tasks
+    this.checkPreferredTheme();
+  }
+
+  /**
+   * Check user's preferred theme and apply it if set
+   * This can be expanded to use localStorage or user preferences from API
+   */
+  private checkPreferredTheme(): void {
+    // Example implementation:
+    // const savedTheme = localStorage.getItem('theme');
+    // if (savedTheme) {
+    //   document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    // }
+  }
 }

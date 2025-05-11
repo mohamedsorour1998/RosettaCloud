@@ -1,31 +1,48 @@
 <div class="chatbot-widget">
+  <!-- Header Section -->
   <div class="chatbot-header">
     <div class="title-area">
-      <span class="status-indicator" [class.connected]="isConnected"></span>
-      <h3>RosettaCloud Assistant</h3>
+      <div
+        class="status-indicator"
+        [class.connected]="isConnected"
+        [title]="isConnected ? 'Connected' : 'Disconnected'"
+      ></div>
+      <h3>RosettaCloud AI</h3>
     </div>
     <div class="actions">
-      <button class="action-btn" (click)="clearChat()" title="Clear chat">
-        <i class="bi bi-trash"></i>
-      </button>
       <button
         class="action-btn"
         (click)="toggleSources()"
         *ngIf="sources.length > 0"
-        title="Toggle sources"
+        title="Reference Sources"
       >
         <i
           class="bi"
-          [class.bi-info-circle-fill]="showSources"
-          [class.bi-info-circle]="!showSources"
+          [ngClass]="{
+            'bi-info-circle-fill': showSources,
+            'bi-info-circle': !showSources
+          }"
         ></i>
+      </button>
+      <button class="action-btn" (click)="clearChat()" title="Clear Chat">
+        <i class="bi bi-trash"></i>
       </button>
     </div>
   </div>
 
+  <!-- Main Chat Body -->
   <div class="chatbot-body">
-    <div class="sources-panel" *ngIf="showSources && sources.length > 0">
-      <h4>Reference Sources</h4>
+    <!-- Sources Panel - Slide in from right when active -->
+    <div
+      class="sources-panel"
+      [ngClass]="{ active: showSources && sources.length > 0 }"
+    >
+      <div class="sources-header">
+        <h4>Reference Sources</h4>
+        <button class="close-sources-btn" (click)="toggleSources()">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
       <ul class="sources-list">
         <li *ngFor="let source of sources">
           <div class="source-item">
@@ -35,16 +52,60 @@
         </li>
       </ul>
     </div>
+
+    <!-- Main Chat Area -->
     <div class="chat-container" #chatContainer (scroll)="onScroll($event)">
-      <div class="message-wrapper" *ngFor="let message of messages">
+      <!-- Welcome Message -->
+      <div *ngIf="messages.length === 0" class="welcome-message">
+        <div class="welcome-icon">
+          <i class="bi bi-robot"></i>
+        </div>
+        <h4>Welcome to RosettaCloud Assistant</h4>
+        <p>
+          Ask me anything about your labs, assignments, or coding questions!
+        </p>
+        <div class="example-queries">
+          <button
+            class="example-query"
+            (click)="useExampleQuery('How do I set up a React project?')"
+          >
+            How do I set up a React project?
+          </button>
+          <button
+            class="example-query"
+            (click)="useExampleQuery('What are the common Git commands?')"
+          >
+            What are the common Git commands?
+          </button>
+          <button
+            class="example-query"
+            (click)="useExampleQuery('Explain the CSS box model')"
+          >
+            Explain the CSS box model
+          </button>
+        </div>
+      </div>
+
+      <!-- Chat Messages -->
+      <div
+        class="message-wrapper"
+        *ngFor="let message of messages; let i = index; let last = last"
+        [ngClass]="{ 'first-message': i === 0, 'last-message': last }"
+      >
         <div class="message" [ngClass]="getRoleClass(message.role)">
+          <!-- Avatar for User and Assistant messages -->
           <div
             class="message-avatar"
             *ngIf="message.role === 'user' || message.role === 'assistant'"
+            [ngClass]="
+              message.role === 'user' ? 'user-avatar' : 'assistant-avatar'
+            "
           >
-            <i *ngIf="message.role === 'user'" class="bi bi-person-circle"></i>
+            <i *ngIf="message.role === 'user'" class="bi bi-person"></i>
             <i *ngIf="message.role === 'assistant'" class="bi bi-robot"></i>
           </div>
+
+          <!-- Message Content -->
           <div class="message-content">
             <div class="message-bubble">
               <div
@@ -52,32 +113,84 @@
                 [innerHTML]="formatMessage(message.content)"
               ></div>
             </div>
-            <div class="message-time" *ngIf="message.role !== 'system'">
-              {{ message.timestamp | date : "shortTime" }}
+            <div class="message-meta" *ngIf="message.role !== 'system'">
+              <span class="message-time">{{
+                message.timestamp | date : "shortTime"
+              }}</span>
+
+              <!-- Copy and Thumbs up/down options for assistant messages -->
+              <div class="message-actions" *ngIf="message.role === 'assistant'">
+                <button
+                  class="action-btn copy-btn"
+                  (click)="copyMessage(message.content)"
+                  title="Copy to clipboard"
+                >
+                  <i class="bi bi-clipboard"></i>
+                </button>
+                <button
+                  class="action-btn thumbs-up-btn"
+                  (click)="rateMessage(message, 'up')"
+                  title="This was helpful"
+                >
+                  <i class="bi bi-hand-thumbs-up"></i>
+                </button>
+                <button
+                  class="action-btn thumbs-down-btn"
+                  (click)="rateMessage(message, 'down')"
+                  title="This wasn't helpful"
+                >
+                  <i class="bi bi-hand-thumbs-down"></i>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Loading Indicator -->
       <div class="loading-indicator" *ngIf="isLoading">
-        <div class="dot-typing"></div>
+        <div class="loading-animation">
+          <div class="dot dot-1"></div>
+          <div class="dot dot-2"></div>
+          <div class="dot dot-3"></div>
+        </div>
+        <div class="loading-text">Processing your request...</div>
       </div>
+
+      <!-- Scroll to Bottom Button -->
+      <button
+        class="scroll-bottom-btn"
+        *ngIf="!shouldAutoScroll && messages.length > 0"
+        (click)="scrollToBottomManually()"
+      >
+        <i class="bi bi-chevron-down"></i>
+      </button>
     </div>
+
+    <!-- Input Area -->
     <div class="input-area">
       <textarea
         #messageInput
         class="message-input"
-        placeholder="Ask a lab question..."
+        placeholder="Ask a question or send a message..."
         [(ngModel)]="currentMessage"
         (keydown)="onKeyDown($event)"
         [disabled]="!isConnected || isLoading"
+        rows="1"
+        [style.height.px]="textareaHeight"
+        (input)="adjustTextareaHeight()"
       ></textarea>
-      <button
-        class="send-button"
-        (click)="sendMessage()"
-        [disabled]="!currentMessage.trim() || !isConnected || isLoading"
-      >
-        <i class="bi bi-send"></i>
-      </button>
+
+      <div class="input-actions">
+        <button
+          class="send-button"
+          (click)="sendMessage()"
+          [disabled]="!currentMessage.trim() || !isConnected || isLoading"
+          [ngClass]="{ active: currentMessage.trim() }"
+        >
+          <i class="bi bi-send-fill"></i>
+        </button>
+      </div>
     </div>
   </div>
 </div>

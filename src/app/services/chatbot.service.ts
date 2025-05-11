@@ -7,6 +7,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'error';
   content: string;
   timestamp: Date;
+  id?: string;
 }
 
 export interface Source {

@@ -1,12 +1,15 @@
+<!-- Hero Section -->
 <div class="features-hero">
   <div class="container text-center py-5">
-    <h1 class="display-4 mb-3">Powerful Features for Effective Learning</h1>
-    <p class="lead mb-4">
+    <h1 class="display-4 mb-3 animate-fade-in-down">
+      Powerful Features for Effective Learning
+    </h1>
+    <p class="lead mb-4 animate-fade-in">
       Discover the tools and resources that make RosettaCloud the leading tech
       education platform in MENA
     </p>
-    <div class="hero-cta">
-      <a routerLink="/register" class="btn btn-primary btn-lg me-3"
+    <div class="hero-cta animate-fade-in-up">
+      <a routerLink="/register" class="btn btn-light btn-lg me-md-3"
         >Start Learning Now</a
       >
       <a href="#features" class="btn btn-outline-secondary btn-lg"
@@ -20,17 +23,17 @@
   <!-- Main Features Section -->
   <section id="features" class="features-grid py-5">
     <div class="text-center mb-5">
-      <h2>Platform Features</h2>
+      <h2 class="mb-3">Platform Features</h2>
       <p class="lead text-muted">
         Everything you need to master software development
       </p>
     </div>
 
-    <div class="row">
-      <div *ngFor="let feature of features" class="col-md-6 col-lg-4 mb-4">
+    <div class="row g-4">
+      <div *ngFor="let feature of features" class="col-md-6 col-lg-4">
         <div class="feature-card h-100">
           <div class="feature-icon">
-            <i class="bi {{ feature.icon }}"></i>
+            <i class="bi" [ngClass]="feature.icon"></i>
           </div>
           <h3 class="feature-title">{{ feature.title }}</h3>
           <p class="feature-description">{{ feature.description }}</p>
@@ -40,7 +43,7 @@
   </section>
 
   <!-- Interactive Demo Section -->
-  <section class="interactive-demo py-5 my-5">
+  <section class="interactive-demo my-5 p-4 p-md-5 rounded">
     <div class="row align-items-center">
       <div class="col-lg-6 mb-4 mb-lg-0">
         <div class="demo-content">
@@ -74,12 +77,119 @@
       </div>
       <div class="col-lg-6">
         <div class="demo-image">
-          <!-- <img
-            src="assets/features/coding-lab-demo.png"
-            alt="Interactive Coding Lab"
-            class="img-fluid rounded shadow-lg"
-            onerror="this.src='https://via.placeholder.com/600x400?text=Interactive+Lab'"
-          /> -->
+          <div class="code-editor-preview">
+            <div class="code-editor-header">
+              <span class="window-control"></span>
+              <span class="window-control"></span>
+              <span class="window-control"></span>
+              <div class="file-name">main.js</div>
+            </div>
+            <div class="code-editor-body">
+              <!-- Redesigned code editor content to avoid curly brace issues -->
+              <div class="code-content">
+                <div class="code-line">
+                  <span class="keyword">function</span>
+                  <span class="function-name">analyzeData</span
+                  ><span class="plain">(dataset) &#123;</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">const</span>
+                  <span class="plain">results = &#123;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">average: </span
+                  ><span class="number">0</span><span class="plain">,</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">max: </span
+                  ><span class="number">-Infinity</span
+                  ><span class="plain">,</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">min: </span
+                  ><span class="number">Infinity</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="plain">&#125;;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">if</span>
+                  <span class="plain">(!dataset || dataset.length === </span
+                  ><span class="number">0</span
+                  ><span class="plain">) &#123;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="keyword">return</span>
+                  <span class="plain">results;</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="plain">&#125;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-1">
+                  <span class="comment">// Calculate statistics</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">let</span>
+                  <span class="plain">sum = </span><span class="number">0</span
+                  ><span class="plain">;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">for</span> <span class="plain">(</span
+                  ><span class="keyword">let</span>
+                  <span class="plain">i = </span><span class="number">0</span
+                  ><span class="plain">; i < dataset.length; i++) &#123;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="keyword">const</span>
+                  <span class="plain">value = dataset[i];</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">sum += value;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-2">
+                  <span class="keyword">if</span>
+                  <span class="plain">(value > results.max) &#123;</span>
+                </div>
+                <div class="code-line code-indented-3">
+                  <span class="plain">results.max = value;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">&#125;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-2">
+                  <span class="keyword">if</span>
+                  <span class="plain">(value < results.min) &#123;</span>
+                </div>
+                <div class="code-line code-indented-3">
+                  <span class="plain">results.min = value;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">&#125;</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="plain">&#125;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-1">
+                  <span class="plain"
+                    >results.average = sum / dataset.length;</span
+                  >
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">return</span>
+                  <span class="plain">results;</span>
+                </div>
+                <div class="code-line">
+                  <span class="plain">&#125;</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -94,11 +204,11 @@
       </p>
     </div>
 
-    <div class="row justify-content-center">
-      <div *ngFor="let feature of keyFeatures" class="col-md-4 mb-4">
+    <div class="row justify-content-center g-4">
+      <div *ngFor="let feature of keyFeatures" class="col-md-4">
         <div class="key-feature-card text-center h-100">
           <div class="key-feature-icon">
-            <i class="bi {{ feature.icon }}"></i>
+            <i class="bi" [ngClass]="feature.icon"></i>
           </div>
           <h3 class="key-feature-title">{{ feature.title }}</h3>
           <p class="key-feature-description">{{ feature.description }}</p>
@@ -114,20 +224,22 @@
       <p class="lead text-muted">Success stories from across the region</p>
     </div>
 
-    <div class="row">
-      <div *ngFor="let testimonial of testimonials" class="col-md-4 mb-4">
+    <div class="row g-4">
+      <div *ngFor="let testimonial of testimonials" class="col-md-4">
         <div class="testimonial-card h-100">
-          <div class="quote-icon">
-            <i class="bi bi-quote"></i>
+          <div class="quote-icon" aria-hidden="true">
+            <i class="bi bi-chat-quote"></i>
           </div>
           <p class="testimonial-quote">{{ testimonial.quote }}</p>
           <div class="testimonial-author">
-            <!-- <img
-              [src]="testimonial.imageUrl"
-              [alt]="testimonial.author"
-              class="author-image"
-              onerror="this.src='https://via.placeholder.com/60x60?text=User'"
-            /> -->
+            <div class="author-image-container">
+              <img
+                [src]="testimonial.imageUrl"
+                [alt]="testimonial.author"
+                class="author-image"
+                (error)="imageError($event)"
+              />
+            </div>
             <div class="author-info">
               <h5 class="author-name">{{ testimonial.author }}</h5>
               <p class="author-role">
@@ -148,73 +260,42 @@
         Our graduates work at top organizations across the region
       </p>
     </div>
-    <!--
     <div class="partner-logos">
       <div class="row align-items-center justify-content-center">
         <div class="col-4 col-md-2 mb-4 mb-md-0">
-          <img
-            src="assets/partners/logo1.png"
-            alt="Partner Company"
-            class="img-fluid partner-logo"
-            onerror="this.src='https://via.placeholder.com/150x60?text=Partner'"
-          />
+          <div class="partner-logo-placeholder">LOGO</div>
         </div>
         <div class="col-4 col-md-2 mb-4 mb-md-0">
-          <img
-            src="assets/partners/logo2.png"
-            alt="Partner Company"
-            class="img-fluid partner-logo"
-            onerror="this.src='https://via.placeholder.com/150x60?text=Partner'"
-          />
+          <div class="partner-logo-placeholder">LOGO</div>
         </div>
         <div class="col-4 col-md-2 mb-4 mb-md-0">
-          <img
-            src="assets/partners/logo3.png"
-            alt="Partner Company"
-            class="img-fluid partner-logo"
-            onerror="this.src='https://via.placeholder.com/150x60?text=Partner'"
-          />
+          <div class="partner-logo-placeholder">LOGO</div>
         </div>
         <div class="col-4 col-md-2 mb-4 mb-md-0">
-          <img
-            src="assets/partners/logo4.png"
-            alt="Partner Company"
-            class="img-fluid partner-logo"
-            onerror="this.src='https://via.placeholder.com/150x60?text=Partner'"
-          />
+          <div class="partner-logo-placeholder">LOGO</div>
         </div>
         <div class="col-4 col-md-2 mb-4 mb-md-0">
-          <img
-            src="assets/partners/logo5.png"
-            alt="Partner Company"
-            class="img-fluid partner-logo"
-            onerror="this.src='https://via.placeholder.com/150x60?text=Partner'"
-          />
+          <div class="partner-logo-placeholder">LOGO</div>
         </div>
         <div class="col-4 col-md-2">
-          <img
-            src="assets/partners/logo6.png"
-            alt="Partner Company"
-            class="img-fluid partner-logo"
-            onerror="this.src='https://via.placeholder.com/150x60?text=Partner'"
-          />
+          <div class="partner-logo-placeholder">LOGO</div>
         </div>
       </div>
-    </div> -->
+    </div>
   </section>
 
   <!-- Call to Action -->
-  <section class="cta text-center py-5 my-5 bg-primary text-white rounded">
+  <section class="cta text-center py-5 my-5 rounded">
     <h2 class="mb-3">Ready to Start Your Learning Journey?</h2>
     <p class="lead mb-4">
       Join thousands of students already mastering tech skills on RosettaCloud
     </p>
     <div class="cta-buttons">
-      <a routerLink="/register" class="btn btn-light btn-lg me-3"
+      <a routerLink="/register" class="btn btn-light btn-lg me-md-3"
         >Sign Up Free</a
       >
-      <a routerLink="/pricing" class="btn btn-secondary btn-lg">View Plans</a>
-
+      <a routerLink="/pricing" class="btn btn-outline-light btn-lg"
+        >View Plans</a
       >
     </div>
   </section>

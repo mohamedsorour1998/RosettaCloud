@@ -1,50 +1,106 @@
 <div class="instructors-hero">
   <div class="container text-center py-5">
-    <h1 class="display-4 mb-3">Learn from Industry Experts</h1>
-    <p class="lead mb-4">
+    <h1 class="display-4 mb-3 animate-fade-in-down">
+      Learn from Industry Experts
+    </h1>
+    <p class="lead mb-4 animate-fade-in">
       Our instructors bring real-world experience from top tech companies to
       your learning journey
     </p>
+    <div class="search-bar-container animate-fade-in-up">
+      <div class="search-bar mx-auto">
+        <i class="bi bi-search search-icon"></i>
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Search by expertise, name, or role (e.g., JavaScript, Python)..."
+          [(ngModel)]="searchQuery"
+          (input)="searchInstructors()"
+        />
+        <button
+          *ngIf="searchQuery"
+          class="search-clear-btn"
+          (click)="clearSearch()"
+        >
+          <i class="bi bi-x-circle-fill"></i>
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
 <div class="container py-5">
-  <!-- Instructor Highlights -->
-  <div class="featured-instructors mb-5">
-    <h2 class="text-center mb-5">Featured Instructors</h2>
+  <!-- Search Results Status -->
+  <div *ngIf="isSearching" class="text-center my-4">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Searching instructors...</p>
+  </div>
 
-    <div class="row">
-      <div *ngFor="let instructor of featuredInstructors" class="col-md-4 mb-4">
+  <div *ngIf="showNoResults" class="no-results text-center my-5">
+    <i class="bi bi-search no-results-icon"></i>
+    <h3>No instructors found</h3>
+    <p>We couldn't find any instructors matching "{{ searchQuery }}"</p>
+    <button class="btn btn-primary mt-3" (click)="clearSearch()">
+      Clear Search
+    </button>
+  </div>
+
+  <!-- Instructor Highlights -->
+  <div
+    *ngIf="!showNoResults"
+    class="featured-instructors mb-5 animate-on-scroll"
+  >
+    <h2 class="section-title text-center mb-5">Featured Instructors</h2>
+
+    <div
+      *ngIf="filteredFeaturedInstructors.length === 0 && searchQuery"
+      class="text-center my-4"
+    >
+      <p class="text-muted">No featured instructors match your search.</p>
+    </div>
+
+    <div class="row g-4" *ngIf="filteredFeaturedInstructors.length > 0">
+      <div
+        *ngFor="let instructor of filteredFeaturedInstructors"
+        class="col-md-4"
+      >
         <div class="card featured-instructor-card h-100">
           <div class="instructor-img-container">
-            <!-- <img
+            <img
               [src]="instructor.imageUrl"
               [alt]="instructor.name"
-              class="card-img-top instructor-img"
-              onerror="this.src='https://via.placeholder.com/300x300?text=Instructor'"
-            /> -->
+              class="instructor-img"
+              (error)="handleImageError($event, instructor)"
+            />
           </div>
           <div class="card-body">
             <h3 class="card-title">{{ instructor.name }}</h3>
             <p class="card-subtitle mb-3 text-primary">{{ instructor.role }}</p>
-            <p class="card-text">{{ instructor.bio }}</p>
+            <p class="card-text instructor-bio">{{ instructor.bio }}</p>
 
             <div class="expertise-tags mb-3">
               <span
                 *ngFor="let skill of instructor.expertise"
                 class="badge me-2 mb-2"
+                [class.highlight]="
+                  searchQuery &&
+                  skill.toLowerCase().includes(searchQuery.toLowerCase())
+                "
               >
                 {{ skill }}
               </span>
             </div>
 
-            <div class="social-links" *ngIf="instructor.socialLinks">
+            <div class="social-links mt-auto" *ngIf="instructor.socialLinks">
               <a
                 *ngIf="instructor.socialLinks.twitter"
                 [href]="instructor.socialLinks.twitter"
                 class="social-icon"
                 target="_blank"
                 rel="noopener"
+                aria-label="Twitter"
               >
                 <i class="bi bi-twitter"></i>
               </a>
@@ -54,6 +110,7 @@
                 class="social-icon"
                 target="_blank"
                 rel="noopener"
+                aria-label="LinkedIn"
               >
                 <i class="bi bi-linkedin"></i>
               </a>
@@ -63,6 +120,7 @@
                 class="social-icon"
                 target="_blank"
                 rel="noopener"
+                aria-label="GitHub"
               >
                 <i class="bi bi-github"></i>
               </a>
@@ -72,6 +130,7 @@
                 class="social-icon"
                 target="_blank"
                 rel="noopener"
+                aria-label="Website"
               >
                 <i class="bi bi-globe"></i>
               </a>
@@ -82,67 +141,82 @@
     </div>
   </div>
 
-  <div class="instructor-stats py-5 my-5 text-center">
+  <!-- Stats Section with Icons -->
+  <div
+    *ngIf="!showNoResults"
+    class="instructor-stats py-5 my-5 text-center animate-on-scroll"
+  >
     <div class="row">
-      <div class="col-md-3 mb-4 mb-md-0">
+      <div *ngFor="let stat of stats" class="col-6 col-md-3 mb-4 mb-md-0">
         <div class="stat-item">
-          <div class="stat-number">25+</div>
-          <div class="stat-label">Expert Instructors</div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-4 mb-md-0">
-        <div class="stat-item">
-          <div class="stat-number">15+</div>
-          <div class="stat-label">Years Avg. Experience</div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-4 mb-md-0">
-        <div class="stat-item">
-          <div class="stat-number">50k+</div>
-          <div class="stat-label">Students Taught</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat-item">
-          <div class="stat-number">98%</div>
-          <div class="stat-label">Satisfaction Rate</div>
+          <i class="bi {{ stat.icon }} stat-icon"></i>
+          <div class="stat-number">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- All Instructors -->
-  <div class="all-instructors">
-    <h2 class="text-center mb-5">Meet Our Instructors</h2>
+  <div *ngIf="!showNoResults" class="all-instructors animate-on-scroll">
+    <h2 class="section-title text-center mb-5">Meet Our Instructors</h2>
 
-    <div class="row">
+    <div
+      *ngIf="filteredInstructors.length === 0 && searchQuery"
+      class="text-center my-4"
+    >
+      <p class="text-muted">No additional instructors match your search.</p>
+    </div>
+
+    <div class="row g-4" *ngIf="filteredInstructors.length > 0">
       <div
-        *ngFor="let instructor of instructors"
-        class="col-md-6 col-lg-4 mb-4"
+        *ngFor="let instructor of filteredInstructors"
+        class="col-md-6 col-lg-4"
       >
-        <div class="card instructor-card h-100">
+        <div
+          class="card instructor-card h-100"
+          (click)="showInstructorDetails(instructor)"
+        >
           <div class="row g-0">
             <div class="col-4">
-              <!-- <img
-                [src]="instructor.imageUrl"
-                [alt]="instructor.name"
-                class="img-fluid rounded-start instructor-thumbnail"
-                onerror="this.src='https://via.placeholder.com/150x150?text=Instructor'"
-              /> -->
+              <div class="instructor-thumbnail-container">
+                <img
+                  [src]="instructor.imageUrl"
+                  [alt]="instructor.name"
+                  class="instructor-thumbnail"
+                  (error)="handleImageError($event, instructor)"
+                />
+              </div>
             </div>
             <div class="col-8">
               <div class="card-body">
                 <h5 class="card-title">{{ instructor.name }}</h5>
-                <p class="card-subtitle mb-2 text-primary small">
+                <p class="card-subtitle mb-2 text-primary">
                   {{ instructor.role }}
                 </p>
-                <div class="expertise-tags small mb-2">
+                <div class="expertise-tags">
                   <span
                     *ngFor="let skill of instructor.expertise.slice(0, 2)"
                     class="badge me-1"
+                    [class.highlight]="
+                      searchQuery &&
+                      skill.toLowerCase().includes(searchQuery.toLowerCase())
+                    "
                   >
                     {{ skill }}
                   </span>
+                  <span
+                    *ngIf="instructor.expertise.length > 2"
+                    class="badge-more"
+                    >+{{ instructor.expertise.length - 2 }}</span
+                  >
+                </div>
+                <div class="mt-2">
+                  <button
+                    class="btn btn-sm btn-outline-primary view-profile-btn"
+                  >
+                    View Profile
+                  </button>
                 </div>
               </div>
             </div>
@@ -153,14 +227,155 @@
   </div>
 
   <!-- Become an Instructor -->
-  <div class="become-instructor text-center py-5 my-5 rounded">
+  <div
+    *ngIf="!showNoResults"
+    class="become-instructor text-center py-5 my-5 rounded animate-on-scroll"
+  >
     <h2>Interested in Teaching with Us?</h2>
     <p class="lead mb-4">
       Join our team of educators and share your expertise with students around
       the world
     </p>
-    <a href="mailto:instructors@rosettacloud.app" class="btn btn-primary"
-      >Apply to Teach</a
+    <a
+      href="mailto:instructors@rosettacloud.app"
+      class="btn btn-primary btn-lg px-4 py-2"
     >
+      <i class="bi bi-pencil-square me-2"></i>Apply to Teach
+    </a>
+  </div>
+</div>
+
+<!-- Instructor Details Modal -->
+<div
+  class="modal fade"
+  id="instructorModal"
+  tabindex="-1"
+  aria-labelledby="instructorModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" *ngIf="selectedInstructor">
+      <div class="modal-header">
+        <h5 class="modal-title" id="instructorModalLabel">
+          {{ selectedInstructor.name }}
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          (click)="closeInstructorDetails()"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-4 mb-3 mb-md-0">
+            <div class="instructor-modal-img-container">
+              <img
+                [src]="selectedInstructor.imageUrl"
+                [alt]="selectedInstructor.name"
+                class="instructor-modal-img"
+                (error)="handleImageError($event, selectedInstructor)"
+              />
+            </div>
+            <div class="instructor-social-links mt-3 text-center">
+              <a
+                *ngIf="selectedInstructor.socialLinks?.twitter"
+                [href]="selectedInstructor.socialLinks?.twitter"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+                aria-label="Twitter"
+              >
+                <i class="bi bi-twitter"></i>
+              </a>
+              <a
+                *ngIf="selectedInstructor.socialLinks?.linkedin"
+                [href]="selectedInstructor.socialLinks?.linkedin"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+                aria-label="LinkedIn"
+              >
+                <i class="bi bi-linkedin"></i>
+              </a>
+              <a
+                *ngIf="selectedInstructor.socialLinks?.github"
+                [href]="selectedInstructor.socialLinks?.github"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+                aria-label="GitHub"
+              >
+                <i class="bi bi-github"></i>
+              </a>
+              <a
+                *ngIf="selectedInstructor.socialLinks?.website"
+                [href]="selectedInstructor.socialLinks?.website"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+                aria-label="Website"
+              >
+                <i class="bi bi-globe"></i>
+              </a>
+            </div>
+          </div>
+          <div class="col-md-8">
+            <h4 class="instructor-modal-role text-primary mb-3">
+              {{ selectedInstructor.role }}
+            </h4>
+            <p class="instructor-modal-bio">{{ selectedInstructor.bio }}</p>
+
+            <h5 class="mt-4 mb-3">Areas of Expertise</h5>
+            <div class="expertise-tags">
+              <span
+                *ngFor="let skill of selectedInstructor.expertise"
+                class="badge me-2 mb-2"
+                [class.highlight]="
+                  searchQuery &&
+                  skill.toLowerCase().includes(searchQuery.toLowerCase())
+                "
+              >
+                {{ skill }}
+              </span>
+            </div>
+
+            <div class="instructor-courses mt-4">
+              <h5 class="mb-3">Popular Courses</h5>
+              <div class="course-list">
+                <div class="course-item">
+                  <i class="bi bi-mortarboard-fill me-2"></i>
+                  <span
+                    >Introduction to {{ selectedInstructor.expertise[0] }}</span
+                  >
+                </div>
+                <div class="course-item">
+                  <i class="bi bi-mortarboard-fill me-2"></i>
+                  <span
+                    >Advanced
+                    {{
+                      selectedInstructor.expertise[1] ||
+                        selectedInstructor.expertise[0]
+                    }}</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+          (click)="closeInstructorDetails()"
+        >
+          Close
+        </button>
+        <a routerLink="/courses" class="btn btn-primary">View Courses</a>
+      </div>
+    </div>
   </div>
 </div>

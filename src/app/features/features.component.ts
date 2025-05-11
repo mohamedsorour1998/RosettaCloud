@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { ThemeService } from '../services/theme.service';
 
 interface Feature {
   title: string;
@@ -23,7 +24,7 @@ interface Testimonial {
   templateUrl: './features.component.html',
   styleUrls: ['./features.component.scss'],
 })
-export class FeaturesComponent {
+export class FeaturesComponent implements OnInit {
   features: Feature[] = [
     {
       title: 'Interactive Learning Labs',
@@ -73,7 +74,7 @@ export class FeaturesComponent {
     {
       title: 'Multilingual Support',
       description:
-        'Access courses in Arabic, English, and French, making tech education accessible across the entire MENA region.',
+        'Access courses in Arabic and English, making tech education accessible across the entire MENA region.',
       icon: 'bi-translate',
     },
     {
@@ -110,4 +111,53 @@ export class FeaturesComponent {
       imageUrl: 'assets/testimonials/leila.jpg',
     },
   ];
+
+  constructor(private themeService: ThemeService) {}
+
+  ngOnInit(): void {
+    // Scroll to the features section if the URL has the #features hash
+    setTimeout(() => {
+      if (window.location.hash === '#features') {
+        const featuresSection = document.getElementById('features');
+        if (featuresSection) {
+          featuresSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }, 100);
+  }
+
+  // Method to get initials for avatar fallback
+  getInitials(name: string): string {
+    if (!name) return '';
+    const parts = name.split(' ');
+    return (
+      parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')
+    ).toUpperCase();
+  }
+
+  // Helper for responsive image loading
+  imageError(event: any): void {
+    // Create initials for the fallback
+    const testimonial = this.testimonials.find(
+      (t) =>
+        t.imageUrl === event.target.src || event.target.alt.includes(t.author)
+    );
+
+    if (testimonial) {
+      const initials = this.getInitials(testimonial.author);
+      // Set a solid color background with initials instead
+      event.target.style.display = 'none';
+      const parent = event.target.parentElement;
+
+      if (parent) {
+        const avatarDiv = document.createElement('div');
+        avatarDiv.className = 'author-avatar';
+        avatarDiv.textContent = initials;
+        parent.appendChild(avatarDiv);
+      }
+    } else {
+      // Generic fallback
+      event.target.src = 'https://via.placeholder.com/60x60?text=User';
+    }
+  }
 }

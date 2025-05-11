@@ -12,9 +12,7 @@
           guidance tailored for the MENA region.
         </p>
         <div class="hero-buttons">
-          <a
-            routerLink="/register"
-            class="btn btn-primary btn-lg me-3 px-5 py-3"
+          <a routerLink="/register" class="btn btn-primary btn-lg px-5 py-3"
             >Get Started Free</a
           >
           <a
@@ -28,10 +26,11 @@
   </div>
 </section>
 
-<!-- Key Features Cards -->
+<!-- Features Section -->
 <section class="features-section py-5">
   <div class="container">
-    <div class="row g-4 d-flex align-items-stretch">
+    <div class="row g-4">
+      <!-- Feature Card 1 -->
       <div class="col-md-4">
         <div class="feature-card h-100 text-center">
           <div class="card-body">
@@ -47,6 +46,7 @@
         </div>
       </div>
 
+      <!-- Feature Card 2 (Featured) -->
       <div class="col-md-4">
         <div class="feature-card h-100 text-center featured">
           <div class="card-body">
@@ -62,6 +62,7 @@
         </div>
       </div>
 
+      <!-- Feature Card 3 -->
       <div class="col-md-4">
         <div class="feature-card h-100 text-center">
           <div class="card-body">
@@ -84,9 +85,9 @@
 <section class="stats-section py-5">
   <div class="container">
     <div class="row text-center">
-      <div *ngFor="let stat of statistics" class="col-6 col-md-3 mb-4 mb-md-0">
+      <div class="col-6 col-md-3" *ngFor="let stat of statistics">
         <div class="stat-item">
-          <i class="bi {{ stat.icon }} mb-3"></i>
+          <i class="bi {{ stat.icon }}"></i>
           <div class="stat-value">{{ stat.value }}</div>
           <div class="stat-label">{{ stat.label }}</div>
         </div>
@@ -107,8 +108,9 @@
       </div>
     </div>
 
-    <div class="row">
-      <div class="col-md-4 mb-4 mb-md-0">
+    <div class="row g-4">
+      <!-- Step 1 -->
+      <div class="col-md-4">
         <div class="step-card text-center">
           <div class="step-number">1</div>
           <h3 class="step-title">Personalized Path</h3>
@@ -118,7 +120,9 @@
           </p>
         </div>
       </div>
-      <div class="col-md-4 mb-4 mb-md-0">
+
+      <!-- Step 2 -->
+      <div class="col-md-4">
         <div class="step-card text-center">
           <div class="step-number">2</div>
           <h3 class="step-title">Learn & Practice</h3>
@@ -128,6 +132,8 @@
           </p>
         </div>
       </div>
+
+      <!-- Step 3 -->
       <div class="col-md-4">
         <div class="step-card text-center">
           <div class="step-number">3</div>
@@ -154,10 +160,12 @@
       </div>
     </div>
 
-    <div class="row">
-      <div *ngFor="let testimonial of testimonials" class="col-md-4 mb-4">
-        <div class="testimonial-card">
-          <div class="quote-icon"><i class="bi bi-quote"></i></div>
+    <div class="row g-4">
+      <div class="col-md-4" *ngFor="let testimonial of testimonials">
+        <div class="testimonial-card h-100">
+          <div class="quote-icon" aria-hidden="true">
+            <i class="bi bi-quote"></i>
+          </div>
           <p class="testimonial-text">{{ testimonial.quote }}</p>
           <div class="testimonial-author">
             <h4 class="author-name">{{ testimonial.name }}</h4>
@@ -185,18 +193,11 @@
         <div class="language-badges mb-4">
           <span class="badge rounded-pill">English</span>
           <span class="badge rounded-pill">العربية</span>
-          <span class="badge rounded-pill">Français</span>
         </div>
-        <a routerLink="/features" class="btn btn-primary">Learn More</a>
       </div>
       <div class="col-lg-6">
         <div class="language-image">
-          <!-- <img
-            src="assets/language-illustration.png"
-            alt="Multilingual Education"
-            class="img-fluid rounded shadow"
-            onerror="this.src='https://via.placeholder.com/600x400?text=Multilingual+Education'"
-          /> -->
+          <!-- Image placeholder -->
         </div>
       </div>
     </div>
@@ -214,7 +215,7 @@
           RosettaCloud
         </p>
         <div class="cta-buttons">
-          <a routerLink="/register" class="btn btn-primary btn-lg me-3 px-5"
+          <a routerLink="/register" class="btn btn-primary btn-lg px-5"
             >Start Learning Now</a
           >
           <a routerLink="/pricing" class="btn btn-secondary btn-lg px-5"
