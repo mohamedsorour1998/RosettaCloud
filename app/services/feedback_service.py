@@ -18,7 +18,9 @@ from app.services import cache_events_service as cache_events
 CACHE_NAME               = "interactive-labs"
 FEEDBACK_REQUEST_TOPIC   = "FeedbackRequested"
 FEEDBACK_GIVEN_TOPIC     = "FeedbackGiven"
-DEFAULT_MAX_TOKENS       = 1_500
+
+# Configuration parameters
+DEFAULT_MAX_TOKENS       = 600      # Set to fit within Momento's 4096 byte limit
 DEFAULT_TEMPERATURE      = 0.7
 
 logger = logging.getLogger("feedback_direct")
@@ -64,19 +66,21 @@ def _build_prompt(data: Dict[str, Any]) -> str:
 async def _handle(raw_msg: str) -> None:
     logger.debug("Raw message: %s", raw_msg)
     try:
-        data        = json.loads(raw_msg)
-        feedback_id  = data["feedback_id"]
+        data = json.loads(raw_msg)
+        feedback_id = data["feedback_id"]
 
-        prompt      = _build_prompt(data)
+        prompt = _build_prompt(data)
         logger.info("Calling AI for request %s", feedback_id)
 
         system_role = (
             "You are an educational assistant providing feedback on lab exercises. "
+            "Provide concise but meaningful feedback due to message size constraints. "
             "Do not mention any user IDs or specific identifiers in your feedback. "
             "Address the student generically without any personal references. "
             "Focus on the educational content and performance only."
         )
 
+        # Use the configured token limit - this can be easily changed at the top of the file
         ai_response = await ai.chat(
             prompt=prompt,
             stream=False,
@@ -87,15 +91,21 @@ async def _handle(raw_msg: str) -> None:
 
         logger.debug("AI response (trimmed): %s…", ai_response[:120])
 
-        payload = json.dumps(
-            {
-                "type":       "feedback",
-                "feedback_id": feedback_id,
-                "content":    ai_response,
-                "timestamp":  datetime.utcnow().isoformat(),
-            }
-        )
-
+        # Prepare payload
+        payload_data = {
+            "type": "feedback",
+            "feedback_id": feedback_id,
+            "content": ai_response,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        
+        payload = json.dumps(payload_data)
+        
+        # Log payload size for monitoring (helpful for adjusting token limit)
+        payload_size = len(payload.encode('utf-8'))
+        logger.info("Payload size: %d bytes (Momento limit: 4096)", payload_size)
+        
+        # Publish the payload
         pub = await _publish(FEEDBACK_GIVEN_TOPIC, payload)
         if isinstance(pub, TopicPublish.Error):
             logger.error("Publish failed: %s", pub.message)
