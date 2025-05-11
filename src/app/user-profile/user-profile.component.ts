@@ -8,6 +8,7 @@ import {
   ReactiveFormsModule,
 } from '@angular/forms';
 import { UserService, User } from '../services/user.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-user-profile',
@@ -26,14 +27,16 @@ export class UserProfileComponent implements OnInit {
   successMessage = '';
 
   // User data
-  userProgress: any = {};
+  userProgress: Record<string, any> = {};
   userLabs: string[] = [];
   userModules: string[] = [];
   completedLessons = 0;
 
   // Form
   profileForm: FormGroup;
-  Object: any;
+
+  // Make Object available to template
+  protected readonly Object = Object;
 
   constructor(
     private userService: UserService,
@@ -49,7 +52,7 @@ export class UserProfileComponent implements OnInit {
         confirmPassword: [''],
       },
       {
-        validators: this.passwordMatchValidator,
+        validators: UserProfileComponent.passwordMatchValidator,
       }
     );
   }
@@ -59,7 +62,7 @@ export class UserProfileComponent implements OnInit {
   }
 
   // Password match validator
-  passwordMatchValidator(formGroup: FormGroup) {
+  static passwordMatchValidator(formGroup: FormGroup) {
     const newPassword = formGroup.get('newPassword')?.value;
     const confirmPassword = formGroup.get('confirmPassword')?.value;
 
@@ -84,19 +87,20 @@ export class UserProfileComponent implements OnInit {
       }
 
       // Load user data
-      this.user = (await this.userService.getUser(userId).toPromise()) || null;
+      this.user = await firstValueFrom(this.userService.getUser(userId));
 
       if (!this.user) {
         throw new Error('Could not load user profile.');
       }
 
       // Load progress data
-      this.userProgress = await this.userService
-        .getUserProgress(userId)
-        .toPromise();
+      this.userProgress =
+        (await firstValueFrom(this.userService.getUserProgress(userId))) || {};
 
       // Load labs
-      const labsData = await this.userService.getUserLabs(userId).toPromise();
+      const labsData = await firstValueFrom(
+        this.userService.getUserLabs(userId)
+      );
       this.userLabs = labsData?.labs || [];
 
       // Process data
@@ -114,7 +118,11 @@ export class UserProfileComponent implements OnInit {
 
   // Calculate progress metrics
   calculateProgressMetrics(): void {
-    if (!this.userProgress) return;
+    if (!this.userProgress) {
+      this.userModules = [];
+      this.completedLessons = 0;
+      return;
+    }
 
     // Get modules
     this.userModules = Object.keys(this.userProgress);
@@ -163,9 +171,11 @@ export class UserProfileComponent implements OnInit {
     if (!this.isEditMode) {
       // Reset form when canceling
       this.populateProfileForm();
-      this.profileForm.get('currentPassword')?.setValue('');
-      this.profileForm.get('newPassword')?.setValue('');
-      this.profileForm.get('confirmPassword')?.setValue('');
+      this.profileForm.patchValue({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
     }
   }
 
@@ -181,12 +191,12 @@ export class UserProfileComponent implements OnInit {
       this.isUpdating = true;
       this.errorMessage = '';
 
-      if (!this.user) {
+      if (!this.user?.user_id) {
         throw new Error('User data not found');
       }
 
       const formData = this.profileForm.value;
-      const updateData: any = {
+      const updateData: Record<string, any> = {
         name: formData.name,
         email: formData.email,
         metadata: {
@@ -197,13 +207,23 @@ export class UserProfileComponent implements OnInit {
 
       // Only include password if user is changing it
       if (formData.newPassword && formData.currentPassword) {
-        updateData.password = formData.newPassword;
+        // Check if current password is provided
+        if (!formData.currentPassword) {
+          this.profileForm
+            .get('currentPassword')
+            ?.setErrors({ required: true });
+          throw new Error('Current password is required to change password');
+        }
+
+        // Using bracket notation to avoid TypeScript errors
+        updateData['password'] = formData.newPassword;
+        updateData['currentPassword'] = formData.currentPassword;
       }
 
       // Update user data
-      const updatedUser = await this.userService
-        .updateUser(this.user.user_id, updateData)
-        .toPromise();
+      const updatedUser = await firstValueFrom(
+        this.userService.updateUser(this.user.user_id, updateData)
+      );
 
       if (updatedUser) {
         this.user = updatedUser;
@@ -211,9 +231,11 @@ export class UserProfileComponent implements OnInit {
         this.isEditMode = false;
 
         // Clear password fields
-        this.profileForm.get('currentPassword')?.setValue('');
-        this.profileForm.get('newPassword')?.setValue('');
-        this.profileForm.get('confirmPassword')?.setValue('');
+        this.profileForm.patchValue({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
       }
     } catch (error: any) {
       this.errorMessage = error.message || 'Failed to update profile';
@@ -223,7 +245,7 @@ export class UserProfileComponent implements OnInit {
     }
   }
 
-  // Confirm account deletion
+  // Confirm account deletion with a better confirmation dialog
   confirmDeleteAccount(): void {
     if (
       confirm(
@@ -237,15 +259,17 @@ export class UserProfileComponent implements OnInit {
   // Delete account
   async deleteAccount(): Promise<void> {
     try {
-      if (!this.user) {
+      if (!this.user?.user_id) {
         throw new Error('User data not found');
       }
 
       this.isUpdating = true;
+      this.errorMessage = '';
 
-      await this.userService.deleteUser(this.user.user_id).toPromise();
+      await firstValueFrom(this.userService.deleteUser(this.user.user_id));
 
-      // Redirect to home page
+      // Log out and redirect
+      await this.userService.logout();
       window.location.href = '/';
     } catch (error: any) {
       this.errorMessage = error.message || 'Failed to delete account';
@@ -258,7 +282,7 @@ export class UserProfileComponent implements OnInit {
   getProfileInitials(): string {
     if (!this.user?.name) return '?';
 
-    const nameParts = this.user.name.split(' ');
+    const nameParts = this.user.name.trim().split(/\s+/);
     if (nameParts.length === 1) {
       return nameParts[0].charAt(0).toUpperCase();
     }

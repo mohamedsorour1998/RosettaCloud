@@ -1,6 +1,5 @@
 <div class="settings-container">
   <div class="container py-5">
-    <!-- Loading State -->
     <div *ngIf="isLoading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
@@ -8,7 +7,6 @@
       <p class="mt-2">Loading settings...</p>
     </div>
 
-    <!-- Error Message -->
     <div
       *ngIf="errorMessage && !isLoading"
       class="alert alert-danger"
@@ -17,9 +15,7 @@
       {{ errorMessage }}
     </div>
 
-    <!-- Settings Content -->
     <div *ngIf="!isLoading && !errorMessage" class="row">
-      <!-- Left Column - Settings Navigation -->
       <div class="col-md-3 mb-4 mb-md-0">
         <div class="card shadow settings-nav">
           <div class="list-group list-group-flush">
@@ -37,9 +33,7 @@
         </div>
       </div>
 
-      <!-- Right Column - Settings Content -->
       <div class="col-md-9">
-        <!-- Success Alert -->
         <div
           *ngIf="successMessage"
           class="alert alert-success alert-dismissible fade show mb-4"
@@ -53,7 +47,6 @@
           ></button>
         </div>
 
-        <!-- Account Settings -->
         <div *ngIf="activeSection === 'account'" class="card shadow">
           <div class="card-header">
             <h5 class="mb-0">Account Settings</h5>
@@ -127,7 +120,6 @@
           </div>
         </div>
 
-        <!-- Notification Settings -->
         <div *ngIf="activeSection === 'notifications'" class="card shadow">
           <div class="card-header">
             <h5 class="mb-0">Notification Settings</h5>
@@ -146,7 +138,7 @@
                   id="emailCourseUpdates"
                   formControlName="emailCourseUpdates"
                 />
-                <label class="form-check-label" for="emailCourseUpdates"
+                <label class="form-check-label ms-2" for="emailCourseUpdates"
                   >Course updates and announcements</label
                 >
               </div>
@@ -158,7 +150,7 @@
                   id="emailAssignments"
                   formControlName="emailAssignments"
                 />
-                <label class="form-check-label" for="emailAssignments"
+                <label class="form-check-label ms-2" for="emailAssignments"
                   >Assignment reminders</label
                 >
               </div>
@@ -170,7 +162,7 @@
                   id="emailFeedback"
                   formControlName="emailFeedback"
                 />
-                <label class="form-check-label" for="emailFeedback"
+                <label class="form-check-label ms-2" for="emailFeedback"
                   >Feedback and grading</label
                 >
               </div>
@@ -182,7 +174,7 @@
                   id="emailMarketing"
                   formControlName="emailMarketing"
                 />
-                <label class="form-check-label" for="emailMarketing"
+                <label class="form-check-label ms-2" for="emailMarketing"
                   >Marketing and promotional emails</label
                 >
               </div>
@@ -196,7 +188,7 @@
                   id="platformMessages"
                   formControlName="platformMessages"
                 />
-                <label class="form-check-label" for="platformMessages"
+                <label class="form-check-label ms-2" for="platformMessages"
                   >New messages</label
                 >
               </div>
@@ -208,7 +200,7 @@
                   id="platformCourseUpdates"
                   formControlName="platformCourseUpdates"
                 />
-                <label class="form-check-label" for="platformCourseUpdates"
+                <label class="form-check-label ms-2" for="platformCourseUpdates"
                   >Course updates</label
                 >
               </div>
@@ -220,7 +212,7 @@
                   id="platformReminders"
                   formControlName="platformReminders"
                 />
-                <label class="form-check-label" for="platformReminders"
+                <label class="form-check-label ms-2" for="platformReminders"
                   >Due date reminders</label
                 >
               </div>
@@ -242,7 +234,6 @@
           </div>
         </div>
 
-        <!-- Privacy Settings -->
         <div *ngIf="activeSection === 'privacy'" class="card shadow">
           <div class="card-header">
             <h5 class="mb-0">Privacy Settings</h5>
@@ -303,7 +294,7 @@
                   id="shareProgress"
                   formControlName="shareProgress"
                 />
-                <label class="form-check-label" for="shareProgress"
+                <label class="form-check-label ms-2" for="shareProgress"
                   >Share my learning progress with instructors</label
                 >
               </div>
@@ -315,7 +306,7 @@
                   id="shareCertificates"
                   formControlName="shareCertificates"
                 />
-                <label class="form-check-label" for="shareCertificates"
+                <label class="form-check-label ms-2" for="shareCertificates"
                   >Display my certificates on my profile</label
                 >
               </div>
@@ -329,7 +320,7 @@
                   id="allowAnalytics"
                   formControlName="allowAnalytics"
                 />
-                <label class="form-check-label" for="allowAnalytics"
+                <label class="form-check-label ms-2" for="allowAnalytics"
                   >Allow analytics cookies to improve your experience</label
                 >
               </div>
@@ -341,7 +332,7 @@
                   id="allowMarketing"
                   formControlName="allowMarketing"
                 />
-                <label class="form-check-label" for="allowMarketing"
+                <label class="form-check-label ms-2" for="allowMarketing"
                   >Allow marketing cookies for personalized ads</label
                 >
               </div>
@@ -363,7 +354,6 @@
           </div>
         </div>
 
-        <!-- Security Settings -->
         <div *ngIf="activeSection === 'security'" class="card shadow">
           <div class="card-header">
             <h5 class="mb-0">Security Settings</h5>
@@ -469,15 +459,15 @@
                   id="twoFactorAuth"
                   formControlName="twoFactorAuth"
                 />
-                <label class="form-check-label" for="twoFactorAuth"
-                  >Enable two-factor authentication</label
-                >
+                <label class="form-check-label ms-2" for="twoFactorAuth">
+                  Enable two-factor authentication
+                </label>
               </div>
 
               <div
-                *ngIf="securityForm.get('twoFactorAuth')?.value"
-                class="mb-4 p-3 bg-light rounded"
-              >
+              *ngIf="securityForm.get('twoFactorAuth')?.value"
+              class="mb-4 p-3 bg-body-secondary text-body rounded"
+            >
                 <h6>Setup Two-Factor Authentication</h6>
                 <p class="text-muted small mb-3">
                   Two-factor authentication adds an extra layer of security to

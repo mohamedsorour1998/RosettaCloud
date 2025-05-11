@@ -1,92 +1,69 @@
-import { Injectable, signal } from '@angular/core';
-
-export type Theme = 'light' | 'dark' | 'auto';
+// src/app/services/theme.service.ts
+import { Injectable } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ThemeService {
-  // Use signal for reactive updates
-  currentTheme = signal<Theme>('dark');
+  private themeSubject = new BehaviorSubject<string>(this.getInitialTheme());
+  theme$ = this.themeSubject.asObservable();
 
   constructor() {
-    this.initializeTheme();
+    // Apply the initial theme when service starts
+    this.applyTheme(this.themeSubject.value);
   }
 
-  private initializeTheme(): void {
+  private getInitialTheme(): string {
     // Check localStorage first
-    const storedTheme = localStorage.getItem('theme') as Theme;
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme === 'dark' || storedTheme === 'light') {
+      return storedTheme;
+    }
 
-    if (storedTheme && ['light', 'dark', 'auto'].includes(storedTheme)) {
-      this.currentTheme.set(storedTheme);
-    } else if (
+    // Check system preference as fallback
+    if (
       window.matchMedia &&
       window.matchMedia('(prefers-color-scheme: dark)').matches
     ) {
-      // If no stored theme, check system preference
-      this.currentTheme.set('dark');
-    } else {
-      this.currentTheme.set('light');
+      return 'dark';
     }
 
-    // Apply the theme
-    this.applyTheme(this.currentTheme());
-
-    // Listen for system preference changes if in auto mode
-    if (this.currentTheme() === 'auto') {
-      this.setupSystemPreferenceListener();
-    }
+    // Default to light
+    return 'light';
   }
 
-  public setTheme(theme: Theme): void {
-    this.currentTheme.set(theme);
-    localStorage.setItem('theme', theme);
-    this.applyTheme(theme);
+  // Get current theme
+  currentTheme(): string {
+    return this.themeSubject.value;
   }
 
-  public toggleTheme(): void {
-    const newTheme = this.currentTheme() === 'dark' ? 'light' : 'dark';
+  // Toggle between light and dark
+  toggleTheme(): void {
+    const newTheme = this.themeSubject.value === 'dark' ? 'light' : 'dark';
     this.setTheme(newTheme);
   }
 
-  private applyTheme(theme: Theme): void {
-    if (theme === 'auto') {
-      // Use system preference
-      const systemPrefersDark = window.matchMedia(
-        '(prefers-color-scheme: dark)'
-      ).matches;
-      document.documentElement.setAttribute(
-        'data-bs-theme',
-        systemPrefersDark ? 'dark' : 'light'
-      );
-      this.setupSystemPreferenceListener();
-    } else {
-      // Remove any listeners when not in auto mode
-      window
-        .matchMedia('(prefers-color-scheme: dark)')
-        .removeEventListener('change', this.handleSystemPreferenceChange);
-      // Set specific theme
-      document.documentElement.setAttribute('data-bs-theme', theme);
+  // Set theme explicitly
+  setTheme(theme: string): void {
+    if (theme !== 'dark' && theme !== 'light') {
+      console.error('Invalid theme value:', theme);
+      return;
     }
+
+    // Update the subject
+    this.themeSubject.next(theme);
+
+    // Save to localStorage
+    localStorage.setItem('theme', theme);
+
+    // Apply to document
+    this.applyTheme(theme);
   }
 
-  private setupSystemPreferenceListener(): void {
-    // Make sure to remove any existing listeners first
-    window
-      .matchMedia('(prefers-color-scheme: dark)')
-      .removeEventListener('change', this.handleSystemPreferenceChange);
-    // Then add the listener
-    window
-      .matchMedia('(prefers-color-scheme: dark)')
-      .addEventListener('change', this.handleSystemPreferenceChange);
+  // Apply theme to document
+  private applyTheme(theme: string): void {
+    document.documentElement.setAttribute('data-bs-theme', theme);
+    console.log(`Theme applied: ${theme}`);
   }
-
-  private handleSystemPreferenceChange = (e: MediaQueryListEvent): void => {
-    if (this.currentTheme() === 'auto') {
-      document.documentElement.setAttribute(
-        'data-bs-theme',
-        e.matches ? 'dark' : 'light'
-      );
-    }
-  };
 }

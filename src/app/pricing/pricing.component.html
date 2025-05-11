@@ -14,11 +14,14 @@
         type="checkbox"
         id="billingToggle"
         [(ngModel)]="isAnnual"
-        (change)="toggleBilling()">
-      <label class="form-check-label" for="billingToggle">
+        (change)="toggleBilling()"
+      />
+      <label class="form-check-label ms-2" for="billingToggle">
         <span [class.text-primary]="!isAnnual">Monthly</span>
         <span class="mx-2">|</span>
-        <span [class.text-primary]="isAnnual">Annual <span class="badge bg-success">Save 20%</span></span>
+        <span [class.text-primary]="isAnnual"
+          >Annual <span class="badge bg-success">Save 20%</span></span
+        >
       </label>
     </div>
   </div>
@@ -36,14 +39,30 @@
             $0<small class="text-muted fw-light">/mo</small>
           </h1>
           <ul class="list-unstyled mt-3 mb-4">
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Access to basic courses</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Community support</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>1 labs session</li>
-            <li><i class="bi bi-x-circle-fill text-danger me-2"></i>No certificate</li>
-            <li><i class="bi bi-x-circle-fill text-danger me-2"></i>Limited exercises</li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Access to
+              basic courses
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Community
+              support
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>1 labs
+              session
+            </li>
+            <li>
+              <i class="bi bi-x-circle-fill text-danger me-2"></i>No certificate
+            </li>
+            <li>
+              <i class="bi bi-x-circle-fill text-danger me-2"></i>Limited
+              exercises
+            </li>
           </ul>
           <div class="mt-auto">
-            <a href="#" class="w-100 btn btn-lg btn-outline-primary">Get Started</a>
+            <a href="#" class="w-100 btn btn-lg btn-outline-primary"
+              >Get Started</a
+            >
           </div>
         </div>
       </div>
@@ -58,15 +77,33 @@
         </div>
         <div class="card-body d-flex flex-column">
           <h1 class="card-title pricing-card-title">
-            ${{ isAnnual ? '15' : '19' }}<small class="text-muted fw-light">/mo</small>
+            ${{ isAnnual ? "15" : "19"
+            }}<small class="text-muted fw-light">/mo</small>
           </h1>
-          <p *ngIf="isAnnual" class="text-success">${{ 15 * 12 }} billed annually</p>
+          <p *ngIf="isAnnual" class="text-success">
+            ${{ 15 * 12 }} billed annually
+          </p>
           <ul class="list-unstyled mt-3 mb-4">
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Access to all courses</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Priority support</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>10 labs sessions</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Course certificates</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Unlimited exercises</li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Access to
+              all courses
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Priority
+              support
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>10 labs
+              sessions
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Course
+              certificates
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Unlimited
+              exercises
+            </li>
           </ul>
           <div class="mt-auto">
             <a href="#" class="w-100 btn btn-lg btn-primary">Get Started</a>
@@ -83,18 +120,38 @@
         </div>
         <div class="card-body d-flex flex-column">
           <h1 class="card-title pricing-card-title">
-            ${{ isAnnual ? '39' : '49' }}<small class="text-muted fw-light">/mo</small>
+            ${{ isAnnual ? "39" : "49"
+            }}<small class="text-muted fw-light">/mo</small>
           </h1>
-          <p *ngIf="isAnnual" class="text-success">${{ 39 * 12 }} billed annually</p>
+          <p *ngIf="isAnnual" class="text-success">
+            ${{ 39 * 12 }} billed annually
+          </p>
           <ul class="list-unstyled mt-3 mb-4">
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Everything in Standard</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>1-on-1 mentoring</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Unlimited labs sessions</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Career guidance</li>
-            <li><i class="bi bi-check-circle-fill text-success me-2"></i>Team collaboration</li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i
+              >Everything in Standard
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>1-on-1
+              mentoring
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Unlimited
+              labs sessions
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Career
+              guidance
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success me-2"></i>Team
+              collaboration
+            </li>
           </ul>
           <div class="mt-auto">
-            <a href="#" class="w-100 btn btn-lg btn-outline-primary">Get Started</a>
+            <a href="#" class="w-100 btn btn-lg btn-outline-primary"
+              >Get Started</a
+            >
           </div>
         </div>
       </div>
@@ -105,11 +162,15 @@
   <div class="row align-items-center mt-5 py-5 border-top">
     <div class="col-md-7">
       <h2>Enterprise Plan</h2>
-      <p class="lead">Customized solutions for organizations and educational institutions.</p>
+      <p class="lead">
+        Customized solutions for organizations and educational institutions.
+      </p>
       <ul class="enterprise-features">
         <li><i class="bi bi-check-lg"></i> Customized curriculum</li>
         <li><i class="bi bi-check-lg"></i> Dedicated account manager</li>
-        <li><i class="bi bi-check-lg"></i> Learning management system integration</li>
+        <li>
+          <i class="bi bi-check-lg"></i> Learning management system integration
+        </li>
         <li><i class="bi bi-check-lg"></i> Custom lab environments</li>
         <li><i class="bi bi-check-lg"></i> Analytics and reporting</li>
       </ul>
@@ -127,13 +188,28 @@
       <!-- FAQ 1 -->
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingOne">
-          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+          <button
+            class="accordion-button"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#collapseOne"
+            aria-expanded="true"
+            aria-controls="collapseOne"
+          >
             Can I switch plans later?
           </button>
         </h2>
-        <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#pricingFAQ">
+        <div
+          id="collapseOne"
+          class="accordion-collapse collapse show"
+          aria-labelledby="headingOne"
+          data-bs-parent="#pricingFAQ"
+        >
           <div class="accordion-body">
-            Yes, you can upgrade or downgrade your plan at any time. When upgrading, you'll be charged the prorated difference for the remainder of your billing cycle. When downgrading, the new price will take effect at the start of your next billing cycle.
+            Yes, you can upgrade or downgrade your plan at any time. When
+            upgrading, you'll be charged the prorated difference for the
+            remainder of your billing cycle. When downgrading, the new price
+            will take effect at the start of your next billing cycle.
           </div>
         </div>
       </div>
@@ -141,13 +217,28 @@
       <!-- FAQ 2 -->
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingTwo">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+          <button
+            class="accordion-button collapsed"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#collapseTwo"
+            aria-expanded="false"
+            aria-controls="collapseTwo"
+          >
             Do you offer student discounts?
           </button>
         </h2>
-        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#pricingFAQ">
+        <div
+          id="collapseTwo"
+          class="accordion-collapse collapse"
+          aria-labelledby="headingTwo"
+          data-bs-parent="#pricingFAQ"
+        >
           <div class="accordion-body">
-            Yes! We offer a 50% discount on our Standard and Pro plans for eligible students. To apply for the student discount, please email us with proof of enrollment such as a student ID or enrollment letter.
+            Yes! We offer a 50% discount on our Standard and Pro plans for
+            eligible students. To apply for the student discount, please email
+            us with proof of enrollment such as a student ID or enrollment
+            letter.
           </div>
         </div>
       </div>
@@ -155,13 +246,27 @@
       <!-- FAQ 3 -->
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingThree">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+          <button
+            class="accordion-button collapsed"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#collapseThree"
+            aria-expanded="false"
+            aria-controls="collapseThree"
+          >
             What payment methods do you accept?
           </button>
         </h2>
-        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#pricingFAQ">
+        <div
+          id="collapseThree"
+          class="accordion-collapse collapse"
+          aria-labelledby="headingThree"
+          data-bs-parent="#pricingFAQ"
+        >
           <div class="accordion-body">
-            We accept all major credit cards (Visa, MasterCard, American Express, Discover), PayPal, and bank transfers for annual enterprise plans. Unfortunately, we don't accept cryptocurrency at this time.
+            We accept all major credit cards (Visa, MasterCard, American
+            Express, Discover), PayPal, and bank transfers for annual enterprise
+            plans. Unfortunately, we don't accept cryptocurrency at this time.
           </div>
         </div>
       </div>
@@ -169,13 +274,28 @@
       <!-- FAQ 4 -->
       <div class="accordion-item">
         <h2 class="accordion-header" id="headingFour">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+          <button
+            class="accordion-button collapsed"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#collapseFour"
+            aria-expanded="false"
+            aria-controls="collapseFour"
+          >
             Can I cancel my subscription?
           </button>
         </h2>
-        <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#pricingFAQ">
+        <div
+          id="collapseFour"
+          class="accordion-collapse collapse"
+          aria-labelledby="headingFour"
+          data-bs-parent="#pricingFAQ"
+        >
           <div class="accordion-body">
-            Yes, you can cancel your subscription at any time. If you cancel, you'll continue to have access to your paid features until the end of your current billing period. We don't offer refunds for partial billing periods.
+            Yes, you can cancel your subscription at any time. If you cancel,
+            you'll continue to have access to your paid features until the end
+            of your current billing period. We don't offer refunds for partial
+            billing periods.
           </div>
         </div>
       </div>
@@ -183,9 +303,11 @@
   </div>
 
   <!-- Call to Action -->
-  <div class="text-center py-5 mt-5 bg-light rounded">
+  <div class="text-center py-5 mt-5 rounded">
     <h2>Ready to start your learning journey?</h2>
-    <p class="lead mb-4">Join thousands of students already learning with RosettaCloud</p>
+    <p class="lead mb-4">
+      Join thousands of students already learning with RosettaCloud
+    </p>
     <a href="#" class="btn btn-lg btn-primary px-5 py-3">Get Started Today</a>
   </div>
 </div>

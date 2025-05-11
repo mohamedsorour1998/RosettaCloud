@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { UserService, User } from '../services/user.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard',
@@ -16,14 +17,16 @@ export class DashboardComponent implements OnInit {
   errorMessage = '';
 
   // User data
-  userProgress: any = {};
+  userProgress: Record<string, any> = {};
   userLabs: string[] = [];
   userModules: string[] = [];
   completedLessons = 0;
 
   // UI state
-  expandedModules: { [key: string]: boolean } = {};
-  Object: any;
+  expandedModules: Record<string, boolean> = {};
+
+  // Make Object available to template
+  protected readonly Object = Object;
 
   constructor(private userService: UserService) {}
 
@@ -43,7 +46,7 @@ export class DashboardComponent implements OnInit {
       }
 
       // Load user data
-      const user = await this.userService.getUser(userId).toPromise();
+      const user = await firstValueFrom(this.userService.getUser(userId));
       this.user = user ?? null;
 
       if (!this.user) {
@@ -51,12 +54,13 @@ export class DashboardComponent implements OnInit {
       }
 
       // Load progress data
-      this.userProgress = await this.userService
-        .getUserProgress(userId)
-        .toPromise();
+      this.userProgress =
+        (await firstValueFrom(this.userService.getUserProgress(userId))) || {};
 
       // Load labs
-      const labsData = await this.userService.getUserLabs(userId).toPromise();
+      const labsData = await firstValueFrom(
+        this.userService.getUserLabs(userId)
+      );
       this.userLabs = labsData?.labs || [];
 
       // Process data
@@ -71,7 +75,11 @@ export class DashboardComponent implements OnInit {
 
   // Process user data for dashboard
   processUserData(): void {
-    if (!this.userProgress) return;
+    if (!this.userProgress) {
+      this.userModules = [];
+      this.completedLessons = 0;
+      return;
+    }
 
     // Get modules
     this.userModules = Object.keys(this.userProgress);
