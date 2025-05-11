@@ -44,8 +44,9 @@ export interface UserList {
   providedIn: 'root',
 })
 export class UserService {
-  listUsers(arg0: number) {
-    throw new Error('Method not implemented.');
+  listUsers(limit: number): Observable<any> {
+    // Replace with actual implementation that returns an observable
+    return this.http.get<any>(`/api/users?limit=${limit}`);
   }
 
   private apiUrl = environment.apiUrl;

@@ -1,22 +1,58 @@
+// Account verification container with consistent styling
 .verification-container {
-  background: var(
-    --primary-gradient
-  ); // Using your variable from global settings
-  min-height: calc(100vh - 3.5rem); // Consistent with login component
+  background: var(--primary-gradient);
+  min-height: calc(100vh - 3.5rem);
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 2rem 0;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 200%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 60%
+    );
+    z-index: 1;
+  }
+
+  .container {
+    position: relative;
+    z-index: 2;
+  }
 }
 
+// Verification card styling
 .verification-card {
   border: none;
-  border-radius: 0.625rem; // Convert from fixed 15px to rem (10px)
+  border-radius: 1rem;
   overflow: hidden;
   transition: all 0.3s ease;
+  box-shadow: var(--shadow-lg);
+
+  .card-body {
+    padding: 3rem !important;
+  }
+
+  // Card footer styling
+  .card-footer {
+    padding: 1rem 1.5rem !important;
+    border-top-width: 1px;
+    transition: all 0.3s ease;
+  }
 }
 
+// Custom verification icon styling
 .verification-icon {
-  width: 6.25rem; // Convert from fixed 100px
+  width: 6.25rem;
   height: 6.25rem;
   border-radius: 50%;
   display: flex;
@@ -29,50 +65,84 @@
   &.success {
     background-color: rgba(16, 185, 129, 0.15);
     color: #10b981;
+    animation: pulse-success 2s infinite;
   }
 
   &.error {
     background-color: rgba(239, 68, 68, 0.15);
     color: #ef4444;
+    animation: shake 0.5s ease-in-out;
   }
 }
 
+// Loader styling
 .spinner-border {
   width: 3rem;
   height: 3rem;
+  border-width: 0.25rem;
+
+  &.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15rem;
+  }
 }
 
+// Button styling
+.btn {
+  border-radius: 50rem;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.3s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  }
+}
+
+// Primary button
 .btn-primary {
   background: var(--primary-gradient);
   border: none;
-  font-weight: 500;
-  padding: 0.75rem 1.5rem;
-  transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
     background: var(--primary-darker-gradient);
-    transform: translateY(-0.0625rem); // Convert from -1px
-    box-shadow: 0 0.25rem 0.625rem rgba(0, 0, 0, 0.1); // Convert from 4px 10px
   }
 
   &:disabled {
     opacity: 0.7;
     cursor: not-allowed;
   }
+
+  &:focus {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+  }
 }
 
+// Secondary button
 .btn-outline-secondary {
-  font-weight: 500;
-  padding: 0.75rem 1.5rem;
-  transition: all 0.2s ease;
+  &:focus {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-secondary-rgb), 0.25);
+  }
+}
+
+// Alert styling
+.alert {
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+
+  i {
+    font-size: 1.1rem;
+  }
 }
 
 // Dark mode styles
-[data-bs-theme="dark"] {
+:host-context([data-bs-theme="dark"]) {
   .verification-card {
     background-color: var(--dark-card-bg);
     color: var(--dark-text);
-    box-shadow: var(--shadow-dark);
+    box-shadow: var(--shadow-lg-dark);
   }
 
   .verification-icon {
@@ -92,13 +162,13 @@
   }
 
   .card-footer {
-    background-color: var(--dark-secondary-bg) !important;
-    border-top: 1px solid var(--dark-border-color);
+    background-color: var(--dark-secondary-bg);
+    border-top-color: var(--dark-border-color);
   }
 
   .btn-outline-secondary {
     border-color: var(--dark-border-color);
-    color: var(--dark-text-secondary);
+    color: var(--dark-text);
 
     &:hover {
       background-color: var(--dark-secondary-bg);
@@ -115,11 +185,11 @@
 }
 
 // Light mode styles
-[data-bs-theme="light"] {
+:host-context([data-bs-theme="light"]) {
   .verification-card {
     background-color: var(--light-card-bg);
     color: var(--light-text);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-lg);
   }
 
   .text-muted {
@@ -127,18 +197,18 @@
   }
 
   .card-footer {
-    background-color: var(--light-secondary-bg) !important;
-    border-top: 1px solid var(--light-border-color);
+    background-color: var(--light-secondary-bg);
+    border-top-color: var(--light-border-color);
   }
 
   .btn-outline-secondary {
     border-color: var(--light-border-color);
-    color: var(--light-text-secondary);
+    color: var(--light-text);
 
     &:hover {
-      background-color: var(--light-text-secondary);
+      background-color: rgba(var(--bs-secondary-rgb), 0.1);
       border-color: var(--light-text-secondary);
-      color: var(--light-bg);
+      color: var(--light-text);
     }
   }
 
@@ -149,12 +219,74 @@
   }
 }
 
-@media (max-width: 576px) {
+// Animations
+@keyframes pulse-success {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    transform: scale(1);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(16, 185, 129, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-10px);
+  }
+  40%,
+  80% {
+    transform: translateX(10px);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
   .verification-container {
-    padding: 1rem;
+    padding: 1.5rem 0;
   }
 
-  .card-body {
-    padding: 1.5rem !important;
+  .verification-card {
+    .card-body {
+      padding: 2rem !important;
+    }
+  }
+
+  .verification-icon {
+    width: 5rem;
+    height: 5rem;
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .verification-container {
+    padding: 1rem 0;
+  }
+
+  .verification-card {
+    .card-body {
+      padding: 1.5rem !important;
+    }
+  }
+
+  .verification-icon {
+    width: 4rem;
+    height: 4rem;
+    font-size: 2rem;
+  }
+
+  .btn {
+    padding: 0.6rem 1.25rem;
   }
 }

@@ -13,6 +13,10 @@ import { AccountVerificationComponent } from './account-verification/account-ver
 import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
 import { ProfileWizardComponent } from './profile-wizard/profile-wizard.component';
 import { UserSettingsComponent } from './user-settings/user-settings.component';
+import { AboutUsComponent } from './about-us/about-us.component';
+import { ContactUsComponent } from './contact-us/contact-us.component';
+import { AdminUsersComponent } from './admin-users/admin-users.component';
+import { AdminGuard } from './guards/admin.guard';
 
 export const routes: Routes = [
   // Public routes
@@ -29,6 +33,14 @@ export const routes: Routes = [
   { path: 'verify-account', component: AccountVerificationComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'unauthorized', component: UnauthorizedComponent },
+  {
+    path: 'about',
+    component: AboutUsComponent,
+  },
+  {
+    path: 'contact',
+    component: ContactUsComponent,
+  },
 
   // Protected routes (require login)
   {
@@ -63,6 +75,11 @@ export const routes: Routes = [
     path: 'lab/module/:moduleUuid/lesson/:lessonUuid',
     component: LabComponent,
     canActivate: [AuthGuard],
+  },
+  {
+    path: 'admin/users',
+    component: AdminUsersComponent,
+    canActivate: [AuthGuard, AdminGuard],
   },
 
   // Fallback route

@@ -5,6 +5,9 @@ import {
   OnDestroy,
   ViewChild,
   ElementRef,
+  HostListener,
+  Renderer2,
+  NgZone,
 } from '@angular/core';
 import { Router, NavigationStart, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -12,7 +15,6 @@ import { Subscription, filter } from 'rxjs';
 
 import { UserService, User } from '../services/user.service';
 import { ThemeService } from '../services/theme.service';
-/* Bootstrap ESM modules */
 import Collapse from 'bootstrap/js/dist/collapse';
 
 @Component({
@@ -25,8 +27,9 @@ import Collapse from 'bootstrap/js/dist/collapse';
 export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
   isLoggedIn = false;
   currentUser: User | null = null;
+  isMenuOpen = false;
+  isScrolled = false;
 
-  /* collapse (burger) */
   @ViewChild('collapseRef', { static: false })
   collapseEl!: ElementRef<HTMLElement>;
   private collapse?: Collapse;
@@ -36,8 +39,15 @@ export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private userSvc: UserService,
     private router: Router,
-    public themeService: ThemeService
+    public themeService: ThemeService,
+    private renderer: Renderer2,
+    private ngZone: NgZone
   ) {}
+
+  @HostListener('window:scroll')
+  onWindowScroll() {
+    this.isScrolled = window.scrollY > 10;
+  }
 
   ngOnInit(): void {
     this.subs.push(
@@ -47,37 +57,65 @@ export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
       })
     );
 
-    /* Auto‑close burger when navigating */
     this.subs.push(
       this.router.events
         .pipe(filter((e) => e instanceof NavigationStart))
-        .subscribe(() => this.collapse?.hide())
+        .subscribe(() => this.hideMobileMenu())
     );
+
+    this.onWindowScroll();
   }
 
   ngAfterViewInit(): void {
-    // Initialize collapse for mobile menu
-    setTimeout(() => {
-      if (this.collapseEl?.nativeElement) {
+    this.ngZone.runOutsideAngular(() => {
+      setTimeout(() => {
+        if (!this.collapseEl) return;
+
         this.collapse = new Collapse(this.collapseEl.nativeElement, {
-          toggle: false, // Initialize collapsed
+          toggle: false,
         });
-      }
-    }, 100);
+
+        this.collapseEl.nativeElement.addEventListener(
+          'shown.bs.collapse',
+          () => {
+            this.ngZone.run(() => {
+              this.isMenuOpen = true;
+              this.disableBodyScroll();
+            });
+          }
+        );
+
+        this.collapseEl.nativeElement.addEventListener(
+          'hidden.bs.collapse',
+          () => {
+            this.ngZone.run(() => {
+              this.isMenuOpen = false;
+              this.enableBodyScroll();
+            });
+          }
+        );
+      }, 100);
+    });
   }
 
-  /**
-   * Toggle the mobile menu open/closed
-   * This explicitly handles both opening and closing
-   */
   toggleMenu(): void {
-    if (this.collapse) {
-      if (this.collapseEl.nativeElement.classList.contains('show')) {
-        this.collapse.hide();
-      } else {
-        this.collapse.show();
-      }
+    this.collapse?.toggle();
+  }
+
+  hideMobileMenu(): void {
+    if (this.collapse && this.isMenuOpen) {
+      this.collapse.hide();
     }
+  }
+
+  private disableBodyScroll(): void {
+    this.renderer.addClass(document.body, 'overflow-hidden');
+    this.renderer.addClass(document.body, 'mobile-menu-open');
+  }
+
+  private enableBodyScroll(): void {
+    this.renderer.removeClass(document.body, 'overflow-hidden');
+    this.renderer.removeClass(document.body, 'mobile-menu-open');
   }
 
   get initials(): string {
@@ -86,10 +124,11 @@ export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
     return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
   }
 
-  logout(): void {
+  logout(e: Event): void {
+    e.preventDefault();
     this.userSvc.logout();
     this.router.navigate(['/']);
-    this.collapse?.hide(); // Hide burger menu on logout
+    this.hideMobileMenu();
   }
 
   toggleTheme(): void {
@@ -98,9 +137,7 @@ export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.forEach((s) => s.unsubscribe());
-
-    if (this.collapse) {
-      this.collapse.dispose();
-    }
+    this.collapse?.dispose();
+    this.enableBodyScroll();
   }
 }

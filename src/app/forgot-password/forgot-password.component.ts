@@ -8,6 +8,7 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { UserService } from '../services/user.service';
+import { ThemeService } from '../services/theme.service';
 
 @Component({
   selector: 'app-forgot-password',
@@ -40,7 +41,8 @@ export class ForgotPasswordComponent implements OnInit {
     private formBuilder: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
-    private userService: UserService
+    private userService: UserService,
+    private themeService: ThemeService
   ) {
     // Initialize request form
     this.requestForm = this.formBuilder.group({
@@ -60,6 +62,9 @@ export class ForgotPasswordComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Add animation classes
+    this.addAnimationClasses();
+
     // Check for reset token in URL
     this.route.queryParams.subscribe((params) => {
       const token = params['token'];
@@ -152,5 +157,17 @@ export class ForgotPasswordComponent implements OnInit {
       this.isLoading = false;
       this.resetComplete = true;
     }, 1500);
+  }
+
+  // Add animation classes for a smoother experience
+  private addAnimationClasses(): void {
+    if (typeof document !== 'undefined') {
+      setTimeout(() => {
+        const card = document.querySelector('.card');
+        if (card) {
+          card.classList.add('animate-fade-in');
+        }
+      }, 100);
+    }
   }
 }

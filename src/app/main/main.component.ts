@@ -57,19 +57,56 @@ export class MainComponent implements OnInit {
   constructor() {}
 
   ngOnInit(): void {
-    // Initialize any future component setup tasks
+    // Initialize animation observers
+    this.initAnimations();
+    // Check user's preferred theme
     this.checkPreferredTheme();
   }
 
   /**
    * Check user's preferred theme and apply it if set
-   * This can be expanded to use localStorage or user preferences from API
    */
   private checkPreferredTheme(): void {
-    // Example implementation:
-    // const savedTheme = localStorage.getItem('theme');
-    // if (savedTheme) {
-    //   document.documentElement.setAttribute('data-bs-theme', savedTheme);
-    // }
+    // This can be expanded to use localStorage or user preferences from API
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    } else {
+      // Check for system preference
+      if (
+        window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+      ) {
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+      }
+    }
+  }
+
+  /**
+   * Initialize intersection observer for scroll animations
+   */
+  private initAnimations(): void {
+    if (typeof window !== 'undefined' && 'IntersectionObserver' in window) {
+      const options = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1,
+      };
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-in');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, options);
+
+      // Start observing elements
+      setTimeout(() => {
+        const elements = document.querySelectorAll('.animate-on-scroll');
+        elements.forEach((el) => observer.observe(el));
+      }, 100);
+    }
   }
 }
