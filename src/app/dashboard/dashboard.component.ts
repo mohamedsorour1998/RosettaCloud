@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { UserService, User } from '../services/user.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject, takeUntil } from 'rxjs';
+import { ThemeService } from '../services/theme.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -11,29 +12,41 @@ import { firstValueFrom } from 'rxjs';
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
 })
-export class DashboardComponent implements OnInit {
-  user: User | null = null;
-  isLoading = true;
-  errorMessage = '';
-
+export class DashboardComponent implements OnInit, OnDestroy {
   // User data
+  user: User | null = null;
   userProgress: Record<string, any> = {};
   userLabs: string[] = [];
   userModules: string[] = [];
   completedLessons = 0;
 
   // UI state
+  isLoading = true;
+  errorMessage = '';
   expandedModules: Record<string, boolean> = {};
+  retryCount = 0;
 
-  // Make Object available to template
-  protected readonly Object = Object;
+  // Component cleanup
+  private destroy$ = new Subject<void>();
+Object: any;
 
-  constructor(private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    private themeService: ThemeService
+  ) {}
 
   ngOnInit(): void {
     this.loadDashboardData();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Load all dashboard data
+   */
   async loadDashboardData(): Promise<void> {
     try {
       this.isLoading = true;
@@ -42,68 +55,78 @@ export class DashboardComponent implements OnInit {
       const userId = this.userService.getCurrentUserId();
 
       if (!userId) {
-        throw new Error('User not found. Please login again.');
+        throw new Error('Session expired. Please login again.');
       }
 
-      // Load user data
-      const user = await firstValueFrom(this.userService.getUser(userId));
+      // Load all data concurrently for better performance
+      const [user, progressData, labsData] = await Promise.all([
+        firstValueFrom(this.userService.getUser(userId)),
+        firstValueFrom(this.userService.getUserProgress(userId)),
+        firstValueFrom(this.userService.getUserLabs(userId)),
+      ]);
+
+      // Set user data
       this.user = user ?? null;
 
       if (!this.user) {
-        throw new Error('Could not load user data.');
+        throw new Error('Could not load user data. Please try again.');
       }
 
-      // Load progress data
-      this.userProgress =
-        (await firstValueFrom(this.userService.getUserProgress(userId))) || {};
+      // Set progress data
+      this.userProgress = progressData || {};
 
-      // Load labs
-      const labsData = await firstValueFrom(
-        this.userService.getUserLabs(userId)
-      );
+      // Set labs data
       this.userLabs = labsData?.labs || [];
 
       // Process data
       this.processUserData();
+      this.retryCount = 0;
     } catch (error: any) {
-      this.errorMessage = error.message || 'Could not load dashboard data.';
       console.error('Error loading dashboard:', error);
+
+      // Provide different error message based on retry count
+      if (this.retryCount > 2) {
+        this.errorMessage =
+          'There seems to be a problem connecting to the server. Please try again later.';
+      } else {
+        this.errorMessage =
+          error.message || 'Could not load dashboard data. Please try again.';
+      }
+
+      this.retryCount++;
     } finally {
       this.isLoading = false;
     }
   }
 
-  // Process user data for dashboard
+  /**
+   * Process user data for dashboard
+   */
   processUserData(): void {
-    if (!this.userProgress) {
+    if (!this.userProgress || Object.keys(this.userProgress).length === 0) {
       this.userModules = [];
       this.completedLessons = 0;
       return;
     }
 
-    // Get modules
-    this.userModules = Object.keys(this.userProgress);
+    // Get modules and sort them
+    this.userModules = Object.keys(this.userProgress).sort();
 
     // Initialize module expansion state
-    this.userModules.forEach((moduleId) => {
-      this.expandedModules[moduleId] = false;
+    // By default, expand the first module if available
+    this.userModules.forEach((moduleId, index) => {
+      this.expandedModules[moduleId] =
+        index === 0 && this.getModuleLessons(moduleId).length > 0;
     });
 
     // Count completed lessons
     let completedCount = 0;
 
     this.userModules.forEach((moduleId) => {
-      const moduleLessons = Object.keys(this.userProgress[moduleId]);
+      const moduleLessons = this.getModuleLessons(moduleId);
 
       moduleLessons.forEach((lessonId) => {
-        const lessonQuestions = this.userProgress[moduleId][lessonId];
-        const questionCount = Object.keys(lessonQuestions).length;
-        const completedQuestions = Object.values(lessonQuestions).filter(
-          (val) => val === true
-        ).length;
-
-        // Count as completed if all questions are completed
-        if (completedQuestions === questionCount && questionCount > 0) {
+        if (this.isLessonCompleted(moduleId, lessonId)) {
           completedCount++;
         }
       });
@@ -112,21 +135,28 @@ export class DashboardComponent implements OnInit {
     this.completedLessons = completedCount;
   }
 
-  // Toggle module expansion
+  /**
+   * Toggle module expansion
+   */
   toggleModuleExpand(moduleId: string): void {
     this.expandedModules[moduleId] = !this.expandedModules[moduleId];
   }
 
-  // Get lessons for a module
+  /**
+   * Get lessons for a module
+   * Returns sorted array of lesson IDs
+   */
   getModuleLessons(moduleId: string): string[] {
     if (!this.userProgress || !this.userProgress[moduleId]) {
       return [];
     }
 
-    return Object.keys(this.userProgress[moduleId]);
+    return Object.keys(this.userProgress[moduleId]).sort();
   }
 
-  // Get total questions for a lesson
+  /**
+   * Get total questions for a lesson
+   */
   getTotalQuestionsCount(moduleId: string, lessonId: string): number {
     if (
       !this.userProgress ||
@@ -139,7 +169,9 @@ export class DashboardComponent implements OnInit {
     return Object.keys(this.userProgress[moduleId][lessonId]).length;
   }
 
-  // Get completed questions for a lesson
+  /**
+   * Get completed questions for a lesson
+   */
   getCompletedQuestionsCount(moduleId: string, lessonId: string): number {
     if (
       !this.userProgress ||
@@ -154,7 +186,10 @@ export class DashboardComponent implements OnInit {
     ).length;
   }
 
-  // Check if lesson is completed
+  /**
+   * Check if lesson is completed
+   * A lesson is considered completed when all questions are completed
+   */
   isLessonCompleted(moduleId: string, lessonId: string): boolean {
     const total = this.getTotalQuestionsCount(moduleId, lessonId);
     if (total === 0) return false;
@@ -163,7 +198,9 @@ export class DashboardComponent implements OnInit {
     return completed === total;
   }
 
-  // Calculate module completion percentage
+  /**
+   * Calculate module completion percentage
+   */
   getModuleCompletionPercentage(moduleId: string): number {
     if (!this.userProgress || !this.userProgress[moduleId]) {
       return 0;
@@ -187,5 +224,61 @@ export class DashboardComponent implements OnInit {
 
     if (totalQuestions === 0) return 0;
     return Math.round((completedQuestions / totalQuestions) * 100);
+  }
+
+  /**
+   * Get recommended next module and lesson
+   * Returns the next incomplete lesson or the first lesson of the next incomplete module
+   */
+  getRecommendedNext(): { moduleId: string; lessonId: string } | null {
+    if (this.userModules.length === 0) return null;
+
+    // Look for incomplete lessons in modules
+    for (const moduleId of this.userModules) {
+      const lessons = this.getModuleLessons(moduleId);
+
+      for (const lessonId of lessons) {
+        if (!this.isLessonCompleted(moduleId, lessonId)) {
+          return { moduleId, lessonId };
+        }
+      }
+    }
+
+    // If all lessons are complete, return the first lesson of the first module
+    if (this.userModules.length > 0) {
+      const firstModule = this.userModules[0];
+      const firstModuleLessons = this.getModuleLessons(firstModule);
+
+      if (firstModuleLessons.length > 0) {
+        return {
+          moduleId: firstModule,
+          lessonId: firstModuleLessons[0],
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get the most recent lab
+   * Returns the first lab in the list (assumed to be the most recent)
+   */
+  getMostRecentLab(): string | null {
+    return this.userLabs.length > 0 ? this.userLabs[0] : null;
+  }
+
+  /**
+   * Format date to a readable format
+   */
+  formatDate(dateString: string): string {
+    if (!dateString) return '';
+
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   }
 }

@@ -1,92 +1,120 @@
 <div class="feedback-wrapper">
-  <div *ngIf="!feedbackRequested" class="feedback-button-container">
+  <!-- Request Feedback Button -->
+  <div
+    *ngIf="!feedbackRequested"
+    class="feedback-button-container animate-fade-in"
+  >
     <button
-      class="btn btn-success btn-lg w-100 py-3"
+      class="btn-complete-lab"
       (click)="requestFeedback()"
       [disabled]="loading || feedbackRequested"
     >
-      <i class="bi bi-check-circle me-2"></i>
-      {{ loading ? "Requesting feedback..." : "Complete Lab & Get Feedback" }}
+      <div class="btn-content">
+        <i class="bi bi-check-circle-fill"></i>
+        <span>{{
+          loading ? "Requesting feedback..." : "Complete Lab & Get Feedback"
+        }}</span>
+      </div>
+      <div class="btn-shine"></div>
     </button>
-    <p class="text-muted mt-2 small text-center">
+    <div class="info-message">
       <i class="bi bi-info-circle"></i>
-      This will end your lab session and provide personalized feedback on your
-      performance.
-    </p>
-  </div>
-  <div *ngIf="loading" class="loading-container text-center">
-    <div class="spinner-border text-success" role="status">
-      <span class="visually-hidden">Loading...</span>
+      <span
+        >This will end your lab session and provide personalized feedback on
+        your performance.</span
+      >
     </div>
-    <h4 class="mt-3 mb-1">Generating your personalized feedback...</h4>
-    <p class="text-muted small">
-      This might take a minute. Please wait while our AI analyzes your
-      performance.
-    </p>
   </div>
-  <div *ngIf="feedback && !loading" class="feedback-modal-overlay">
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container animate-fade-in">
+    <div class="spinner-container">
+      <div class="spinner">
+        <svg viewBox="0 0 50 50" class="spinner-circle">
+          <circle
+            class="path"
+            cx="25"
+            cy="25"
+            r="20"
+            fill="none"
+            stroke-width="4"
+          ></circle>
+        </svg>
+      </div>
+    </div>
+    <h4>Generating your personalized feedback</h4>
+    <p>This might take a minute. Our AI is analyzing your lab performance.</p>
+  </div>
+
+  <!-- Feedback Modal -->
+  <div
+    *ngIf="feedback && !loading"
+    class="feedback-modal-overlay animate-fade-in"
+  >
     <div class="feedback-modal">
+      <!-- Countdown Banner -->
       <div class="terminate-countdown-banner">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <i class="bi bi-alarm me-2"></i>
-            Lab will be terminated automatically in:
-            <strong
-              >{{ countdownMinutes }}:{{
-                countdownSeconds | number : "2.0"
-              }}</strong
+        <div class="countdown-content">
+          <div class="countdown-info">
+            <i class="bi bi-alarm"></i>
+            <span
+              >Lab will terminate in:
+              <strong
+                >{{ countdownMinutes }}:{{ countdownSeconds }}</strong
+              ></span
             >
           </div>
-          <div class="progress" style="width: 150px; height: 8px">
-            <div
-              class="progress-bar bg-success"
-              [style.width.%]="(remainingSeconds / (5 * 60)) * 100"
-            ></div>
+          <div class="countdown-progress">
+            <div class="progress-track">
+              <div
+                class="progress-fill"
+                [style.width.%]="(remainingSeconds / (5 * 60)) * 100"
+              ></div>
+            </div>
           </div>
         </div>
       </div>
 
+      <!-- Modal Header -->
       <div class="feedback-modal-header">
-        <h2>
-          <i class="bi bi-card-text me-2 text-success"></i>Your Learning
-          Feedback
-        </h2>
+        <div class="header-content">
+          <i class="bi bi-card-text"></i>
+          <h2>Your Learning Feedback</h2>
+        </div>
       </div>
+
+      <!-- Modal Body with Feedback Content -->
       <div class="feedback-modal-body">
-        <div class="feedback-scroll-container">
+        <div class="feedback-scroll-container custom-scrollbar">
           <div
             class="feedback-text"
             [innerHTML]="formatFeedback(feedback)"
           ></div>
         </div>
       </div>
+
+      <!-- Modal Footer -->
       <div class="feedback-modal-footer">
-        <button class="btn btn-outline-primary" (click)="saveFeedback()">
-          <i class="bi bi-download me-2"></i> Download Feedback
+        <button class="btn-download" (click)="saveFeedback()">
+          <i class="bi bi-download"></i>
+          <span>Save Feedback</span>
         </button>
-        <button class="btn btn-danger" (click)="notifyTerminateLab()">
-          <i class="bi bi-stop-circle me-2"></i> Terminate Lab Now
+        <button class="btn-terminate" (click)="notifyTerminateLab()">
+          <i class="bi bi-stop-circle"></i>
+          <span>Terminate Lab Now</span>
         </button>
       </div>
     </div>
-    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1100">
-      <div
-        class="toast align-items-center text-white bg-success border-0"
-        [ngClass]="{ show: showSaveSuccess }"
-        role="alert"
-        aria-live="assertive"
-        aria-atomic="true"
-      >
-        <div class="d-flex">
-          <div class="toast-body">
-            <i class="bi bi-check-circle-fill me-2"></i>
-            Feedback downloaded successfully!
-          </div>
-          <button
-            type="button"
-            class="btn-close btn-close-white me-2 m-auto"
-            (click)="showSaveSuccess = false"
-          ></button>
+
+    <!-- Success Toast -->
+    <div class="toast-container">
+      <div class="toast" [class.visible]="showSaveSuccess">
+        <div class="toast-content">
+          <i class="bi bi-check-circle-fill"></i>
+          <span>Feedback downloaded successfully!</span>
+          <button class="toast-close" (click)="showSaveSuccess = false">
+            <i class="bi bi-x"></i>
+          </button>
         </div>
       </div>
     </div>

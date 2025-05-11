@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -8,6 +8,8 @@ import {
 } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { UserService, User } from '../services/user.service';
+import { ThemeService } from '../services/theme.service';
+import { firstValueFrom, Subject, takeUntil } from 'rxjs';
 
 interface SettingsSection {
   id: string;
@@ -22,15 +24,16 @@ interface SettingsSection {
   templateUrl: './user-settings.component.html',
   styleUrls: ['./user-settings.component.scss'],
 })
-export class UserSettingsComponent implements OnInit {
+export class UserSettingsComponent implements OnInit, OnDestroy {
+  // User data
   user: User | null = null;
+
+  // UI state
   isLoading = true;
   isSaving = false;
   submitted = false;
   errorMessage = '';
   successMessage = '';
-
-  // Active section
   activeSection = 'account';
 
   // Settings sections
@@ -47,9 +50,13 @@ export class UserSettingsComponent implements OnInit {
   privacyForm: FormGroup;
   securityForm: FormGroup;
 
+  // Cleanup
+  private destroy$ = new Subject<void>();
+
   constructor(
     private formBuilder: FormBuilder,
-    private userService: UserService
+    private userService: UserService,
+    private themeService: ThemeService
   ) {
     // Initialize forms
     this.accountForm = this.formBuilder.group({
@@ -97,9 +104,21 @@ export class UserSettingsComponent implements OnInit {
     if (hash && this.settingsSections.some((section) => section.id === hash)) {
       this.activeSection = hash;
     }
+
+    // Subscribe to theme changes
+    this.themeService.theme$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      // Handle theme changes if needed
+    });
   }
 
-  // Password match validator
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Password match validator
+   */
   passwordMatchValidator(formGroup: FormGroup) {
     const newPassword = formGroup.get('newPassword')?.value;
     const confirmPassword = formGroup.get('confirmPassword')?.value;
@@ -112,7 +131,9 @@ export class UserSettingsComponent implements OnInit {
     return null;
   }
 
-  // Load user settings
+  /**
+   * Load user settings
+   */
   async loadUserSettings(): Promise<void> {
     try {
       this.isLoading = true;
@@ -121,28 +142,30 @@ export class UserSettingsComponent implements OnInit {
       const userId = this.userService.getCurrentUserId();
 
       if (!userId) {
-        throw new Error('User not found. Please login again.');
+        throw new Error('Session expired. Please login again.');
       }
 
       // Load user data
-      const fetchedUser = await this.userService.getUser(userId).toPromise();
-      this.user = fetchedUser || null;
+      this.user = await firstValueFrom(this.userService.getUser(userId));
 
       if (!this.user) {
-        throw new Error('Could not load user data.');
+        throw new Error('Could not load user data. Please try again.');
       }
 
       // Populate forms with user data
       this.populateForms();
     } catch (error: any) {
-      this.errorMessage = error.message || 'Could not load settings.';
       console.error('Error loading settings:', error);
+      this.errorMessage =
+        error.message || 'Could not load settings. Please try again.';
     } finally {
       this.isLoading = false;
     }
   }
 
-  // Populate forms with user data
+  /**
+   * Populate forms with user data
+   */
   populateForms(): void {
     if (!this.user || !this.user.metadata) return;
 
@@ -190,9 +213,18 @@ export class UserSettingsComponent implements OnInit {
         twoFactorAuth: this.user.metadata.security.twoFactorAuth || false,
       });
     }
+
+    // Reset password fields
+    this.securityForm.patchValue({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
   }
 
-  // Set active section
+  /**
+   * Set active section
+   */
   setActiveSection(sectionId: string): void {
     this.activeSection = sectionId;
     window.location.hash = sectionId;
@@ -201,7 +233,9 @@ export class UserSettingsComponent implements OnInit {
     this.errorMessage = '';
   }
 
-  // Save account settings
+  /**
+   * Save account settings
+   */
   async saveAccountSettings(): Promise<void> {
     this.submitted = true;
 
@@ -212,7 +246,9 @@ export class UserSettingsComponent implements OnInit {
     await this.saveSettings('account', this.accountForm.value);
   }
 
-  // Save notification settings
+  /**
+   * Save notification settings
+   */
   async saveNotificationSettings(): Promise<void> {
     this.submitted = true;
 
@@ -223,7 +259,9 @@ export class UserSettingsComponent implements OnInit {
     await this.saveSettings('notifications', this.notificationsForm.value);
   }
 
-  // Save privacy settings
+  /**
+   * Save privacy settings
+   */
   async savePrivacySettings(): Promise<void> {
     this.submitted = true;
 
@@ -234,7 +272,9 @@ export class UserSettingsComponent implements OnInit {
     await this.saveSettings('privacy', this.privacyForm.value);
   }
 
-  // Save security settings
+  /**
+   * Save security settings
+   */
   async saveSecuritySettings(): Promise<void> {
     this.submitted = true;
 
@@ -253,38 +293,50 @@ export class UserSettingsComponent implements OnInit {
     }
   }
 
-  // Change password
+  /**
+   * Change password
+   */
   async changePassword(): Promise<void> {
     if (!this.user) return;
 
     try {
       this.isSaving = true;
+      this.errorMessage = '';
 
-      // In a real app, you would call an API endpoint to change the password
-      // This is a simplified example
+      // Create update data
       const updateData = {
         password: this.securityForm.get('newPassword')?.value,
+        currentPassword: this.securityForm.get('currentPassword')?.value,
       };
 
-      await this.userService
-        .updateUser(this.user.user_id, updateData)
-        .toPromise();
+      // Update user data
+      await firstValueFrom(
+        this.userService.updateUser(this.user.user_id, updateData)
+      );
 
-      this.successMessage = 'Password changed successfully.';
+      // Show success message
+      this.successMessage = 'Password changed successfully';
+
+      // Reset form
       this.securityForm.patchValue({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       });
+
       this.submitted = false;
     } catch (error: any) {
-      this.errorMessage = error.message || 'Failed to change password.';
+      console.error('Error changing password:', error);
+      this.errorMessage =
+        error.message || 'Failed to change password. Please try again.';
     } finally {
       this.isSaving = false;
     }
   }
 
-  // Generic method to save settings
+  /**
+   * Generic method to save settings
+   */
   async saveSettings(section: string, data: any): Promise<void> {
     if (!this.user) return;
 
@@ -303,9 +355,10 @@ export class UserSettingsComponent implements OnInit {
           metadata: metadata,
         };
 
-        const updatedUser = await this.userService
-          .updateUser(this.user.user_id, updateData)
-          .toPromise();
+        const updatedUser = await firstValueFrom(
+          this.userService.updateUser(this.user.user_id, updateData)
+        );
+
         if (updatedUser) {
           this.user = updatedUser;
         }
@@ -315,20 +368,38 @@ export class UserSettingsComponent implements OnInit {
           metadata: metadata,
         };
 
-        const updatedUser = await this.userService
-          .updateUser(this.user.user_id, updateData)
-          .toPromise();
+        const updatedUser = await firstValueFrom(
+          this.userService.updateUser(this.user.user_id, updateData)
+        );
+
         if (updatedUser) {
           this.user = updatedUser;
         }
       }
 
-      this.successMessage = 'Settings saved successfully.';
+      // Show success message and reset form state
+      this.successMessage = 'Settings saved successfully';
       this.submitted = false;
+
+      // Auto-dismiss success message after 5 seconds
+      setTimeout(() => {
+        if (this.successMessage) {
+          this.successMessage = '';
+        }
+      }, 5000);
     } catch (error: any) {
-      this.errorMessage = error.message || 'Failed to save settings.';
+      console.error('Error saving settings:', error);
+      this.errorMessage =
+        error.message || 'Failed to save settings. Please try again.';
     } finally {
       this.isSaving = false;
     }
+  }
+
+  /**
+   * Handle theme toggle
+   */
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 }

@@ -111,26 +111,36 @@ export class FeedbackComponent implements OnInit, OnDestroy {
   }
   formatFeedback(text: string): SafeHtml {
     if (!text) return this.sanitizer.bypassSecurityTrustHtml('');
+
+    // Process section headers (###)
     let formattedText = text.replace(/###\s+(.*?)(?=\n|$)/g, '<h3>$1</h3>');
+
+    // Process bold text (**)
     formattedText = formattedText.replace(
       /\*\*(.*?)\*\*/g,
       '<strong>$1</strong>'
     );
-    let hasNumberedList = /\d+\.\s+.*?(?=\n|$)/g.test(text);
 
+    // Process ordered lists (numbered lists)
+    let hasNumberedList = /^\d+\.\s+.*?(?=\n|$)/gm.test(text);
     if (hasNumberedList) {
       const lines = formattedText.split('\n');
       let inList = false;
       let listItems = [];
       let processedLines = [];
+
       for (let line of lines) {
         if (/^\d+\.\s+/.test(line)) {
           if (!inList) {
             inList = true;
+            // Start a new list
+            listItems = [];
           }
+          // Add item to current list
           listItems.push(`<li>${line.replace(/^\d+\.\s+/, '')}</li>`);
         } else {
           if (inList) {
+            // Close current list
             processedLines.push(`<ol>${listItems.join('')}</ol>`);
             listItems = [];
             inList = false;
@@ -138,11 +148,52 @@ export class FeedbackComponent implements OnInit, OnDestroy {
           processedLines.push(line);
         }
       }
+
+      // Close list if still open at the end
       if (inList) {
         processedLines.push(`<ol>${listItems.join('')}</ol>`);
       }
+
       formattedText = processedLines.join('\n');
     }
+
+    // Process unordered lists (bullet points)
+    let hasBulletList = /^[-*]\s+.*?(?=\n|$)/gm.test(text);
+    if (hasBulletList) {
+      const lines = formattedText.split('\n');
+      let inList = false;
+      let listItems = [];
+      let processedLines = [];
+
+      for (let line of lines) {
+        if (/^[-*]\s+/.test(line)) {
+          if (!inList) {
+            inList = true;
+            // Start a new list
+            listItems = [];
+          }
+          // Add item to current list
+          listItems.push(`<li>${line.replace(/^[-*]\s+/, '')}</li>`);
+        } else {
+          if (inList) {
+            // Close current list
+            processedLines.push(`<ul>${listItems.join('')}</ul>`);
+            listItems = [];
+            inList = false;
+          }
+          processedLines.push(line);
+        }
+      }
+
+      // Close list if still open at the end
+      if (inList) {
+        processedLines.push(`<ul>${listItems.join('')}</ul>`);
+      }
+
+      formattedText = processedLines.join('\n');
+    }
+
+    // Create sections by wrapping content between headers
     formattedText = formattedText.replace(
       /<h3>(.*?)<\/h3>/g,
       '</div><div class="feedback-section"><h3>$1</h3>'
@@ -152,8 +203,12 @@ export class FeedbackComponent implements OnInit, OnDestroy {
       /<div class="feedback-section"><\/div>/g,
       ''
     );
+
+    // Handle paragraphs
     formattedText = formattedText.replace(/\n\n/g, '</p><p>');
     formattedText = formattedText.replace(/([^>])\n([^<])/g, '$1</p><p>$2');
+
+    // Wrap loose text in <p> tags
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = formattedText;
     const textNodes = Array.from(tempDiv.childNodes).filter(

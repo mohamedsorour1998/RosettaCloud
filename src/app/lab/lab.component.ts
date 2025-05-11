@@ -34,6 +34,11 @@ import { LabService } from '../services/lab.service';
 import { UserService } from '../services/user.service';
 import { FeedbackComponent } from '../feedback/feedback.component';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
+import { ThemeService } from '../services/theme.service';
+
+/**
+ * Question interface defines the structure of lab questions
+ */
 interface Question {
   id: number;
   question: string;
@@ -46,6 +51,9 @@ interface Question {
   wrongAttempt: boolean;
 }
 
+/**
+ * Lab information interface
+ */
 interface LabInfo {
   lab_id: string;
   pod_ip: string | null;
@@ -53,6 +61,7 @@ interface LabInfo {
   status: string;
   index: number;
 }
+
 @Component({
   selector: 'app-lab',
   standalone: true,
@@ -61,12 +70,14 @@ interface LabInfo {
   styleUrls: ['./lab.component.scss'],
 })
 export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
+  // Lab related properties
   labId: string | null = null;
   labInfo$ = new BehaviorSubject<LabInfo | null>(null);
   codeServerUrl: SafeResourceUrl | null = null;
   private iframeUrl$ = new Subject<string>();
   private lastIframeUrl: string | null = null;
 
+  // Questions related properties
   questions: Question[] = [];
   currentQuestionIndex = 0;
   get currentQuestion(): Question | null {
@@ -77,6 +88,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   feedbackMessage = '';
   isAnswerCorrect = false;
   checkInProgress = false;
+
+  // Status related properties
   hadSuccessfulConnection = false;
   lostConnectionCount = 0;
   isLoading = true;
@@ -85,27 +98,46 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   isApiConnected = true;
   errorMessage: string | null = null;
   timeRemaining$ = new BehaviorSubject<string>('');
+
+  // UI related properties
+  showInstructions = false;
+  isMobile = false;
+  showSidebar = false;
+  showChatbot = false;
+
+  // User data properties
   userProgressData: any = {};
   moduleUuid: string | null = null;
   lessonUuid: string | null = null;
+
+  // Subscriptions
   private timerSub?: Subscription;
   private pollSub?: Subscription;
   private apiSub?: Subscription;
   private progressSub?: Subscription;
   private iframeSub?: Subscription;
+  private themeSub?: Subscription;
 
+  // Constants
   private readonly qStateKey = 'lab-question-state';
-  private readonly pollInterval = 30000;
-  private readonly retryDelay = 5000;
+  private readonly pollInterval = 30000; // 30 seconds
+  private readonly retryDelay = 5000; // 5 seconds
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private labSv: LabService,
     private userSv: UserService,
+    private themeService: ThemeService,
     private sanitizer: DomSanitizer,
     private el: ElementRef
-  ) {}
+  ) {
+    // Check if user is on mobile device
+    this.checkIsMobile();
+  }
+
   ngOnInit(): void {
+    // Initialize iframe subscription with debounce to prevent too many updates
     this.iframeSub = this.iframeUrl$
       .pipe(debounceTime(1000), distinctUntilChanged())
       .subscribe((url) => {
@@ -117,6 +149,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           setTimeout(() => this.adjustIframe(), 1000);
         }
       });
+
+    // Subscribe to API connection status
     if (this.labSv && this.labSv.connectionStatus$) {
       this.apiSub = this.labSv.connectionStatus$.subscribe((ok) => {
         if (ok) {
@@ -131,6 +165,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       console.error('Lab service or connection status not available');
       this.isApiConnected = false;
     }
+
+    // Get module and lesson UUIDs from route params
     this.moduleUuid = this.route.snapshot.paramMap.get('moduleUuid');
     this.lessonUuid = this.route.snapshot.paramMap.get('lessonUuid');
     if (!this.moduleUuid || !this.lessonUuid) {
@@ -138,18 +174,35 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isLoading = false;
       return;
     }
+
+    // Initialize lab environment
     this.initLab();
+
+    // Subscribe to theme changes for iframe adjustments
+    this.themeSub = this.themeService.theme$.subscribe(() => {
+      setTimeout(() => this.adjustIframe(), 300);
+    });
   }
 
-  ngAfterViewInit(): void {}
+  ngAfterViewInit(): void {
+    // Adjust iframe size after view is initialized
+    setTimeout(() => this.adjustIframe(), 1000);
+  }
 
   ngOnDestroy(): void {
+    // Clean up subscriptions to prevent memory leaks
     this.timerSub?.unsubscribe();
     this.pollSub?.unsubscribe();
     this.apiSub?.unsubscribe();
     this.progressSub?.unsubscribe();
     this.iframeSub?.unsubscribe();
+    this.themeSub?.unsubscribe();
   }
+
+  /**
+   * Initializes the lab environment
+   * Checks for cached lab ID in session storage first
+   */
   private initLab(): void {
     const cachedLab = sessionStorage.getItem('activeLabId');
     this.restoreQuestionState();
@@ -173,6 +226,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe();
   }
 
+  /**
+   * Launches a new lab instance
+   */
   private launchNewLab(): Observable<unknown> {
     this.isInitializing = true;
     return this.labSv.launchLab(this.labSv.getCurrentUserId()).pipe(
@@ -189,15 +245,22 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     );
   }
 
+  /**
+   * Loads lab information and starts polling
+   */
   private loadLabInfo(labId: string): void {
     this.startPolling();
     this.loadQuestions();
   }
 
+  /**
+   * Starts polling for lab status updates
+   */
   private startPolling(): void {
     if (!this.labId) return;
     this.pollSub?.unsubscribe();
 
+    // Set up recurring polling with error handling
     this.pollSub = interval(this.pollInterval)
       .pipe(
         filter(() => this.isApiConnected),
@@ -206,6 +269,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         tap((info) => this.handleLabInfo(info))
       )
       .subscribe();
+
+    // Initial lab info request
     this.labSv.getLabInfo(this.labId).subscribe(
       (info) => this.handleLabInfo(info),
       (err) => {
@@ -215,6 +280,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     );
   }
 
+  /**
+   * Handles lab information update
+   */
   private handleLabInfo(info: LabInfo): void {
     if (!info) {
       this.errorMessage = 'Lab not found';
@@ -228,6 +296,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const wasNotActive = !this.isLabActive;
     const statusChanged = !currentInfo || currentInfo.status !== info.status;
     this.labInfo$.next(info);
+
+    // Handle error or terminated state
     if (['error', 'terminated'].includes(info.status)) {
       sessionStorage.removeItem('activeLabId');
       this.labId = null;
@@ -235,6 +305,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
+    // Handle running state
     if (info.status === 'running' && info.pod_ip) {
       const url = info.pod_ip.includes('://')
         ? info.pod_ip
@@ -245,6 +316,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isLabActive = true;
       this.isLoading = false;
       this.isInitializing = false;
+
+      // Set up timer if time remaining is available
       if (info.time_remaining) {
         this.updateTime(info.time_remaining);
         if (!this.timerSub || statusChanged) {
@@ -253,6 +326,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       } else {
         this.timeRemaining$.next('Time unknown');
       }
+
+      // Set up first question when lab becomes active
       if (wasNotActive && this.questions.length > 0) {
         console.log('Lab became active, setting up question 1 automatically');
         this.setupQuestion(1);
@@ -269,6 +344,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isLoading = false;
     }
   }
+
+  /**
+   * Loads user progress for this lab
+   */
   private loadUserProgress(): void {
     if (!this.moduleUuid || !this.lessonUuid) return;
 
@@ -301,8 +380,14 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         },
       });
   }
+
+  /**
+   * Loads questions for this lab
+   */
   private loadQuestions(): void {
     if (!this.moduleUuid || !this.lessonUuid) return;
+
+    // Load both questions and user progress
     forkJoin({
       questions: this.labSv.getQuestions(this.moduleUuid, this.lessonUuid),
       progress: this.userSv.getUserProgress(
@@ -312,6 +397,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       ),
     }).subscribe({
       next: (result) => {
+        // Transform API question format to our format
         this.questions = result.questions.questions.map(
           (q: any): Question => ({
             id: q.question_number,
@@ -325,6 +411,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             wrongAttempt: false,
           })
         );
+
+        // Apply user progress to questions
         const progress = result.progress;
         if (progress && Object.keys(progress).length > 0) {
           this.questions.forEach((question) => {
@@ -338,6 +426,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             }
           });
         }
+
+        // Restore saved question state and set up first question
         this.restoreQuestionState();
         if (this.questions.length && this.isLabActive) {
           this.setupQuestion(1);
@@ -347,6 +437,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         console.error('Error loading questions or progress:', err),
     });
   }
+
+  /**
+   * Navigate to previous question
+   */
   navigateToPrevQuestion(): void {
     if (this.currentQuestionIndex > 0) {
       this.resetUI();
@@ -354,6 +448,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Navigate to next question
+   */
   navigateToNextQuestion(): void {
     if (this.currentQuestionIndex < this.questions.length - 1) {
       this.resetUI();
@@ -361,31 +458,48 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Navigate to a specific question by number
+   */
   navigateToQuestion(n: number): void {
     if (n >= 1 && n <= this.questions.length) {
       this.resetUI();
       this.setupQuestion(n);
     }
   }
+
+  /**
+   * Reset the answer attempt for the current question
+   */
   resetAnswerAttempt(): void {
-    const currentQuestion = this.questions[this.currentQuestionIndex];
     this.selectedOption = null;
     this.showFeedback = false;
     this.feedbackMessage = '';
   }
+
+  /**
+   * Reset UI elements for question navigation
+   */
   private resetUI(): void {
     this.selectedOption = null;
     this.showFeedback = false;
     this.feedbackMessage = '';
     this.isAnswerCorrect = false;
+
+    // Special handling for last question
     if (this.currentQuestionIndex === this.questions.length - 1) {
       const lastQuestion = this.questions[this.currentQuestionIndex];
       if (lastQuestion && !lastQuestion.completed) {
-      } else {
+        // Handle specific logic for last question if needed
+      } else if (lastQuestion) {
         lastQuestion.wrongAttempt = false;
       }
     }
   }
+
+  /**
+   * Reset current question attempt
+   */
   resetCurrentQuestionAttempt(): void {
     this.selectedOption = null;
     this.showFeedback = false;
@@ -393,6 +507,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.isAnswerCorrect = false;
   }
 
+  /**
+   * Set up a specific question
+   */
   private setupQuestion(n: number): void {
     if (!this.labId || !this.isLabActive) return;
 
@@ -404,12 +521,14 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.questions[this.currentQuestionIndex].visited = true;
     this.saveQuestionState();
 
+    // Scroll to top of question details
     setTimeout(() => {
       const element = document.querySelector('.question-details');
       if (element) {
         element.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }, 100);
+
     console.log(`Setting up question ${n} with pod index: ${labInfo.index}`);
     this.labSv
       .setupQuestion(
@@ -424,6 +543,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
+  /**
+   * Check MCQ answer
+   */
   checkMCQAnswer(): void {
     if (this.selectedOption === null) return;
 
@@ -437,6 +559,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.feedbackMessage = 'Correct! Well done.';
       q.completed = true;
       q.wrongAttempt = false;
+
+      // Update user progress if correct
       if (this.moduleUuid && this.lessonUuid) {
         this.userSv
           .updateUserProgress(
@@ -466,6 +590,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Check question answer
+   */
   checkAnswer(): void {
     if (
       !this.labId ||
@@ -480,6 +607,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.checkMCQAnswer();
       return;
     }
+
     const labInfo = this.labInfo$.getValue();
     if (!labInfo) return;
 
@@ -530,6 +658,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
+  /**
+   * Check question with solution
+   */
   checkQuestion(questionNumber: number): void {
     if (!this.labId || this.checkInProgress || !this.isLabActive) return;
 
@@ -539,7 +670,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.checkInProgress = true;
     this.showFeedback = true;
-    this.feedbackMessage = 'Checking your answer…';
+    this.feedbackMessage = 'Checking your solution…';
 
     this.labSv
       .checkQuestion(
@@ -554,24 +685,29 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         next: (res) => {
           if (res.status === 'success' && res.completed) {
             this.isAnswerCorrect = true;
-            this.feedbackMessage = 'Correct! Well done.';
+            this.feedbackMessage = 'Correct! Your solution works.';
             q.completed = true;
             q.wrongAttempt = false;
             this.markCompleted(questionNumber);
           } else {
             this.isAnswerCorrect = false;
-            this.feedbackMessage = 'Incorrect. Try again or skip.';
+            this.feedbackMessage =
+              'Your solution is not working yet. Try again.';
             q.wrongAttempt = true;
           }
           this.checkInProgress = false;
         },
         error: (err) => {
           console.error(err);
-          this.feedbackMessage = 'Error checking answer.';
+          this.feedbackMessage = 'Error checking solution.';
           this.checkInProgress = false;
         },
       });
   }
+
+  /**
+   * Set selected option
+   */
   setSelectedOption(i: number): void {
     const q = this.currentQuestion!;
     if (q.disabledOptions.includes(i)) return;
@@ -581,6 +717,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     this.selectedOption = i;
   }
+
+  /**
+   * Mark a question as completed
+   */
   private markCompleted(id: number): void {
     this.saveQuestionState();
     if (this.moduleUuid && this.lessonUuid) {
@@ -600,6 +740,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Save question state to session storage
+   */
   private saveQuestionState(): void {
     try {
       sessionStorage.setItem(
@@ -609,6 +752,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           questions: this.questions.map((q) => ({
             completed: q.completed,
             visited: q.visited,
+            disabledOptions: q.disabledOptions,
+            wrongAttempt: q.wrongAttempt,
           })),
         })
       );
@@ -617,6 +762,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Restore question state from session storage
+   */
   private restoreQuestionState(): void {
     try {
       const raw = sessionStorage.getItem(this.qStateKey);
@@ -629,6 +777,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
           if (i < this.questions.length) {
             this.questions[i].completed = s.completed;
             this.questions[i].visited = s.visited;
+            this.questions[i].disabledOptions = s.disabledOptions || [];
+            this.questions[i].wrongAttempt = s.wrongAttempt || false;
           }
         });
       }
@@ -637,18 +787,30 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Initialize a new lab
+   */
   public initializeNewLab(): void {
     try {
       sessionStorage.removeItem(this.qStateKey);
       this.questions = [];
       this.currentQuestionIndex = 0;
+      this.selectedOption = null;
+      this.showFeedback = false;
+      this.feedbackMessage = '';
+      this.isAnswerCorrect = false;
     } catch (e) {
       console.error('Error clearing question state:', e);
     }
     this.launchNewLab().subscribe();
   }
+
+  /**
+   * Terminate current lab
+   */
   terminateLab(): void {
     if (!this.labId) return;
+
     this.isLoading = true;
     this.labSv
       .terminateLab(this.labId, this.labSv.getCurrentUserId())
@@ -659,17 +821,49 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             sessionStorage.removeItem(this.qStateKey);
             this.questions = [];
             this.currentQuestionIndex = 0;
+
+            // Navigate to dashboard and handle possible navigation errors
+            this.router.navigate(['/dashboard']).then(
+              (success) => {
+                if (!success) {
+                  console.error('Navigation to dashboard failed');
+                  this.isLoading = false;
+                  // Fallback - try reloading the application
+                  window.location.href = '/dashboard';
+                }
+              },
+              (err) => {
+                console.error('Navigation error:', err);
+                this.isLoading = false;
+                // Fallback - try reloading the application
+                window.location.href = '/dashboard';
+              }
+            );
           } catch (e) {
-            console.error('Error clearing session storage:', e);
+            console.error('Error during lab termination cleanup:', e);
+            this.isLoading = false;
+            // Fallback - try reloading the application
+            window.location.href = '/dashboard';
           }
-          this.router.navigate(['/dashboard']);
         },
         error: (err) => {
+          console.error('Error terminating lab:', err);
           this.isLoading = false;
           this.errorMessage = 'Error terminating lab: ' + err.message;
+
+          // Even if there's an error, try to navigate away
+          setTimeout(() => {
+            this.router.navigate(['/dashboard']).catch(() => {
+              window.location.href = '/dashboard';
+            });
+          }, 2000);
         },
       });
   }
+
+  /**
+   * Start timer for lab countdown
+   */
   private startTimer(t: {
     hours: number;
     minutes: number;
@@ -691,14 +885,38 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
+  /**
+   * Update time display
+   */
   private updateTime(t: { hours: number; minutes: number; seconds: number }) {
     this.timeRemaining$.next(`${t.hours}h ${t.minutes}m ${t.seconds}s`);
   }
+
+  /**
+   * Adjust iframe size on window resize
+   */
   @HostListener('window:resize')
   onResize() {
+    this.checkIsMobile();
     setTimeout(() => this.adjustIframe(), 500);
   }
 
+  /**
+   * Check if user is on mobile device
+   */
+  private checkIsMobile(): void {
+    this.isMobile = window.innerWidth < 768;
+
+    // Reset mobile UI state when switching to desktop
+    if (!this.isMobile) {
+      this.showSidebar = false;
+      this.showChatbot = false;
+    }
+  }
+
+  /**
+   * Adjust iframe dimensions
+   */
   private adjustIframe(): void {
     if (!this.isLabActive) return;
 
@@ -712,18 +930,81 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Get count of completed questions
+   */
   getCompletedQuestionsCount(): number {
     return this.questions.filter((q) => q.completed).length;
   }
 
-  get showApiBanner(): boolean {
-    return (
-      this.lostConnectionCount >= 3 &&
-      this.isLabActive &&
-      !this.isInitializing &&
-      !this.isLoading
+  /**
+   * Toggle instructions panel
+   */
+  toggleInstructions(): void {
+    this.showInstructions = !this.showInstructions;
+  }
+
+  /**
+   * Toggle sidebar on mobile
+   */
+  toggleSidebar(): void {
+    this.showSidebar = !this.showSidebar;
+    if (this.showSidebar) {
+      this.showChatbot = false;
+    }
+  }
+
+  /**
+   * Toggle chatbot on mobile
+   */
+  toggleChatbot(): void {
+    this.showChatbot = !this.showChatbot;
+    if (this.showChatbot) {
+      this.showSidebar = false;
+    }
+  }
+
+  /**
+   * Refresh lab
+   */
+  refreshLab(): void {
+    if (!this.labId || !this.isLabActive || this.isLoading) return;
+
+    this.isLoading = true;
+    this.labSv.getLabInfo(this.labId).subscribe(
+      (info) => {
+        this.handleLabInfo(info);
+        this.isLoading = false;
+      },
+      (err) => {
+        console.error('Error refreshing lab:', err);
+        this.isLoading = false;
+      }
     );
   }
+
+  /**
+   * Manually retry connection
+   */
+  manualRetryConnection(): void {
+    if (this.labId) {
+      this.labSv.getLabInfo(this.labId).subscribe(
+        (info) => {
+          this.hadSuccessfulConnection = true;
+          this.lostConnectionCount = 0;
+          this.isApiConnected = true;
+          this.handleLabInfo(info);
+        },
+        (err) => {
+          console.error('Manual retry failed:', err);
+        }
+      );
+    }
+  }
+
+  /**
+   * Check if feedback button should be shown
+   */
   get showFeedbackButton(): boolean {
     const completedCount = this.getCompletedQuestionsCount();
     const totalCount = this.questions.length;
@@ -732,6 +1013,18 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       totalCount > 0 &&
       (this.currentQuestionIndex === this.questions.length - 1 ||
         completedCount / totalCount >= 0.75)
+    );
+  }
+
+  /**
+   * Check if API banner should be shown
+   */
+  get showApiBanner(): boolean {
+    return (
+      this.lostConnectionCount >= 3 &&
+      this.isLabActive &&
+      !this.isInitializing &&
+      !this.isLoading
     );
   }
 }

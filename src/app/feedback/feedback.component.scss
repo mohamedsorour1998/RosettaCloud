@@ -1,27 +1,234 @@
+// Feedback Component Styles
+// Following the RosettaCloud Design System with relative units
+
+// Animation Keyframes
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(1.25rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 0.625rem rgba(var(--bs-success-rgb), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb), 0);
+  }
+}
+
+@keyframes rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
+@keyframes buttonShine {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(200%) rotate(25deg);
+    opacity: 0;
+  }
+}
+
+// Animation Classes
+.animate-fade-in {
+  animation: fadeIn 0.5s ease;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.5s ease;
+}
+
+// Main Container
 .feedback-wrapper {
   width: 100%;
   margin-top: 1rem;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
 }
 
+// Request Feedback Button
 .feedback-button-container {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.3s ease;
+
+  .btn-complete-lab {
+    width: 100%;
+    padding: 0;
+    border: none;
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.5;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 0.25rem 0.75rem rgba(40, 167, 69, 0.25);
+
+    &:hover:not(:disabled) {
+      transform: translateY(-0.125rem);
+      background: linear-gradient(135deg, #218838 0%, #1ba87e 100%);
+      box-shadow: 0 0.375rem 1rem rgba(40, 167, 69, 0.35);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 0.125rem 0.375rem rgba(40, 167, 69, 0.25);
+    }
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+
+      .btn-shine {
+        display: none;
+      }
+    }
+
+    .btn-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1.25rem;
+      position: relative;
+      z-index: 2;
+
+      i {
+        font-size: 1.25rem;
+      }
+    }
+
+    .btn-shine {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3.125rem;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: skewX(-20deg);
+      animation: buttonShine 3s infinite;
+      z-index: 1;
+    }
+  }
+
+  .info-message {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    transition: color 0.3s ease;
+
+    i {
+      color: #6c757d;
+      font-size: 0.875rem;
+    }
+  }
 }
 
+// Loading State
 .loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem 1rem;
-  border-radius: 0.5rem; // Convert from 8px
-  box-shadow: var(--shadow); // Use theme shadow
-  width: 100%;
-  max-width: 31.25rem; // Convert from 500px
+  padding: 3rem 1.5rem;
   margin: 0 auto;
+  width: 100%;
+  max-width: 31.25rem;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
   transition: all 0.3s ease;
+  text-align: center;
+
+  .spinner-container {
+    margin-bottom: 1.5rem;
+
+    .spinner {
+      width: 3.75rem;
+      height: 3.75rem;
+      position: relative;
+
+      .spinner-circle {
+        animation: rotate 2s linear infinite;
+        transform-origin: center center;
+        width: 100%;
+        height: 100%;
+
+        .path {
+          stroke: #28a745;
+          stroke-linecap: round;
+          animation: dash 1.5s ease-in-out infinite;
+        }
+      }
+    }
+  }
+
+  h4 {
+    margin: 0 0 0.75rem;
+    font-weight: 600;
+    font-size: 1.25rem;
+    transition: color 0.3s ease;
+  }
+
+  p {
+    color: #6c757d;
+    margin: 0;
+    font-size: 0.9375rem;
+    transition: color 0.3s ease;
+    max-width: 25rem;
+  }
 }
 
+// Feedback Modal
 .feedback-modal-overlay {
   position: fixed;
   top: 0;
@@ -29,60 +236,110 @@
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(0.25rem);
   z-index: 1050;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  transition: all 0.3s ease;
 }
 
 .feedback-modal {
   width: 90%;
-  max-width: 50rem; // Convert from 800px
+  max-width: 50rem;
   height: 90vh;
-  max-height: 50rem; // Convert from 800px
-  border-radius: 0.5rem; // Convert from 8px
-  box-shadow: 0 0.3125rem 1.5625rem rgba(0, 0, 0, 0.2); // Convert from 5px 25px
+  max-height: 50rem;
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
   transition: all 0.3s ease;
+  animation: slideInUp 0.4s ease;
 }
 
+// Countdown Banner
 .terminate-countdown-banner {
   position: relative;
   top: 0;
   left: 0;
   width: 100%;
-  padding: 0.6rem 1rem;
-  font-size: 0.9rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
   z-index: 10;
   transition: all 0.3s ease;
 
-  .progress {
-    height: 0.5rem; // Convert from 8px
-    border-radius: 0.25rem;
-    transition: all 0.3s ease;
-  }
+  .countdown-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 
-  .progress-bar {
-    transition: width 1s linear;
+    .countdown-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      i {
+        font-size: 1rem;
+      }
+
+      strong {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.25rem;
+        margin-left: 0.25rem;
+        font-weight: 600;
+      }
+    }
+
+    .countdown-progress {
+      width: 9.375rem;
+
+      .progress-track {
+        height: 0.375rem;
+        border-radius: 0.1875rem;
+        width: 100%;
+        overflow: hidden;
+
+        .progress-fill {
+          height: 100%;
+          border-radius: 0.1875rem;
+          background: #28a745;
+          transition: width 1s linear;
+        }
+      }
+    }
   }
 }
 
+// Modal Header
 .feedback-modal-header {
   padding: 1.5rem;
   transition: all 0.3s ease;
 
-  h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    transition: color 0.3s ease;
+  .header-content {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+
+    i {
+      font-size: 1.5rem;
+      color: #28a745;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
   }
 }
 
+// Modal Body
 .feedback-modal-body {
   flex: 1;
   padding: 0;
@@ -95,43 +352,40 @@
   overflow-y: auto;
   padding: 1.5rem;
   transition: all 0.3s ease;
+}
 
+// Custom Scrollbar
+.custom-scrollbar {
   &::-webkit-scrollbar {
-    width: 0.625rem; // Convert from 10px
+    width: 0.5rem;
   }
 
   &::-webkit-scrollbar-track {
-    border-radius: 0.625rem; // Convert from 10px
+    border-radius: 0.625rem;
     transition: background-color 0.3s ease;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #198754; // Keep green for both themes
-    border-radius: 0.625rem; // Convert from 10px
-    border: 0.125rem solid; // Convert from 2px
+    background: #198754;
+    border-radius: 0.625rem;
+    border: 0.125rem solid;
     border-color: transparent;
     background-clip: padding-box;
     transition: background-color 0.3s ease;
-  }
 
-  &::-webkit-scrollbar-thumb:hover {
-    background: #0d6e4b;
+    &:hover {
+      background: #0d6e4b;
+    }
   }
 }
 
-.feedback-modal-footer {
-  padding: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  transition: all 0.3s ease;
-}
-
+// Feedback Text Styling
 .feedback-text {
   line-height: 1.7;
   transition: color 0.3s ease;
 
   h3 {
-    color: #198754; // Keep success green
+    color: #198754;
     font-weight: 600;
     padding-bottom: 0.5rem;
     margin-top: 1.5rem;
@@ -154,10 +408,10 @@
   ol {
     margin-bottom: 1rem;
     padding-left: 2rem;
-  }
 
-  li {
-    margin-bottom: 0.5rem;
+    li {
+      margin-bottom: 0.5rem;
+    }
   }
 
   .feedback-section {
@@ -171,21 +425,133 @@
   }
 }
 
-.toast {
-  transition: opacity 0.5s ease-in-out;
-  opacity: 0;
+// Modal Footer
+.feedback-modal-footer {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  transition: all 0.3s ease;
 
-  &.show {
-    opacity: 1;
+  button {
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    i {
+      font-size: 1rem;
+    }
+
+    &.btn-download {
+      background-color: transparent;
+      color: var(--primary-color);
+      border: 0.0625rem solid var(--primary-color);
+
+      &:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+        transform: translateY(-0.125rem);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+
+    &.btn-terminate {
+      background-color: #dc3545;
+      color: white;
+      box-shadow: 0 0.125rem 0.375rem rgba(220, 53, 69, 0.25);
+
+      &:hover {
+        background-color: #c82333;
+        transform: translateY(-0.125rem);
+        box-shadow: 0 0.25rem 0.75rem rgba(220, 53, 69, 0.35);
+      }
+
+      &:active {
+        transform: translateY(0);
+        box-shadow: 0 0.125rem 0.375rem rgba(220, 53, 69, 0.25);
+      }
+    }
   }
 }
 
-// Dark mode styles
-[data-bs-theme="dark"] {
+// Toast Notification
+.toast-container {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 1100;
+
+  .toast {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    background: #28a745;
+    color: white;
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transform: translateY(-1rem);
+    pointer-events: none;
+    transition: all 0.3s ease;
+
+    &.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
+    }
+
+    .toast-content {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      i {
+        font-size: 1.125rem;
+      }
+
+      .toast-close {
+        margin-left: 1rem;
+        background: transparent;
+        border: none;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.25rem;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        i {
+          font-size: 1rem;
+        }
+      }
+    }
+  }
+}
+
+// Dark Mode Styles
+:host-context([data-bs-theme="dark"]) {
   .loading-container {
     background-color: var(--dark-card-bg);
     box-shadow: var(--shadow-dark);
     color: var(--dark-text);
+
+    p {
+      color: var(--dark-text-muted);
+    }
   }
 
   .feedback-modal {
@@ -194,26 +560,25 @@
   }
 
   .terminate-countdown-banner {
-    background-color: rgba(255, 243, 205, 0.1); // Darkened warning background
-    color: #ffe69c; // Lighter warning text for dark mode
-    border-bottom: 1px solid rgba(255, 238, 186, 0.2);
+    background-color: rgba(255, 243, 205, 0.1);
+    color: #ffe69c;
+    border-bottom: 0.0625rem solid rgba(255, 238, 186, 0.2);
 
-    .progress {
-      background-color: rgba(
-        233,
-        255,
-        227,
-        0.1
-      ); // Darkened progress background
+    .countdown-progress {
+      .progress-track {
+        background-color: rgba(233, 255, 227, 0.1);
+      }
     }
   }
 
   .feedback-modal-header {
-    border-bottom: 1px solid var(--dark-border-color);
+    border-bottom: 0.0625rem solid var(--dark-border-color);
     background-color: var(--dark-secondary-bg);
 
-    h2 {
-      color: var(--dark-text);
+    .header-content {
+      h2 {
+        color: var(--dark-text);
+      }
     }
   }
 
@@ -221,7 +586,7 @@
     background-color: var(--dark-card-bg);
   }
 
-  .feedback-scroll-container {
+  .custom-scrollbar {
     &::-webkit-scrollbar-track {
       background: var(--dark-secondary-bg);
     }
@@ -232,15 +597,24 @@
   }
 
   .feedback-modal-footer {
-    border-top: 1px solid var(--dark-border-color);
+    border-top: 0.0625rem solid var(--dark-border-color);
     background-color: var(--dark-secondary-bg);
+
+    .btn-download {
+      color: #60a5fa;
+      border-color: #60a5fa;
+
+      &:hover {
+        background-color: rgba(96, 165, 250, 0.1);
+      }
+    }
   }
 
   .feedback-text {
     color: var(--dark-text);
 
     h3 {
-      border-bottom: 1px solid var(--dark-border-color);
+      border-bottom: 0.0625rem solid var(--dark-border-color);
     }
 
     strong,
@@ -249,32 +623,29 @@
     }
 
     .feedback-section {
-      border-bottom: 1px solid var(--dark-border-color);
+      border-bottom: 0.0625rem solid var(--dark-border-color);
     }
   }
 
-  .text-muted {
-    color: var(--dark-text-muted) !important;
-  }
+  .info-message {
+    color: var(--dark-text-muted);
 
-  .btn-outline-primary {
-    color: #60a5fa; // Lighter blue for dark mode
-    border-color: #60a5fa;
-
-    &:hover {
-      background-color: var(--primary-color);
-      border-color: var(--primary-color);
-      color: var(--dark-bg);
+    i {
+      color: var(--dark-text-muted);
     }
   }
 }
 
-// Light mode styles
-[data-bs-theme="light"] {
+// Light Mode Styles
+:host-context([data-bs-theme="light"]) {
   .loading-container {
     background-color: var(--light-card-bg);
     box-shadow: var(--shadow);
     color: var(--light-text);
+
+    p {
+      color: var(--light-text-muted);
+    }
   }
 
   .feedback-modal {
@@ -283,21 +654,25 @@
   }
 
   .terminate-countdown-banner {
-    background-color: #fff3cd; // Original warning background
-    color: #856404; // Original warning text
-    border-bottom: 1px solid #ffeeba;
+    background-color: #fff3cd;
+    color: #856404;
+    border-bottom: 0.0625rem solid #ffeeba;
 
-    .progress {
-      background-color: #e9ffe3;
+    .countdown-progress {
+      .progress-track {
+        background-color: #e9ffe3;
+      }
     }
   }
 
   .feedback-modal-header {
-    border-bottom: 1px solid var(--light-border-color);
+    border-bottom: 0.0625rem solid var(--light-border-color);
     background-color: var(--light-secondary-bg);
 
-    h2 {
-      color: var(--light-text);
+    .header-content {
+      h2 {
+        color: var(--light-text);
+      }
     }
   }
 
@@ -312,7 +687,7 @@
   }
 
   .feedback-modal-footer {
-    border-top: 1px solid var(--light-border-color);
+    border-top: 0.0625rem solid var(--light-border-color);
     background-color: var(--light-secondary-bg);
   }
 
@@ -320,7 +695,7 @@
     color: var(--light-text);
 
     h3 {
-      border-bottom: 1px solid var(--light-border-color);
+      border-bottom: 0.0625rem solid var(--light-border-color);
     }
 
     strong,
@@ -329,40 +704,14 @@
     }
 
     .feedback-section {
-      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      border-bottom: 0.0625rem solid rgba(0, 0, 0, 0.05);
     }
   }
-
-  .text-muted {
-    color: var(--light-text-muted) !important;
-  }
 }
 
-// Button styles (consistent with other components)
-.btn-success {
-  transition: all 0.2s ease;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-0.0625rem);
-    box-shadow: 0 0.25rem 0.625rem rgba(0, 0, 0, 0.1);
-  }
-}
-
-.btn-outline-primary {
-  transition: all 0.2s ease;
-}
-
-.btn-danger {
-  transition: all 0.2s ease;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-0.0625rem);
-    box-shadow: 0 0.25rem 0.625rem rgba(220, 53, 69, 0.25);
-  }
-}
-
-// Responsive adjustments
-@media (max-width: 576px) {
+// Responsive Adjustments
+@media (max-width: 36rem) {
+  // 576px
   .feedback-modal {
     width: 95%;
     height: 95vh;
@@ -377,11 +726,35 @@
     padding: 1rem;
   }
 
+  .terminate-countdown-banner {
+    padding: 0.5rem;
+
+    .countdown-content {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+
+      .countdown-progress {
+        width: 100%;
+      }
+    }
+  }
+
   .feedback-modal-footer {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
 
-    .btn {
+    button {
+      width: 100%;
+    }
+  }
+
+  .toast-container {
+    top: 1rem;
+    right: 1rem;
+    left: 1rem;
+
+    .toast {
       width: 100%;
     }
   }

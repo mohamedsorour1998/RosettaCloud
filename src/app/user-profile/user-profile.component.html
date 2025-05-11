@@ -1,123 +1,127 @@
 <div class="profile-container">
-  <div class="container py-5">
-    <!-- Loading State -->
-    <div *ngIf="isLoading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container animate-fade-in">
+    <div class="spinner">
+      <svg viewBox="0 0 50 50" class="spinner-circle">
+        <circle
+          class="path"
+          cx="25"
+          cy="25"
+          r="20"
+          fill="none"
+          stroke-width="4"
+        ></circle>
+      </svg>
+    </div>
+    <h4>Loading your profile</h4>
+    <p>We're retrieving your information</p>
+  </div>
+
+  <!-- Error State -->
+  <div
+    *ngIf="errorMessage && !isLoading"
+    class="error-container animate-fade-in"
+  >
+    <div class="error-icon">
+      <i class="bi bi-exclamation-triangle"></i>
+    </div>
+    <h3>Something went wrong</h3>
+    <p>{{ errorMessage }}</p>
+    <button class="btn-retry" (click)="loadUserProfile()">
+      <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+    </button>
+  </div>
+
+  <!-- Profile Content -->
+  <div *ngIf="user && !isLoading" class="profile-content animate-fade-in">
+    <!-- Success Message Toast -->
+    <div class="toast-container" *ngIf="successMessage">
+      <div class="toast visible">
+        <div class="toast-content">
+          <i class="bi bi-check-circle-fill"></i>
+          <span>{{ successMessage }}</span>
+          <button class="toast-close" (click)="successMessage = ''">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
       </div>
-      <p class="mt-2">Loading profile...</p>
     </div>
 
-    <!-- Error Message -->
-    <div
-      *ngIf="errorMessage && !isLoading"
-      class="alert alert-danger"
-      role="alert"
-    >
-      {{ errorMessage }}
-    </div>
-
-    <!-- Profile Content -->
-    <div *ngIf="user && !isLoading" class="row">
+    <div class="profile-layout">
       <!-- Left Column - Profile Overview -->
-      <div class="col-lg-4 mb-4">
-        <div class="card shadow profile-card">
-          <!-- Profile Header -->
-          <div class="card-body p-4 text-center">
+      <div class="profile-sidebar animate-slide-in-up">
+        <div class="profile-card">
+          <div class="profile-header">
             <div class="profile-avatar">
               <span>{{ getProfileInitials() }}</span>
             </div>
-
-            <h3 class="profile-name mt-3">{{ user.name }}</h3>
-            <p class="text-muted">{{ user.email }}</p>
-
-            <div class="d-grid gap-2 mt-4">
-              <button class="btn btn-primary" (click)="toggleEditMode()">
-                <i class="bi bi-pencil me-2"></i>Edit Profile
-              </button>
-            </div>
+            <h2 class="profile-name">{{ user.name }}</h2>
+            <p class="profile-email">{{ user.email }}</p>
+            <button class="btn-edit-profile" (click)="toggleEditMode()">
+              <i class="bi bi-pencil"></i>
+              <span>Edit Profile</span>
+            </button>
           </div>
 
-          <!-- Profile Stats -->
-          <div class="card-footer p-0">
-            <div class="row g-0 text-center">
-              <div class="col-4 p-3 border-end">
-                <h4 class="profile-stat-value">
-                  {{ userModules.length || 0 }}
-                </h4>
-                <p class="profile-stat-label">Courses</p>
-              </div>
-              <div class="col-4 p-3 border-end">
-                <h4 class="profile-stat-value">{{ completedLessons }}</h4>
-                <p class="profile-stat-label">Lessons</p>
-              </div>
-              <div class="col-4 p-3">
-                <h4 class="profile-stat-value">{{ userLabs.length || 0 }}</h4>
-                <p class="profile-stat-label">Labs</p>
-              </div>
+          <div class="profile-stats">
+            <div class="stat-item">
+              <h3 class="stat-value">{{ userModules.length || 0 }}</h3>
+              <p class="stat-label">Courses</p>
+            </div>
+            <div class="stat-item">
+              <h3 class="stat-value">{{ completedLessons }}</h3>
+              <p class="stat-label">Lessons</p>
+            </div>
+            <div class="stat-item">
+              <h3 class="stat-value">{{ userLabs.length || 0 }}</h3>
+              <p class="stat-label">Labs</p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Right Column - Profile Details -->
-      <div class="col-lg-8">
-        <!-- Success Message -->
-        <div
-          *ngIf="successMessage"
-          class="alert alert-success alert-dismissible fade show"
-          role="alert"
-        >
-          {{ successMessage }}
-          <button
-            type="button"
-            class="btn-close"
-            (click)="successMessage = ''"
-          ></button>
-        </div>
-
+      <div class="profile-main">
         <!-- Profile Information Card -->
-        <div class="card shadow mb-4">
-          <div
-            class="card-header d-flex justify-content-between align-items-center"
-          >
-            <h5 class="mb-0">
-              {{ isEditMode ? "Edit Profile" : "Profile Information" }}
-            </h5>
+        <div
+          class="profile-details-card animate-slide-in-up"
+          style="--delay: 0.1s"
+        >
+          <div class="card-header">
+            <h2>{{ isEditMode ? "Edit Profile" : "Profile Information" }}</h2>
             <button
               *ngIf="isEditMode"
-              class="btn btn-link text-secondary"
+              class="btn-cancel"
               (click)="toggleEditMode()"
             >
-              Cancel
+              <i class="bi bi-x"></i>
+              <span>Cancel</span>
             </button>
           </div>
 
-          <div class="card-body p-4">
+          <div class="card-body">
             <!-- View Mode -->
-            <div *ngIf="!isEditMode">
-              <div class="profile-info-row">
-                <div class="profile-info-label">Full Name</div>
-                <div class="profile-info-value">{{ user.name }}</div>
+            <div *ngIf="!isEditMode" class="profile-info">
+              <div class="info-row">
+                <div class="info-label">Full Name</div>
+                <div class="info-value">{{ user.name }}</div>
               </div>
 
-              <div class="profile-info-row">
-                <div class="profile-info-label">Email</div>
-                <div class="profile-info-value">{{ user.email }}</div>
+              <div class="info-row">
+                <div class="info-label">Email</div>
+                <div class="info-value">{{ user.email }}</div>
               </div>
 
-              <div class="profile-info-row">
-                <div class="profile-info-label">Role</div>
-                <div class="profile-info-value">
-                  <span class="badge bg-primary">{{
-                    user.role || "User"
-                  }}</span>
+              <div class="info-row">
+                <div class="info-label">Role</div>
+                <div class="info-value">
+                  <span class="role-badge">{{ user.role || "User" }}</span>
                 </div>
               </div>
 
-              <div class="profile-info-row">
-                <div class="profile-info-label">Member Since</div>
-                <div class="profile-info-value">
+              <div class="info-row">
+                <div class="info-label">Member Since</div>
+                <div class="info-value">
                   {{
                     user.created_at
                       ? (user.created_at * 1000 | date : "mediumDate")
@@ -126,9 +130,9 @@
                 </div>
               </div>
 
-              <div class="profile-info-row" *ngIf="user.metadata">
-                <div class="profile-info-label">Country</div>
-                <div class="profile-info-value">
+              <div class="info-row" *ngIf="user.metadata">
+                <div class="info-label">Country</div>
+                <div class="info-value">
                   {{ user.metadata.country || "Not specified" }}
                 </div>
               </div>
@@ -139,12 +143,12 @@
               *ngIf="isEditMode"
               [formGroup]="profileForm"
               (ngSubmit)="updateProfile()"
+              class="profile-form"
             >
-              <div class="mb-3">
-                <label for="name" class="form-label">Full Name</label>
+              <div class="form-group">
+                <label for="name">Full Name</label>
                 <input
                   type="text"
-                  class="form-control"
                   id="name"
                   formControlName="name"
                   [ngClass]="{
@@ -153,7 +157,7 @@
                 />
                 <div
                   *ngIf="submitted && profileForm.get('name')?.errors"
-                  class="invalid-feedback"
+                  class="error-message"
                 >
                   <span *ngIf="profileForm.get('name')?.errors?.['required']"
                     >Name is required</span
@@ -161,11 +165,10 @@
                 </div>
               </div>
 
-              <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
+              <div class="form-group">
+                <label for="email">Email</label>
                 <input
                   type="email"
-                  class="form-control"
                   id="email"
                   formControlName="email"
                   [ngClass]="{
@@ -174,7 +177,7 @@
                 />
                 <div
                   *ngIf="submitted && profileForm.get('email')?.errors"
-                  class="invalid-feedback"
+                  class="error-message"
                 >
                   <span *ngIf="profileForm.get('email')?.errors?.['required']"
                     >Email is required</span
@@ -185,13 +188,9 @@
                 </div>
               </div>
 
-              <div class="mb-3">
-                <label for="country" class="form-label">Country</label>
-                <select
-                  class="form-select"
-                  id="country"
-                  formControlName="country"
-                >
+              <div class="form-group">
+                <label for="country">Country</label>
+                <select id="country" formControlName="country">
                   <option value="">Select country</option>
                   <option value="Egypt">Egypt</option>
                   <option value="UAE">United Arab Emirates</option>
@@ -205,19 +204,15 @@
                 </select>
               </div>
 
-              <hr class="my-4" />
-              <h5 class="mb-3">Change Password</h5>
-              <p class="text-muted small mb-3">
-                Leave blank to keep current password
-              </p>
+              <div class="form-divider">
+                <span>Change Password</span>
+              </div>
+              <p class="form-hint">Leave blank to keep current password</p>
 
-              <div class="mb-3">
-                <label for="currentPassword" class="form-label"
-                  >Current Password</label
-                >
+              <div class="form-group">
+                <label for="currentPassword">Current Password</label>
                 <input
                   type="password"
-                  class="form-control"
                   id="currentPassword"
                   formControlName="currentPassword"
                   [ngClass]="{
@@ -229,20 +224,20 @@
                   *ngIf="
                     submitted && profileForm.get('currentPassword')?.errors
                   "
-                  class="invalid-feedback"
+                  class="error-message"
                 >
                   <span
                     *ngIf="profileForm.get('currentPassword')?.errors?.['required']"
-                    >Current password is required to change password</span
                   >
+                    Current password is required to change password
+                  </span>
                 </div>
               </div>
 
-              <div class="mb-3">
-                <label for="newPassword" class="form-label">New Password</label>
+              <div class="form-group">
+                <label for="newPassword">New Password</label>
                 <input
                   type="password"
-                  class="form-control"
                   id="newPassword"
                   formControlName="newPassword"
                   [ngClass]="{
@@ -252,22 +247,20 @@
                 />
                 <div
                   *ngIf="submitted && profileForm.get('newPassword')?.errors"
-                  class="invalid-feedback"
+                  class="error-message"
                 >
                   <span
                     *ngIf="profileForm.get('newPassword')?.errors?.['minlength']"
-                    >Password must be at least 6 characters</span
                   >
+                    Password must be at least 6 characters
+                  </span>
                 </div>
               </div>
 
-              <div class="mb-3">
-                <label for="confirmPassword" class="form-label"
-                  >Confirm Password</label
-                >
+              <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
                 <input
                   type="password"
-                  class="form-control"
                   id="confirmPassword"
                   formControlName="confirmPassword"
                   [ngClass]="{
@@ -279,35 +272,28 @@
                   *ngIf="
                     submitted && profileForm.get('confirmPassword')?.errors
                   "
-                  class="invalid-feedback"
+                  class="error-message"
                 >
                   <span
                     *ngIf="profileForm.get('confirmPassword')?.errors?.['passwordMismatch']"
-                    >Passwords do not match</span
                   >
+                    Passwords do not match
+                  </span>
                 </div>
               </div>
 
-              <div class="d-flex justify-content-between mt-4">
-                <button
-                  type="submit"
-                  class="btn btn-primary"
-                  [disabled]="isUpdating"
-                >
-                  <span
-                    *ngIf="isUpdating"
-                    class="spinner-border spinner-border-sm me-2"
-                    role="status"
-                    aria-hidden="true"
-                  ></span>
-                  Save Changes
+              <div class="form-actions">
+                <button type="submit" class="btn-save" [disabled]="isUpdating">
+                  <div *ngIf="isUpdating" class="btn-spinner"></div>
+                  <span>Save Changes</span>
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-danger"
+                  class="btn-delete"
                   (click)="confirmDeleteAccount()"
                 >
-                  Delete Account
+                  <i class="bi bi-trash"></i>
+                  <span>Delete Account</span>
                 </button>
               </div>
             </form>
@@ -315,60 +301,67 @@
         </div>
 
         <!-- Learning Progress Card -->
-        <div class="card shadow">
+        <div class="progress-card animate-slide-in-up" style="--delay: 0.2s">
           <div class="card-header">
-            <h5 class="mb-0">Learning Progress</h5>
+            <h2>Learning Progress</h2>
           </div>
 
-          <div class="card-body p-4">
+          <div class="card-body">
+            <!-- Empty State -->
             <div
               *ngIf="!userProgress || Object.keys(userProgress).length === 0"
-              class="text-center py-4"
+              class="empty-state"
             >
-              <div class="empty-state">
-                <i class="bi bi-book display-1 text-muted"></i>
-                <p class="mt-3">You haven't started any courses yet</p>
-                <a routerLink="/courses" class="btn btn-primary mt-2"
-                  >Browse Courses</a
-                >
+              <div class="empty-icon">
+                <i class="bi bi-book"></i>
               </div>
+              <h3>No courses started yet</h3>
+              <p>
+                You haven't enrolled in any courses yet. Start your learning
+                journey today!
+              </p>
+              <a routerLink="/courses" class="btn-primary">
+                <i class="bi bi-search"></i>
+                <span>Browse Courses</span>
+              </a>
             </div>
 
-            <div *ngIf="userProgress && Object.keys(userProgress).length > 0">
-              <div *ngFor="let moduleId of userModules" class="mb-4">
-                <div
-                  class="d-flex justify-content-between align-items-center mb-2"
-                >
-                  <h6 class="mb-0">Module: {{ moduleId }}</h6>
-                  <a
-                    [routerLink]="['/courses', moduleId]"
-                    class="btn btn-sm btn-outline-primary"
-                  >
-                    Continue
+            <!-- Module Progress -->
+            <div
+              *ngIf="userProgress && Object.keys(userProgress).length > 0"
+              class="module-progress"
+            >
+              <div *ngFor="let moduleId of userModules" class="module-item">
+                <div class="module-header">
+                  <h3>{{ moduleId }}</h3>
+                  <a [routerLink]="['/courses', moduleId]" class="btn-continue">
+                    <span>Continue</span>
+                    <i class="bi bi-arrow-right"></i>
                   </a>
                 </div>
 
-                <div
-                  *ngFor="let lessonId of getModuleLessons(moduleId)"
-                  class="progress-item mb-3"
-                >
+                <div class="lesson-progress">
                   <div
-                    class="d-flex justify-content-between align-items-center mb-1"
+                    *ngFor="let lessonId of getModuleLessons(moduleId)"
+                    class="lesson-item"
                   >
-                    <span class="small">{{ lessonId }}</span>
-                    <span class="small text-muted">
-                      {{ getCompletedQuestionsCount(moduleId, lessonId) }}/{{
-                        getTotalQuestionsCount(moduleId, lessonId)
-                      }}
-                    </span>
-                  </div>
-                  <div class="progress" style="height: 8px">
-                    <div
-                      class="progress-bar"
-                      [style.width.%]="
-                        getLessonProgressPercentage(moduleId, lessonId)
-                      "
-                    ></div>
+                    <div class="lesson-header">
+                      <span class="lesson-name">{{ lessonId }}</span>
+                      <span class="lesson-stats">
+                        {{ getCompletedQuestionsCount(moduleId, lessonId) }}/{{
+                          getTotalQuestionsCount(moduleId, lessonId)
+                        }}
+                      </span>
+                    </div>
+
+                    <div class="progress-track">
+                      <div
+                        class="progress-fill"
+                        [style.width.%]="
+                          getLessonProgressPercentage(moduleId, lessonId)
+                        "
+                      ></div>
+                    </div>
                   </div>
                 </div>
               </div>
