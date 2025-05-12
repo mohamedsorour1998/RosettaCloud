@@ -1,0 +1,270 @@
+<div class="webinars-hero">
+  <div class="container">
+    <h1 class="animate-fade-in">Live Webinars & Recordings</h1>
+    <p>
+      Join expert-led sessions on the latest technologies and learning
+      strategies
+    </p>
+
+    <!-- Search bar -->
+    <div class="webinars-search-container">
+      <form (submit)="searchWebinars($event)" class="webinars-search">
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Search webinars, topics, or speakers..."
+          [(ngModel)]="searchQuery"
+          name="searchQuery"
+        />
+        <button type="submit" class="search-btn">
+          <i class="bi bi-search"></i>
+        </button>
+        <button
+          *ngIf="searchQuery"
+          type="button"
+          class="clear-btn"
+          (click)="clearSearch()"
+        >
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="webinars-container">
+  <!-- Upcoming/Past Toggle -->
+  <div class="toggle-container">
+    <div class="webinar-type-toggle">
+      <button
+        [class.active]="!showPastWebinars"
+        (click)="showPastWebinars = false"
+      >
+        <i class="bi bi-calendar-event"></i> Upcoming Webinars
+      </button>
+      <button
+        [class.active]="showPastWebinars"
+        (click)="showPastWebinars = true"
+      >
+        <i class="bi bi-collection-play"></i> Past Recordings
+      </button>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-lg-3">
+      <div class="webinars-sidebar">
+        <div class="categories-section">
+          <h2>Categories</h2>
+          <ul class="category-list">
+            <li *ngFor="let category of categories">
+              <a
+                [class.active]="selectedCategory === category.id"
+                (click)="setCategory(category.id)"
+              >
+                <i class="bi" [ngClass]="category.icon"></i>
+                <span>{{ category.name }}</span>
+                <span class="count">{{ category.count }}</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Join as Speaker -->
+        <div class="speaker-cta">
+          <div class="speaker-icon">
+            <i class="bi bi-mic-fill"></i>
+          </div>
+          <h3>Become a Speaker</h3>
+          <p>
+            Share your expertise with our community through a live webinar
+            session
+          </p>
+          <a routerLink="/become-speaker" class="btn btn-primary">Apply Now</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-lg-9">
+      <!-- Header -->
+      <div class="webinars-header">
+        <h2>
+          {{
+            showPastWebinars ? "Past Webinar Recordings" : "Upcoming Webinars"
+          }}
+          <span *ngIf="selectedCategory !== 'all'"
+            >: {{ getCategoryName(selectedCategory) }}</span
+          >
+        </h2>
+
+        <p *ngIf="searchQuery" class="search-notification">
+          Showing results for "{{ searchQuery }}"
+          <a (click)="clearSearch()">(clear)</a>
+        </p>
+      </div>
+
+      <!-- No Results Message -->
+      <div *ngIf="filteredWebinars.length === 0" class="no-webinars">
+        <i
+          class="bi"
+          [ngClass]="showPastWebinars ? 'bi-collection-play' : 'bi-calendar-x'"
+        ></i>
+        <h3>No {{ showPastWebinars ? "recordings" : "webinars" }} found</h3>
+        <p *ngIf="searchQuery">
+          No results match your search criteria. Try different keywords or
+          <a (click)="clearSearch()">clear your search</a>.
+        </p>
+        <p *ngIf="!searchQuery && selectedCategory !== 'all'">
+          There are no
+          {{ showPastWebinars ? "past webinars" : "upcoming webinars" }} in this
+          category yet.
+        </p>
+        <p *ngIf="!searchQuery && selectedCategory === 'all'">
+          There are no
+          {{ showPastWebinars ? "past webinars" : "upcoming webinars" }}
+          scheduled at this time.
+        </p>
+        <div class="no-results-actions">
+          <button
+            *ngIf="selectedCategory !== 'all'"
+            class="btn btn-outline-primary"
+            (click)="setCategory('all')"
+          >
+            View All Categories
+          </button>
+          <button
+            *ngIf="showPastWebinars"
+            class="btn btn-primary"
+            (click)="togglePastWebinars()"
+          >
+            See Upcoming Webinars
+          </button>
+          <button
+            *ngIf="!showPastWebinars"
+            class="btn btn-primary"
+            (click)="togglePastWebinars()"
+          >
+            View Past Recordings
+          </button>
+        </div>
+      </div>
+
+      <!-- Webinars Grid -->
+      <div class="webinars-grid">
+        <div *ngFor="let webinar of filteredWebinars" class="webinar-card">
+          <div class="webinar-image">
+            <img [src]="webinar.imageUrl" [alt]="webinar.title" />
+
+            <!-- Category Badge -->
+            <div class="category-badge">
+              <i class="bi" [ngClass]="getCategoryIcon(webinar.category)"></i>
+              {{ getCategoryName(webinar.category) }}
+            </div>
+
+            <!-- Date Badge (Upcoming) or Recording Badge (Past) -->
+            <div class="date-badge" *ngIf="!showPastWebinars">
+              <i class="bi bi-calendar-event"></i>
+              {{ webinar.date }}
+            </div>
+            <div class="recording-badge" *ngIf="showPastWebinars">
+              <i class="bi bi-play-circle"></i>
+              Recording Available
+            </div>
+          </div>
+
+          <div class="webinar-content">
+            <h3 class="webinar-title">{{ webinar.title }}</h3>
+
+            <div class="webinar-meta">
+              <div class="webinar-time">
+                <i
+                  class="bi"
+                  [ngClass]="!showPastWebinars ? 'bi-clock' : 'bi-stopwatch'"
+                ></i>
+                <span *ngIf="!showPastWebinars">{{ webinar.time }}</span>
+                <span *ngIf="showPastWebinars">{{
+                  formatDuration(webinar.duration)
+                }}</span>
+              </div>
+
+              <div class="webinar-attendees">
+                <i class="bi bi-people-fill"></i>
+                {{ webinar.attendees }}
+                {{ webinar.isUpcoming ? "registered" : "attended" }}
+              </div>
+            </div>
+
+            <p class="webinar-description">{{ webinar.description }}</p>
+
+            <div class="speaker-info">
+              <div class="speaker-avatar">
+                <img
+                  [src]="webinar.speakerAvatar"
+                  [alt]="webinar.speakerName"
+                />
+              </div>
+              <div class="speaker-details">
+                <div class="speaker-name">{{ webinar.speakerName }}</div>
+                <div class="speaker-role">{{ webinar.speakerRole }}</div>
+              </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="webinar-tags">
+              <span *ngFor="let tag of webinar.tags" class="tag">{{
+                tag
+              }}</span>
+            </div>
+
+            <!-- Action Buttons - Different for upcoming vs past -->
+            <div class="webinar-actions">
+              <a
+                *ngIf="!showPastWebinars"
+                [routerLink]="webinar.registrationUrl"
+                class="btn btn-primary"
+              >
+                Register Now
+              </a>
+
+              <div *ngIf="showPastWebinars" class="recording-actions">
+                <a
+                  [href]="webinar.recordingUrl"
+                  target="_blank"
+                  class="btn btn-primary"
+                >
+                  <i class="bi bi-play-fill"></i> Watch Recording
+                </a>
+                <a
+                  *ngIf="webinar.slides"
+                  [href]="webinar.slides"
+                  target="_blank"
+                  class="btn btn-outline-primary"
+                >
+                  <i class="bi bi-file-earmark-slides"></i> View Slides
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom CTA -->
+      <div class="bottom-cta">
+        <div class="cta-content">
+          <div class="cta-icon">
+            <i class="bi bi-bell-fill"></i>
+          </div>
+          <div class="cta-text">
+            <h3>Never miss a webinar</h3>
+            <p>
+              Subscribe to our newsletter to get notified about upcoming events
+            </p>
+          </div>
+          <a routerLink="/subscribe" class="btn btn-primary">Subscribe</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -23,6 +23,10 @@ import { HelpCenterComponent } from './help-center/help-center.component';
 import { PrivacyPolicyComponent } from './privacy-policy/privacy-policy.component';
 import { AccessibilityComponent } from './accessibility/accessibility.component';
 import { TermsOfServiceComponent } from './terms-of-service/terms-of-service.component';
+import { TutorialsComponent } from './tutorials/tutorials.component';
+import { WebinarsComponent } from './webinars/webinars.component';
+import { LearningBlogComponent } from './learning-blog/learning-blog.component';
+import { MyTeachingComponent } from './my-teaching/my-teaching.component';
 
 export const routes: Routes = [
   // Public routes
@@ -64,6 +68,18 @@ export const routes: Routes = [
     path: 'contact',
     component: ContactUsComponent,
   },
+  {
+    path: 'blog',
+    component: LearningBlogComponent,
+  },
+  {
+    path: 'webinars',
+    component: WebinarsComponent,
+  },
+  {
+    path: 'tutorials',
+    component: TutorialsComponent,
+  },
 
   // Protected routes (require login)
   {
@@ -87,6 +103,15 @@ export const routes: Routes = [
     data: {
       title: 'My Courses',
       description: 'View and manage your enrolled courses.',
+    },
+  },
+  {
+    path: 'my-teaching',
+    component: MyTeachingComponent,
+    canActivate: [AuthGuard],
+    data: {
+      title: 'My Teaching',
+      description: 'View and manage your taught courses.',
     },
   },
   {
