@@ -17,6 +17,12 @@ import { AboutUsComponent } from './about-us/about-us.component';
 import { ContactUsComponent } from './contact-us/contact-us.component';
 import { AdminUsersComponent } from './admin-users/admin-users.component';
 import { AdminGuard } from './guards/admin.guard';
+import { CoursesComponent } from './courses/courses.component';
+import { MyCoursesComponent } from './my-courses/my-courses.component';
+import { HelpCenterComponent } from './help-center/help-center.component';
+import { PrivacyPolicyComponent } from './privacy-policy/privacy-policy.component';
+import { AccessibilityComponent } from './accessibility/accessibility.component';
+import { TermsOfServiceComponent } from './terms-of-service/terms-of-service.component';
 
 export const routes: Routes = [
   // Public routes
@@ -24,6 +30,7 @@ export const routes: Routes = [
   { path: 'features', component: FeaturesComponent },
   { path: 'pricing', component: PricingComponent },
   { path: 'instructors', component: InstructorsComponent },
+  { path: 'courses', component: CoursesComponent },
   { path: 'login', component: LoginComponent },
   {
     path: 'register',
@@ -36,6 +43,22 @@ export const routes: Routes = [
   {
     path: 'about',
     component: AboutUsComponent,
+  },
+  {
+    path: 'faq',
+    component: HelpCenterComponent,
+  },
+  {
+    path: 'privacy',
+    component: PrivacyPolicyComponent,
+  },
+  {
+    path: 'terms',
+    component: TermsOfServiceComponent,
+  },
+  {
+    path: 'accessibility',
+    component: AccessibilityComponent,
   },
   {
     path: 'contact',
@@ -55,6 +78,15 @@ export const routes: Routes = [
     data: {
       title: 'User Profile',
       description: 'Manage your profile and account settings.',
+    },
+  },
+  {
+    path: 'my-courses',
+    component: MyCoursesComponent,
+    canActivate: [AuthGuard],
+    data: {
+      title: 'My Courses',
+      description: 'View and manage your enrolled courses.',
     },
   },
   {

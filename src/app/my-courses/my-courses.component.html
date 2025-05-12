@@ -1,0 +1,261 @@
+<div class="my-courses-hero">
+  <div class="container py-5">
+    <div class="row align-items-center">
+      <div class="col-lg-6">
+        <h1 class="display-5 fw-bold mb-3 animate-fade-in-down">
+          My Learning Journey
+        </h1>
+        <p class="lead mb-4 animate-fade-in">
+          Track your progress, continue learning, and achieve your goals.
+        </p>
+      </div>
+      <div
+        class="col-lg-6 d-flex justify-content-lg-end mt-4 mt-lg-0 animate-fade-in-up"
+      >
+        <div class="learning-stats">
+          <div class="stats-card" *ngIf="filteredCourses.length > 0">
+            <div class="stats-row">
+              <div class="stat-item">
+                <div class="stat-value">{{ enrolledCoursesCount }}</div>
+                <div class="stat-label">Enrolled Courses</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">{{ completedCoursesCount }}</div>
+                <div class="stat-label">Completed</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">{{ updatedCoursesCount }}</div>
+                <div class="stat-label">New Updates</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <!-- Filters & Search Bar -->
+  <div class="row mb-4">
+    <div class="col-md-6 mb-3 mb-md-0">
+      <div class="filter-tabs">
+        <button
+          class="filter-tab"
+          [class.active]="selectedFilter === 'all'"
+          (click)="setFilter('all')"
+        >
+          All Courses
+        </button>
+        <button
+          class="filter-tab"
+          [class.active]="selectedFilter === 'in-progress'"
+          (click)="setFilter('in-progress')"
+        >
+          In Progress
+        </button>
+        <button
+          class="filter-tab"
+          [class.active]="selectedFilter === 'completed'"
+          (click)="setFilter('completed')"
+        >
+          Completed
+        </button>
+        <button
+          class="filter-tab"
+          [class.active]="selectedFilter === 'with-updates'"
+          (click)="setFilter('with-updates')"
+        >
+          <i class="bi bi-bell-fill me-1"></i> New Updates
+        </button>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="d-flex align-items-center">
+        <div class="search-bar flex-grow-1 me-3">
+          <i class="bi bi-search search-icon"></i>
+          <input
+            type="text"
+            class="form-control"
+            placeholder="Search my courses..."
+            [(ngModel)]="searchQuery"
+            (input)="onSearchChange()"
+          />
+          <button
+            *ngIf="searchQuery"
+            class="search-clear-btn"
+            (click)="clearSearch()"
+          >
+            <i class="bi bi-x-circle-fill"></i>
+          </button>
+        </div>
+        <div class="sort-dropdown">
+          <select
+            class="form-select"
+            [(ngModel)]="selectedSort"
+            (change)="onSortChange()"
+          >
+            <option *ngFor="let option of sortOptions" [value]="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="text-center my-5 py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-3 text-secondary">Loading your courses...</p>
+  </div>
+
+  <!-- No Courses State -->
+  <div
+    *ngIf="!isLoading && enrolledCourses.length === 0"
+    class="no-courses text-center my-5 py-5 animate-fade-in"
+  >
+    <div class="no-courses-icon">
+      <i class="bi bi-journal-bookmark"></i>
+    </div>
+    <h3 class="mt-4">You haven't enrolled in any courses yet</h3>
+    <p class="text-secondary mb-4">
+      Explore our course catalog and start learning today!
+    </p>
+    <a routerLink="/courses" class="btn btn-primary btn-lg">
+      <i class="bi bi-search me-2"></i>Explore Courses
+    </a>
+  </div>
+
+  <!-- No Search Results -->
+  <div
+    *ngIf="
+      !isLoading && enrolledCourses.length > 0 && filteredCourses.length === 0
+    "
+    class="no-results text-center my-5 py-5 animate-fade-in"
+  >
+    <div class="no-results-icon">
+      <i class="bi bi-search"></i>
+    </div>
+    <h3 class="mt-4">No courses match your search</h3>
+    <p class="text-secondary mb-4">Try adjusting your search or filters</p>
+    <button class="btn btn-outline-primary" (click)="resetFilters()">
+      <i class="bi bi-arrow-counterclockwise me-2"></i>Reset Filters
+    </button>
+  </div>
+
+  <!-- Course List -->
+  <div *ngIf="!isLoading && filteredCourses.length > 0" class="row g-4">
+    <div
+      *ngFor="let course of filteredCourses; trackBy: trackByCourse"
+      class="col-md-6 col-lg-4 animate-on-scroll"
+    >
+      <div class="course-card h-100">
+        <div class="course-header">
+          <div class="course-img-container">
+            <img
+              [src]="course.imageUrl"
+              [alt]="course.title"
+              class="course-img"
+              (error)="handleImageError($event, course)"
+            />
+            <!-- Badge for updates -->
+            <div class="update-badge" *ngIf="course.hasUpdates">
+              <i class="bi bi-bell-fill"></i> New Content
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="progress-container">
+            <div class="progress-label">
+              <span>{{ course.progress }}% Complete</span>
+              <span *ngIf="course.estimatedTimeLeft"
+                >{{ course.estimatedTimeLeft }} left</span
+              >
+            </div>
+            <div class="progress">
+              <div
+                class="progress-bar"
+                [style.width.%]="course.progress"
+                [class.bg-success]="course.progress === 100"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <h3 class="card-title">{{ course.title }}</h3>
+          <p class="card-subtitle mb-2">
+            <i class="bi bi-person-fill me-1"></i>{{ course.instructor }}
+          </p>
+
+          <div class="course-meta">
+            <div class="course-meta-item">
+              <i class="bi bi-clock-history"></i>
+              <span
+                >Last accessed: {{ getRelativeTime(course.lastAccessed) }}</span
+              >
+            </div>
+
+            <div
+              class="next-section"
+              *ngIf="course.nextSection && course.progress < 100"
+            >
+              <h5>Continue Learning</h5>
+              <p>{{ course.nextSection }}</p>
+            </div>
+
+            <div class="completion-badge" *ngIf="course.progress === 100">
+              <i class="bi bi-trophy-fill"></i>
+              <span>Course Completed</span>
+              <a
+                href="#"
+                *ngIf="course.completionCertificate"
+                class="certificate-link"
+              >
+                <i class="bi bi-award-fill me-1"></i>View Certificate
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer">
+          <a
+            [routerLink]="['/course', course.id]"
+            class="btn w-100"
+            [ngClass]="{
+              'btn-primary': course.progress < 100,
+              'btn-success': course.progress === 100
+            }"
+          >
+            <ng-container *ngIf="course.progress === 0">
+              <i class="bi bi-play-fill me-1"></i>Start Learning
+            </ng-container>
+            <ng-container *ngIf="course.progress > 0 && course.progress < 100">
+              <i class="bi bi-play-fill me-1"></i>Continue Learning
+            </ng-container>
+            <ng-container *ngIf="course.progress === 100">
+              <i class="bi bi-arrow-repeat me-1"></i>Review Course
+            </ng-container>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Explore More CTA -->
+  <div
+    *ngIf="!isLoading && filteredCourses.length > 0"
+    class="explore-more text-center mt-5 pt-4 animate-on-scroll"
+  >
+    <h3>Ready to expand your knowledge?</h3>
+    <p class="text-secondary mb-4">
+      Discover new courses to add to your learning journey
+    </p>
+    <a routerLink="/courses" class="btn btn-outline-primary btn-lg px-4">
+      <i class="bi bi-compass me-2"></i>Explore More Courses
+    </a>
+  </div>
+</div>

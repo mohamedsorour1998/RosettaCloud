@@ -1,37 +1,35 @@
-// Navbar base styles
+// Navbar base styles - modernized
 .navbar {
-  transition: all 0.3s ease;
   padding: 0.75rem 1rem;
   position: sticky;
   top: 0;
-  z-index: 1030;
+  z-index: 1040;
+  background-color: var(--bs-body-bg);
+  transition: box-shadow 0.3s ease, background-color 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 
-  // Smooth fade in animation on load
-  animation: fadeInDown 0.5s ease-out forwards;
-
-  // Add scrolled state style
   &.scrolled {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    background-color: rgba(var(--bs-body-bg-rgb), 0.95);
   }
 
   // Brand styling
   .navbar-brand {
     font-weight: 700;
-    letter-spacing: 0.5px;
-    transition: color 0.3s ease, transform 0.3s ease;
+    transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
 
     &:hover {
       transform: translateY(-2px);
     }
 
-    // Logo container with subtle animation
-    .brand-logo-container {
-      height: 2.5rem;
-      width: 2.5rem;
-      overflow: hidden;
-      border-radius: 8px;
+    .brand-logo {
+      height: 2.25rem;
+      width: auto;
       margin-right: 0.5rem;
-      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
       transition: transform 0.3s ease;
 
       &:hover {
@@ -39,22 +37,12 @@
       }
     }
 
-    // Logo image
-    .brand-logo {
-      height: 100%;
-      width: 100%;
-      object-fit: cover;
-      transition: filter 0.3s ease;
-    }
-
-    // Brand text with gradient effect
     .brand-text {
       font-weight: 700;
-      letter-spacing: 0.5px;
-      background: var(--primary-gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--primary-color);
+      transition: color 0.3s ease;
+      font-size: 1.4rem;
+      letter-spacing: -0.01em;
     }
   }
 
@@ -62,21 +50,29 @@
   .nav-link {
     font-weight: 500;
     padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    transition: all 0.3s ease;
-    position: relative;
     display: flex;
     align-items: center;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    margin: 0 0.125rem;
 
-    // Icons in nav links
     .nav-icon {
       margin-right: 0.5rem;
       font-size: 1.1rem;
+      transition: all 0.3s ease;
       opacity: 0.8;
-      transition: opacity 0.3s ease;
     }
 
-    // Active state with gradient underline
+    &:hover {
+      transform: translateY(-2px);
+      color: var(--primary-color);
+
+      .nav-icon {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+    }
+
     &.active {
       position: relative;
       color: var(--primary-color);
@@ -92,32 +88,19 @@
         left: 1rem;
         right: 1rem;
         height: 0.2rem;
-        background: var(--primary-gradient);
+        background-color: var(--primary-color);
         border-radius: 1rem;
-        transition: all 0.3s ease;
-      }
-    }
-
-    // Hover state
-    &:hover {
-      transform: translateY(-2px);
-
-      .nav-icon {
-        opacity: 1;
+        animation: glow 1.5s infinite alternate;
       }
     }
   }
 
-  // Dropdown toggle
-  .dropdown-toggle {
-    &::after {
-      margin-left: 0.5rem;
-      vertical-align: 0.15em;
-      transition: transform 0.3s ease;
-    }
-
-    &[aria-expanded="true"]::after {
-      transform: rotate(180deg);
+  // Right-aligned items
+  .navbar-nav {
+    &.right-nav {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
     }
   }
 
@@ -126,7 +109,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-left: 0.5rem;
+    margin-left: 0.75rem;
 
     .nav-item {
       display: flex;
@@ -138,59 +121,40 @@
   .btn {
     padding: 0.5rem 1.25rem;
     border-radius: 50rem;
-    transition: all 0.3s ease;
     font-weight: 500;
+    transition: all 0.3s ease;
 
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
   }
 
-  // Primary button
+  // Primary button with soft glow
   .btn-primary {
     background: var(--primary-gradient);
     border: none;
+    box-shadow: 0 2px 5px rgba(var(--bs-primary-rgb), 0.3);
 
     &:hover {
       background: var(--primary-darker-gradient);
-      box-shadow: 0 5px 15px rgba(var(--bs-primary-rgb), 0.3);
+      box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), 0.5);
     }
   }
 
-  // Outline primary button
+  // Outline button with hover effect
   .btn-outline-primary {
-    color: var(--primary-color);
     border-color: var(--primary-color);
-    background-color: transparent;
-    position: relative;
-    z-index: 1;
-
-    &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: var(--primary-gradient);
-      border-radius: 50rem;
-      z-index: -1;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
+    color: var(--primary-color);
 
     &:hover {
-      color: white;
-      border-color: transparent;
-
-      &::before {
-        opacity: 1;
-      }
+      background-color: rgba(var(--bs-primary-rgb), 0.1);
+      color: var(--primary-color);
+      border-color: var(--primary-color);
     }
   }
 
-  // User avatar
+  // User avatar with pulse effect
   .user-avatar {
     width: 2.5rem;
     height: 2.5rem;
@@ -201,44 +165,49 @@
     justify-content: center;
     color: white;
     font-weight: 600;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
     transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-
-    &::before {
-      content: attr(data-initials);
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--primary-gradient);
-      opacity: 0;
-      transform: scale(1.5);
-      transition: all 0.3s ease;
-    }
+    box-shadow: 0 2px 5px rgba(var(--bs-primary-rgb), 0.3);
 
     &:hover {
       transform: scale(1.1);
-      box-shadow: 0 5px 15px rgba(var(--bs-primary-rgb), 0.4);
+      box-shadow: 0 0 10px rgba(var(--bs-primary-rgb), 0.5);
+    }
+  }
 
-      &::before {
-        opacity: 1;
-        transform: scale(1);
-      }
+  // User name in dropdown
+  .user-name {
+    font-weight: 500;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-      span {
-        opacity: 0;
-        transform: scale(0.5);
-      }
+  // Search toggle
+  .search-toggle-container {
+    margin: 0 0.5rem;
+  }
+
+  .search-toggle {
+    background: transparent;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    color: inherit;
+    transition: all 0.3s ease;
+
+    i {
+      font-size: 1.25rem;
+      transition: transform 0.3s ease;
     }
 
-    span {
-      transition: all 0.3s ease;
+    &:hover {
+      background-color: rgba(var(--bs-body-color-rgb), 0.1);
+
+      i {
+        transform: scale(1.1);
+      }
     }
   }
 
@@ -253,14 +222,12 @@
     padding: 0.5rem;
     border-radius: 50%;
     cursor: pointer;
-    display: flex;
-    align-items: center;
     color: inherit;
     transition: all 0.3s ease;
 
     i {
       font-size: 1.25rem;
-      transition: all 0.3s ease;
+      transition: transform 0.3s ease;
     }
 
     &:hover {
@@ -272,25 +239,13 @@
     }
   }
 
-  // Align nav items
-  .navbar-nav {
-    display: flex;
-    align-items: center;
-  }
-
-  // Mobile menu toggle button - ensure it's only visible on mobile
+  // Mobile menu toggle button
   .navbar-toggler {
     padding: 0.5rem;
     border: none;
     background: transparent;
-    border-radius: 50%;
-    width: 2.5rem;
-    height: 2.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
     cursor: pointer;
+    transition: all 0.3s ease;
 
     &:focus {
       box-shadow: none;
@@ -305,45 +260,52 @@
       font-size: 1.5rem;
       transition: transform 0.3s ease;
     }
+  }
 
-    // Ensure the X appears with a nice animation
-    .bi-x-lg {
-      animation: rotate-in 0.3s ease forwards;
+  // Navbar collapse
+  .navbar-collapse {
+    transition: all 0.3s ease;
+
+    &.show {
+      display: block;
+      animation: fadeIn 0.3s ease;
     }
 
-    .bi-list {
-      animation: rotate-out 0.3s ease forwards;
+    &:not(.show) {
+      display: none;
     }
   }
 }
 
 // Dropdown menu styling
 .dropdown-menu {
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   padding: 0.75rem 0;
-  border: none;
   margin-top: 0.75rem;
-  transition: all 0.3s ease;
-  z-index: 1021;
-  animation: fadeInDown 0.3s ease-out;
-  overflow: hidden;
+  border: none;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  animation: fadeInDown 0.3s ease;
+  min-width: 14rem;
 
   .dropdown-item {
-    padding: 0.5rem 1.25rem;
+    padding: 0.6rem 1.25rem;
     font-weight: 500;
-    transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    border-radius: 0;
+    transition: all 0.2s ease;
+    border-radius: 0.25rem;
+    margin: 0 0.5rem;
+    width: calc(100% - 1rem);
 
     i {
-      opacity: 0.8;
-      transition: opacity 0.3s ease;
       margin-right: 0.5rem;
+      opacity: 0.8;
+      transition: opacity 0.2s ease;
     }
 
-    &:hover, &:focus {
-      transform: translateX(0.25rem);
+    &:hover {
+      transform: translateX(5px);
+      background-color: rgba(var(--bs-primary-rgb), 0.1);
 
       i {
         opacity: 1;
@@ -365,31 +327,150 @@
     strong {
       display: block;
       margin-bottom: 0.125rem;
-      font-size: 1rem;
     }
   }
 
   .dropdown-divider {
     margin: 0.5rem 0;
-    opacity: 0.1;
+    opacity: 0.2;
   }
 }
 
-// Collapse menu animation - speed up and smooth out
-#rcCollapse.collapsing,
-#rcCollapse.collapse {
-  transition-duration: 0.25s;
+// Search overlay styling - new
+.search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1050;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  overflow-y: auto;
+
+  &.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .search-container {
+    width: 100%;
+    max-width: 800px;
+    background-color: transparent;
+    border-radius: 1rem;
+    overflow: hidden;
+
+    .search-form {
+      position: relative;
+      margin-bottom: 1.5rem;
+
+      .search-icon {
+        position: absolute;
+        left: 1.25rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.25rem;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .search-input {
+        height: 3.75rem;
+        background-color: rgba(255, 255, 255, 0.15);
+        border: none;
+        border-radius: 1rem;
+        color: white;
+        font-size: 1.25rem;
+        padding: 0 4rem;
+        width: 100%;
+
+        &:focus {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.5);
+          background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        &::placeholder {
+          color: rgba(255, 255, 255, 0.6);
+        }
+      }
+
+      .search-close {
+        position: absolute;
+        right: 1.25rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 1.25rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          color: white;
+          transform: translateY(-50%) scale(1.1);
+        }
+      }
+    }
+
+    .search-suggestions {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 1rem;
+      padding: 1.5rem;
+
+      .search-category-title {
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .suggestion-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+
+        .suggestion-item {
+          color: white;
+          text-decoration: none;
+          padding: 0.75rem 1rem;
+          border-radius: 0.5rem;
+          background-color: rgba(255, 255, 255, 0.1);
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+
+          &:hover {
+            background-color: rgba(var(--bs-primary-rgb), 0.3);
+            transform: translateY(-2px);
+          }
+        }
+      }
+    }
+  }
 }
 
-// Animations
-@keyframes fadeInDown {
+// Add body class for when overlay is active
+:host-context(body.overlay-active) {
+  overflow: hidden;
+}
+
+// Animation keyframes
+@keyframes glow {
   from {
-    opacity: 0;
-    transform: translateY(-10px);
+    box-shadow: 0 0 2px rgba(var(--bs-primary-rgb), 0.5);
   }
   to {
-    opacity: 1;
-    transform: translateY(0);
+    box-shadow: 0 0 8px rgba(var(--bs-primary-rgb), 0.8);
   }
 }
 
@@ -402,42 +483,32 @@
   }
 }
 
-// Animation for hamburger icon transformation
-@keyframes rotate-in {
+@keyframes fadeInDown {
   from {
-    transform: rotate(-90deg) scale(0.5);
     opacity: 0;
+    transform: translateY(-10px);
   }
   to {
-    transform: rotate(0) scale(1);
     opacity: 1;
-  }
-}
-
-@keyframes rotate-out {
-  from {
-    transform: rotate(90deg) scale(0.5);
-    opacity: 0;
-  }
-  to {
-    transform: rotate(0) scale(1);
-    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 // Dark mode styles
 :host-context([data-bs-theme="dark"]) {
   .navbar {
-    background-color: var(--dark-card-bg);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background-color: rgba(var(--dark-card-bg-rgb), 0.95);
+
+    &.scrolled {
+      background-color: rgba(var(--dark-card-bg-rgb), 0.97);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
 
     .navbar-brand {
       color: var(--dark-text);
 
       .brand-text {
-        background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
+        color: #60a5fa;
       }
     }
 
@@ -445,15 +516,25 @@
       color: var(--dark-text-secondary);
 
       &:hover {
-        color: var(--dark-text);
+        color: #60a5fa;
       }
 
       &.active {
         color: #60a5fa;
 
         &::after {
-          background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+          background-color: #60a5fa;
+          box-shadow: 0 0 8px rgba(96, 165, 250, 0.8);
         }
+      }
+    }
+
+    .user-avatar {
+      background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+      box-shadow: 0 2px 5px rgba(96, 165, 250, 0.3);
+
+      &:hover {
+        box-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
       }
     }
 
@@ -461,61 +542,46 @@
       color: var(--dark-text);
     }
 
-    .btn-outline-primary {
-      color: #60a5fa;
-      border-color: #60a5fa;
-
-      &::before {
-        background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-      }
-    }
-
     .btn-primary {
-      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+      box-shadow: 0 2px 5px rgba(96, 165, 250, 0.3);
 
       &:hover {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        box-shadow: 0 4px 12px rgba(96, 165, 250, 0.5);
       }
     }
 
-    .user-avatar {
-      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    .btn-outline-primary {
+      border-color: #60a5fa;
+      color: #60a5fa;
 
-      &::before {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      &:hover {
+        background-color: rgba(96, 165, 250, 0.1);
+        color: #60a5fa;
       }
     }
 
-    .theme-toggle:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
+    .search-toggle,
+    .theme-toggle {
+      color: var(--dark-text-secondary);
 
-    // Mobile navbar collapse background in dark mode
-    .navbar-collapse {
-      background-color: var(--dark-card-bg);
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
     }
-  }
-
-  // Adjust logo brightness in dark mode
-  .brand-logo {
-    filter: brightness(1.2);
   }
 
   .dropdown-menu {
     background-color: var(--dark-card-bg);
-    border-color: var(--dark-border-color);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 
     .dropdown-item {
       color: var(--dark-text-secondary);
 
-      &:hover, &:focus {
+      &:hover {
         background-color: rgba(255, 255, 255, 0.05);
         color: var(--dark-text);
-      }
-
-      &.logout-item:hover {
-        background-color: rgba(220, 53, 69, 0.2);
       }
     }
 
@@ -531,132 +597,110 @@
       border-color: var(--dark-border-color);
     }
   }
+
+  .search-overlay {
+    background-color: rgba(0, 0, 0, 0.9);
+
+    .search-form {
+      .search-input {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
 }
 
 // Light mode styles
 :host-context([data-bs-theme="light"]) {
   .navbar {
-    background-color: var(--light-card-bg);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    background-color: rgba(var(--light-card-bg-rgb), 0.95);
 
-    .navbar-brand {
-      color: var(--light-text);
+    &.scrolled {
+      background-color: rgba(var(--light-card-bg-rgb), 0.97);
     }
 
     .nav-link {
       color: var(--light-text-secondary);
 
       &:hover {
-        color: var(--light-text);
-      }
-
-      &.active {
         color: var(--primary-color);
       }
     }
 
-    .navbar-toggler {
-      color: var(--light-text);
-    }
+    .search-toggle,
+    .theme-toggle {
+      color: var(--light-text-secondary);
 
-    // Mobile navbar collapse background in light mode
-    .navbar-collapse {
-      background-color: var(--light-card-bg);
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
     }
   }
 
   .dropdown-menu {
     background-color: var(--light-card-bg);
-    border-color: var(--light-border-color);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 
     .dropdown-item {
       color: var(--light-text-secondary);
 
-      &:hover, &:focus {
+      &:hover {
         background-color: rgba(0, 0, 0, 0.03);
         color: var(--light-text);
       }
     }
+  }
 
-    .dropdown-header {
-      color: var(--light-text);
-    }
-
-    .dropdown-divider {
-      border-color: var(--light-border-color);
-    }
+  .search-overlay {
+    background-color: rgba(0, 0, 0, 0.75);
   }
 }
 
-// Mobile styles
+// Mobile styles - with better visibility
 @media (max-width: 991.98px) {
-  body.mobile-menu-open {
-    overflow: hidden;
-    position: fixed;
-    width: 100%;
-    height: 100%;
-  }
-
   .navbar {
-    // Fixed navbar collapse for mobile
+    // Mobile navbar layout with improved visibility
     .navbar-collapse {
-      position: fixed;
-      top: 4rem;
+      position: absolute;
+      top: 100%;
       left: 0;
       right: 0;
-      bottom: 0;
+      background-color: var(--bs-body-bg); // Solid background
       padding: 1rem;
-      background-color: inherit;
-      overflow-y: auto;
-      z-index: 1020;
-      transition: opacity 0.3s ease, visibility 0.3s ease;
+      border-bottom-left-radius: 1rem;
+      border-bottom-right-radius: 1rem;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); // Stronger shadow
+      z-index: 1030;
+      margin-top: 0.5rem;
 
-      // Default state (collapsed)
-      &:not(.show):not(.collapsing) {
-        display: none !important;
-        visibility: hidden;
-        pointer-events: none;
-      }
-
-      // When showing
-      &.show {
-        display: block !important;
-        visibility: visible;
-        opacity: 1;
-        animation: fadeIn 0.3s ease-out;
-      }
-
-      // During transition
-      &.collapsing {
-        visibility: visible;
-        height: calc(100vh - 4rem) !important;
-        opacity: 1;
-      }
+      // Add border
+      border: 1px solid rgba(var(--bs-body-color-rgb), 0.1);
     }
 
     .navbar-nav {
       padding: 1rem 0;
-      align-items: flex-start;
-    }
 
-    .nav-item {
-      width: 100%;
-      margin-bottom: 0.5rem;
-    }
-
-    .nav-link {
-      padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
-      width: 100%;
-
-      &:hover {
-        background-color: rgba(var(--bs-primary-rgb), 0.05);
-        transform: none;
+      .nav-item {
+        width: 100%;
+        margin-bottom: 0.5rem;
       }
 
-      &.active::after {
-        display: none;
+      .nav-link {
+        padding: 0.75rem 1rem;
+        width: 100%;
+        border-radius: 0.5rem;
+
+        &:hover {
+          background-color: rgba(var(--bs-primary-rgb), 0.05);
+          transform: none;
+        }
+
+        &.active {
+          background-color: rgba(var(--bs-primary-rgb), 0.1);
+
+          &::after {
+            display: none;
+          }
+        }
       }
     }
 
@@ -673,7 +717,6 @@
       .btn {
         width: 100%;
         text-align: left;
-        padding: 0.75rem 1rem;
         display: flex;
         align-items: center;
 
@@ -683,17 +726,20 @@
       }
     }
 
-    .theme-toggle-container {
+    .theme-toggle-container,
+    .search-toggle-container {
       margin: 0.5rem 0;
       width: 100%;
     }
 
-    .theme-toggle {
+    .theme-toggle,
+    .search-toggle {
       width: 100%;
       justify-content: flex-start;
+      display: flex;
       padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
       text-align: left;
+      border-radius: 0.5rem;
 
       &:hover {
         background-color: rgba(var(--bs-primary-rgb), 0.05);
@@ -708,101 +754,63 @@
       position: static !important;
       float: none;
       width: 100%;
-      background-color: transparent !important;
-      border: none;
+      background-color: rgba(var(--bs-body-color-rgb), 0.03) !important;
+      border: 1px solid rgba(var(--bs-body-color-rgb), 0.1);
+      border-radius: 0.5rem;
       box-shadow: none;
-      padding: 0 0 0 1.5rem;
-      margin-top: 0.5rem;
-      margin-bottom: 1rem;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
       animation: none;
+    }
+  }
 
-      .dropdown-item {
-        padding: 0.75rem 1rem;
-        border-radius: 0.5rem;
+  // Adjust search overlay for mobile
+  .search-overlay {
+    padding-top: 5rem;
 
-        &:hover, &:focus {
-          background-color: rgba(var(--bs-primary-rgb), 0.05) !important;
-          transform: none;
+    .search-container {
+      .search-form {
+        .search-input {
+          height: 3.25rem;
+          font-size: 1rem;
         }
       }
 
-      .dropdown-header {
-        padding: 0.75rem 1rem 0.25rem;
-      }
-
-      .dropdown-divider {
-        display: none;
+      .search-suggestions {
+        .suggestion-list {
+          grid-template-columns: 1fr;
+        }
       }
     }
+  }
 
-    // Make sure toggle button is visible on mobile
-    .navbar-toggler {
-      display: flex;
-      margin-left: auto;
+  :host-context([data-bs-theme="dark"]) {
+    .navbar .navbar-collapse {
+      background-color: var(--dark-card-bg);
+      border-color: var(--dark-border-color);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .dropdown-menu {
+      background-color: rgba(255, 255, 255, 0.05) !important;
+      border-color: var(--dark-border-color);
+    }
+  }
+
+  :host-context([data-bs-theme="light"]) {
+    .navbar .navbar-collapse {
+      background-color: var(--light-card-bg);
+      border-color: var(--light-border-color);
+    }
+
+    .dropdown-menu {
+      background-color: rgba(0, 0, 0, 0.03) !important;
+      border-color: var(--light-border-color);
     }
   }
 }
 
-// On desktop, ensure the collapse doesn't have fixed positioning styles
-@media (min-width: 992px) {
-  .navbar {
-    .navbar-collapse {
-      position: static !important;
-      padding: 0 !important;
-      overflow: visible !important;
-      opacity: 1 !important;
-      visibility: visible !important;
-      display: block !important;
-      height: auto !important;
-      background-color: transparent !important;
-    }
-
-    // Hide toggle button on desktop
-    .navbar-toggler {
-      display: none !important;
-    }
-  }
-}
-
-// Tablet adjustments
-@media (max-width: 767.98px) {
-  .navbar {
-    padding: 0.5rem 0.75rem;
-
-    .navbar-brand {
-      .brand-logo-container {
-        height: 2.25rem;
-        width: 2.25rem;
-      }
-    }
-
-    .btn {
-      padding: 0.5rem 1rem;
-      font-size: 0.95rem;
-    }
-
-    .user-avatar {
-      width: 2.25rem;
-      height: 2.25rem;
-    }
-
-    .navbar-toggler {
-      width: 2.25rem;
-      height: 2.25rem;
-
-      i {
-        font-size: 1.25rem;
-      }
-    }
-
-    // Adjust mobile menu top position for smaller header
-    .navbar-collapse {
-      top: 3.5rem;
-    }
-  }
-}
-
-// Small mobile adjustments
+// Simple responsive adjustments
 @media (max-width: 575.98px) {
   .navbar {
     padding: 0.5rem;
@@ -812,46 +820,32 @@
         font-size: 1.25rem;
       }
 
-      .brand-logo-container {
+      .brand-logo {
         height: 2rem;
-        width: 2rem;
-      }
-    }
-
-    // Adjust mobile menu top position for even smaller header
-    .navbar-collapse {
-      top: 3.25rem;
-    }
-
-    .btn {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.9rem;
-    }
-  }
-
-  .dropdown-menu {
-    .dropdown-item {
-      i {
-        font-size: 0.9rem;
       }
     }
   }
-}
 
-// Add specific browser compatibility fixes
-@supports not ((-webkit-backdrop-filter: none) or (backdrop-filter: none)) {
-  .navbar {
-    .backdrop-blur {
-      background-color: var(--bs-body-bg);
-    }
-  }
-}
+  // Center search on small screens
+  .search-overlay {
+    padding-top: 3rem;
+    align-items: flex-start;
 
-// Fix for nested flexbox in Safari
-@media not all and (min-resolution:.001dpcm) {
-  @supports (-webkit-appearance:none) {
-    .navbar-brand {
-      flex-shrink: 0;
+    .search-container {
+      padding: 0 1rem;
+
+      .search-form {
+        .search-input {
+          height: 3rem;
+          font-size: 1rem;
+          padding: 0 3rem;
+        }
+
+        .search-icon,
+        .search-close {
+          font-size: 1rem;
+        }
+      }
     }
   }
 }

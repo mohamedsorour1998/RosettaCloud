@@ -1,0 +1,480 @@
+<div class="courses-hero">
+  <div class="container text-center py-5">
+    <h1 class="display-4 mb-3 animate-fade-in-down">
+      Unlock Your Potential with Our Courses
+    </h1>
+    <p class="lead mb-4 animate-fade-in">
+      From programming to design, find courses taught by industry experts to
+      help you advance your career
+    </p>
+    <div class="search-filters-container animate-fade-in-up">
+      <!-- Search bar -->
+      <div class="search-bar mx-auto">
+        <i class="bi bi-search search-icon"></i>
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Search courses..."
+          [(ngModel)]="searchQuery"
+          (input)="searchCourses()"
+        />
+        <button
+          *ngIf="searchQuery"
+          class="search-clear-btn"
+          (click)="searchQuery = ''; searchCourses()"
+        >
+          <i class="bi bi-x-circle-fill"></i>
+        </button>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-row">
+        <div class="filter-group">
+          <select
+            class="form-select"
+            [(ngModel)]="selectedCategory"
+            (change)="searchCourses()"
+          >
+            <option value="all">All Categories</option>
+            <option
+              *ngFor="let category of categories.slice(1)"
+              [value]="category"
+            >
+              {{ category }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <select
+            class="form-select"
+            [(ngModel)]="selectedLevel"
+            (change)="searchCourses()"
+          >
+            <option value="all">All Levels</option>
+            <option *ngFor="let level of levels.slice(1)" [value]="level">
+              {{ level }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <button
+            class="btn btn-outline-light"
+            (click)="clearFilters()"
+            [disabled]="
+              !searchQuery &&
+              selectedCategory === 'all' &&
+              selectedLevel === 'all'
+            "
+          >
+            <i class="bi bi-x-circle me-2"></i>Reset Filters
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <!-- Search Results Status -->
+  <div *ngIf="isSearching" class="text-center my-4">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Searching courses...</p>
+  </div>
+
+  <div *ngIf="showNoResults" class="no-results text-center my-5">
+    <i class="bi bi-search no-results-icon"></i>
+    <h3>No courses found</h3>
+    <p>We couldn't find any courses matching your criteria</p>
+    <button class="btn btn-primary mt-3" (click)="clearFilters()">
+      Clear Filters
+    </button>
+  </div>
+
+  <!-- Featured Courses -->
+  <div *ngIf="!showNoResults" class="featured-courses mb-5 animate-on-scroll">
+    <h2 class="section-title text-center mb-5">Featured Courses</h2>
+
+    <div
+      *ngIf="
+        filteredFeaturedCourses.length === 0 &&
+        (searchQuery || selectedCategory !== 'all' || selectedLevel !== 'all')
+      "
+      class="text-center my-4"
+    >
+      <p class="text-muted">No featured courses match your search criteria.</p>
+    </div>
+
+    <div class="row g-4" *ngIf="filteredFeaturedCourses.length > 0">
+      <div
+        *ngFor="let course of filteredFeaturedCourses"
+        class="col-lg-4 col-md-6"
+      >
+        <div
+          class="featured-course-card h-100"
+          (click)="showCourseDetails(course)"
+        >
+          <div class="featured-badge">
+            <i class="bi bi-award-fill me-1"></i>Featured
+          </div>
+          <div class="course-img-container">
+            <img
+              [src]="course.imageUrl"
+              [alt]="course.title"
+              class="course-img"
+              (error)="handleImageError($event, course)"
+            />
+          </div>
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="course-level">{{ course.level }}</span>
+              <span class="course-duration">
+                <i class="bi bi-clock me-1"></i>{{ course.duration }}
+              </span>
+            </div>
+            <h3 class="card-title">{{ course.title }}</h3>
+            <p class="card-subtitle mb-2">
+              <i class="bi bi-person-fill me-1"></i>{{ course.instructor }}
+            </p>
+            <p class="course-description">{{ course.description }}</p>
+
+            <div class="mt-auto">
+              <div class="course-rating mb-2">
+                <span *ngFor="let star of getStarRating(course.rating)">
+                  <i *ngIf="star === 1" class="bi bi-star-fill"></i>
+                  <i *ngIf="star === 0.5" class="bi bi-star-half"></i>
+                  <i *ngIf="star === 0" class="bi bi-star"></i>
+                </span>
+                <span class="ms-2"
+                  >{{ course.rating }} ({{ course.ratingCount }})</span
+                >
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="course-price">
+                  <span class="original-price" *ngIf="course.discountPrice">{{
+                    formatPrice(course.price)
+                  }}</span>
+                  <span class="current-price">{{
+                    course.discountPrice
+                      ? formatPrice(course.discountPrice)
+                      : formatPrice(course.price)
+                  }}</span>
+                  <span class="discount-badge" *ngIf="course.discountPrice">
+                    {{
+                      getDiscountPercentage(course.price, course.discountPrice)
+                    }}% OFF
+                  </span>
+                </div>
+                <button class="btn btn-sm btn-outline-primary view-course-btn">
+                  View Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Section -->
+  <div
+    *ngIf="!showNoResults"
+    class="course-stats py-4 my-5 text-center animate-on-scroll"
+  >
+    <div class="row">
+      <div *ngFor="let stat of stats" class="col-6 col-md-3 mb-4 mb-md-0">
+        <div class="stat-item">
+          <i class="bi {{ stat.icon }} stat-icon"></i>
+          <div class="stat-number">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- All Courses -->
+  <div *ngIf="!showNoResults" class="all-courses animate-on-scroll">
+    <h2 class="section-title text-center mb-5">Browse All Courses</h2>
+
+    <div
+      *ngIf="
+        filteredCourses.length === 0 &&
+        (searchQuery || selectedCategory !== 'all' || selectedLevel !== 'all')
+      "
+      class="text-center my-4"
+    >
+      <p class="text-muted">No courses match your search criteria.</p>
+    </div>
+
+    <div class="row g-4" *ngIf="paginatedCourses.length > 0">
+      <div *ngFor="let course of paginatedCourses" class="col-md-6 col-lg-4">
+        <div class="course-card h-100" (click)="showCourseDetails(course)">
+          <div class="row g-0">
+            <div class="col-4">
+              <div class="course-thumbnail-container">
+                <img
+                  [src]="course.imageUrl"
+                  [alt]="course.title"
+                  class="course-thumbnail"
+                  (error)="handleImageError($event, course)"
+                />
+                <div class="popular-badge" *ngIf="course.popular">
+                  <i class="bi bi-lightning-fill me-1"></i>Popular
+                </div>
+              </div>
+            </div>
+            <div class="col-8">
+              <div class="card-body">
+                <h5 class="card-title">{{ course.title }}</h5>
+                <p class="card-subtitle mb-1">
+                  <i class="bi bi-person-fill me-1"></i>{{ course.instructor }}
+                </p>
+                <div class="course-meta mb-2">
+                  <span class="course-level me-2">{{ course.level }}</span>
+                  <span class="course-duration">
+                    <i class="bi bi-clock me-1"></i>{{ course.duration }}
+                  </span>
+                </div>
+                <div class="course-rating small mb-2">
+                  <span *ngFor="let star of getStarRating(course.rating)">
+                    <i *ngIf="star === 1" class="bi bi-star-fill"></i>
+                    <i *ngIf="star === 0.5" class="bi bi-star-half"></i>
+                    <i *ngIf="star === 0" class="bi bi-star"></i>
+                  </span>
+                  <span class="ms-1">({{ course.ratingCount }})</span>
+                </div>
+                <div class="course-price-sm">
+                  <span class="current-price">{{
+                    course.discountPrice
+                      ? formatPrice(course.discountPrice)
+                      : formatPrice(course.price)
+                  }}</span>
+                  <span class="original-price" *ngIf="course.discountPrice">{{
+                    formatPrice(course.price)
+                  }}</span>
+                </div>
+                <div class="course-tags">
+                  <span
+                    *ngFor="let tag of course.tags.slice(0, 2)"
+                    class="course-tag"
+                  >
+                    {{ tag }}
+                  </span>
+                  <span *ngIf="course.tags.length > 2" class="tags-more">
+                    +{{ course.tags.length - 2 }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <nav
+      *ngIf="filteredCourses.length > 0"
+      aria-label="Course pagination"
+      class="mt-5"
+    >
+      <ul class="pagination justify-content-center">
+        <li class="page-item" [class.disabled]="currentPage === 1">
+          <a
+            class="page-link"
+            (click)="prevPage()"
+            style="cursor: pointer"
+            tabindex="-1"
+          >
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+
+        <li
+          *ngFor="let page of getPaginationArray()"
+          class="page-item"
+          [class.active]="page === currentPage"
+        >
+          <a
+            class="page-link"
+            (click)="goToPage(page)"
+            style="cursor: pointer"
+            >{{ page }}</a
+          >
+        </li>
+
+        <li class="page-item" [class.disabled]="currentPage === totalPages">
+          <a class="page-link" (click)="nextPage()" style="cursor: pointer">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+
+  <!-- Call to Action -->
+  <div
+    *ngIf="!showNoResults"
+    class="course-cta text-center py-5 my-5 rounded animate-on-scroll"
+  >
+    <h2>Didn't Find What You're Looking For?</h2>
+    <p class="lead mb-4">
+      Let us know what topics you're interested in learning
+    </p>
+    <a routerLink="/contact" class="btn btn-primary btn-lg px-4 py-2">
+      <i class="bi bi-envelope-fill me-2"></i>Request a Course
+    </a>
+  </div>
+</div>
+
+<!-- Course Details Modal -->
+<div
+  class="modal fade"
+  id="courseModal"
+  tabindex="-1"
+  aria-labelledby="courseModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" *ngIf="selectedCourse">
+      <div class="modal-header">
+        <h5 class="modal-title" id="courseModalLabel">
+          {{ selectedCourse.title }}
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          (click)="closeCourseDetails()"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-5 mb-3 mb-md-0">
+            <div class="course-modal-img-container">
+              <img
+                [src]="selectedCourse.imageUrl"
+                [alt]="selectedCourse.title"
+                class="course-modal-img"
+                (error)="handleImageError($event, selectedCourse)"
+              />
+              <div class="course-badge" *ngIf="selectedCourse.featured">
+                Featured
+              </div>
+              <div class="course-badge popular" *ngIf="selectedCourse.popular">
+                Popular
+              </div>
+            </div>
+            <div class="course-modal-meta mt-3">
+              <div class="meta-item">
+                <i class="bi bi-person-fill"></i>
+                <span>{{ selectedCourse.instructor }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="bi bi-bar-chart-fill"></i>
+                <span>{{ selectedCourse.level }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="bi bi-clock-fill"></i>
+                <span>{{ selectedCourse.duration }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="bi bi-translate"></i>
+                <span>{{ selectedCourse.language }}</span>
+              </div>
+              <div class="meta-item">
+                <i class="bi bi-calendar-check-fill"></i>
+                <span>Updated {{ selectedCourse.lastUpdated }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-7">
+            <div class="course-modal-rating mb-3">
+              <div class="stars">
+                <span *ngFor="let star of getStarRating(selectedCourse.rating)">
+                  <i *ngIf="star === 1" class="bi bi-star-fill"></i>
+                  <i *ngIf="star === 0.5" class="bi bi-star-half"></i>
+                  <i *ngIf="star === 0" class="bi bi-star"></i>
+                </span>
+                <span class="rating-text">
+                  {{ selectedCourse.rating }} ({{ selectedCourse.ratingCount }}
+                  ratings)
+                </span>
+              </div>
+            </div>
+
+            <p class="course-modal-description">
+              {{ selectedCourse.description }}
+            </p>
+
+            <div class="course-modal-price mb-4">
+              <div class="price-tag">
+                <span class="current-price">{{
+                  selectedCourse.discountPrice
+                    ? formatPrice(selectedCourse.discountPrice)
+                    : formatPrice(selectedCourse.price)
+                }}</span>
+                <span
+                  class="original-price"
+                  *ngIf="selectedCourse.discountPrice"
+                  >{{ formatPrice(selectedCourse.price) }}</span
+                >
+              </div>
+              <div class="discount-tag" *ngIf="selectedCourse.discountPrice">
+                {{
+                  getDiscountPercentage(
+                    selectedCourse.price,
+                    selectedCourse.discountPrice
+                  )
+                }}% OFF
+              </div>
+            </div>
+
+            <h6 class="mt-4 mb-3">Course Highlights</h6>
+            <ul class="course-highlights">
+              <li>
+                <i class="bi bi-check-circle-fill"></i> Access to all course
+                materials
+              </li>
+              <li>
+                <i class="bi bi-check-circle-fill"></i> Certificate upon
+                completion
+              </li>
+              <li>
+                <i class="bi bi-check-circle-fill"></i> 24/7 student support
+              </li>
+              <li>
+                <i class="bi bi-check-circle-fill"></i> Hands-on projects and
+                assignments
+              </li>
+              <li>
+                <i class="bi bi-check-circle-fill"></i> Lifetime access to
+                updates
+              </li>
+            </ul>
+
+            <h6 class="mt-4 mb-2">Topics Covered</h6>
+            <div class="course-tags mb-3">
+              <span *ngFor="let tag of selectedCourse.tags" class="course-tag">
+                {{ tag }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+          (click)="closeCourseDetails()"
+        >
+          Close
+        </button>
+        <a href="#" class="btn btn-primary">Enroll Now</a>
+      </div>
+    </div>
+  </div>
+</div>

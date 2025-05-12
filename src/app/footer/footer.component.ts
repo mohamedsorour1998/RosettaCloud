@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
+import { ScrollService } from '../services/scroll.service';
 
 @Component({
   selector: 'app-footer',
@@ -51,4 +52,21 @@ export class FooterComponent {
     { name: 'Terms of Service', route: '/terms' },
     { name: 'Accessibility', route: '/accessibility' },
   ];
+
+  constructor(private router: Router, private scrollService: ScrollService) {}
+
+  /**
+   * Navigate to a route and scroll to top
+   * @param route The route to navigate to
+   */
+  navigateWithScroll(route: string): void {
+    // If we're already on the route, just scroll to top
+    if (this.router.url === route) {
+      this.scrollService.scrollToTop();
+    } else {
+      // Otherwise, navigate to the route
+      // The scroll service will handle scrolling on navigation
+      this.router.navigateByUrl(route);
+    }
+  }
 }

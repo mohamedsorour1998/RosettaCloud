@@ -5,7 +5,11 @@
         <!-- Logo and tagline -->
         <div class="col-lg-4 mb-4 mb-lg-0">
           <div class="footer-brand">
-            <a routerLink="/" class="footer-logo d-inline-block mb-3">
+            <a
+              (click)="navigateWithScroll('/')"
+              class="footer-logo d-inline-block mb-3"
+              style="cursor: pointer"
+            >
               <span class="logo-text">RosettaCloud</span>
             </a>
             <p class="footer-tagline mb-3">
@@ -36,7 +40,11 @@
           <h5 class="footer-heading">Navigate</h5>
           <ul class="footer-links">
             <li *ngFor="let link of navigationLinks">
-              <a [routerLink]="link.route">{{ link.name }}</a>
+              <a
+                (click)="navigateWithScroll(link.route)"
+                style="cursor: pointer"
+                >{{ link.name }}</a
+              >
             </li>
           </ul>
         </div>
@@ -45,10 +53,30 @@
         <div class="col-6 col-md-4 col-lg-2">
           <h5 class="footer-heading">Resources</h5>
           <ul class="footer-links">
-            <li><a routerLink="/blog">Learning Blog</a></li>
-            <li><a routerLink="/faq">Help Center</a></li>
-            <li><a routerLink="/tutorials">Tutorials</a></li>
-            <li><a routerLink="/webinars">Webinars</a></li>
+            <li>
+              <a (click)="navigateWithScroll('/blog')" style="cursor: pointer"
+                >Learning Blog</a
+              >
+            </li>
+            <li>
+              <a (click)="navigateWithScroll('/faq')" style="cursor: pointer"
+                >Help Center</a
+              >
+            </li>
+            <li>
+              <a
+                (click)="navigateWithScroll('/tutorials')"
+                style="cursor: pointer"
+                >Tutorials</a
+              >
+            </li>
+            <li>
+              <a
+                (click)="navigateWithScroll('/webinars')"
+                style="cursor: pointer"
+                >Webinars</a
+              >
+            </li>
           </ul>
         </div>
 
@@ -62,7 +90,9 @@
             </li>
             <li>
               <i class="bi bi-envelope-fill"></i>
-              <a href="mailto:info&#64;rosettacloud.app">info&#64;rosettacloud.app</a>
+              <a href="mailto:info&#64;rosettacloud.app"
+                >info&#64;rosettacloud.app</a
+              >
             </li>
             <li>
               <i class="bi bi-telephone-fill"></i>
@@ -86,7 +116,11 @@
         <div class="col-md-6 text-center text-md-end">
           <ul class="footer-legal">
             <li *ngFor="let link of legalLinks; let last = last">
-              <a [routerLink]="link.route">{{ link.name }}</a>
+              <a
+                (click)="navigateWithScroll(link.route)"
+                style="cursor: pointer"
+                >{{ link.name }}</a
+              >
               <span *ngIf="!last" class="separator">•</span>
             </li>
           </ul>

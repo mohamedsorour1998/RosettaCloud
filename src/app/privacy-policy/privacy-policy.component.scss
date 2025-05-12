@@ -1,0 +1,164 @@
+// Policy Header
+.policy-header {
+  background: var(--primary-gradient);
+  color: white;
+  padding: 3rem 0;
+  text-align: center;
+
+  h1 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .last-updated {
+    opacity: 0.8;
+    font-size: 1rem;
+  }
+}
+
+// Table of Contents Sidebar
+.toc-container {
+  position: sticky;
+  top: 2rem;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background-color: var(--bs-body-bg);
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+
+  h5 {
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(var(--bs-body-color-rgb), 0.1);
+  }
+
+  .toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+
+      a {
+        color: var(--bs-body-color);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        display: block;
+
+        &:hover {
+          color: var(--primary-color);
+          transform: translateX(5px);
+        }
+      }
+    }
+  }
+}
+
+// Policy Content
+.policy-content {
+  font-size: 1rem;
+  line-height: 1.6;
+
+  .policy-section {
+    margin-bottom: 3rem;
+
+    h2 {
+      font-weight: 700;
+      font-size: 1.75rem;
+      margin-bottom: 1.25rem;
+      color: var(--primary-color);
+    }
+
+    h3 {
+      font-weight: 600;
+      font-size: 1.25rem;
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      margin-bottom: 1rem;
+    }
+
+    ul {
+      margin-bottom: 1.5rem;
+      padding-left: 1.5rem;
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+    }
+
+    .contact-info {
+      list-style: none;
+      padding-left: 0;
+
+      li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(var(--bs-body-color-rgb), 0.1);
+
+        &:last-child {
+          border-bottom: none;
+        }
+      }
+    }
+  }
+}
+
+// Dark mode styles
+:host-context([data-bs-theme="dark"]) {
+  .toc-container {
+    background-color: var(--dark-card-bg);
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
+
+    h5 {
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .policy-content {
+    .policy-section {
+      .contact-info {
+        li {
+          border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+      }
+    }
+  }
+}
+
+// Responsive styles
+@media (max-width: 991.98px) {
+  .toc-container {
+    position: relative;
+    top: 0;
+    margin-bottom: 2rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .policy-header {
+    padding: 2rem 0;
+
+    h1 {
+      font-size: 2rem;
+    }
+  }
+
+  .policy-content {
+    .policy-section {
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      h3 {
+        font-size: 1.15rem;
+      }
+    }
+  }
+}
