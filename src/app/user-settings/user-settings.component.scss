@@ -687,9 +687,24 @@
         .toggle-switch {
           .toggle-slider {
             background-color: var(--dark-tertiary-bg);
+            border: 1px solid var(--dark-border-color);
+            &:before {
+              border: 1px solid var(--dark-border-color);
+            }
+          }
+          input:checked + .toggle-slider {
+            border-color: var(--primary-color);
           }
         }
       }
+    }
+    .toggle-group
+      .toggle-item
+      .toggle-switch
+      input:not(:checked)
+      + .toggle-slider {
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--dark-border-color);
     }
 
     .radio-group {

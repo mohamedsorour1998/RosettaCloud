@@ -28,7 +28,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Component cleanup
   private destroy$ = new Subject<void>();
-Object: any;
+  Object: any;
 
   constructor(
     private userService: UserService,

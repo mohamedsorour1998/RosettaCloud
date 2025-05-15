@@ -226,3 +226,13 @@ body {
 .animate-fade-in-down {
   animation: fadeInDown 0.8s ease-in-out;
 }
+a,
+button,
+.btn,
+[role="button"],
+.clickable,
+.card-header a,
+.container-header a,
+.panel-header a {
+  cursor: pointer !important;
+}

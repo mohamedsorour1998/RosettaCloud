@@ -239,7 +239,26 @@
       </div>
 
       <!-- Labs Grid -->
-      <div *ngIf="userLabs && userLabs.length > 0" class="labs-grid">
+      <div class="labs-grid">
+        <!-- Demo Lab Card always visible -->
+        <div class="lab-card demo-lab">
+          <div class="lab-status">
+            <span class="status-badge demo">Demo</span>
+          </div>
+          <div class="lab-icon demo">
+            <i class="bi bi-lightning"></i>
+          </div>
+          <h3 class="lab-title">Demo Lab</h3>
+          <p class="lab-description">
+            Try our interactive lab environment with sample content
+          </p>
+          <a routerLink="/lab/module/1/lesson/1" class="btn-launch demo">
+            <span>Launch Demo</span>
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </div>
+
+        <!-- User's Active Labs -->
         <div *ngFor="let labId of userLabs" class="lab-card">
           <div class="lab-status">
             <span class="status-badge">Active</span>
