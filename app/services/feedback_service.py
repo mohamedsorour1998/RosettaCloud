@@ -78,6 +78,7 @@ async def _handle(raw_msg: str) -> None:
             "Do not mention any user IDs or specific identifiers in your feedback. "
             "Address the student generically without any personal references. "
             "Focus on the educational content and performance only."
+            "Make your feedback concise"
         )
 
         # Use the configured token limit - this can be easily changed at the top of the file
