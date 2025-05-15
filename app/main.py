@@ -252,7 +252,7 @@ async def update_user_progress(
     
     return {"updated": True}
 
-# Labs management
+# Pydantic models for request/response
 class LaunchLabRequest(BaseModel):
     user_id: str
     
@@ -262,10 +262,16 @@ class LabCreationResponse(BaseModel):
 class LabInfoResponse(BaseModel):
     lab_id: str
     pod_ip: Optional[str]
-    time_remaining: Optional[Dict[str,int]]
+    hostname: Optional[str] = None
+    url: Optional[str] = None
+    time_remaining: Optional[Dict[str, int]]
     status: str
-    index: Optional[int]
+    pod_name: Optional[str] = None
 
+class ErrorResponse(BaseModel):
+    error: str
+
+# FastAPI routes
 @app.post("/labs", status_code=201, response_model=LabCreationResponse, tags=["Labs"])
 async def new_lab(request: LaunchLabRequest):
     user_id = request.user_id
@@ -292,12 +298,24 @@ async def new_lab(request: LaunchLabRequest):
     
     return LabCreationResponse(lab_id=lab_id)
 
-@app.get("/labs/{lab_id}", response_model=Union[LabInfoResponse,ErrorResponse], tags=["Labs"])
+@app.get("/labs/{lab_id}", response_model=Union[LabInfoResponse, ErrorResponse], tags=["Labs"])
 async def lab_info(lab_id: str):
     info = await lab.get_lab_info(lab_id)
     if not info:
         return ErrorResponse(error="lab not found")
-    return LabInfoResponse(**info)
+    
+    # Convert to the response model
+    response_data = {
+        "lab_id": info["lab_id"],
+        "pod_ip": info.get("pod_ip"),
+        "hostname": info.get("hostname"),
+        "url": info.get("url"),
+        "time_remaining": info.get("time_remaining"),
+        "status": info["status"],
+        "pod_name": info.get("pod_name")
+    }
+    
+    return LabInfoResponse(**response_data)
 
 @app.delete("/labs/{lab_id}", status_code=200, tags=["Labs"])
 async def terminate_lab(lab_id: str, user_id: str):
@@ -317,7 +335,7 @@ async def terminate_lab(lab_id: str, user_id: str):
         return {"deleted": True}
     else:
         raise HTTPException(status_code=404, detail="Lab not found.")
-
+    
 # Questions
 class QuestionRequest(BaseModel):
     pod_name: str
