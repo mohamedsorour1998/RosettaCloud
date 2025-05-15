@@ -311,48 +311,50 @@
   }
 
   .message {
-    max-width: 92%; // Increased from 90% to 92% for more space
+    max-width: 85%; // Slightly reduced from 92% to make messages narrower
     display: flex;
-    gap: 1rem; // Increased from 0.75rem to create more space between avatar and message
+    gap: 0.75rem; // Gap between avatar and bubble
 
     &.user-message {
       align-self: flex-end;
       margin-left: auto;
+      flex-direction: row-reverse; // Avatar on right, bubble on left
 
       .message-bubble {
         background: var(--primary-gradient);
         color: white;
-        border-radius: 1.25rem 1.25rem 0 1.25rem;
+        border-radius: 1.25rem 1.25rem 0 1.25rem; // Rounded corners except bottom-right
         box-shadow: 0 0.25rem 1rem rgba(var(--bs-primary-rgb), 0.2);
-        padding: 1.125rem 1.375rem; // Further increased padding
+        padding: 1.125rem 1.375rem;
       }
 
       .message-meta {
         text-align: right;
         padding: 0 0.625rem; // Increased padding
       }
-
-      .message-avatar {
-        order: 2;
-        margin-right: 0.375rem; // Increased margin
-      }
-
-      .message-content {
-        order: 1;
-      }
     }
 
     &.assistant-message {
       align-self: flex-start;
+      flex-direction: row; // Avatar on left, bubble on right
 
-      .message-bubble {
-        border-radius: 0 1.25rem 1.25rem 1.25rem;
-        box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.05);
-        padding: 1.125rem 1.375rem; // Further increased padding
+      // Allow wider content for assistant messages when needed
+      max-width: 95%;
+
+      .message-content {
+        // Content container for assistant messages
+        min-width: 0; // Allow content to shrink below its natural size
+        max-width: 100%; // Ensure content doesn't overflow
       }
 
-      .message-avatar {
-        margin-left: 0.375rem; // Increased margin
+      .message-bubble {
+        border-radius: 0 1.25rem 1.25rem 1.25rem; // Rounded corners except bottom-left
+        box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.05);
+        padding: 1.125rem 1.375rem;
+
+        // Critical for horizontal scrolling of wide content
+        overflow-x: auto;
+        max-width: 100%;
       }
     }
 
@@ -383,23 +385,24 @@
     }
   }
 
-  // Enhance avatar styling for better visibility
+  // Enhance avatar styling for better visibility and alignment
   .message-avatar {
-    width: 2.75rem; // Increased from 2.5rem
-    height: 2.75rem; // Increased from 2.5rem
+    width: 2.5rem;
+    height: 2.5rem;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     border: 1px solid rgba(0, 0, 0, 0.05); // Added subtle border
+    align-self: flex-start; // Align with the top of the message bubble
 
     &.user-avatar {
       background-color: rgba(var(--bs-primary-rgb), 0.1);
 
       i {
         color: var(--primary-color);
-        font-size: 1.375rem; // Increased from 1.25rem for better visibility
+        font-size: 1.25rem;
       }
     }
 
@@ -408,28 +411,30 @@
 
       i {
         color: #28a745;
-        font-size: 1.375rem; // Increased from 1.25rem for better visibility
+        font-size: 1.25rem;
       }
     }
   }
 
   .message-bubble {
-    padding: 1.125rem 1.375rem; // Further increased padding
+    padding: 1.125rem 1.375rem;
     max-width: 100%;
     word-wrap: break-word;
     white-space: normal;
     overflow-wrap: break-word;
     hyphens: auto;
+    border-radius: 1.25rem; // Default border radius
   }
 
   .message-text {
-    font-size: 1rem; // Increased from 0.9375rem for better readability
+    font-size: 1rem;
     line-height: 1.6;
     max-width: 100%;
     overflow-wrap: break-word;
+    word-break: break-word; // Help break long words
 
     p {
-      margin: 0 0 1rem 0; // Increased bottom margin
+      margin: 0 0 1rem 0;
       max-width: 100%;
       overflow-wrap: break-word;
 
@@ -444,24 +449,24 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.8125rem; // Slightly increased
-  padding: 0 0.5rem; // Increased padding
-  margin-top: 0.375rem; // Increased top margin
+  font-size: 0.8125rem;
+  padding: 0 0.5rem;
+  margin-top: 0.375rem;
 
   .message-actions {
     display: flex;
-    gap: 0.75rem; // Increased gap between action buttons
+    gap: 0.75rem;
     opacity: 0;
     transition: opacity 0.2s ease;
 
     .action-btn {
       background: none;
       border: none;
-      padding: 0.375rem; // Increased padding for larger hit area
+      padding: 0.375rem;
       cursor: pointer;
       opacity: 0.7;
       transition: all 0.2s ease;
-      font-size: 1rem; // Increased from 0.875rem for better visibility
+      font-size: 1rem;
       position: relative;
       overflow: hidden;
     }
@@ -797,34 +802,75 @@
   }
 }
 
-// Tables, images, and other embedded content
-.responsive-table {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  display: block;
-  margin-bottom: 0.75rem;
-  border-collapse: collapse;
-  border-radius: 0.5rem;
-  border: 1px solid;
+// Code block styles - IMPROVED FOR HORIZONTAL SCROLLING
+.message-text {
+  .code-container,
+  .shell-script-container {
+    margin: 1rem 0;
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+    overflow-x: auto; // Enable horizontal scrolling
+    max-width: 100%; // Ensure doesn't exceed container width
 
-  th,
-  td {
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-    border: 1px solid;
+    pre {
+      padding: 1rem;
+      margin: 0;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      white-space: pre; // Preserve whitespace and line breaks
+      tab-size: 2;
+      overflow-x: visible; // Allow content to be wider than container
+      min-width: min-content; // Ensure content doesn't shrink below its natural size
+    }
   }
 
-  th {
-    font-weight: 600;
+  .inline-code {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.3rem;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 90%;
+    margin: 0 0.2rem;
+    white-space: pre-wrap; // Allow breaking of long inline code
+    word-break: break-all; // Force break long words if needed
   }
-}
 
-.responsive-img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-  margin: 0.5rem 0;
+  table {
+    border-collapse: collapse;
+    margin: 1rem 0;
+    width: 100%;
+    display: block;
+    overflow-x: auto; // Enable horizontal scrolling for tables
+
+    th,
+    td {
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      min-width: 6rem; // Ensure columns don't get too narrow
+    }
+
+    th {
+      background-color: rgba(0, 0, 0, 0.05);
+      font-weight: 600;
+    }
+  }
+
+  // Wide content handling for long unwrappable strings
+  pre,
+  code {
+    overflow-wrap: break-word;
+    white-space: pre-wrap; // Allow breaking of long inline code
+  }
+
+  // For very long words or URLs
+  a,
+  pre,
+  code,
+  p {
+    word-break: break-word; // Help break long words that can't be wrapped
+  }
 }
 
 // Utility classes
@@ -944,6 +990,19 @@
   }
 
   .message {
+    &.user-message {
+      .message-bubble {
+        // Gradient background for user messages in dark mode
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+      }
+
+      .message-meta {
+        color: var(--dark-text-muted);
+      }
+    }
+
     &.assistant-message {
       .message-bubble {
         background-color: var(--dark-card-bg);
@@ -978,17 +1037,31 @@
   }
 
   .message-text {
-    .shell-script,
-    .code-content {
-      border: 1px solid var(--dark-border-color) !important;
-      background-color: rgba(0, 0, 0, 0.3) !important;
-      color: var(--dark-text) !important;
+    .code-container,
+    .shell-script-container {
+      border: 1px solid var(--dark-border-color);
+      background-color: rgba(0, 0, 0, 0.3);
+
+      pre {
+        color: #e9ecef;
+      }
     }
 
     .inline-code {
-      background-color: rgba(255, 255, 255, 0.1) !important;
-      color: var(--dark-text) !important;
-      border: 1px solid var(--dark-border-color) !important;
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #f8c9db;
+      border: 1px solid var(--dark-border-color);
+    }
+
+    table {
+      th,
+      td {
+        border-color: var(--dark-border-color);
+      }
+
+      th {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
     }
   }
 
@@ -1042,24 +1115,28 @@
         background-color: rgba(255, 255, 255, 0.1);
       }
     }
-
-    .btn-cancel {
-      background-color: rgba(255, 255, 255, 0.1);
-      color: var(--dark-text);
-
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.15);
-      }
-    }
   }
 
-  .responsive-table {
-    border-color: var(--dark-border-color);
+  .btn-cancel {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--dark-text);
 
-    th,
-    td {
-      border-color: var(--dark-border-color);
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.15);
     }
+  }
+}
+
+// Avatar styling in dark mode
+.message-avatar {
+  border-color: var(--dark-border-color);
+
+  &.user-avatar {
+    background-color: rgba(var(--bs-primary-rgb), 0.2);
+  }
+
+  &.assistant-avatar {
+    background-color: rgba(40, 167, 69, 0.2);
   }
 }
 
@@ -1131,6 +1208,18 @@
   }
 
   .message {
+    &.user-message {
+      .message-bubble {
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+      }
+
+      .message-meta {
+        color: var(--light-text-muted);
+      }
+    }
+
     &.assistant-message {
       .message-bubble {
         background-color: white;
@@ -1165,18 +1254,36 @@
   }
 
   .message-text {
-    .shell-script,
-    .code-content {
-      border: 1px solid rgba(0, 0, 0, 0.1) !important;
-      background-color: rgba(0, 0, 0, 0.03) !important;
-      color: var(--light-text) !important;
+    .code-container,
+    .shell-script-container {
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      background-color: rgba(0, 0, 0, 0.03);
+
+      pre {
+        color: #212529;
+      }
     }
 
     .inline-code {
-      background-color: rgba(0, 0, 0, 0.05) !important;
-      color: var(--light-text) !important;
-      border: 1px solid rgba(0, 0, 0, 0.1) !important;
+      background-color: rgba(0, 0, 0, 0.05);
+      color: #e83e8c;
+      border: 1px solid rgba(0, 0, 0, 0.1);
     }
+
+    table {
+      th,
+      td {
+        border-color: var(--light-border-color);
+      }
+
+      th {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+    }
+  }
+
+  .message-avatar {
+    border-color: rgba(0, 0, 0, 0.1);
   }
 
   .loading-indicator {
@@ -1221,18 +1328,9 @@
       border-color: rgba(0, 0, 0, 0.1);
     }
   }
-
-  .responsive-table {
-    border-color: var(--light-border-color);
-
-    th,
-    td {
-      border-color: var(--light-border-color);
-    }
-  }
 }
 
-// Responsive adjustments
+// Responsive adjustments for wide content
 @media (max-width: 768px) {
   .chatbot-widget {
     border-radius: 0;
@@ -1264,6 +1362,24 @@
 
     .message {
       max-width: 90%;
+
+      // On mobile, allow messages to wrap more aggressively
+      &.assistant-message {
+        .message-bubble {
+          max-width: 95%; // Slightly wider on mobile to show more content
+        }
+
+        .message-text {
+          word-break: break-word; // Help break long words
+
+          // Ensure code blocks remain scrollable
+          .code-container,
+          .shell-script-container {
+            max-width: 100%;
+            overflow-x: auto;
+          }
+        }
+      }
     }
 
     .sources-panel {
@@ -1295,6 +1411,14 @@
       background: transparent;
       -webkit-text-fill-color: var(--primary-color);
       color: var(--primary-color);
+    }
+
+    // Fix for Safari scrolling issues with code blocks
+    .message-text {
+      .code-container,
+      .shell-script-container {
+        -webkit-overflow-scrolling: touch;
+      }
     }
   }
 }
@@ -1355,5 +1479,17 @@
 
   .message-avatar {
     display: none !important;
+  }
+
+  // Make sure code blocks don't get cut off when printing
+  .message-text {
+    .code-container,
+    .shell-script-container,
+    pre,
+    code {
+      white-space: pre-wrap !important;
+      word-break: break-word !important;
+      overflow: visible !important;
+    }
   }
 }

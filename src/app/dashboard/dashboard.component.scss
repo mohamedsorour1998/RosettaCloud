@@ -753,15 +753,17 @@
       color: rgba(255, 255, 255, 0.9); // Brighter text for better contrast
     }
   }
-  .btn-launch.demo {
 
-    background:  rgba(96, 165, 250, 0.3);
+  .btn-launch.demo {
+    background: rgba(96, 165, 250, 0.3);
     box-shadow: 0 4px 15px rgba(96, 165, 250, 0.6);
   }
+
   .status-badge.demo {
     background-color: rgba(13, 202, 240, 0.15);
     color: #0dcaf0;
   }
+
   .empty-state {
     .btn-secondary {
       background-color: rgba(var(--bs-primary-rgb), 0.15);
@@ -773,6 +775,7 @@
       }
     }
   }
+
   .lab-card {
     &.demo-lab {
       background-color: rgba(var(--bs-primary-rgb), 0.1);
@@ -794,6 +797,7 @@
       background: rgba(96, 165, 250, 0.3);
     }
   }
+
   .dashboard-container {
     background-color: var(--dark-bg);
     color: var(--dark-text);
@@ -933,7 +937,6 @@
     }
   }
 }
-// Add these styles to your dashboard.component.scss
 
 // Demo Lab card styles
 .demo-lab {
@@ -1018,7 +1021,7 @@
   // More prominent button
   .btn-launch.demo {
     // Ensure high contrast background with strong gradient
-    background:  rgba(96, 165, 250, 0.3);
+    background: rgba(96, 165, 250, 0.3);
     // Make text pure white for maximum contrast
     color: white;
     // Add stronger text shadow
@@ -1055,6 +1058,7 @@
     order: -1; // Always appears first
   }
 }
+
 .labs-container .container-header .btn-text,
 .progress-container .container-header .btn-text {
   cursor: pointer !important;
@@ -1076,7 +1080,6 @@
     z-index: 1;
     cursor: pointer;
   }
-
   /* Ensure text and icon also show pointer cursor */
   span,
   i {
@@ -1085,6 +1088,7 @@
     z-index: 2;
   }
 }
+
 // Light mode styles
 :host-context([data-bs-theme="light"]) {
   .btn-launch.demo {
@@ -1209,6 +1213,7 @@
     }
   }
 }
+
 .empty-state {
   .labs-actions {
     display: flex;
@@ -1300,6 +1305,7 @@
     }
   }
 }
+
 // Responsive adjustments
 @media (max-width: 64rem) {
   // 1024px

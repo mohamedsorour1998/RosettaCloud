@@ -174,7 +174,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
             )}</pre></div>`;
           }
         )
-        // Handle code blocks
+        // Handle code blocks with improved overflow handling
         .replace(/```([a-zA-Z]*)([\s\S]*?)```/g, (match, language, code) => {
           if (!match.includes('#!/bin/')) {
             const langDisplay = language ? language : 'code';
