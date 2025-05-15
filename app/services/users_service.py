@@ -3,6 +3,7 @@ users_service – unified async interface to user management.
 
 Select the concrete backend with:
     export USERS_BACKEND=dynamodb   # default
+    export USERS_BACKEND=lms        # new LMS-based backend
 """
 from __future__ import annotations
 
@@ -30,6 +31,12 @@ class _Backend(Protocol):
 
 _backend_name = os.getenv("USERS_BACKEND", "dynamodb").lower()
 _impl_mod = importlib.import_module("app.backends.users_backends")
+
+# Add validation for backend name
+valid_backends = ["dynamodb", "lms"]  # Add lms to the list of valid backends
+if _backend_name not in valid_backends:
+    raise ValueError(f"Unknown users backend: {_backend_name}. Valid options are: {', '.join(valid_backends)}")
+
 _IMPL: _Backend = getattr(_impl_mod, f"get_{_backend_name}_backend")()
 
 logging.getLogger(__name__).info("users_service backend: %s", _backend_name)

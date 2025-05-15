@@ -19,7 +19,7 @@ from kubernetes.client.rest import ApiException
 
 NAMESPACE             = os.getenv("LAB_K8S_NAMESPACE",            "openedx")
 INGRESS_NAMESPACE     = os.getenv("LAB_INGRESS_NAMESPACE",     NAMESPACE)
-INGRESS_NAME          = os.getenv("LAB_INGRESS_NAME",          "caddy-ingress")
+INGRESS_NAME          = os.getenv("LAB_INGRESS_NAME",          "rosettacloud-ingress")
 POD_IMAGE             = os.getenv("LAB_POD_IMAGE",                "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
 IMAGE_PULL_SECRET     = os.getenv("LAB_IMAGE_PULL_SECRET",        "ecr-creds")
 WILDCARD_DOMAIN       = os.getenv("LAB_WILDCARD_DOMAIN",          "labs.dev.rosettacloud.app")
