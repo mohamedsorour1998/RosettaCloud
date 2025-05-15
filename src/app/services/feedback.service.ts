@@ -9,7 +9,7 @@ import { MomentoService } from './momento.service';
 })
 export class FeedbackService {
   private apiUrl =
-    environment.feedbackApiUrl || 'https://api.dev.rosettacloud.app';
+    environment.feedbackApiUrl;
   private feedbackId: string | null = null;
   private feedbackReceivedSubject = new Subject<any>();
   public feedbackReceived$ = this.feedbackReceivedSubject.asObservable();

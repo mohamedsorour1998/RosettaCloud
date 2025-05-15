@@ -8,6 +8,7 @@ import { Observable, throwError, of, BehaviorSubject } from 'rxjs';
 import { catchError, map, tap, retry, timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { UserService } from './user.service';
+
 export interface LabCreationResponse {
   lab_id: string;
 }
@@ -21,9 +22,11 @@ export interface TimeRemaining {
 export interface LabInfoResponse {
   lab_id: string;
   pod_ip: string | null;
+  hostname: string | null;
+  url: string | null;
   time_remaining: TimeRemaining | null;
   status: string;
-  index: number;
+  pod_name: string | null;
 }
 
 export interface QuestionData {
@@ -60,10 +63,11 @@ export interface ErrorResponse {
   providedIn: 'root',
 })
 export class LabService {
-  private apiUrl = environment.apiUrl || this.getApiUrl();
+  public apiUrl = environment.apiUrl || this.getApiUrl();
   private connectionStatus = new BehaviorSubject<boolean>(true);
   public connectionStatus$ = this.connectionStatus.asObservable();
   private activeLabCache: { [userId: string]: string } = {};
+
   constructor(private http: HttpClient, private userService: UserService) {
     try {
       this.checkApiConnection();
@@ -72,12 +76,11 @@ export class LabService {
       this.connectionStatus.next(false);
     }
   }
+
   private getApiUrl(): string {
-    return (
-      environment.apiUrl ||
-      (window as any).__RC_API__
-    );
+    return environment.apiUrl || (window as any).__RC_API__;
   }
+
   private checkApiConnection(): void {
     this.http
       .get(`${this.apiUrl}/health-check`, {
@@ -95,16 +98,19 @@ export class LabService {
         this.connectionStatus.next(response !== 'error');
       });
   }
+
   private getHeaders(): HttpHeaders {
     return new HttpHeaders({
       'Content-Type': 'application/json',
       Accept: 'application/json',
     });
   }
+
   getCurrentUserId(): string {
     const userId = this.userService.getCurrentUserId();
     return userId || 'guest';
   }
+
   getActiveLabForUser(): Observable<string> {
     const userId = this.getCurrentUserId();
     if (this.activeLabCache[userId]) {
@@ -134,6 +140,7 @@ export class LabService {
       })
     );
   }
+
   launchLab(userId: string): Observable<LabCreationResponse> {
     return this.http
       .post<LabCreationResponse>(
@@ -152,6 +159,7 @@ export class LabService {
         catchError(this.handleError)
       );
   }
+
   getLabInfo(labId: string): Observable<LabInfoResponse> {
     if (!labId) {
       console.error('Attempted to get lab info with no labId');
@@ -175,18 +183,13 @@ export class LabService {
               seconds: labInfo.time_remaining.seconds || 0,
             };
           }
-          if (labInfo.index === undefined) {
-            labInfo.index = 0;
-            console.warn(
-              'Lab index was not provided by the backend, defaulting to 0'
-            );
-          }
 
           return labInfo;
         }),
         catchError(this.handleError)
       );
   }
+
   terminateLab(labId: string, userId: string): Observable<any> {
     return this.http
       .delete(`${this.apiUrl}/labs/${labId}?user_id=${userId}`, {
@@ -200,6 +203,7 @@ export class LabService {
         catchError(this.handleError)
       );
   }
+
   getQuestions(
     moduleUuid: string,
     lessonUuid: string
@@ -234,16 +238,15 @@ export class LabService {
         catchError(this.handleError)
       );
   }
+
   setupQuestion(
     podName: string,
     moduleUuid: string,
     lessonUuid: string,
-    questionNumber: number,
-    podIdx?: number
+    questionNumber: number
   ): Observable<QuestionSetupResponse> {
     const userId = this.getCurrentUserId();
-    const formattedPodName =
-      podIdx !== undefined ? `interactive-labs-${podIdx}` : podName;
+    const formattedPodName = podName;
 
     return this.http
       .post<QuestionSetupResponse>(
@@ -258,17 +261,16 @@ export class LabService {
         catchError(this.handleError)
       );
   }
+
   checkQuestion(
     podName: string,
     moduleUuid: string,
     lessonUuid: string,
     questionNumber: number,
-    additionalData?: any,
-    podIdx?: number
+    additionalData?: any
   ): Observable<QuestionCheckResponse> {
     const userId = this.getCurrentUserId();
-    const formattedPodName =
-      podIdx !== undefined ? `interactive-labs-${podIdx}` : podName;
+    const formattedPodName = podName;
 
     const payload = {
       pod_name: formattedPodName,
@@ -307,6 +309,7 @@ export class LabService {
         catchError(this.handleError)
       );
   }
+
   private handleError(error: HttpErrorResponse) {
     let errorMessage = 'An unknown error occurred';
 

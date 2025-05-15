@@ -17,6 +17,7 @@ import {
   of,
   forkJoin,
   Subject,
+  fromEvent,
 } from 'rxjs';
 import {
   catchError,
@@ -29,6 +30,7 @@ import {
   tap,
   debounceTime,
   distinctUntilChanged,
+  takeUntil,
 } from 'rxjs/operators';
 import { LabService } from '../services/lab.service';
 import { UserService } from '../services/user.service';
@@ -57,9 +59,11 @@ interface Question {
 interface LabInfo {
   lab_id: string;
   pod_ip: string | null;
+  hostname: string | null;
+  url: string | null;
   time_remaining: { hours: number; minutes: number; seconds: number } | null;
   status: string;
-  index: number;
+  pod_name: string | null;
 }
 
 @Component({
@@ -197,6 +201,29 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.progressSub?.unsubscribe();
     this.iframeSub?.unsubscribe();
     this.themeSub?.unsubscribe();
+
+    // Signal completion to all observables using takeUntil
+    this.destroy$.next();
+    this.destroy$.complete();
+
+    // Clean up lab resources if component is destroyed through normal navigation
+    this.cleanupLabResources();
+  }
+
+  // Add this method to handle async cleanup for normal navigation
+  private cleanupLabResources(): void {
+    if (this.labId && this.isLabActive) {
+      // Clear storage
+      sessionStorage.removeItem('activeLabId');
+      sessionStorage.removeItem(this.qStateKey);
+
+      // Async request for normal navigation scenarios
+      this.labSv.terminateLab(this.labId, this.labSv.getCurrentUserId())
+        .subscribe({
+          next: () => console.log('Lab terminated successfully on component destroy'),
+          error: (err) => console.error('Error terminating lab on destroy:', err)
+        });
+    }
   }
 
   /**
@@ -306,13 +333,21 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     // Handle running state
-    if (info.status === 'running' && info.pod_ip) {
-      const url = info.pod_ip.includes('://')
-        ? info.pod_ip
-        : `https://${info.pod_ip}/`;
-      if (this.lastIframeUrl !== url || statusChanged) {
-        this.iframeUrl$.next(url);
+    if (info.status === 'running') {
+      // Use url first if available, then pod_ip, then hostname
+      let labUrl = info.url;
+      if (!labUrl && info.pod_ip) {
+        labUrl = info.pod_ip.includes('://')
+          ? info.pod_ip
+          : `https://${info.pod_ip}/`;
+      } else if (!labUrl && info.hostname) {
+        labUrl = `https://${info.hostname}/`;
       }
+
+      if (labUrl && (this.lastIframeUrl !== labUrl || statusChanged)) {
+        this.iframeUrl$.next(labUrl);
+      }
+
       this.isLabActive = true;
       this.isLoading = false;
       this.isInitializing = false;
@@ -529,14 +564,15 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     }, 100);
 
-    console.log(`Setting up question ${n} with pod index: ${labInfo.index}`);
+    console.log(
+      `Setting up question ${n} with pod name: ${labInfo.pod_name || 'unknown'}`
+    );
     this.labSv
       .setupQuestion(
-        this.labId,
+        labInfo.pod_name || this.labId,
         this.moduleUuid!,
         this.lessonUuid!,
-        n,
-        labInfo.index
+        n
       )
       .subscribe({
         error: (err) => console.error('Setup question error', err),
@@ -619,12 +655,11 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.labSv
       .checkQuestion(
-        this.labId,
+        labInfo.pod_name || this.labId,
         this.moduleUuid!,
         this.lessonUuid!,
         q.id,
-        payload,
-        labInfo.index
+        payload
       )
       .subscribe({
         next: (res) => {
@@ -674,12 +709,11 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.labSv
       .checkQuestion(
-        this.labId,
+        labInfo.pod_name || this.labId,
         this.moduleUuid!,
         this.lessonUuid!,
         questionNumber,
-        undefined,
-        labInfo.index
+        undefined
       )
       .subscribe({
         next: (res) => {
@@ -804,7 +838,20 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     this.launchNewLab().subscribe();
   }
+  // Add to the class properties
+  private destroy$ = new Subject<void>();
 
+  // Add this to the constructor
+  @HostListener('window:beforeunload', ['$event'])
+  handleBeforeUnload(event: BeforeUnloadEvent): void {
+    // Perform synchronous cleanup to ensure it runs before the page unloads
+    this.synchronousLabCleanup();
+
+    // Optional: Show confirmation dialog
+    event.preventDefault();
+    event.returnValue = 'Your lab session will be terminated. Are you sure you want to leave?';
+    return event.returnValue;
+  }
   /**
    * Terminate current lab
    */
@@ -872,17 +919,19 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.timerSub?.unsubscribe();
 
     let seconds = t.hours * 3600 + t.minutes * 60 + t.seconds;
-    this.timerSub = interval(1000).subscribe(() => {
-      if (--seconds <= 0) {
-        this.timeRemaining$.next('Expired');
-        this.timerSub?.unsubscribe();
-        return;
-      }
-      const h = Math.floor(seconds / 3600),
-        m = Math.floor((seconds % 3600) / 60),
-        s = seconds % 60;
-      this.updateTime({ hours: h, minutes: m, seconds: s });
-    });
+    this.timerSub = interval(1000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        if (--seconds <= 0) {
+          this.timeRemaining$.next('Expired');
+          this.timerSub?.unsubscribe();
+          return;
+        }
+        const h = Math.floor(seconds / 3600),
+          m = Math.floor((seconds % 3600) / 60),
+          s = seconds % 60;
+        this.updateTime({ hours: h, minutes: m, seconds: s });
+      });
   }
 
   /**
@@ -890,15 +939,6 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   private updateTime(t: { hours: number; minutes: number; seconds: number }) {
     this.timeRemaining$.next(`${t.hours}h ${t.minutes}m ${t.seconds}s`);
-  }
-
-  /**
-   * Adjust iframe size on window resize
-   */
-  @HostListener('window:resize')
-  onResize() {
-    this.checkIsMobile();
-    setTimeout(() => this.adjustIframe(), 500);
   }
 
   /**
@@ -982,7 +1022,26 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     );
   }
+  // Sync cleanup for immediate browser actions
+  private synchronousLabCleanup(): void {
+    try {
+      if (this.labId) {
+        // Clear storage
+        sessionStorage.removeItem('activeLabId');
+        sessionStorage.removeItem(this.qStateKey);
 
+        // Use synchronous XHR to ensure the request completes before page unload
+        const xhr = new XMLHttpRequest();
+        xhr.open('DELETE', `${this.labSv.apiUrl}/labs/${this.labId}?user_id=${this.labSv.getCurrentUserId()}`, false); // 'false' makes it synchronous
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send();
+
+        console.log('Lab terminated synchronously on page unload');
+      }
+    } catch (e) {
+      console.error('Error during synchronous lab cleanup:', e);
+    }
+  }
   /**
    * Manually retry connection
    */

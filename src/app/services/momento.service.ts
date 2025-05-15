@@ -29,8 +29,10 @@ export class MomentoService {
       `&expiry_minutes=${this.tokenExpiry}` +
       `&scope=subscribe`;
     try {
+
       return await lastValueFrom(this.http.get(url, { responseType: 'text' }));
     } catch (err) {
+      
       console.error('Error getting Momento token:', err);
       throw err;
     }

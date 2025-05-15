@@ -36,10 +36,12 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   isConnected = false;
   currentMessage = '';
   showSources = false;
+  showClearConfirmation = false;
+  hasUserSentMessage = false;
+
   public shouldAutoScroll = true;
   private lastScrollHeight = 0;
   private pendingMessages = false;
-  textareaHeight = 42; // Default height in pixels
   copiedMessageId: string | null = null;
   messageRatings: Map<string, 'up' | 'down'> = new Map();
 
@@ -93,6 +95,30 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
+   * Confirms clearing the chat with a modal
+   */
+  confirmClearChat(): void {
+    this.showClearConfirmation = true;
+  }
+
+  /**
+   * Cancels the clear chat operation
+   */
+  cancelClearChat(): void {
+    this.showClearConfirmation = false;
+  }
+
+  /**
+   * Actually clears the chat after confirmation
+   */
+  doClearChat(): void {
+    this.chatbotService.clearChat();
+    this.showClearConfirmation = false;
+    // Reset the user sent message flag when clearing chat
+    this.hasUserSentMessage = false;
+  }
+
+  /**
    * Sends the current message to the chatbot service
    */
   sendMessage(): void {
@@ -100,22 +126,28 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!message) return;
     this.shouldAutoScroll = true;
 
+    // Set that user has sent a message
+    this.hasUserSentMessage = true;
+
     this.chatbotService.sendMessage(message);
     this.currentMessage = '';
-    this.textareaHeight = 42; // Reset textarea height
 
+    // Focus the input and adjust height
     if (this.messageInput?.nativeElement) {
       this.messageInput.nativeElement.focus();
+      this.adjustTextareaHeight();
     }
   }
 
   /**
-   * Clears all chat messages
+   * Sends a suggestion as if it was typed by the user
    */
-  clearChat(): void {
-    if (confirm('Are you sure you want to clear the chat history?')) {
-      this.chatbotService.clearChat();
-    }
+  sendSuggestion(suggestion: string): void {
+    // Set the message as the current message
+    this.currentMessage = suggestion;
+
+    // Then send it immediately
+    this.sendMessage();
   }
 
   /**
@@ -259,7 +291,6 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
       // Calculate new height (clamped between 42px and 160px)
       const newHeight = Math.min(Math.max(textarea.scrollHeight, 42), 160);
       textarea.style.height = `${newHeight}px`;
-      this.textareaHeight = newHeight;
     }
   }
 
@@ -327,19 +358,6 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   hasRating(message: ChatMessage, ratingType: 'up' | 'down'): boolean {
     const messageId = message.id || message.content.substring(0, 20);
     return this.messageRatings.get(messageId) === ratingType;
-  }
-
-  /**
-   * Uses an example query from the welcome screen
-   * @param query The example query to use
-   */
-  useExampleQuery(query: string): void {
-    this.currentMessage = query;
-    this.adjustTextareaHeight();
-
-    if (this.messageInput?.nativeElement) {
-      this.messageInput.nativeElement.focus();
-    }
   }
 
   /**

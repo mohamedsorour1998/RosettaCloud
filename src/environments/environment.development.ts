@@ -1,7 +1,7 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://51.112.10.4:30085',
-  feedbackApiUrl: 'https://api.dev.rosettacloud.app',
+  apiUrl: 'https://api.dev.rosettacloud.app',
+  feedbackApiUrl: 'https://feedback.dev.rosettacloud.app',
   chatbotApiUrl: 'wss://wss.dev.rosettacloud.app',
   momento: {
     cacheName: 'interactive-labs',

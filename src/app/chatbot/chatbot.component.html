@@ -24,7 +24,11 @@
           }"
         ></i>
       </button>
-      <button class="action-btn" (click)="clearChat()" title="Clear Chat">
+      <button
+        class="action-btn"
+        (click)="confirmClearChat()"
+        title="Clear Chat"
+      >
         <i class="bi bi-trash"></i>
       </button>
     </div>
@@ -55,34 +59,39 @@
 
     <!-- Main Chat Area -->
     <div class="chat-container" #chatContainer (scroll)="onScroll($event)">
-      <!-- Welcome Message -->
-      <div *ngIf="messages.length === 0" class="welcome-message">
-        <div class="welcome-icon">
-          <i class="bi bi-robot"></i>
-        </div>
-        <h4>Welcome to RosettaCloud Assistant</h4>
-        <p>
-          Ask me anything about your labs, assignments, or coding questions!
-        </p>
-        <div class="example-queries">
-          <button
-            class="example-query"
-            (click)="useExampleQuery('How do I set up a React project?')"
-          >
-            How do I set up a React project?
-          </button>
-          <button
-            class="example-query"
-            (click)="useExampleQuery('What are the common Git commands?')"
-          >
-            What are the common Git commands?
-          </button>
-          <button
-            class="example-query"
-            (click)="useExampleQuery('Explain the CSS box model')"
-          >
-            Explain the CSS box model
-          </button>
+      <!-- Welcome Message - Only show when no messages or hasUserSentMessage is false -->
+      <div
+        *ngIf="messages.length === 0 || !hasUserSentMessage"
+        class="welcome-message"
+      >
+        <div class="welcome-content">
+          <div class="welcome-icon">
+            <i class="bi bi-robot"></i>
+          </div>
+          <h4>Welcome to RosettaCloud Assistant</h4>
+          <p>
+            Ask me anything about your labs, assignments, or coding questions!
+          </p>
+          <div class="example-queries">
+            <button
+              class="example-query"
+              (click)="sendSuggestion('How do I set up a React project?')"
+            >
+              How do I set up a React project?
+            </button>
+            <button
+              class="example-query"
+              (click)="sendSuggestion('What are the common Git commands?')"
+            >
+              What are the common Git commands?
+            </button>
+            <button
+              class="example-query"
+              (click)="sendSuggestion('Explain the CSS box model')"
+            >
+              Explain the CSS box model
+            </button>
+          </div>
         </div>
       </div>
 
@@ -92,7 +101,17 @@
         *ngFor="let message of messages; let i = index; let last = last"
         [ngClass]="{ 'first-message': i === 0, 'last-message': last }"
       >
-        <div class="message" [ngClass]="getRoleClass(message.role)">
+        <!-- Skip system messages that mention "Connected to RosettaCloud Assistant" -->
+        <div
+          *ngIf="
+            !(
+              message.role === 'system' &&
+              message.content.includes('Connected to RosettaCloud Assistant')
+            )
+          "
+          class="message"
+          [ngClass]="getRoleClass(message.role)"
+        >
           <!-- Avatar for User and Assistant messages -->
           <div
             class="message-avatar"
@@ -124,13 +143,24 @@
                   class="action-btn copy-btn"
                   (click)="copyMessage(message.content)"
                   title="Copy to clipboard"
+                  [ngClass]="{
+                    copied: copiedMessageId === message.content.substring(0, 20)
+                  }"
                 >
-                  <i class="bi bi-clipboard"></i>
+                  <i
+                    class="bi"
+                    [ngClass]="
+                      copiedMessageId === message.content.substring(0, 20)
+                        ? 'bi-check-lg'
+                        : 'bi-clipboard'
+                    "
+                  ></i>
                 </button>
                 <button
                   class="action-btn thumbs-up-btn"
                   (click)="rateMessage(message, 'up')"
                   title="This was helpful"
+                  [ngClass]="{ active: hasRating(message, 'up') }"
                 >
                   <i class="bi bi-hand-thumbs-up"></i>
                 </button>
@@ -138,6 +168,7 @@
                   class="action-btn thumbs-down-btn"
                   (click)="rateMessage(message, 'down')"
                   title="This wasn't helpful"
+                  [ngClass]="{ active: hasRating(message, 'down') }"
                 >
                   <i class="bi bi-hand-thumbs-down"></i>
                 </button>
@@ -175,10 +206,9 @@
         placeholder="Ask a question or send a message..."
         [(ngModel)]="currentMessage"
         (keydown)="onKeyDown($event)"
+        (input)="adjustTextareaHeight()"
         [disabled]="!isConnected || isLoading"
         rows="1"
-        [style.height.px]="textareaHeight"
-        (input)="adjustTextareaHeight()"
       ></textarea>
 
       <div class="input-actions">
@@ -190,6 +220,32 @@
         >
           <i class="bi bi-send-fill"></i>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Chat Confirmation Modal -->
+  <div
+    class="modal-overlay"
+    *ngIf="showClearConfirmation"
+    (click)="cancelClearChat()"
+  >
+    <div class="confirmation-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5>Clear Chat History</h5>
+        <button class="close-modal-btn" (click)="cancelClearChat()">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Are you sure you want to clear all chat messages? This action cannot
+          be undone.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="cancelClearChat()">Cancel</button>
+        <button class="btn-confirm" (click)="doClearChat()">Clear Chat</button>
       </div>
     </div>
   </div>
