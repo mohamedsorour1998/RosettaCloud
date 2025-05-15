@@ -7,6 +7,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { SafeUrlPipe } from '../pipes/safe-url.pipe';
+import { FaqComponent, FaqItem } from '../faq/faq.component';
 
 interface OfficeLocation {
   id: string;
@@ -19,15 +20,10 @@ interface OfficeLocation {
   mapUrl: string;
 }
 
-interface FaqItem {
-  question: string;
-  answer: string;
-}
-
 @Component({
   selector: 'app-contact-us',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, SafeUrlPipe],
+  imports: [CommonModule, ReactiveFormsModule, SafeUrlPipe, FaqComponent],
   templateUrl: './contact-us.component.html',
   styleUrl: './contact-us.component.scss',
 })
@@ -103,9 +99,6 @@ export class ContactUsComponent implements OnInit {
     },
   ];
 
-  // Track which FAQ is expanded
-  expandedFaqIndex: number | null = null;
-
   constructor(private fb: FormBuilder) {
     // Initialize with first location
     this.selectedLocation = this.officeLocations[0];
@@ -131,11 +124,6 @@ export class ContactUsComponent implements OnInit {
   // Select a location
   selectLocation(location: OfficeLocation): void {
     this.selectedLocation = location;
-  }
-
-  // Toggle FAQ
-  toggleFaq(index: number): void {
-    this.expandedFaqIndex = this.expandedFaqIndex === index ? null : index;
   }
 
   // Form submission

@@ -1,234 +1,274 @@
+// help-center.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { ThemeService } from '../services/theme.service';
-import { ScrollService } from '../services/scroll.service';
+import { FaqComponent, FaqItem } from '../faq/faq.component';
 
-interface FaqCategory {
+interface HelpCategory {
   id: string;
-  name: string;
+  title: string;
+  description: string;
   icon: string;
-  faqs: Faq[];
+  articleCount: number;
+  route: string;
 }
 
-interface Faq {
-  question: string;
-  answer: string;
-  isExpanded?: boolean;
+interface HelpArticle {
+  id: string;
+  title: string;
+  summary: string;
+  categoryId: string;
+  featured: boolean;
 }
 
 @Component({
   selector: 'app-help-center',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, FaqComponent],
   templateUrl: './help-center.component.html',
   styleUrls: ['./help-center.component.scss'],
 })
 export class HelpCenterComponent implements OnInit {
-  searchQuery: string = '';
-  filteredFaqs: Faq[] = [];
-  selectedCategory: string = 'all';
-  isSearching: boolean = false;
+  // Search functionality
+  searchQuery = '';
+  isSearching = false;
+  showSearchResults = false;
+  searchResults: HelpArticle[] = [];
 
-  faqCategories: FaqCategory[] = [
+  // Categories
+  helpCategories: HelpCategory[] = [
+    {
+      id: 'getting-started',
+      title: 'Getting Started',
+      description: 'Everything you need to know to start using RosettaCloud',
+      icon: 'bi-rocket-takeoff',
+      articleCount: 8,
+      route: '/help-center/getting-started',
+    },
     {
       id: 'account',
-      name: 'Account & Profile',
-      icon: 'bi-person-circle',
-      faqs: [
-        {
-          question: 'How do I create an account?',
-          answer:
-            'To create an account, click on the "Sign Up" button in the top right corner of the homepage. You\'ll need to provide your email address, create a password, and fill in some basic profile information. After verifying your email address, you\'ll have full access to your RosettaCloud account.',
-        },
-        {
-          question: 'How do I reset my password?',
-          answer:
-            'If you forgot your password, click on the "Login" button, then select "Forgot Password". Enter the email address associated with your account, and we\'ll send you a password reset link. Follow the instructions in the email to create a new password.',
-        },
-        {
-          question: 'Can I change my username or email address?',
-          answer:
-            'You can change your username at any time from your Profile Settings. To change your email address, go to Account Settings > Email, enter your new email address, and verify it by clicking on the confirmation link sent to your new email.',
-        },
-      ],
+      title: 'Account Management',
+      description: 'Learn how to manage your account, profile, and settings',
+      icon: 'bi-person-gear',
+      articleCount: 12,
+      route: '/help-center/account',
     },
     {
       id: 'courses',
-      name: 'Courses & Learning',
-      icon: 'bi-journal-code',
-      faqs: [
-        {
-          question: 'How do I enroll in a course?',
-          answer:
-            "To enroll in a course, browse the course catalog and select the course you're interested in. On the course page, click the \"Enroll Now\" button and follow the payment process (if it's a paid course) or simply confirm your enrollment (if it's a free course).",
-        },
-        {
-          question: 'Can I download course materials for offline viewing?',
-          answer:
-            'Yes, most course materials can be downloaded for offline viewing. Look for the download icon next to videos, PDFs, and other resources. Note that some interactive elements may not be available offline.',
-        },
-        {
-          question: 'How do I track my progress in a course?',
-          answer:
-            'Your progress is automatically tracked as you complete lessons and activities. You can view your overall progress on your dashboard or in the "My Courses" section. Each course also shows a progress bar indicating how much you\'ve completed.',
-        },
-        {
-          question: 'How do I get a certificate after completing a course?',
-          answer:
-            'Once you\'ve completed all required components of a course, your certificate will be automatically generated and available in your "Certificates" section. You can download it as a PDF or share it directly to your LinkedIn profile.',
-        },
-      ],
+      title: 'Courses & Learning',
+      description:
+        'Information about courses, progress tracking, and certificates',
+      icon: 'bi-book',
+      articleCount: 15,
+      route: '/help-center/courses',
     },
     {
-      id: 'payment',
-      name: 'Payment & Billing',
+      id: 'labs',
+      title: 'Interactive Labs',
+      description:
+        'How to use labs, troubleshoot common issues, and get support',
+      icon: 'bi-terminal',
+      articleCount: 10,
+      route: '/help-center/labs',
+    },
+    {
+      id: 'billing',
+      title: 'Billing & Subscriptions',
+      description: 'Information about payments, subscriptions, and refunds',
       icon: 'bi-credit-card',
-      faqs: [
-        {
-          question: 'What payment methods do you accept?',
-          answer:
-            'We accept major credit cards (Visa, Mastercard, American Express), PayPal, and bank transfers. In select regions, we also support mobile payment options like Apple Pay and Google Pay.',
-        },
-        {
-          question: "Can I get a refund if I'm not satisfied with a course?",
-          answer:
-            "Yes, we offer a 30-day money-back guarantee for most courses. If you're not satisfied with your purchase, you can request a refund within 30 days of enrollment, provided you haven't completed more than 25% of the course content.",
-        },
-        {
-          question: 'How do I update my billing information?',
-          answer:
-            'You can update your billing information by going to Account Settings > Billing Information. From there, you can add, edit, or remove payment methods, and update your billing address.',
-        },
-      ],
+      articleCount: 9,
+      route: '/help-center/billing',
     },
     {
-      id: 'technical',
-      name: 'Technical Support',
-      icon: 'bi-gear',
-      faqs: [
-        {
-          question: 'What browsers are supported?',
-          answer:
-            'RosettaCloud supports the latest versions of Chrome, Firefox, Safari, and Edge. For the best experience, we recommend using Chrome or Firefox with your browser updated to the latest version.',
-        },
-        {
-          question:
-            'Videos are not playing or are buffering frequently. What should I do?',
-          answer:
-            "If you're experiencing playback issues, try: 1) Refreshing the page, 2) Checking your internet connection, 3) Lowering the video quality in the player settings, 4) Clearing your browser cache, or 5) Trying a different browser. If problems persist, please contact our support team.",
-        },
-        {
-          question: 'How do I enable notifications?',
-          answer:
-            'To enable notifications, go to Account Settings > Notifications. You can choose which types of notifications you want to receive (email, browser, or mobile) and customize your preferences for course updates, forum replies, and other activities.',
-        },
-      ],
+      id: 'enterprise',
+      title: 'Enterprise Solutions',
+      description:
+        'Resources for organizations using RosettaCloud for team training',
+      icon: 'bi-building',
+      articleCount: 7,
+      route: '/help-center/enterprise',
     },
   ];
 
-  allFaqs: Faq[] = [];
+  // Featured articles
+  featuredArticles: HelpArticle[] = [
+    {
+      id: 'create-account',
+      title: 'How to create and set up your account',
+      summary:
+        'A step-by-step guide to creating your RosettaCloud account and setting up your profile',
+      categoryId: 'getting-started',
+      featured: true,
+    },
+    {
+      id: 'enroll-course',
+      title: 'Enrolling in a course',
+      summary:
+        'Learn how to browse and enroll in courses that match your learning goals',
+      categoryId: 'courses',
+      featured: true,
+    },
+    {
+      id: 'lab-setup',
+      title: 'Setting up your first lab environment',
+      summary:
+        'Everything you need to know about getting started with interactive labs',
+      categoryId: 'labs',
+      featured: true,
+    },
+    {
+      id: 'billing-faq',
+      title: 'Billing and subscription FAQ',
+      summary:
+        'Answers to common questions about payments, subscription management, and refunds',
+      categoryId: 'billing',
+      featured: true,
+    },
+  ];
 
-  constructor(
-    public themeService: ThemeService,
-    private scrollService: ScrollService
-  ) {}
+  // Common questions for FAQ section
+  faqItems: FaqItem[] = [
+    {
+      question: 'How do I reset my password?',
+      answer:
+        'You can reset your password by clicking on the "Forgot Password" link on the login page. Enter your email address, and we\'ll send you a password reset link that will be valid for 24 hours.',
+    },
+    {
+      question: 'Can I download course materials for offline viewing?',
+      answer:
+        'Yes, Premium subscribers can download videos, slides, and other course materials for offline viewing. Look for the download icon on the course content page. Note that lab environments require an internet connection.',
+    },
+    {
+      question: 'How do I get a certificate after completing a course?',
+      answer:
+        'Certificates are automatically generated once you\'ve completed all required modules and passed the final assessment with a score of at least 70%. You can access your certificates from your Profile page under the "Certificates" tab.',
+    },
+    {
+      question: 'What browsers are supported for labs?',
+      answer:
+        'Our lab environments work best with Chrome, Firefox, and Edge (latest versions). Safari is supported for most features but may have limited functionality for certain specialized labs. We recommend using Chrome for the best experience.',
+    },
+    {
+      question: 'How can I change my subscription plan?',
+      answer:
+        'You can change your subscription plan at any time from your Account Settings page. Select "Subscription" and choose "Change Plan" to see available options. Upgrades take effect immediately, while downgrades will apply at the end of your current billing cycle.',
+    },
+  ];
+
+  constructor() {}
 
   ngOnInit(): void {
-    // Combine all FAQs from all categories
-    this.faqCategories.forEach((category) => {
-      this.allFaqs = [...this.allFaqs, ...category.faqs];
-    });
-
-    // Initialize with all FAQs
-    this.filteredFaqs = this.allFaqs;
+    this.addScrollAnimations();
   }
 
-  /**
-   * Select a category to filter FAQs
-   */
-  selectCategory(categoryId: string): void {
-    this.selectedCategory = categoryId;
-    this.searchQuery = '';
-    this.filterFaqs();
+  // Helper method for getting category title
+  getCategoryTitle(categoryId: string): string {
+    const category = this.helpCategories.find((c) => c.id === categoryId);
+    return category ? category.title : 'General';
   }
 
-  /**
-   * Toggle FAQ expansion
-   */
-  toggleFaq(faq: Faq): void {
-    faq.isExpanded = !faq.isExpanded;
-  }
+  // Search functionality
+  searchArticles(): void {
+    if (!this.searchQuery.trim()) {
+      this.searchResults = [];
+      this.showSearchResults = false;
+      return;
+    }
 
-  /**
-   * Filter FAQs based on search query and selected category
-   */
-  filterFaqs(): void {
     this.isSearching = true;
+    this.showSearchResults = true;
 
-    // Apply category filter first
-    let result: Faq[] = [];
+    // Simulate API search with setTimeout
+    setTimeout(() => {
+      // Get all articles (in a real app, you would have a complete list or call an API)
+      const allArticles = [
+        ...this.featuredArticles,
+        // Add more articles that aren't featured
+        {
+          id: 'change-email',
+          title: 'How to change your email address',
+          summary:
+            'Instructions for updating your email address and verifying your new email',
+          categoryId: 'account',
+          featured: false,
+        },
+        {
+          id: 'payment-methods',
+          title: 'Adding and managing payment methods',
+          summary:
+            'Learn how to add, update, or remove payment methods from your account',
+          categoryId: 'billing',
+          featured: false,
+        },
+        {
+          id: 'track-progress',
+          title: 'Tracking your learning progress',
+          summary:
+            'How to view and understand your progress across all your enrolled courses',
+          categoryId: 'courses',
+          featured: false,
+        },
+      ];
 
-    if (this.selectedCategory === 'all') {
-      result = [...this.allFaqs];
-    } else {
-      const category = this.faqCategories.find(
-        (c) => c.id === this.selectedCategory
+      // Filter articles based on search query
+      const query = this.searchQuery.toLowerCase();
+      this.searchResults = allArticles.filter(
+        (article) =>
+          article.title.toLowerCase().includes(query) ||
+          article.summary.toLowerCase().includes(query)
       );
-      if (category) {
-        result = [...category.faqs];
-      }
-    }
 
-    // Then apply search filter if there's a query
-    if (this.searchQuery.trim()) {
-      const query = this.searchQuery.toLowerCase().trim();
-
-      result = result.filter(
-        (faq) =>
-          faq.question.toLowerCase().includes(query) ||
-          faq.answer.toLowerCase().includes(query)
-      );
-    }
-
-    // Update filtered FAQs
-    this.filteredFaqs = result;
-    this.isSearching = false;
-  }
-  /**
-   * Get category name by ID
-   */
-  getCategoryName(categoryId: string): string {
-    if (categoryId === 'all') {
-      return 'Frequently Asked Questions';
-    }
-
-    const category = this.faqCategories.find((c) => c.id === categoryId);
-    return category ? category.name : 'Frequently Asked Questions';
-  }
-  /**
-   * Handle search input changes
-   */
-  onSearchChange(): void {
-    this.filterFaqs();
+      this.isSearching = false;
+    }, 500); // Simulate network delay
   }
 
-  /**
-   * Clear search input
-   */
   clearSearch(): void {
     this.searchQuery = '';
-    this.filterFaqs();
+    this.searchResults = [];
+    this.showSearchResults = false;
   }
 
-  /**
-   * Contact support form will be implemented here
-   */
-  submitContactForm(): void {
-    // Implementation for contacting support will go here
-    alert(
-      'Thank you for your message. Our support team will get back to you shortly.'
-    );
+  // Navigation
+  navigateToCategory(categoryId: string): void {
+    // In a real app, you would use the Router service to navigate
+    console.log(`Navigating to category: ${categoryId}`);
+    // this.router.navigate(['/help-center', categoryId]);
+  }
+
+  navigateToArticle(articleId: string): void {
+    // In a real app, you would use the Router service to navigate
+    console.log(`Navigating to article: ${articleId}`);
+    // this.router.navigate(['/help-center/article', articleId]);
+  }
+
+  // Add scroll animations
+  private addScrollAnimations(): void {
+    if (
+      typeof document !== 'undefined' &&
+      typeof IntersectionObserver !== 'undefined'
+    ) {
+      const options = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1,
+      };
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-in');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, options);
+
+      // Observe elements with animation classes
+      setTimeout(() => {
+        document.querySelectorAll('.animate-on-scroll').forEach((el) => {
+          observer.observe(el);
+        });
+      }, 100);
+    }
   }
 }

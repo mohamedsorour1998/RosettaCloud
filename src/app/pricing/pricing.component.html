@@ -1,138 +1,149 @@
-<div class="pricing-header bg-primary text-white py-5">
-  <div class="container text-center">
-    <h1 class="display-4">Simple, Transparent Pricing</h1>
-    <p class="lead">Choose the plan that's right for you or your team</p>
+<!-- pricing.component.html -->
+<div class="pricing-hero component-hero">
+  <div class="container text-center py-5">
+    <h1 class="display-4 mb-3 animate-fade-in-down">
+      Simple, Transparent Pricing
+    </h1>
+    <p class="lead mb-4 animate-fade-in">
+      Choose the plan that fits your learning needs
+    </p>
+    <div class="billing-toggle animate-fade-in-up">
+      <div class="toggle-container">
+        <button
+          [class.active]="billingCycle === 'monthly'"
+          (click)="toggleBillingCycle('monthly')"
+          class="toggle-btn monthly"
+        >
+          Monthly
+        </button>
+        <button
+          [class.active]="billingCycle === 'annual'"
+          (click)="toggleBillingCycle('annual')"
+          class="toggle-btn annual"
+        >
+          Annual <span class="save-badge">Save 20%</span>
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
 <div class="container py-5">
-  <!-- Pricing Toggle -->
-  <div class="pricing-toggle text-center mb-5">
-    <div class="form-check form-check-inline form-switch">
-      <input
-        class="form-check-input"
-        type="checkbox"
-        id="billingToggle"
-        [(ngModel)]="isAnnual"
-        (change)="toggleBilling()"
-      />
-      <label class="form-check-label ms-3" for="billingToggle">
-        <span [class.text-primary]="!isAnnual" class="me-2">Monthly</span>
-        <span class="mx-2">|</span>
-        <span [class.text-primary]="isAnnual" class="ms-2">
-          Annual <span class="badge bg-success">Save 20%</span>
-        </span>
-      </label>
-    </div>
-  </div>
-
   <!-- Pricing Cards -->
-  <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 text-center">
-    <!-- Plan Cards (Loop through plans) -->
-    <div class="col" *ngFor="let plan of plans">
-      <div class="card h-100 pricing-card" [ngClass]="plan.cardClass || ''">
-        <div
-          class="card-header py-3"
-          [ngClass]="{ 'bg-primary text-white': plan.popular }"
-        >
-          <h4 class="my-0 fw-normal">{{ plan.name }}</h4>
-          <span class="badge bg-warning" *ngIf="plan.popular">Popular</span>
+  <div class="row justify-content-center g-4 mb-5">
+    <div *ngFor="let plan of pricingPlans" class="col-lg-4 col-md-6">
+      <div
+        class="pricing-table animate-on-scroll"
+        [class.featured]="plan.featured"
+      >
+        <div class="pricing-header">
+          <h3 class="plan-name">{{ plan.name }}</h3>
+          <div class="plan-price">
+            {{
+              billingCycle === "monthly"
+                ? plan.price.monthly
+                : plan.price.annual
+            }}
+            <span
+              class="price-period"
+              *ngIf="
+                plan.price.monthly !== 'Free' && plan.price.monthly !== 'Custom'
+              "
+            >
+              {{ billingCycle === "monthly" ? "/mo" : "/year" }}
+            </span>
+          </div>
+          <div class="plan-billing">{{ plan.description }}</div>
         </div>
-        <div class="card-body d-flex flex-column">
-          <h1 class="card-title pricing-card-title">
-            ${{ isAnnual ? plan.annualPrice : plan.monthlyPrice }}
-            <small class="text-muted fw-light">/mo</small>
-          </h1>
-          <p *ngIf="isAnnual && plan.annualPrice > 0" class="text-success">
-            ${{ getAnnualPrice(plan) }} billed annually
-          </p>
-
-          <ul class="list-unstyled mt-3 mb-4">
-            <!-- Included Features -->
-            <li *ngFor="let feature of plan.features.included">
-              <i class="bi bi-check-circle-fill text-success me-2"></i
-              >{{ feature }}
-            </li>
-
-            <!-- Excluded Features -->
-            <li *ngFor="let feature of plan.features.excluded">
-              <i class="bi bi-x-circle-fill text-danger me-2"></i>{{ feature }}
+        <div class="pricing-features">
+          <ul class="features-list">
+            <li
+              *ngFor="let feature of plan.features"
+              [class.excluded]="!feature.included"
+            >
+              <i
+                class="bi"
+                [ngClass]="
+                  feature.included ? 'bi-check-circle-fill' : 'bi-x-circle'
+                "
+                class="feature-icon"
+              ></i>
+              <span>{{ feature.text }}</span>
             </li>
           </ul>
-
-          <div class="mt-auto">
-            <a
-              routerLink="/register"
-              class="w-100 btn btn-lg"
-              [ngClass]="plan.buttonClass"
-            >
-              {{ plan.buttonText }}
-            </a>
-          </div>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Enterprise Section -->
-  <div class="row align-items-center mt-5 py-5 border-top">
-    <div class="col-md-7">
-      <h2>Enterprise Plan</h2>
-      <p class="lead">
-        Customized solutions for organizations and educational institutions.
-      </p>
-      <ul class="enterprise-features">
-        <li *ngFor="let feature of enterpriseFeatures">
-          <i class="bi bi-check-lg"></i> {{ feature }}
-        </li>
-      </ul>
-    </div>
-    <div class="col-md-5 text-center text-md-end">
-      <a routerLink="/contact" class="btn btn-lg btn-primary">Contact Sales</a>
-    </div>
-  </div>
-
-  <!-- FAQs -->
-  <div class="faq-section mt-5 py-5 border-top">
-    <h2 class="text-center mb-5">Frequently Asked Questions</h2>
-
-    <div class="accordion custom-accordion" id="pricingFAQ">
-      <!-- FAQ Items (Loop through FAQs) -->
-      <div class="accordion-item" *ngFor="let faq of faqs; let i = index">
-        <h2 class="accordion-header" [id]="'heading' + i">
-          <button
-            class="accordion-button"
-            [ngClass]="{ collapsed: !faq.open }"
-            type="button"
-            (click)="toggleFaq(i)"
-            [attr.aria-expanded]="faq.open"
-            [attr.aria-controls]="'collapse' + i"
+        <div class="pricing-footer">
+          <a
+            [routerLink]="plan.buttonLink"
+            class="btn"
+            [ngClass]="plan.featured ? 'btn-primary' : 'btn-outline-primary'"
           >
-            {{ faq.question }}
-          </button>
-        </h2>
-        <div
-          [id]="'collapse' + i"
-          class="accordion-collapse collapse"
-          [ngClass]="{ show: faq.open }"
-          [attr.aria-labelledby]="'heading' + i"
-        >
-          <div class="accordion-body">
-            {{ faq.answer }}
-          </div>
+            {{ plan.buttonText }}
+          </a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Call to Action -->
-  <div class="text-center py-5 mt-5 cta-section rounded">
-    <h2>Ready to start your learning journey?</h2>
+  <!-- Additional Features Section -->
+  <div class="additional-features my-5 py-4 animate-on-scroll">
+    <h2 class="section-title text-center mb-5">All Plans Include</h2>
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <h3 class="feature-title">Secure Platform</h3>
+          <p class="feature-text">
+            Your data is protected with enterprise-grade security and regular
+            backups.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-globe2"></i>
+          </div>
+          <h3 class="feature-title">Multilingual Support</h3>
+          <p class="feature-text">
+            Content available in Arabic, English, and French with more languages
+            coming soon.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-device-ssd"></i>
+          </div>
+          <h3 class="feature-title">Cloud Saves</h3>
+          <p class="feature-text">
+            Your progress is automatically saved and synced across all your
+            devices.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ Section using the reusable FAQ component -->
+  <app-faq [faqItems]="faqItems" title="Pricing FAQs"></app-faq>
+
+  <!-- CTA Section -->
+  <div class="pricing-cta text-center py-5 my-5 rounded animate-on-scroll">
+    <h2>Ready to Start Your Learning Journey?</h2>
     <p class="lead mb-4">
-      Join thousands of students already learning with RosettaCloud
+      Join thousands of students who are already transforming their careers
     </p>
-    <a routerLink="/register" class="btn btn-lg btn-primary px-5 py-3"
-      >Get Started Today</a
-    >
+    <div class="cta-buttons">
+      <a routerLink="/register" class="btn btn-primary btn-lg me-3">
+        <i class="bi bi-person-plus me-2"></i>Sign Up Now
+      </a>
+      <a routerLink="/contact" class="btn btn-outline-primary btn-lg">
+        <i class="bi bi-chat-dots me-2"></i>Contact Sales
+      </a>
+    </div>
   </div>
 </div>

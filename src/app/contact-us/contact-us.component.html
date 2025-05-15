@@ -437,33 +437,12 @@
   </div>
 
   <!-- FAQ Section -->
-  <div class="faq-section my-5 pt-4 animate-on-scroll">
-    <h2 class="section-title text-center mb-5">Frequently Asked Questions</h2>
-
-    <div class="row justify-content-center">
-      <div class="col-lg-10">
-        <div class="faq-container">
-          <div
-            *ngFor="let faq of faqItems; let i = index"
-            class="faq-item"
-            [class.active]="expandedFaqIndex === i"
-          >
-            <div class="faq-question" (click)="toggleFaq(i)">
-              <h3>{{ faq.question }}</h3>
-              <div class="faq-icon">
-                <i
-                  class="bi"
-                  [class.bi-plus]="expandedFaqIndex !== i"
-                  [class.bi-dash]="expandedFaqIndex === i"
-                ></i>
-              </div>
-            </div>
-            <div class="faq-answer" [class.show]="expandedFaqIndex === i">
-              <p>{{ faq.answer }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+  <div class="row">
+    <div class="col-12">
+      <app-faq
+        [faqItems]="faqItems"
+        title="Frequently Asked Questions"
+      ></app-faq>
     </div>
   </div>
 
