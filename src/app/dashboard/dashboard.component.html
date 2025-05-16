@@ -85,7 +85,7 @@
           <i class="bi bi-book"></i>
         </div>
         <div class="stat-content">
-          <h3 class="stat-number">{{ userModules.length || 0 }}</h3>
+          <h3 class="stat-number">{{ userModules?.length || 0 }}</h3>
           <p class="stat-label">Enrolled Courses</p>
         </div>
       </div>
@@ -105,7 +105,7 @@
           <i class="bi bi-code-square"></i>
         </div>
         <div class="stat-content">
-          <h3 class="stat-number">{{ userLabs.length || 0 }}</h3>
+          <h3 class="stat-number">{{ userLabs?.length || 0 }}</h3>
           <p class="stat-label">Active Labs</p>
         </div>
       </div>
@@ -122,10 +122,7 @@
       </div>
 
       <!-- Empty State -->
-      <div
-        *ngIf="!userProgress || Object.keys(userProgress ?? {}).length === 0"
-        class="empty-state"
-      >
+      <div *ngIf="isObjectEmpty(userProgress)" class="empty-state">
         <div class="empty-icon">
           <i class="bi bi-journal-text"></i>
         </div>
@@ -138,10 +135,7 @@
       </div>
 
       <!-- Course List -->
-      <div
-        *ngIf="userProgress && Object.keys(userProgress ?? {}).length > 0"
-        class="course-list"
-      >
+      <div *ngIf="hasObjectKeys(userProgress)" class="course-list">
         <div
           *ngFor="let moduleId of userModules; let i = index"
           class="course-item"
@@ -177,13 +171,15 @@
               <i
                 class="bi"
                 [ngClass]="
-                  expandedModules[moduleId]
+                  expandedModules && expandedModules[moduleId]
                     ? 'bi-chevron-up'
                     : 'bi-chevron-down'
                 "
               ></i>
               <span>{{
-                expandedModules[moduleId] ? "Hide lessons" : "Show lessons"
+                expandedModules && expandedModules[moduleId]
+                  ? "Hide lessons"
+                  : "Show lessons"
               }}</span>
             </button>
             <a [routerLink]="['/courses', moduleId]" class="btn-continue">
@@ -193,7 +189,10 @@
           </div>
 
           <!-- Lessons List (Collapsible) -->
-          <div class="lesson-list" [class.expanded]="expandedModules[moduleId]">
+          <div
+            class="lesson-list"
+            [class.expanded]="expandedModules && expandedModules[moduleId]"
+          >
             <div
               *ngFor="let lessonId of getModuleLessons(moduleId)"
               class="lesson-item"
@@ -232,29 +231,12 @@
       </div>
     </div>
 
-    <!-- Active Labs -->
-    <div class="labs-container animate-slide-in-up" style="--delay: 0.3s">
+    <!-- Demo Lab Section  -->
+    <div class="labs-container animate-slide-in-up" style="--delay: 0.25s">
       <div class="container-header">
-        <h2>Your Active Labs</h2>
-        <div class="header-actions">
-
-          <!-- Clean up button - always shown if user has labs -->
-          <button
-            class="btn-cleanup"
-            (click)="terminateAllLabs()"
-            [disabled]="isLoading"
-          >
-            <i class="bi bi-trash"></i>
-            <span>Terminate All Labs</span>
-          </button>
-          <a routerLink="/labs" class="btn-text">
-            <span>View All Labs</span>
-            <i class="bi bi-arrow-right"></i>
-          </a>
-        </div>
+        <h2>Demo lab</h2>
       </div>
 
-      <!-- Labs Grid: Always show demo lab, show user labs if any -->
       <div class="labs-grid">
         <!-- Demo Lab Card always visible -->
         <div class="lab-card demo-lab">
@@ -268,32 +250,67 @@
           <p class="lab-description">
             Try our interactive lab environment with sample content
           </p>
-          <a routerLink="/lab/module/1/lesson/1" class="btn-launch demo">
+          <a
+            href="/lab/module/1/lesson/1"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-launch"
+          >
             <span>Launch Demo</span>
             <i class="bi bi-box-arrow-up-right"></i>
           </a>
         </div>
+      </div>
+    </div>
 
-        <!-- User's Active Labs -->
-        <ng-container *ngIf="userLabs && userLabs.length > 0; else noLabs">
-          <div *ngFor="let labId of userLabs" class="lab-card">
-            <div class="lab-status">
-              <span class="status-badge">Active</span>
-            </div>
-            <div class="lab-icon">
-              <i class="bi bi-pc-display-horizontal"></i>
-            </div>
-            <h3 class="lab-title">{{ labId }}</h3>
-            <p class="lab-description">
-              Access hands-on environment to practice your skills
-            </p>
-            <a [routerLink]="['/labs', labId]" class="btn-launch">
-              <span>Launch Lab</span>
-              <i class="bi bi-box-arrow-up-right"></i>
-            </a>
+    <!-- Active Labs -->
+    <div class="labs-container animate-slide-in-up" style="--delay: 0.3s">
+      <div class="container-header">
+        <h2>Your Active Labs</h2>
+        <div class="header-actions">
+          <!-- Clean up button - with disabled state and tooltip -->
+          <button
+            class="btn-cleanup"
+            (click)="terminateAllLabs()"
+            [disabled]="!userLabs || userLabs.length === 0 || isLoading"
+            [title]="
+              !userLabs || userLabs.length === 0
+                ? 'There must be at least one active lab'
+                : 'Terminate all active labs'
+            "
+          >
+            <i class="bi bi-trash"></i>
+            <span>{{
+              !userLabs || userLabs.length === 0
+                ? "No Active Labs"
+                : "Terminate All Labs"
+            }}</span>
+          </button>
+          <a routerLink="/labs" class="btn-text">
+            <span>View All Labs</span>
+            <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- User's Active Labs Grid -->
+      <div class="labs-grid" *ngIf="userLabs && userLabs.length > 0">
+        <div *ngFor="let labId of userLabs" class="lab-card">
+          <div class="lab-status">
+            <span class="status-badge">Active</span>
           </div>
-        </ng-container>
-        <ng-template #noLabs></ng-template>
+          <div class="lab-icon">
+            <i class="bi bi-pc-display-horizontal"></i>
+          </div>
+          <h3 class="lab-title">{{ labId }}</h3>
+          <p class="lab-description">
+            Access hands-on environment to practice your skills
+          </p>
+          <a [routerLink]="['/labs', labId]" class="btn-launch">
+            <span>Launch Lab</span>
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </div>
       </div>
 
       <!-- Empty State: only show if user has no labs -->

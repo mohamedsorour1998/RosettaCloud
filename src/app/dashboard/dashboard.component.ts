@@ -38,7 +38,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Component cleanup
   private destroy$ = new Subject<void>();
-Object: any;
+  Object: any;
 
   constructor(
     private userService: UserService,
@@ -54,7 +54,18 @@ Object: any;
     this.destroy$.next();
     this.destroy$.complete();
   }
+  // Add this to your dashboard.component.ts file
+  isObjectEmpty(obj: any): boolean {
+    if (!obj) return true;
+    if (typeof obj !== 'object') return true;
+    return Object.keys(obj).length === 0;
+  }
 
+  hasObjectKeys(obj: any): boolean {
+    if (!obj) return false;
+    if (typeof obj !== 'object') return false;
+    return Object.keys(obj).length > 0;
+  }
   /**
    * Load all dashboard data
    */
