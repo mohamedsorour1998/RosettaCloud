@@ -6,6 +6,6 @@ COPY . /usr/src/app
 
 RUN npm install -g @angular/cli
 
-RUN npm cache clean --force && npm install
+RUN npm install --legacy-peer-deps --unsafe-perm --force
 
 CMD ["ng", "serve", "--host", "0.0.0.0"]
