@@ -46,6 +46,27 @@
   }
 }
 
+@keyframes rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
 // Main container
 .chatbot-flow-container {
   display: flex;
@@ -57,7 +78,8 @@
   font-family: var(--bs-font-sans-serif);
 }
 
-.chatbot-flow-title {
+.chatbot-flow-title,
+.feedback-flow-title {
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 2rem;
@@ -65,7 +87,8 @@
   color: var(--primary-color);
 }
 
-.chatbot-flow-diagram {
+.chatbot-flow-diagram,
+.feedback-flow-diagram {
   width: 100%;
   background-color: var(--light-card-bg);
   border-radius: 0.75rem;
@@ -77,14 +100,22 @@
   align-items: center;
 }
 
+.feedback-flow-subtitle {
+  font-size: 1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  max-width: 700px;
+}
+
 // Flow sections and components
 .flow-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   position: relative;
   width: 100%;
+  max-width: 800px;
 }
 
 .step-number {
@@ -109,6 +140,12 @@
   align-items: center;
   gap: 1rem;
   position: relative;
+  width: 100%;
+}
+
+// Fix for number-api class to hide it
+.number-api {
+  display: none;
 }
 
 // AWS styled boxes
@@ -127,6 +164,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   overflow: hidden;
+  margin-bottom: 0.5rem;
 
   &:after {
     content: "";
@@ -148,12 +186,15 @@
     margin: 0.5rem 0;
     position: relative;
     z-index: 1;
+    text-align: center;
   }
 
   .box-content {
     font-size: 0.875rem;
     position: relative;
     z-index: 1;
+    text-align: center;
+    padding: 0 0.5rem;
   }
 
   .box-subcontent {
@@ -164,18 +205,38 @@
     z-index: 1;
   }
 
-  .aws-icon {
-    width: 2.5rem;
-    height: 2.5rem;
+  .aws-icon,
+  .tech-icon {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
     margin-bottom: 0.5rem;
     transition: all 0.3s ease;
+    object-fit: contain !important;
+  }
+
+  // Fix for specific icons
+  img[src*="fastapi"],
+  .fastapi-icon {
+    height: 1.5rem !important;
+    width: auto !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  // Fix for Momento logo
+  img[src*="momento-logo-forest"],
+  .momento-icon {
+    width: 2.5rem !important;
+    height: 2rem !important;
+    object-fit: contain !important;
   }
 
   &:hover {
     transform: translateY(-0.25rem);
     box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.15);
 
-    .aws-icon {
+    .aws-icon,
+    .tech-icon {
       animation: floatAnimation 2s ease infinite;
     }
   }
@@ -194,6 +255,7 @@
     );
   }
 }
+
 .api-box {
   border-color: #c94899;
   background-color: rgba(201, 72, 153, 0.1);
@@ -246,6 +308,21 @@
   }
 }
 
+.pub-sub-box {
+  border-color: #2e7d32; // Momento green
+  background-color: rgba(46, 125, 50, 0.1);
+}
+
+.display-box {
+  border-color: #f57c00; // UI orange
+  background-color: rgba(245, 124, 0, 0.1);
+}
+
+.backend-box {
+  border-color: #1565c0; // Backend blue
+  background-color: rgba(21, 101, 192, 0.1);
+}
+
 // Arrows and connectors
 .flow-arrow {
   display: flex;
@@ -264,6 +341,18 @@
     width: 2px;
     background-color: rgba(var(--bs-primary-rgb), 0.2);
     z-index: 0;
+  }
+
+  &.arrow-down {
+    &:before {
+      content: "";
+      position: absolute;
+      top: -10px;
+      height: 40px;
+      width: 2px;
+      background-color: rgba(var(--bs-primary-rgb), 0.3);
+      z-index: 0;
+    }
   }
 
   .arrow-icon {
@@ -464,7 +553,7 @@
   color: var(--primary-color);
 }
 
-// Horizontal flow for document indexing - FIXED SOLUTION
+// Horizontal flow for document indexing
 .indexing-flow {
   display: flex;
   flex-wrap: nowrap;
@@ -582,10 +671,215 @@
   }
 }
 
-// AWS Icon specific styling
-.aws-icon {
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-  transition: transform 0.3s ease;
+// Process steps - Fix for Feedback Flow
+.process-steps {
+  width: 100%;
+  max-width: 800px;
+  margin: 3rem 0 2rem;
+}
+
+.steps-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.steps-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  background-color: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-left: 3px solid var(--primary-color);
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateX(0.25rem);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+
+  .step-number {
+    background-color: var(--primary-color);
+    color: white;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+
+  .step-content {
+    flex: 1;
+  }
+
+  .step-description {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .step-flow {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--bs-secondary);
+
+    i {
+      margin: 0 0.5rem;
+      color: var(--primary-color);
+    }
+
+    .flow-from,
+    .flow-to {
+      background-color: rgba(var(--bs-primary-rgb), 0.1);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-family: monospace;
+    }
+  }
+}
+
+// Key info styles for both tabs
+.key-info {
+  width: 100%;
+  max-width: 800px;
+  margin: 2rem 0;
+}
+
+.key-info-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.info-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.info-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  width: 250px;
+  text-align: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  .card-icon {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    i {
+      font-size: 1.5rem;
+    }
+  }
+
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .card-text {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    line-height: 1.5;
+    margin: 0;
+  }
+}
+
+// Documentation Section Selector
+.documentation-selector {
+  width: 100%;
+  margin-bottom: 2rem;
+
+  .selector-tabs {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+
+    .selector-tab {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: transparent;
+      border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+      color: var(--bs-secondary);
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      i {
+        font-size: 1.25rem;
+      }
+
+      &:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--primary-color);
+      }
+
+      &.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        box-shadow: 0 0.25rem 0.75rem rgba(var(--bs-primary-rgb), 0.25);
+      }
+    }
+  }
+}
+
+// Section title for each tab
+.section-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.section-description {
+  font-size: 1.1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 // Dark mode styles
@@ -593,11 +887,13 @@
   .indexing-flow::after {
     background: linear-gradient(to right, transparent, var(--dark-card-bg) 90%);
   }
+
   .chatbot-flow-container {
     background-color: var(--dark-bg);
   }
 
-  .chatbot-flow-diagram {
+  .chatbot-flow-diagram,
+  .feedback-flow-diagram {
     background-color: var(--dark-card-bg);
     box-shadow: var(--shadow-dark);
   }
@@ -652,7 +948,8 @@
     }
   }
 
-  .aws-icon {
+  .aws-icon,
+  .tech-icon {
     filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   }
 
@@ -677,16 +974,40 @@
   .indexing-flow::after {
     background: linear-gradient(to right, transparent, rgba(33, 37, 41, 0.7));
   }
+
   .indexing-flow .flow-box,
   .indexing-flow .flow-box:hover,
   .indexing-flow .animated-box:hover {
     box-shadow: none !important;
   }
+
   .indexing-flow::before {
     content: "";
     display: block;
     width: 3rem;
     flex: 0 0 3rem;
+  }
+
+  .selector-tab {
+    border-color: var(--dark-border-color);
+    color: var(--dark-text-secondary);
+
+    &:hover {
+      background-color: rgba(var(--bs-primary-rgb), 0.15);
+    }
+  }
+
+  .step-item {
+    background-color: var(--dark-card-bg);
+    border-color: var(--primary-color);
+  }
+
+  .info-card {
+    background-color: var(--dark-card-bg);
+
+    .card-text {
+      color: var(--dark-text-secondary);
+    }
   }
 }
 
@@ -712,7 +1033,7 @@
       display: none;
     }
   }
-
+// // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // 
   .indexing-line-container {
     width: 3px; // Make line vertical
     height: 100%;
@@ -853,4 +1174,167 @@
       justify-content: center;
     }
   }
+}
+// Add these styles to chatbot-flow-diagram.component.scss
+// Key info styles - ensure these are consistent across tabs
+.key-info {
+  width: 100%;
+  max-width: 800px;
+  margin: 2rem 0;
+}
+
+.key-info-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.info-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.info-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  width: 250px;
+  text-align: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  .card-icon {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    i {
+      font-size: 1.5rem;
+    }
+  }
+
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .card-text {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    line-height: 1.5;
+    margin: 0;
+  }
+}
+
+// Dark mode styles for info cards
+:host-context([data-bs-theme="dark"]) {
+  .info-card {
+    background-color: var(--dark-card-bg);
+
+    .card-text {
+      color: var(--dark-text-secondary);
+    }
+  }
+}
+
+// Responsive styles for info cards
+@media (max-width: 768px) {
+  .info-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .info-card {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+/* Add this to both component SCSS files */
+
+/* Standardize all icons */
+.tech-icon,
+.aws-icon {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  object-fit: contain !important;
+  margin-bottom: 0.5rem;
+}
+
+/* Fix the FastAPI logo specifically */
+img[src*="fastapi"] {
+  height: 1.8rem !important;
+  width: auto !important;
+  margin-top: 0.35rem !important;
+}
+
+/* Fix FastAPI icon specific issues */
+.fastapi-icon {
+  height: 1.5rem !important;
+  width: auto !important;
+  margin-top: 0.5rem !important;
+}
+
+/* Split arrow styling */
+.split-arrow {
+  position: relative;
+}
+
+.split-arrow::before,
+.split-arrow::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  background-color: rgba(var(--bs-primary-rgb), 0.3);
+}
+
+.split-arrow::before {
+  top: -10px;
+  left: 30%;
+  height: 40px;
+  transform: translateX(-50%);
+}
+
+.split-arrow::after {
+  top: -10px;
+  right: 30%;
+  height: 40px;
+  transform: translateX(50%);
+}
+/* Add to your component SCSS file */
+.tech-icon,
+.aws-icon {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  object-fit: contain !important;
+  margin-bottom: 0.5rem;
+}
+
+/* Fix FastAPI icon specific issues */
+.fastapi-icon {
+  height: 1.5rem !important;
+  width: auto !important;
+  margin-top: 0.5rem !important;
+}
+
+/* Fix Momento logo sizing */
+.momento-icon {
+  width: 2.5rem !important;
+  height: 2rem !important;
+  object-fit: contain !important;
 }

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FeedbackFlowDiagramComponent } from '../feedback-flow-diagram/feedback-flow-diagram.component';
 
 @Component({
   selector: 'app-chatbot-flow-diagram',
@@ -11,6 +12,7 @@ import { CommonModule } from '@angular/common';
 export class ChatbotFlowDiagramComponent implements OnInit {
   expandedNode: string | null = null;
   activeTab: string = 'chatbot'; // Default to chatbot tab
+  feedbackSteps: any[] = []; // Will be populated from the feedback component
 
   // Node information to display when expanded for Chatbot Flow
   nodeDetails = {
@@ -605,93 +607,51 @@ saveFeedback(): void {
     },
   };
 
-  // Feedback flow process steps
-  feedbackSteps = [
-    {
-      number: 1,
-      description:
-        'Angular frontend requests Momento token from Lambda via API Gateway',
-      from: 'angularFrontend',
-      to: 'tokenVending',
-    },
-    {
-      number: 2,
-      description:
-        'Lambda authenticates and returns a disposable Momento token',
-      from: 'tokenVending',
-      to: 'angularFrontend',
-    },
-    {
-      number: 3,
-      description:
-        'Angular opens WebSocket and subscribes to FeedbackGiven topic',
-      from: 'angularFrontend',
-      to: 'momento',
-    },
-    {
-      number: 4,
-      description:
-        'User initiates feedback request; Angular sends to API Gateway',
-      from: 'angularFrontend',
-      to: 'feedbackRequest',
-    },
-    {
-      number: 5,
-      description:
-        'Feedback Request Lambda publishes to FeedbackRequested topic',
-      from: 'feedbackRequest',
-      to: 'momento',
-    },
-    {
-      number: 6,
-      description: 'Backend service listens on FeedbackRequested topic',
-      from: 'momento',
-      to: 'feedbackService',
-    },
-    {
-      number: 7,
-      description:
-        'Backend service parses request and builds prompt for AI service',
-      from: 'feedbackService',
-      to: 'aiService',
-    },
-    {
-      number: 8,
-      description:
-        'AI service generates feedback and returns to backend service',
-      from: 'aiService',
-      to: 'feedbackService',
-    },
-    {
-      number: 9,
-      description: 'Backend service publishes feedback to FeedbackGiven topic',
-      from: 'feedbackService',
-      to: 'momento',
-    },
-    {
-      number: 10,
-      description:
-        'Angular receives feedback, filters by feedback_id, and displays it',
-      from: 'momento',
-      to: 'angularFrontend',
-    },
-    {
-      number: 11,
-      description: 'User can save feedback as a text file or terminate lab',
-      from: 'angularFrontend',
-      to: 'displayComponent',
-    },
-  ];
 
   constructor() {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    // Import feedbackSteps from the FeedbackFlowDiagramComponent
+    try {
+      const feedbackComponent = new FeedbackFlowDiagramComponent();
+      feedbackComponent.ngOnInit(); // Initialize it to generate the steps
+      this.feedbackSteps = feedbackComponent.steps;
+    } catch (error) {
+      console.error('Error importing feedback steps:', error);
+      // Fallback steps in case import fails
+      this.feedbackSteps = [
+        {
+          number: 1,
+          description: 'Angular frontend requests Momento token from Lambda via API Gateway',
+          from: 'angularFrontend',
+          to: 'tokenVending'
+        },
+        // Add the rest of your steps...
+      ];
+    }
+  }
+  // This function should be updated in chatbot-flow-diagram.component.ts
+  // to ensure both tabs maintain their state:
 
-  // Set active tab
   setActiveTab(tab: string): void {
     if (this.activeTab !== tab) {
       this.activeTab = tab;
-      this.expandedNode = null; // Reset expanded node when switching tabs
+
+      // Don't reset expanded node when switching between tabs
+      // Only reset if the type of expanded node doesn't exist in new tab
+      const nodeExists =
+        tab === 'chatbot'
+          ? this.expandedNode !== null &&
+            Object.keys(this.nodeDetails).includes(this.expandedNode)
+          : this.expandedNode !== null &&
+            Object.keys(this.feedbackNodeDetails).includes(this.expandedNode);
+
+      if (!nodeExists) {
+        this.expandedNode = null;
+      }
+
+      // Scroll to top when switching tabs
+      window.scrollTo(0, 0);
     }
   }
 

@@ -430,6 +430,35 @@
         </div>
       </div>
     </div>
+    <div class="key-info" *ngIf="activeTab === 'chatbot'">
+      <h2 class="key-info-title">Key Information</h2>
+      <div class="info-cards">
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-lightning"></i></div>
+          <h3 class="card-title">Event-Driven</h3>
+          <p class="card-text">
+            Uses event-based architecture with WebSocket connections for
+            real-time responses and streaming.
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-shield-check"></i></div>
+          <h3 class="card-title">Secure</h3>
+          <p class="card-text">
+            Session management, WebSocket authentication, and connection
+            verification ensure security.
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-arrow-repeat"></i></div>
+          <h3 class="card-title">Resilient</h3>
+          <p class="card-text">
+            Error handling, retry mechanisms, and heartbeat monitoring provide
+            reliability.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Feedback Flow Diagram -->
@@ -440,7 +469,7 @@
       educational feedback
     </p>
 
-    <!-- Row 1: Angular Frontend -->
+    <!-- Row 1: Angular Frontend - Initial Request -->
     <div class="flow-section">
       <div class="step-number">1</div>
       <div class="flow-row">
@@ -479,10 +508,37 @@
     <!-- Connection arrows between sections -->
     <div class="flow-arrow">
       <i class="bi bi-arrow-down arrow-icon"></i>
-      <div class="arrow-label">API Gateway</div>
+      <div class="arrow-label">Request Token (Step 1)</div>
     </div>
 
-    <!-- Row 2: Lambda Functions -->
+    <!-- Row 2: API Gateway -->
+    <div class="flow-section">
+      <div class="number-api"></div>
+      <div class="flow-row">
+        <div
+          class="flow-box api-box animated-box"
+          (click)="toggleNodeDetails('apiGateway')"
+        >
+          <img
+            src="/Res_Amazon-API-Gateway_Endpoint_48.svg"
+            alt="API Gateway"
+            class="aws-icon"
+          />
+          <div class="box-title">API Gateway</div>
+          <div class="box-content">
+            Routes requests to appropriate Lambda functions
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection arrows to Lambda -->
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Route Request</div>
+    </div>
+
+    <!-- Row 3: Lambda Token Vending -->
     <div class="flow-section">
       <div class="step-number">2</div>
       <div class="flow-row">
@@ -498,21 +554,6 @@
           <div class="box-title">Momento Token Vending</div>
           <div class="box-content">
             Authenticates and provides temporary tokens
-          </div>
-        </div>
-
-        <div
-          class="flow-box lambda-box animated-box"
-          (click)="toggleNodeDetails('feedbackRequest')"
-        >
-          <img
-            src="/Res_AWS-Lambda_Lambda-Function_48.svg"
-            alt="Lambda"
-            class="aws-icon"
-          />
-          <div class="box-title">Feedback Request</div>
-          <div class="box-content">
-            Processes feedback requests and publishes to Momento
           </div>
         </div>
       </div>
@@ -531,6 +572,81 @@
         </ul>
         <div class="code-block">
           <pre>{{ feedbackNodeDetails.tokenVending.code }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection arrows back to Frontend -->
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Return Token (Step 2)</div>
+    </div>
+
+    <!-- Row 4: Angular Frontend - WebSocket Connection -->
+    <div class="flow-section">
+      <div class="step-number">3</div>
+      <div class="flow-row">
+        <div
+          class="flow-box client-box animated-box"
+          (click)="toggleNodeDetails('angularSubscribe')"
+        >
+          <img src="/angular.ico" alt="Angular" class="tech-icon" />
+          <div class="box-title">Angular (Subscribed)</div>
+          <div class="box-content">
+            Opens WebSocket and subscribes to FeedbackGiven topic
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection arrows to API Gateway for feedback request -->
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Submit Feedback Request (Step 4)</div>
+    </div>
+
+    <!-- Row 5: API Gateway Again -->
+    <div class="flow-section">
+      <div class="number-api"></div>
+      <div class="flow-row">
+        <div
+          class="flow-box api-box animated-box"
+          (click)="toggleNodeDetails('apiGateway')"
+        >
+          <img
+            src="/Res_Amazon-API-Gateway_Endpoint_48.svg"
+            alt="API Gateway"
+            class="aws-icon"
+          />
+          <div class="box-title">API Gateway</div>
+          <div class="box-content">Routes feedback request to Lambda</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection arrows to Feedback Request Lambda -->
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Invoke Lambda</div>
+    </div>
+
+    <!-- Row 6: Feedback Request Lambda -->
+    <div class="flow-section">
+      <div class="step-number">5</div>
+      <div class="flow-row">
+        <div
+          class="flow-box lambda-box animated-box"
+          (click)="toggleNodeDetails('feedbackRequest')"
+        >
+          <img
+            src="/Res_AWS-Lambda_Lambda-Function_48.svg"
+            alt="Lambda"
+            class="aws-icon"
+          />
+          <div class="box-title">Feedback Request</div>
+          <div class="box-content">
+            Processes feedback requests and publishes to Momento
+          </div>
         </div>
       </div>
 
@@ -554,15 +670,15 @@
       </div>
     </div>
 
-    <!-- Connection arrows between sections -->
+    <!-- Connection arrows to Momento -->
     <div class="flow-arrow">
       <i class="bi bi-arrow-down arrow-icon"></i>
-      <div class="arrow-label">WebSocket / Topics</div>
+      <div class="arrow-label">Publish to FeedbackRequested Topic (Step 5)</div>
     </div>
 
-    <!-- Row 3: Momento -->
+    <!-- Row 7: Momento Pub/Sub -->
     <div class="flow-section">
-      <div class="step-number">3</div>
+      <div class="step-number">6</div>
       <div class="flow-row">
         <div
           class="flow-box pub-sub-box animated-box"
@@ -571,7 +687,7 @@
           <img
             src="https://docs.momentohq.com/img/momento-logo-forest.svg"
             alt="Momento"
-            class="tech-icon"
+            class="tech-icon momento-icon"
           />
           <div class="box-title">Momento Pub/Sub</div>
           <div class="box-content">
@@ -596,21 +712,25 @@
       </div>
     </div>
 
-    <!-- Connection arrows between sections -->
+    <!-- Connection arrows to Backend Service -->
     <div class="flow-arrow">
       <i class="bi bi-arrow-down arrow-icon"></i>
-      <div class="arrow-label">Subscribe & Publish</div>
+      <div class="arrow-label">Listen on FeedbackRequested Topic (Step 6)</div>
     </div>
 
-    <!-- Row 4: Backend Service -->
+    <!-- Row 8: Backend Service -->
     <div class="flow-section">
-      <div class="step-number">4</div>
+      <div class="step-number">7</div>
       <div class="flow-row">
         <div
           class="flow-box backend-box animated-box"
           (click)="toggleNodeDetails('feedbackService')"
         >
-          <img src="/fastapi-1.svg" alt="Python" class="tech-icon" />
+          <img
+            src="/fastapi-1.svg"
+            alt="Python"
+            class="tech-icon fastapi-icon"
+          />
           <div class="box-title">Feedback Service</div>
           <div class="box-content">Processes feedback requests with AI</div>
         </div>
@@ -636,15 +756,15 @@
       </div>
     </div>
 
-    <!-- Connection arrows between sections -->
+    <!-- Connection arrows to AI Service -->
     <div class="flow-arrow">
       <i class="bi bi-arrow-down arrow-icon"></i>
-      <div class="arrow-label">API Calls</div>
+      <div class="arrow-label">Build Prompt for AI (Step 7)</div>
     </div>
 
-    <!-- Row 5: AI Service -->
+    <!-- Row 9: AI Service -->
     <div class="flow-section">
-      <div class="step-number">5</div>
+      <div class="step-number">8</div>
       <div class="flow-row">
         <div
           class="flow-box ai-box animated-box"
@@ -674,15 +794,73 @@
       </div>
     </div>
 
-    <!-- Row 6: Display Component -->
+    <!-- Connection arrows back to Backend -->
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Return Generated Feedback (Step 8)</div>
+    </div>
+
+    <!-- Row 10: Backend Publishing -->
     <div class="flow-section">
-      <div class="step-number">6</div>
+      <div class="step-number">9</div>
+      <div class="flow-row">
+        <div
+          class="flow-box backend-box animated-box"
+          (click)="toggleNodeDetails('feedbackService')"
+        >
+          <img
+            src="/fastapi-1.svg"
+            alt="Python"
+            class="tech-icon fastapi-icon"
+          />
+          <div class="box-title">Feedback Service (Publishing)</div>
+          <div class="box-content">
+            Publishes feedback to FeedbackGiven topic
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection arrows back to Momento -->
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Publish to FeedbackGiven Topic (Step 9)</div>
+    </div>
+
+    <!-- Row 11: Momento (FeedbackGiven) -->
+    <div class="flow-section">
+      <div class="step-number">10</div>
+      <div class="flow-row">
+        <div
+          class="flow-box pub-sub-box animated-box"
+          (click)="toggleNodeDetails('momento')"
+        >
+          <img
+            src="https://docs.momentohq.com/img/momento-logo-forest.svg"
+            alt="Momento"
+            class="tech-icon momento-icon"
+          />
+          <div class="box-title">Momento Pub/Sub (FeedbackGiven)</div>
+          <div class="box-content">Delivers feedback to subscribed clients</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection arrows to Frontend -->
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Frontend Receives Feedback (Step 10)</div>
+    </div>
+
+    <!-- Row 12: Display Component -->
+    <div class="flow-section">
+      <div class="step-number">11</div>
       <div class="flow-row">
         <div
           class="flow-box display-box animated-box"
           (click)="toggleNodeDetails('displayComponent')"
         >
-          <img src="/angular.ico" alt="Angular" class="aws-icon" />
+          <img src="/angular.ico" alt="Angular" class="tech-icon" />
           <div class="box-title">Feedback Display</div>
           <div class="box-content">Renders and manages feedback UI</div>
         </div>
@@ -707,53 +885,196 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Process Steps Section - Only shown for Feedback Flow -->
-  <div class="process-steps" *ngIf="activeTab === 'feedback'">
-    <h2 class="steps-title">Complete Flow Process</h2>
-    <ol class="steps-list">
-      <li *ngFor="let step of feedbackSteps" class="step-item">
-        <div class="step-number">{{ step.number }}</div>
-        <div class="step-content">
-          <p class="step-description">{{ step.description }}</p>
-          <div class="step-flow">
-            <span class="flow-from">{{ step.from }}</span>
-            <i class="bi bi-arrow-right"></i>
-            <span class="flow-to">{{ step.to }}</span>
+    <!-- Process Steps Section -->
+    <div class="process-steps">
+      <h2 class="steps-title">Complete Flow Process</h2>
+      <ol class="steps-list">
+        <li class="step-item">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <p class="step-description">
+              Angular frontend requests Momento token from Lambda via API
+              Gateway
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">angularFrontend</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">tokenVending</span>
+            </div>
           </div>
-        </div>
-      </li>
-    </ol>
-  </div>
+        </li>
 
-  <!-- Key Information for Feedback Flow -->
-  <div class="key-info" *ngIf="activeTab === 'feedback'">
-    <h2 class="key-info-title">Key Information</h2>
-    <div class="info-cards">
-      <div class="info-card">
-        <div class="card-icon"><i class="bi bi-lightning"></i></div>
-        <h3 class="card-title">Event-Driven</h3>
-        <p class="card-text">
-          Uses event-based architecture with publish/subscribe messaging for
-          real-time responses.
-        </p>
-      </div>
-      <div class="info-card">
-        <div class="card-icon"><i class="bi bi-shield-check"></i></div>
-        <h3 class="card-title">Secure</h3>
-        <p class="card-text">
-          Temporary tokens, scoped permissions, and user verification ensure
-          security.
-        </p>
-      </div>
-      <div class="info-card">
-        <div class="card-icon"><i class="bi bi-arrow-repeat"></i></div>
-        <h3 class="card-title">Resilient</h3>
-        <p class="card-text">
-          Error handling, retry mechanisms, and connection monitoring provide
-          reliability.
-        </p>
+        <li class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <p class="step-description">
+              Lambda authenticates and returns a disposable Momento token
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">tokenVending</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">angularFrontend</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <p class="step-description">
+              Angular opens WebSocket and subscribes to FeedbackGiven topic
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">angularFrontend</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">momento</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <p class="step-description">
+              User initiates feedback request; Angular sends to API Gateway
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">angularFrontend</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">feedbackRequest</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <p class="step-description">
+              Feedback Request Lambda publishes to FeedbackRequested topic
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">feedbackRequest</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">momento</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">6</div>
+          <div class="step-content">
+            <p class="step-description">
+              Backend service listens on FeedbackRequested topic
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">momento</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">feedbackService</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">7</div>
+          <div class="step-content">
+            <p class="step-description">
+              Backend service parses request and builds prompt for AI service
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">feedbackService</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">aiService</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">8</div>
+          <div class="step-content">
+            <p class="step-description">
+              AI service generates feedback and returns to backend service
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">aiService</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">feedbackService</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">9</div>
+          <div class="step-content">
+            <p class="step-description">
+              Backend service publishes feedback to FeedbackGiven topic
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">feedbackService</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">momento</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">10</div>
+          <div class="step-content">
+            <p class="step-description">
+              Angular receives feedback, filters by feedback_id, and displays it
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">momento</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">angularFrontend</span>
+            </div>
+          </div>
+        </li>
+
+        <li class="step-item">
+          <div class="step-number">11</div>
+          <div class="step-content">
+            <p class="step-description">
+              User can save feedback as a text file or terminate lab
+            </p>
+            <div class="step-flow">
+              <span class="flow-from">angularFrontend</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">displayComponent</span>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Key Information for Feedback Flow -->
+    <div class="key-info">
+      <h2 class="key-info-title">Key Information</h2>
+      <div class="info-cards">
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-lightning"></i></div>
+          <h3 class="card-title">Event-Driven</h3>
+          <p class="card-text">
+            Uses event-based architecture with publish/subscribe messaging for
+            real-time responses.
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-shield-check"></i></div>
+          <h3 class="card-title">Secure</h3>
+          <p class="card-text">
+            Temporary tokens, scoped permissions, and user verification ensure
+            security.
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-arrow-repeat"></i></div>
+          <h3 class="card-title">Resilient</h3>
+          <p class="card-text">
+            Error handling, retry mechanisms, and connection monitoring provide
+            reliability.
+          </p>
+        </div>
       </div>
     </div>
   </div>

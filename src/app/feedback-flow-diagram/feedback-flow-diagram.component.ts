@@ -342,81 +342,83 @@ saveFeedback(): void {
     },
   };
 
-  // Steps in the feedback flow process
+  // Update the steps array in feedback-flow-diagram.component.ts
+  // to include all 11 steps from the documentation:
+
   steps = [
     {
       number: 1,
       description:
         'Angular frontend requests Momento token from Lambda via API Gateway',
-      from: 'angularFrontend',
-      to: 'tokenVending',
+      from: 'Angular Frontend',
+      to: 'Token Vending Lambda',
     },
     {
       number: 2,
       description:
         'Lambda authenticates and returns a disposable Momento token',
-      from: 'tokenVending',
-      to: 'angularFrontend',
+      from: 'Token Vending Lambda',
+      to: 'Angular Frontend',
     },
     {
       number: 3,
       description:
         'Angular opens WebSocket and subscribes to FeedbackGiven topic',
-      from: 'angularFrontend',
-      to: 'momento',
+      from: 'Angular Frontend',
+      to: 'Momento Pub/Sub',
     },
     {
       number: 4,
       description:
         'User initiates feedback request; Angular sends to API Gateway',
-      from: 'angularFrontend',
-      to: 'feedbackRequest',
+      from: 'Angular Frontend',
+      to: 'Feedback Request Lambda',
     },
     {
       number: 5,
       description:
         'Feedback Request Lambda publishes to FeedbackRequested topic',
-      from: 'feedbackRequest',
-      to: 'momento',
+      from: 'Feedback Request Lambda',
+      to: 'Momento Pub/Sub',
     },
     {
       number: 6,
       description: 'Backend service listens on FeedbackRequested topic',
-      from: 'momento',
-      to: 'feedbackService',
+      from: 'Momento Pub/Sub',
+      to: 'Feedback Service',
     },
     {
       number: 7,
       description:
         'Backend service parses request and builds prompt for AI service',
-      from: 'feedbackService',
-      to: 'aiService',
+      from: 'Feedback Service',
+      to: 'AI Service',
     },
     {
       number: 8,
       description:
         'AI service generates feedback and returns to backend service',
-      from: 'aiService',
-      to: 'feedbackService',
+      from: 'AI Service',
+      to: 'Feedback Service',
     },
     {
       number: 9,
       description: 'Backend service publishes feedback to FeedbackGiven topic',
-      from: 'feedbackService',
-      to: 'momento',
+      from: 'Feedback Service',
+      to: 'Momento Pub/Sub',
     },
     {
       number: 10,
       description:
         'Angular receives feedback, filters by feedback_id, and displays it',
-      from: 'momento',
-      to: 'angularFrontend',
+      from: 'Momento Pub/Sub',
+      to: 'Angular Frontend',
     },
     {
       number: 11,
       description: 'User can save feedback as a text file or terminate lab',
-      from: 'angularFrontend',
-      to: 'displayComponent',
+      from: 'Angular Frontend',
+      to: 'Feedback Display',
     },
   ];
 

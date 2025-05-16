@@ -118,7 +118,55 @@
   gap: 1.5rem;
   width: 100%;
 }
+img[src*="fastapi-1.svg"] {
+  max-width: 2.5rem;
+  max-height: 2.5rem;
+  width: auto !important;
+  height: auto !important;
+  transform: scale(0.8); /* Reduce if still too large */
+}
+.python-icon {
+  max-height: 1.75rem !important;
+  width: auto !important;
+}
+.backend-box img[src*="fastapi-1.svg"] {
+  height: 1.75rem !important; /* Reduce height specifically for this logo */
+  margin-top: 0.375rem; /* Add top margin to center it better */
+  margin-bottom: 0.875rem; /* Balance bottom margin */
+}
+/* Add this to both component SCSS files */
 
+/* Standardize all icons */
+.tech-icon,
+.aws-icon {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  object-fit: contain !important;
+  margin-bottom: 0.5rem;
+}
+
+/* Fix the FastAPI logo specifically */
+img[src*="fastapi"] {
+  height: 1.8rem !important;
+  width: auto !important;
+  margin-top: 0.35rem !important;
+}
+
+/* Fix for Momento logo */
+img[src*="momento-logo-forest"] {
+  width: 2.5rem !important;
+  height: 2rem !important;
+  object-fit: contain !important;
+}
+
+/* General icon size consistency */
+.tech-icon,
+.aws-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
+  margin-bottom: 0.5rem;
+}
 // Flow boxes
 .flow-box {
   position: relative;
@@ -166,11 +214,14 @@
     z-index: 1;
   }
 
-  .tech-icon {
-    width: 2.5rem;
-    height: 2.5rem;
+  .tech-icon,
+  .aws-icon,
+  img[src*=".svg"],
+  img[src*=".ico"] {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    object-fit: contain !important;
     margin-bottom: 0.5rem;
-    transition: all 0.3s ease;
   }
 
   &:hover {
@@ -574,5 +625,134 @@
     .step-number {
       margin-bottom: 0.5rem;
     }
+  }
+}
+// Standardize all icons
+.tech-icon,
+.aws-icon {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  object-fit: contain !important;
+  margin-bottom: 0.5rem;
+}
+
+// Fix the FastAPI icon specifically
+.fastapi-icon {
+  height: 1.5rem !important;
+  width: auto !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+// Fix for Momento logo - corrected dimensions to preserve aspect ratio
+img[src*="momento-logo-forest"] {
+  max-width: 2.5rem !important;
+  max-height: 2rem !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  transform: scale(0.9) !important;
+}
+
+// Fix for API Gateway labels
+.flow-section .step-number:contains("API") {
+  display: none !important;
+}
+
+// Or if the above doesn't work, use this alternate approach
+.flow-section .step-number {
+  &:not([class*="number-"]) {
+    display: none;
+  }
+}
+
+// Fix for API text in step numbers
+.api-box {
+  position: relative;
+}
+
+.api-box::before {
+  content: "";
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 30px;
+  background-color: transparent;
+}
+
+// Ensure proper spacing between flow sections
+.flow-section {
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+// Fix for arrow styling
+.flow-arrow {
+  margin: 0.75rem 0;
+  position: relative;
+}
+
+// Improve flow box styling
+.flow-box {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 7rem;
+}
+
+// Add consistent box shadow
+.animated-box {
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.1);
+
+  &:hover {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+  }
+}
+
+// Improve box title and content
+.box-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0.5rem 0 0.25rem;
+  text-align: center;
+}
+
+.box-content {
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 0 0.5rem;
+}
+
+// Smooth transitions for all elements
+.flow-section,
+.flow-arrow,
+.flow-row,
+.flow-box,
+.details-panel {
+  transition: all 0.3s ease;
+}
+
+// Dark mode adjustments
+:host-context([data-bs-theme="dark"]) {
+  .flow-box {
+    background-color: var(--dark-card-bg);
+  }
+
+  .animated-box {
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.2);
+
+    &:hover {
+      box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  // Additional fixes for dark mode
+  img[src*="momento-logo-forest"] {
+    filter: brightness(1.2);
   }
 }
