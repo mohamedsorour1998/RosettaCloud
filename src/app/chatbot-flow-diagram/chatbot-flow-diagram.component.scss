@@ -768,3 +768,89 @@
     min-width: auto;
   }
 }
+// Documentation Section Selector
+.documentation-selector {
+  width: 100%;
+  margin-bottom: 2rem;
+
+  .selector-tabs {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+
+    .selector-tab {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: transparent;
+      border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+      color: var(--bs-secondary);
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      i {
+        font-size: 1.25rem;
+      }
+
+      &:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--primary-color);
+      }
+
+      &.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        box-shadow: 0 0.25rem 0.75rem rgba(var(--bs-primary-rgb), 0.25);
+      }
+    }
+  }
+}
+
+// Section title for each tab
+.section-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.section-description {
+  font-size: 1.1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// Dark mode styles
+:host-context([data-bs-theme="dark"]) {
+  .selector-tab {
+    border-color: var(--dark-border-color);
+    color: var(--dark-text-secondary);
+
+    &:hover {
+      background-color: rgba(var(--bs-primary-rgb), 0.15);
+    }
+  }
+}
+
+// Responsive styles
+@media (max-width: 768px) {
+  .selector-tabs {
+    flex-direction: column;
+    align-items: stretch;
+
+    .selector-tab {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
