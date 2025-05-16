@@ -1,0 +1,627 @@
+// Animation Keyframes
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(1.25rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0.4);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 0.625rem rgba(var(--bs-primary-rgb), 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0);
+  }
+}
+
+@keyframes floatAnimation {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+// Main container
+.chatbot-flow-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  background-color: var(--light-secondary-bg);
+  padding: 1.5rem;
+  font-family: var(--bs-font-sans-serif);
+}
+
+.chatbot-flow-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.chatbot-flow-diagram {
+  width: 100%;
+  background-color: var(--light-card-bg);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  overflow-x: auto;
+}
+
+// Flow sections and components
+.flow-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.step-number {
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  z-index: 2;
+}
+
+.flow-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+}
+
+// AWS styled boxes
+.flow-box {
+  position: relative;
+  border: 2px solid;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 6rem;
+  width: 16rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+
+  &:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    pointer-events: none;
+  }
+
+  .box-title {
+    font-weight: 600;
+    margin: 0.5rem 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .box-content {
+    font-size: 0.875rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .box-subcontent {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    opacity: 0.8;
+    position: relative;
+    z-index: 1;
+  }
+
+  .aws-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+  }
+
+  &:hover {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.15);
+
+    .aws-icon {
+      animation: floatAnimation 2s ease infinite;
+    }
+  }
+}
+
+// Box types - AWS service colors
+.client-box {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.2) 0%,
+      rgba(59, 130, 246, 0) 100%
+    );
+  }
+}
+.api-box {
+  border-color: #c94899;
+  background-color: rgba(201, 72, 153, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(201, 72, 153, 0.2) 0%,
+      rgba(201, 72, 153, 0) 100%
+    );
+  }
+}
+
+.lambda-box {
+  border-color: #f58536;
+  background-color: rgba(245, 133, 54, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(245, 133, 54, 0.2) 0%,
+      rgba(245, 133, 54, 0) 100%
+    );
+  }
+}
+
+.data-box {
+  border-color: #4d27aa;
+  background-color: rgba(77, 39, 170, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(77, 39, 170, 0.2) 0%,
+      rgba(77, 39, 170, 0) 100%
+    );
+  }
+}
+
+.ai-box {
+  border-color: #3b48cc;
+  background-color: rgba(59, 72, 204, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 72, 204, 0.2) 0%,
+      rgba(59, 72, 204, 0) 100%
+    );
+  }
+}
+
+// Arrows and connectors
+// Update the arrow styles in your SCSS file
+
+.flow-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--light-text-muted);
+  margin: 1rem 0;
+  position: relative;
+
+  &:before {
+    content: "";
+    position: absolute;
+    top: -1.5rem;
+    bottom: -1.5rem;
+    width: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.2);
+    z-index: 0;
+  }
+
+  .arrow-icon {
+    font-size: 1.5rem;
+    position: relative;
+    z-index: 1;
+    background-color: var(--light-card-bg);
+    border-radius: 50%;
+    padding: 0.5rem;
+    color: var(--primary-color);
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.1);
+  }
+}
+
+.row-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--light-text-muted);
+  margin: 0 1.5rem;
+  position: relative;
+
+  &:before {
+    content: "";
+    position: absolute;
+    left: -1.5rem;
+    right: -1.5rem;
+    height: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.2);
+    z-index: 0;
+  }
+
+  .arrow-icon {
+    font-size: 1.5rem;
+    position: relative;
+    z-index: 1;
+    background-color: var(--light-card-bg);
+    border-radius: 50%;
+    padding: 0.5rem;
+    color: var(--primary-color);
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.1);
+  }
+}
+
+.arrow-label {
+  background-color: var(--light-secondary-bg);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--light-text-muted);
+  margin-top: 0.25rem;
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+}
+
+// Details panel for node info
+.details-panel {
+  background-color: var(--light-card-bg);
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 30rem;
+  animation: fadeIn 0.3s ease;
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 5;
+
+  &:before {
+    content: "";
+    position: absolute;
+    top: -0.5rem;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 1rem;
+    height: 1rem;
+    background-color: var(--light-card-bg);
+    border-top: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+    border-left: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+    z-index: -1;
+  }
+
+  .details-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+  }
+
+  .details-subtitle {
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    color: var(--light-text-secondary);
+  }
+
+  .details-list {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+
+    li {
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+  }
+
+  .code-block {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    max-height: 15rem;
+    overflow-y: auto;
+
+    pre {
+      margin: 0;
+      font-family: "Consolas", "Monaco", "Courier New", monospace;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      color: var(--light-text);
+    }
+  }
+}
+
+// Grid layout for parallel processes
+.flow-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  width: 100%;
+  max-width: 40rem;
+  position: relative;
+
+  &:before {
+    content: "";
+    position: absolute;
+    top: -1rem;
+    bottom: -1rem;
+    left: 50%;
+    width: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    transform: translateX(-50%);
+  }
+}
+
+.flow-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+// Divider for secondary flow
+.flow-divider {
+  margin-top: 4rem;
+  margin-bottom: 2rem;
+  border-top: 2px solid var(--light-border-color);
+  padding-top: 2rem;
+  width: 100%;
+  position: relative;
+
+  &:before {
+    content: "Background Process";
+    position: absolute;
+    top: -0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--light-card-bg);
+    padding: 0 1rem;
+    font-size: 0.75rem;
+    color: var(--light-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+}
+
+.flow-subtitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+// Horizontal flow for document indexing
+.indexing-flow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+
+  &:before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    transform: translateY(-50%);
+    z-index: 0;
+  }
+}
+
+// Animation for boxes
+.animated-box {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  &:hover {
+    transform: translateY(-0.25rem) scale(1.05);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+    z-index: 10;
+  }
+}
+
+// AWS Icon specific styling
+.aws-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  transition: transform 0.3s ease;
+}
+
+// Dark mode styles
+:host-context([data-bs-theme="dark"]) {
+  .chatbot-flow-container {
+    background-color: var(--dark-bg);
+  }
+
+  .chatbot-flow-diagram {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+  }
+
+  .arrow-label {
+    background-color: var(--dark-secondary-bg);
+    color: var(--dark-text-muted);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .flow-arrow,
+  .row-arrow {
+    &:before {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .arrow-icon {
+      background-color: var(--dark-card-bg);
+    }
+  }
+
+  .flow-divider {
+    border-color: var(--dark-border-color);
+
+    &:before {
+      background-color: var(--dark-card-bg);
+      color: var(--dark-text-muted);
+    }
+  }
+
+  .details-panel {
+    background-color: var(--dark-card-bg);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.3);
+
+    &:before {
+      background-color: var(--dark-card-bg);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .details-subtitle {
+      color: var(--dark-text-secondary);
+    }
+
+    .code-block {
+      background-color: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+
+      pre {
+        color: var(--dark-text);
+      }
+    }
+  }
+
+  .aws-icon {
+    filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+}
+
+// Responsive styles
+@media (max-width: 768px) {
+  .flow-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    &:before {
+      display: none;
+    }
+  }
+
+  .indexing-flow {
+    flex-direction: column;
+
+    &:before {
+      display: none;
+    }
+
+    .row-arrow {
+      transform: rotate(90deg);
+      margin: 0.5rem 0;
+    }
+  }
+
+  .details-panel {
+    max-width: 100%;
+  }
+
+  .flow-box {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .chatbot-flow-diagram {
+    padding: 1rem 0.5rem;
+  }
+
+  .step-number {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.75rem;
+  }
+
+  .details-panel {
+    padding: 1rem 0.75rem;
+
+    .details-title {
+      font-size: 1rem;
+    }
+
+    .code-block {
+      padding: 0.75rem;
+
+      pre {
+        font-size: 0.7rem;
+      }
+    }
+  }
+}

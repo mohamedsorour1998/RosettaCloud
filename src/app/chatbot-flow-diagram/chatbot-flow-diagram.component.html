@@ -1,0 +1,379 @@
+<div class="chatbot-flow-container">
+  <h1 class="chatbot-flow-title">RosettaCloud Chatbot Architecture</h1>
+
+  <div class="chatbot-flow-diagram">
+    <!-- Step 1: User Interaction -->
+    <div class="flow-section">
+      <div class="step-number">1</div>
+      <div class="flow-row">
+        <div
+          class="flow-box client-box animated-box"
+          (click)="toggleNodeDetails('angularFrontend')"
+        >
+          <img src="/angular.ico" alt="Angular" class="aws-icon" />
+          <div class="box-title">Angular Frontend</div>
+          <div class="box-content">
+            User inputs question about shell scripts
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="expandedNode === 'angularFrontend'" class="details-panel">
+        <h3 class="details-title">{{ nodeDetails.angularFrontend.title }}</h3>
+        <p class="details-subtitle">
+          {{ nodeDetails.angularFrontend.description }}
+        </p>
+        <ul class="details-list">
+          <li *ngFor="let detail of nodeDetails.angularFrontend.details">
+            {{ detail }}
+          </li>
+        </ul>
+        <div class="code-block">
+          <pre>{{ nodeDetails.angularFrontend.code }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">WebSocket API</div>
+    </div>
+
+    <!-- Step 2: API Gateway -->
+    <div class="flow-section">
+      <div class="step-number">2</div>
+      <div class="flow-row">
+        <div
+          class="flow-box api-box animated-box"
+          (click)="toggleNodeDetails('webSocketApi')"
+        >
+          <img
+            src="/Res_Amazon-API-Gateway_Endpoint_48.svg"
+            alt="API Gateway"
+            class="aws-icon"
+          />
+          <div class="box-title">WebSocket API Gateway</div>
+          <div class="box-content">Routes request with connectionId</div>
+        </div>
+      </div>
+
+      <div *ngIf="expandedNode === 'webSocketApi'" class="details-panel">
+        <h3 class="details-title">{{ nodeDetails.webSocketApi.title }}</h3>
+        <p class="details-subtitle">
+          {{ nodeDetails.webSocketApi.description }}
+        </p>
+        <ul class="details-list">
+          <li *ngFor="let detail of nodeDetails.webSocketApi.details">
+            {{ detail }}
+          </li>
+        </ul>
+        <div class="code-block">
+          <pre>{{ nodeDetails.webSocketApi.code }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Invoke Lambda</div>
+    </div>
+
+    <!-- Step 3: AI Chatbot Lambda -->
+    <div class="flow-section">
+      <div class="step-number">3</div>
+      <div class="flow-row">
+        <div
+          class="flow-box lambda-box animated-box"
+          (click)="toggleNodeDetails('aiChatbotLambda')"
+        >
+          <img
+            src="/Res_AWS-Lambda_Lambda-Function_48.svg"
+            alt="Lambda"
+            class="aws-icon"
+          />
+          <div class="box-title">AI Chatbot Lambda</div>
+          <div class="box-content">
+            Processes message, initiates RAG workflow, and streams response
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="expandedNode === 'aiChatbotLambda'" class="details-panel">
+        <h3 class="details-title">{{ nodeDetails.aiChatbotLambda.title }}</h3>
+        <p class="details-subtitle">
+          {{ nodeDetails.aiChatbotLambda.description }}
+        </p>
+        <ul class="details-list">
+          <li *ngFor="let detail of nodeDetails.aiChatbotLambda.details">
+            {{ detail }}
+          </li>
+        </ul>
+        <div class="code-block">
+          <pre>{{ nodeDetails.aiChatbotLambda.code }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Parallel Operations -->
+    <div class="flow-section">
+      <div class="step-number">4</div>
+      <div class="flow-grid">
+        <!-- Left side - Chat History -->
+        <div class="flow-column">
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Fetch Chat History</div>
+          </div>
+          <div
+            class="flow-box data-box animated-box"
+            (click)="toggleNodeDetails('dynamoDB')"
+          >
+            <img
+              src="/Res_Amazon-DynamoDB_Table_48.svg"
+              alt="DynamoDB"
+              class="aws-icon"
+            />
+            <div class="box-title">DynamoDB</div>
+            <div class="box-content">SessionTable</div>
+            <div class="box-subcontent">(with session_id as key)</div>
+          </div>
+
+          <div *ngIf="expandedNode === 'dynamoDB'" class="details-panel">
+            <h3 class="details-title">{{ nodeDetails.dynamoDB.title }}</h3>
+            <p class="details-subtitle">
+              {{ nodeDetails.dynamoDB.description }}
+            </p>
+            <ul class="details-list">
+              <li *ngFor="let detail of nodeDetails.dynamoDB.details">
+                {{ detail }}
+              </li>
+            </ul>
+            <div class="code-block">
+              <pre>{{ nodeDetails.dynamoDB.code }}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right side - Vector Search -->
+        <div class="flow-column">
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Vector Search</div>
+          </div>
+          <div
+            class="flow-box data-box animated-box"
+            (click)="toggleNodeDetails('lanceDB')"
+          >
+            <img
+              src="/Res_Amazon-Simple-Storage-Service_S3-Standard_48.svg"
+              alt="LanceDB"
+              class="aws-icon"
+            />
+            <div class="box-title">LanceDB</div>
+            <div class="box-content">shell-scripts-knowledge-base</div>
+            <div class="box-subcontent">(S3-backed vector database)</div>
+          </div>
+
+          <div *ngIf="expandedNode === 'lanceDB'" class="details-panel">
+            <h3 class="details-title">{{ nodeDetails.lanceDB.title }}</h3>
+            <p class="details-subtitle">
+              {{ nodeDetails.lanceDB.description }}
+            </p>
+            <ul class="details-list">
+              <li *ngFor="let detail of nodeDetails.lanceDB.details">
+                {{ detail }}
+              </li>
+            </ul>
+            <div class="code-block">
+              <pre>{{ nodeDetails.lanceDB.code }}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: LLM Processing -->
+    <div class="flow-section">
+      <div class="step-number">5</div>
+      <div class="flow-row">
+        <div
+          class="flow-box ai-box animated-box"
+          (click)="toggleNodeDetails('bedrock')"
+        >
+          <img
+            src="/Arch_Amazon-Bedrock_64.svg"
+            alt="Bedrock"
+            class="aws-icon"
+          />
+          <div class="box-title">Amazon Bedrock</div>
+          <div class="box-content">
+            Nova LLM processes the query + retrieved context
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="expandedNode === 'bedrock'" class="details-panel">
+        <h3 class="details-title">{{ nodeDetails.bedrock.title }}</h3>
+        <p class="details-subtitle">{{ nodeDetails.bedrock.description }}</p>
+        <ul class="details-list">
+          <li *ngFor="let detail of nodeDetails.bedrock.details">
+            {{ detail }}
+          </li>
+        </ul>
+        <div class="code-block">
+          <pre>{{ nodeDetails.bedrock.code }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">Stream Response</div>
+    </div>
+
+    <!-- Step 6: Streaming Response -->
+    <div class="flow-section">
+      <div class="step-number">6</div>
+      <div class="flow-row">
+        <div
+          class="flow-box lambda-box animated-box"
+          (click)="toggleNodeDetails('responseStreaming')"
+        >
+          <img
+            src="/Res_AWS-Lambda_Lambda-Function_48.svg"
+            alt="Lambda"
+            class="aws-icon"
+          />
+          <div class="box-title">Response Streaming</div>
+          <div class="box-content">
+            AI Chatbot Lambda streams chunks back to client
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="expandedNode === 'responseStreaming'" class="details-panel">
+        <h3 class="details-title">{{ nodeDetails.responseStreaming.title }}</h3>
+        <p class="details-subtitle">
+          {{ nodeDetails.responseStreaming.description }}
+        </p>
+        <ul class="details-list">
+          <li *ngFor="let detail of nodeDetails.responseStreaming.details">
+            {{ detail }}
+          </li>
+        </ul>
+        <div class="code-block">
+          <pre>{{ nodeDetails.responseStreaming.code }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">
+      <i class="bi bi-arrow-down arrow-icon"></i>
+      <div class="arrow-label">WebSocket Response</div>
+    </div>
+
+    <!-- Step 7: Client Rendering -->
+    <div class="flow-section">
+      <div class="step-number">7</div>
+      <div class="flow-row">
+        <div
+          class="flow-box client-box animated-box"
+          (click)="toggleNodeDetails('angularFrontend')"
+        >
+          <img src="/angular.ico" alt="Angular" class="aws-icon" />
+          <div class="box-title">Angular Frontend</div>
+          <div class="box-content">Renders response and source references</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Indexing Flow - Secondary Flow -->
+    <div class="flow-divider">
+      <h2 class="flow-subtitle">Document Indexing Flow (Background Process)</h2>
+
+      <div class="indexing-flow">
+        <div
+          class="flow-box data-box animated-box"
+          (click)="toggleNodeDetails('s3Bucket')"
+        >
+          <img
+            src="/Res_Amazon-Simple-Storage-Service_S3-Standard_48.svg"
+            alt="S3"
+            class="aws-icon"
+          />
+          <div class="box-title">S3 Bucket</div>
+          <div class="box-content">Shell scripts uploaded</div>
+        </div>
+
+        <div class="row-arrow">
+          <i class="bi bi-arrow-right arrow-icon"></i>
+          <div class="arrow-label">EventBridge Trigger</div>
+        </div>
+
+        <div
+          class="flow-box lambda-box animated-box"
+          (click)="toggleNodeDetails('documentIndexer')"
+        >
+          <img
+            src="/Res_AWS-Lambda_Lambda-Function_48.svg"
+            alt="Lambda"
+            class="aws-icon"
+          />
+          <div class="box-title">Document Indexer Lambda</div>
+          <div class="box-content">Processes scripts & extracts metadata</div>
+        </div>
+
+        <div *ngIf="expandedNode === 'documentIndexer'" class="details-panel">
+          <h3 class="details-title">{{ nodeDetails.documentIndexer.title }}</h3>
+          <p class="details-subtitle">
+            {{ nodeDetails.documentIndexer.description }}
+          </p>
+          <ul class="details-list">
+            <li *ngFor="let detail of nodeDetails.documentIndexer.details">
+              {{ detail }}
+            </li>
+          </ul>
+          <div class="code-block">
+            <pre>{{ nodeDetails.documentIndexer.code }}</pre>
+          </div>
+        </div>
+
+        <div class="row-arrow">
+          <i class="bi bi-arrow-right arrow-icon"></i>
+          <div class="arrow-label">Titan Embeddings</div>
+        </div>
+
+        <div
+          class="flow-box ai-box animated-box"
+          (click)="toggleNodeDetails('bedrock')"
+        >
+          <img
+            src="/Arch_Amazon-Bedrock_64.svg"
+            alt="Bedrock"
+            class="aws-icon"
+          />
+          <div class="box-title">Amazon Bedrock</div>
+          <div class="box-content">Creates document embeddings</div>
+        </div>
+
+        <div class="row-arrow">
+          <i class="bi bi-arrow-right arrow-icon"></i>
+          <div class="arrow-label">Store Vectors</div>
+        </div>
+
+        <div
+          class="flow-box data-box animated-box"
+          (click)="toggleNodeDetails('lanceDB')"
+        >
+          <img
+            src="/Res_Amazon-Simple-Storage-Service_S3-Standard_48.svg"
+            alt="LanceDB"
+            class="aws-icon"
+          />
+          <div class="box-title">LanceDB</div>
+          <div class="box-content">Updates vector database</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

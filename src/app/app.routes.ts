@@ -27,6 +27,7 @@ import { TutorialsComponent } from './tutorials/tutorials.component';
 import { WebinarsComponent } from './webinars/webinars.component';
 import { LearningBlogComponent } from './learning-blog/learning-blog.component';
 import { MyTeachingComponent } from './my-teaching/my-teaching.component';
+import { ChatbotFlowDiagramComponent } from './chatbot-flow-diagram/chatbot-flow-diagram.component';
 
 export const routes: Routes = [
   // Public routes
@@ -81,6 +82,10 @@ export const routes: Routes = [
     component: TutorialsComponent,
   },
 
+  {
+    path: 'docs',
+    component: ChatbotFlowDiagramComponent,
+  },
   // Protected routes (require login)
   {
     path: 'dashboard',
