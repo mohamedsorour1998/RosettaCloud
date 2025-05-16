@@ -90,6 +90,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
         },
       });
   }
+
   startCountdownTimer(): void {
     this.remainingSeconds = this.COUNTDOWN_DURATION;
     this.updateCountdownDisplay();
@@ -102,6 +103,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
       }
     });
   }
+
   updateCountdownDisplay(): void {
     const minutes = Math.floor(this.remainingSeconds / 60);
     const seconds = this.remainingSeconds % 60;
@@ -109,8 +111,13 @@ export class FeedbackComponent implements OnInit, OnDestroy {
     this.countdownMinutes = minutes.toString();
     this.countdownSeconds = seconds < 10 ? `0${seconds}` : seconds.toString();
   }
+
   formatFeedback(text: string): SafeHtml {
     if (!text) return this.sanitizer.bypassSecurityTrustHtml('');
+    document.body.classList.add('feedback-modal-overlay-active');
+
+    // And when closing:
+    document.body.classList.remove('feedback-modal-overlay-active');
 
     // Process section headers (###)
     let formattedText = text.replace(/###\s+(.*?)(?=\n|$)/g, '<h3>$1</h3>');
@@ -250,6 +257,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
       console.error('Error downloading feedback:', error);
     }
   }
+
   formatFeedbackForDownload(text: string): string {
     let result = `==================================================\n`;
     result += `           FEEDBACK FOR MODULE ${this.moduleUuid}           \n`;
@@ -280,6 +288,7 @@ export class FeedbackComponent implements OnInit, OnDestroy {
 
     return result;
   }
+
   notifyTerminateLab(): void {
     this.countdownSubscription?.unsubscribe();
     this.terminateLabRequest.emit();

@@ -2,7 +2,15 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { UserService, User } from '../services/user.service';
-import { firstValueFrom, Subject, takeUntil } from 'rxjs';
+import { LabService } from '../services/lab.service';
+import { Subject, forkJoin, of, EMPTY } from 'rxjs';
+import {
+  catchError,
+  finalize,
+  switchMap,
+  takeUntil,
+  tap,
+} from 'rxjs/operators';
 import { ThemeService } from '../services/theme.service';
 
 @Component({
@@ -25,14 +33,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   errorMessage = '';
   expandedModules: Record<string, boolean> = {};
   retryCount = 0;
+  showCleanupConfirmation = false;
+  showSuccessNotification = false;
 
   // Component cleanup
   private destroy$ = new Subject<void>();
-  Object: any;
+Object: any;
 
   constructor(
     private userService: UserService,
-    private themeService: ThemeService
+    private themeService: ThemeService,
+    private labService: LabService
   ) {}
 
   ngOnInit(): void {
@@ -47,56 +58,82 @@ export class DashboardComponent implements OnInit, OnDestroy {
   /**
    * Load all dashboard data
    */
-  async loadDashboardData(): Promise<void> {
-    try {
-      this.isLoading = true;
-      this.errorMessage = '';
+  loadDashboardData(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
 
-      const userId = this.userService.getCurrentUserId();
+    const userId = this.userService.getCurrentUserId();
 
-      if (!userId) {
-        throw new Error('Session expired. Please login again.');
-      }
-
-      // Load all data concurrently for better performance
-      const [user, progressData, labsData] = await Promise.all([
-        firstValueFrom(this.userService.getUser(userId)),
-        firstValueFrom(this.userService.getUserProgress(userId)),
-        firstValueFrom(this.userService.getUserLabs(userId)),
-      ]);
-
-      // Set user data
-      this.user = user ?? null;
-
-      if (!this.user) {
-        throw new Error('Could not load user data. Please try again.');
-      }
-
-      // Set progress data
-      this.userProgress = progressData || {};
-
-      // Set labs data
-      this.userLabs = labsData?.labs || [];
-
-      // Process data
-      this.processUserData();
-      this.retryCount = 0;
-    } catch (error: any) {
-      console.error('Error loading dashboard:', error);
-
-      // Provide different error message based on retry count
-      if (this.retryCount > 2) {
-        this.errorMessage =
-          'There seems to be a problem connecting to the server. Please try again later.';
-      } else {
-        this.errorMessage =
-          error.message || 'Could not load dashboard data. Please try again.';
-      }
-
-      this.retryCount++;
-    } finally {
+    if (!userId) {
+      this.errorMessage = 'Session expired. Please login again.';
       this.isLoading = false;
+      return;
     }
+
+    forkJoin({
+      user: this.userService.getUser(userId).pipe(
+        catchError((error) => {
+          console.error('Error loading user data:', error);
+          return of(null);
+        })
+      ),
+      progressData: this.userService.getUserProgress(userId).pipe(
+        catchError((error) => {
+          console.error('Error loading progress data:', error);
+          return of({});
+        })
+      ),
+      labsData: this.userService.getUserLabs(userId).pipe(
+        catchError((error) => {
+          console.error('Error loading labs data:', error);
+          return of({ labs: [] });
+        })
+      ),
+    })
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isLoading = false;
+        })
+      )
+      .subscribe({
+        next: ({ user, progressData, labsData }) => {
+          this.user = user;
+
+          if (!this.user) {
+            this.errorMessage = 'Could not load user data. Please try again.';
+            return;
+          }
+
+          this.userProgress = progressData || {};
+
+          // Support both array and object response for labsData
+          if (Array.isArray(labsData)) {
+            this.userLabs = labsData;
+          } else if (labsData && Array.isArray(labsData.labs)) {
+            this.userLabs = labsData.labs;
+          } else {
+            this.userLabs = [];
+          }
+
+          this.processUserData();
+          this.retryCount = 0;
+        },
+        error: (error) => {
+          console.error('Error loading dashboard:', error);
+
+          if (this.retryCount > 2) {
+            this.errorMessage =
+              'There seems to be a problem connecting to the server. Please try again later.';
+          } else {
+            this.errorMessage =
+              error.message ||
+              'Could not load dashboard data. Please try again.';
+          }
+
+          this.retryCount++;
+        },
+      });
   }
 
   /**
@@ -109,17 +146,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Get modules and sort them
     this.userModules = Object.keys(this.userProgress).sort();
 
-    // Initialize module expansion state
-    // By default, expand the first module if available
     this.userModules.forEach((moduleId, index) => {
       this.expandedModules[moduleId] =
         index === 0 && this.getModuleLessons(moduleId).length > 0;
     });
 
-    // Count completed lessons
     let completedCount = 0;
 
     this.userModules.forEach((moduleId) => {
@@ -136,6 +169,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Shows the confirmation modal before terminating all labs
+   */
+  terminateAllLabs(): void {
+    if (!this.userLabs || this.userLabs.length === 0) {
+      return;
+    }
+    this.showCleanupConfirmation = true;
+  }
+
+  /**
+   * Cancels the cleanup operation and hides the confirmation modal
+   */
+  cancelCleanup(): void {
+    this.showCleanupConfirmation = false;
+  }
+
+  /**
+   * Close the success notification
+   */
+  closeNotification(): void {
+    this.showSuccessNotification = false;
+  }
+
+  /**
+   * Confirms and executes the cleanup of all labs
+   */
+  confirmCleanup(): void {
+    this.showCleanupConfirmation = false;
+    this.executeLabCleanup();
+  }
+
+  /**
    * Toggle module expansion
    */
   toggleModuleExpand(moduleId: string): void {
@@ -144,13 +209,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   /**
    * Get lessons for a module
-   * Returns sorted array of lesson IDs
    */
   getModuleLessons(moduleId: string): string[] {
     if (!this.userProgress || !this.userProgress[moduleId]) {
       return [];
     }
-
     return Object.keys(this.userProgress[moduleId]).sort();
   }
 
@@ -165,7 +228,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     ) {
       return 0;
     }
-
     return Object.keys(this.userProgress[moduleId][lessonId]).length;
   }
 
@@ -180,7 +242,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     ) {
       return 0;
     }
-
     return Object.values(this.userProgress[moduleId][lessonId]).filter(
       (val) => val === true
     ).length;
@@ -188,12 +249,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   /**
    * Check if lesson is completed
-   * A lesson is considered completed when all questions are completed
    */
   isLessonCompleted(moduleId: string, lessonId: string): boolean {
     const total = this.getTotalQuestionsCount(moduleId, lessonId);
     if (total === 0) return false;
-
     const completed = this.getCompletedQuestionsCount(moduleId, lessonId);
     return completed === total;
   }
@@ -205,7 +264,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!this.userProgress || !this.userProgress[moduleId]) {
       return 0;
     }
-
     const lessons = Object.keys(this.userProgress[moduleId]);
     if (lessons.length === 0) return 0;
 
@@ -227,28 +285,105 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Actually performs termination of all active labs for the current user
+   */
+  private executeLabCleanup(): void {
+    if (!this.userLabs || this.userLabs.length === 0) {
+      return;
+    }
+
+    this.isLoading = true;
+
+    const userId = this.userService.getCurrentUserId();
+    if (!userId) {
+      this.errorMessage = 'User ID not found. Please log in again.';
+      this.isLoading = false;
+      return;
+    }
+
+    const terminationRequests$ = this.userLabs.map((labId) => {
+      return this.labService.terminateLab(labId, userId).pipe(
+        switchMap(() => this.userService.unlinkLabFromUser(userId, labId)),
+        catchError((error) => {
+          console.error(`Error terminating lab ${labId}:`, error);
+          return EMPTY;
+        })
+      );
+    });
+
+    forkJoin(terminationRequests$)
+      .pipe(
+        takeUntil(this.destroy$),
+        tap(() => {
+          this.clearLabStorageItems();
+          this.showSuccessNotification = true;
+          setTimeout(() => {
+            if (this.showSuccessNotification) {
+              this.showSuccessNotification = false;
+            }
+          }, 5000);
+          this.userLabs = [];
+        }),
+        catchError((error) => {
+          console.error('Error terminating labs:', error);
+          this.errorMessage = 'Failed to terminate all labs. Please try again.';
+          return of(null);
+        }),
+        finalize(() => {
+          this.isLoading = false;
+          this.loadDashboardData();
+        })
+      )
+      .subscribe();
+  }
+
+  /**
+   * Clears all lab-related storage items to ensure a complete cleanup
+   */
+  private clearLabStorageItems(): void {
+    try {
+      sessionStorage.removeItem('activeLabId');
+      const labQStateKeys = Array.from(
+        { length: sessionStorage.length },
+        (_, i) => sessionStorage.key(i)
+      ).filter((key) => key && key.startsWith('lab-question-state'));
+      labQStateKeys.forEach((key) => {
+        if (key) sessionStorage.removeItem(key);
+      });
+      const labLocalKeys = Array.from({ length: localStorage.length }, (_, i) =>
+        localStorage.key(i)
+      ).filter((key) => key && (key.includes('lab') || key.startsWith('pod_')));
+      labLocalKeys.forEach((key) => {
+        if (key) localStorage.removeItem(key);
+      });
+      document.cookie.split(';').forEach((cookie) => {
+        const cookieName = cookie.split('=')[0].trim();
+        if (cookieName.includes('lab') || cookieName.startsWith('pod_')) {
+          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        }
+      });
+      console.log('All lab storage items cleared');
+    } catch (error) {
+      console.error('Error clearing lab storage items:', error);
+    }
+  }
+
+  /**
    * Get recommended next module and lesson
-   * Returns the next incomplete lesson or the first lesson of the next incomplete module
    */
   getRecommendedNext(): { moduleId: string; lessonId: string } | null {
     if (this.userModules.length === 0) return null;
-
-    // Look for incomplete lessons in modules
     for (const moduleId of this.userModules) {
       const lessons = this.getModuleLessons(moduleId);
-
       for (const lessonId of lessons) {
         if (!this.isLessonCompleted(moduleId, lessonId)) {
           return { moduleId, lessonId };
         }
       }
     }
-
-    // If all lessons are complete, return the first lesson of the first module
     if (this.userModules.length > 0) {
       const firstModule = this.userModules[0];
       const firstModuleLessons = this.getModuleLessons(firstModule);
-
       if (firstModuleLessons.length > 0) {
         return {
           moduleId: firstModule,
@@ -256,13 +391,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
         };
       }
     }
-
     return null;
   }
 
   /**
    * Get the most recent lab
-   * Returns the first lab in the list (assumed to be the most recent)
    */
   getMostRecentLab(): string | null {
     return this.userLabs.length > 0 ? this.userLabs[0] : null;
@@ -273,7 +406,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
    */
   formatDate(dateString: string): string {
     if (!dateString) return '';
-
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',

@@ -71,7 +71,10 @@
   border-radius: 0.75rem;
   box-shadow: var(--shadow);
   padding: 1.5rem;
-  overflow-x: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 // Flow sections and components
@@ -81,6 +84,7 @@
   align-items: center;
   margin-bottom: 2rem;
   position: relative;
+  width: 100%;
 }
 
 .step-number {
@@ -243,8 +247,6 @@
 }
 
 // Arrows and connectors
-// Update the arrow styles in your SCSS file
-
 .flow-arrow {
   display: flex;
   flex-direction: column;
@@ -288,6 +290,8 @@
   color: var(--light-text-muted);
   margin: 0 1.5rem;
   position: relative;
+  flex: 0 0 auto;
+  min-width: 5rem;
 
   &:before {
     content: "";
@@ -435,6 +439,7 @@
   padding-top: 2rem;
   width: 100%;
   position: relative;
+  overflow: visible;
 
   &:before {
     content: "Background Process";
@@ -459,26 +464,111 @@
   color: var(--primary-color);
 }
 
-// Horizontal flow for document indexing
+// Horizontal flow for document indexing - FIXED SOLUTION
 .indexing-flow {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   align-items: center;
   gap: 1.5rem;
   position: relative;
+  overflow-x: auto;
+  padding: 1rem 0.5rem;
+  padding-left: 3rem;
+  padding-right: 3rem;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  scroll-behavior: smooth;
+  scroll-padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+}
 
-  &:before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    height: 2px;
-    background-color: rgba(var(--bs-primary-rgb), 0.1);
-    transform: translateY(-50%);
-    z-index: 0;
-  }
+// Line container spans between components but not to the edges
+.indexing-line-container {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 50%;
+  height: 3px;
+  background-color: rgba(var(--bs-primary-rgb), 0.4);
+  transform: translateY(-50%);
+  z-index: 0;
+  width: 70%;
+  pointer-events: none;
+  margin: 0 auto;
+}
+
+// Component wrapper to position elements above the line
+.component-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  background-color: var(--light-card-bg);
+  padding: 0.5rem;
+}
+
+// First and last component wrappers should cover the line
+.indexing-flow .component-wrapper:first-child,
+.indexing-flow .component-wrapper:last-child {
+  z-index: 3;
+}
+
+// Fix for unwanted shadows on data boxes
+.indexing-flow .data-box {
+  box-shadow: none;
+}
+
+// Ensure boxes appear above the line with background
+.flow-box {
+  position: relative;
+  z-index: 2;
+  background-color: var(--light-card-bg);
+}
+
+// Hide individual arrow lines in Document Indexing Flow
+.indexing-flow .row-arrow::before {
+  display: none;
+}
+
+// Ensure arrow icons cover the line
+.indexing-flow .row-arrow .arrow-icon {
+  background-color: var(--light-card-bg);
+  box-shadow: 0 0 0 6px var(--light-card-bg);
+  z-index: 3;
+}
+
+// Style the scrollbar for the indexing flow
+.indexing-flow::-webkit-scrollbar {
+  height: 8px;
+}
+
+.indexing-flow::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.indexing-flow::-webkit-scrollbar-thumb {
+  background: rgba(var(--bs-primary-rgb), 0.3);
+  border-radius: 4px;
+}
+
+.indexing-flow::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--bs-primary-rgb), 0.5);
+}
+
+// Add shadow indicator to show there's more content
+.indexing-flow::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 3rem;
+  background: linear-gradient(to right, transparent, var(--light-card-bg) 90%);
+  pointer-events: none;
+  z-index: 4;
 }
 
 // Animation for boxes
@@ -500,6 +590,9 @@
 
 // Dark mode styles
 :host-context([data-bs-theme="dark"]) {
+  .indexing-flow::after {
+    background: linear-gradient(to right, transparent, var(--dark-card-bg) 90%);
+  }
   .chatbot-flow-container {
     background-color: var(--dark-bg);
   }
@@ -562,6 +655,39 @@
   .aws-icon {
     filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   }
+
+  // Dark mode styles for indexing flow
+  .indexing-line-container {
+    background-color: rgba(255, 255, 255, 0.4);
+  }
+
+  .component-wrapper {
+    background-color: var(--dark-card-bg);
+  }
+
+  .flow-box {
+    background-color: var(--dark-card-bg);
+  }
+
+  .indexing-flow .row-arrow .arrow-icon {
+    background-color: var(--dark-card-bg);
+    box-shadow: 0 0 0 6px var(--dark-card-bg);
+  }
+
+  .indexing-flow::after {
+    background: linear-gradient(to right, transparent, rgba(33, 37, 41, 0.7));
+  }
+  .indexing-flow .flow-box,
+  .indexing-flow .flow-box:hover,
+  .indexing-flow .animated-box:hover {
+    box-shadow: none !important;
+  }
+  .indexing-flow::before {
+    content: "";
+    display: block;
+    width: 3rem;
+    flex: 0 0 3rem;
+  }
 }
 
 // Responsive styles
@@ -577,24 +703,36 @@
 
   .indexing-flow {
     flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
 
-    &:before {
+    &::after {
       display: none;
     }
+  }
 
-    .row-arrow {
-      transform: rotate(90deg);
-      margin: 0.5rem 0;
-    }
+  .indexing-line-container {
+    width: 3px; // Make line vertical
+    height: 100%;
+    left: 50%;
+    top: 0;
+    right: auto; // Remove right position
+    transform: translateX(-50%); // Center horizontally
+  }
+
+  .component-wrapper {
+    width: 100%;
+  }
+
+  .indexing-flow .row-arrow {
+    transform: rotate(90deg); // Rotate arrows to vertical
+    margin: 0.5rem 0;
   }
 
   .details-panel {
     max-width: 100%;
-  }
-
-  .flow-box {
-    width: 100%;
-    min-width: 0;
   }
 }
 
@@ -623,5 +761,10 @@
         font-size: 0.7rem;
       }
     }
+  }
+
+  .flow-box {
+    width: 100%;
+    min-width: auto;
   }
 }

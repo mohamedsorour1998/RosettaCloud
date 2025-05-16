@@ -1,3 +1,4 @@
+<!-- feedback.component.html -->
 <div class="feedback-wrapper">
   <!-- Request Feedback Button -->
   <div
@@ -46,11 +47,12 @@
     <p>This might take a minute. Our AI is analyzing your lab performance.</p>
   </div>
 
-  <!-- Feedback Modal -->
+  <!-- Feedback Modal Overlay - With improved backdrop filter that affects all elements -->
   <div
     *ngIf="feedback && !loading"
     class="feedback-modal-overlay animate-fade-in"
   >
+    <!-- Feedback Modal Content -->
     <div class="feedback-modal">
       <!-- Countdown Banner -->
       <div class="terminate-countdown-banner">
@@ -83,9 +85,9 @@
         </div>
       </div>
 
-      <!-- Modal Body with Feedback Content -->
-      <div class="feedback-modal-body">
-        <div class="feedback-scroll-container custom-scrollbar">
+      <!-- Modal Body with Feedback Content - Now with proper scrolling -->
+      <div class="feedback-modal-body custom-scrollbar">
+        <div class="feedback-scroll-container">
           <div
             class="feedback-text"
             [innerHTML]="formatFeedback(feedback)"
@@ -105,17 +107,17 @@
         </button>
       </div>
     </div>
+  </div>
 
-    <!-- Success Toast -->
-    <div class="toast-container">
-      <div class="toast" [class.visible]="showSaveSuccess">
-        <div class="toast-content">
-          <i class="bi bi-check-circle-fill"></i>
-          <span>Feedback downloaded successfully!</span>
-          <button class="toast-close" (click)="showSaveSuccess = false">
-            <i class="bi bi-x"></i>
-          </button>
-        </div>
+  <!-- Success Toast -->
+  <div class="toast-container">
+    <div class="toast" [class.visible]="showSaveSuccess">
+      <div class="toast-content">
+        <i class="bi bi-check-circle-fill"></i>
+        <span>Feedback downloaded successfully!</span>
+        <button class="toast-close" (click)="showSaveSuccess = false">
+          <i class="bi bi-x"></i>
+        </button>
       </div>
     </div>
   </div>

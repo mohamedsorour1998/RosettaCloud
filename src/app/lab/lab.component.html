@@ -64,7 +64,11 @@
     <!-- Question Sidebar -->
     <aside class="lab-sidebar" [class.mobile-hidden]="isMobile && !showSidebar">
       <!-- Mobile close button -->
-      <button *ngIf="isMobile" class="mobile-close-btn" (click)="toggleSidebar()">
+      <button
+        *ngIf="isMobile"
+        class="mobile-close-btn"
+        (click)="toggleSidebar()"
+      >
         <i class="bi bi-x-lg"></i>
       </button>
 
@@ -78,7 +82,11 @@
         </div>
         <div class="instructions-content">
           <h6>Welcome to the Lab Environment</h6>
-          <p>This lab allows you to practice coding skills in a real development environment. Follow the questions on the left panel to complete the lab exercises.</p>
+          <p>
+            This lab allows you to practice coding skills in a real development
+            environment. Follow the questions on the left panel to complete the
+            lab exercises.
+          </p>
 
           <div class="instruction-section">
             <h6>Getting Started</h6>
@@ -93,7 +101,9 @@
           <div class="instruction-section">
             <h6>Interface Guide</h6>
             <ul>
-              <li><strong>Question Panel:</strong> Navigate through lab questions</li>
+              <li>
+                <strong>Question Panel:</strong> Navigate through lab questions
+              </li>
               <li><strong>Editor Panel:</strong> Write and test your code</li>
               <li><strong>AI Assistant:</strong> Get help and guidance</li>
             </ul>
@@ -101,7 +111,10 @@
 
           <div class="instruction-section">
             <h6>Time Limit</h6>
-            <p>This lab has a limited time duration. Your progress is saved automatically as you complete questions.</p>
+            <p>
+              This lab has a limited time duration. Your progress is saved
+              automatically as you complete questions.
+            </p>
           </div>
         </div>
       </div>
@@ -145,7 +158,9 @@
             }"
             (click)="navigateToQuestion(i + 1)"
             [attr.aria-label]="'Question ' + (i + 1)"
-            [attr.title]="'Question ' + (i + 1) + (q.completed ? ' (Completed)' : '')"
+            [attr.title]="
+              'Question ' + (i + 1) + (q.completed ? ' (Completed)' : '')
+            "
           >
             {{ i + 1 }}
           </div>
@@ -182,22 +197,26 @@
             }"
             (click)="setSelectedOption(i)"
           >
-            <div class="option-marker">{{ ['A', 'B', 'C', 'D', 'E'][i] }}</div>
+            <div class="option-marker">{{ ["A", "B", "C", "D", "E"][i] }}</div>
             <div class="option-text">{{ opt }}</div>
           </div>
         </div>
 
-        <!-- Feedback Area -->
         <div class="feedback-area" *ngIf="showFeedback">
           <div
             class="feedback-message"
             [ngClass]="{
               'feedback-correct': isAnswerCorrect,
-              'feedback-incorrect': !isAnswerCorrect
+              'feedback-incorrect': !isAnswerCorrect && !checkInProgress,
+              'feedback-checking': checkInProgress
             }"
           >
             <i *ngIf="isAnswerCorrect" class="bi bi-check-circle-fill"></i>
-            <i *ngIf="!isAnswerCorrect" class="bi bi-x-circle-fill"></i>
+            <i
+              *ngIf="!isAnswerCorrect && !checkInProgress"
+              class="bi bi-x-circle-fill"
+            ></i>
+            <i *ngIf="checkInProgress" class="bi bi-arrow-repeat"></i>
             {{ feedbackMessage }}
           </div>
         </div>
@@ -282,9 +301,7 @@
         </div>
         <p class="loading-message">
           {{
-            isInitializing
-              ? "Initializing lab environment..."
-              : "Loading..."
+            isInitializing ? "Initializing lab environment..." : "Loading..."
           }}
         </p>
         <p class="loading-subtext" *ngIf="isInitializing">
@@ -314,19 +331,34 @@
 
       <!-- Mobile navigation buttons -->
       <div class="mobile-nav-buttons" *ngIf="isMobile">
-        <button class="mobile-sidebar-btn" (click)="toggleSidebar()" title="Questions">
+        <button
+          class="mobile-sidebar-btn"
+          (click)="toggleSidebar()"
+          title="Questions"
+        >
           <i class="bi bi-list-check"></i>
         </button>
-        <button class="mobile-chat-btn" (click)="toggleChatbot()" title="AI Assistant">
+        <button
+          class="mobile-chat-btn"
+          (click)="toggleChatbot()"
+          title="AI Assistant"
+        >
           <i class="bi bi-chat-dots"></i>
         </button>
       </div>
     </main>
 
     <!-- Chatbot Panel -->
-    <aside class="chatbot-panel" [class.mobile-hidden]="isMobile && !showChatbot">
+    <aside
+      class="chatbot-panel"
+      [class.mobile-hidden]="isMobile && !showChatbot"
+    >
       <!-- Mobile close button -->
-      <button *ngIf="isMobile" class="mobile-close-btn" (click)="toggleChatbot()">
+      <button
+        *ngIf="isMobile"
+        class="mobile-close-btn"
+        (click)="toggleChatbot()"
+      >
         <i class="bi bi-x-lg"></i>
       </button>
       <app-chatbot></app-chatbot>

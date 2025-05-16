@@ -218,10 +218,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       sessionStorage.removeItem(this.qStateKey);
 
       // Async request for normal navigation scenarios
-      this.labSv.terminateLab(this.labId, this.labSv.getCurrentUserId())
+      this.labSv
+        .terminateLab(this.labId, this.labSv.getCurrentUserId())
         .subscribe({
-          next: () => console.log('Lab terminated successfully on component destroy'),
-          error: (err) => console.error('Error terminating lab on destroy:', err)
+          next: () =>
+            console.log('Lab terminated successfully on component destroy'),
+          error: (err) =>
+            console.error('Error terminating lab on destroy:', err),
         });
     }
   }
@@ -705,7 +708,11 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.checkInProgress = true;
     this.showFeedback = true;
+
+    // Changed this line to use a neutral feedback message with no error styling
     this.feedbackMessage = 'Checking your solution…';
+    // We don't set isAnswerCorrect to false here anymore
+    // The styling will now be neutral until we get the actual result
 
     this.labSv
       .checkQuestion(
@@ -734,6 +741,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         error: (err) => {
           console.error(err);
           this.feedbackMessage = 'Error checking solution.';
+          this.isAnswerCorrect = false;
           this.checkInProgress = false;
         },
       });
@@ -849,7 +857,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Optional: Show confirmation dialog
     event.preventDefault();
-    event.returnValue = 'Your lab session will be terminated. Are you sure you want to leave?';
+    event.returnValue =
+      'Your lab session will be terminated. Are you sure you want to leave?';
     return event.returnValue;
   }
   /**
@@ -1032,7 +1041,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
         // Use synchronous XHR to ensure the request completes before page unload
         const xhr = new XMLHttpRequest();
-        xhr.open('DELETE', `${this.labSv.apiUrl}/labs/${this.labId}?user_id=${this.labSv.getCurrentUserId()}`, false); // 'false' makes it synchronous
+        xhr.open(
+          'DELETE',
+          `${this.labSv.apiUrl}/labs/${
+            this.labId
+          }?user_id=${this.labSv.getCurrentUserId()}`,
+          false
+        ); // 'false' makes it synchronous
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.send();
 

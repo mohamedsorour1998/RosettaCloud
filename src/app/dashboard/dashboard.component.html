@@ -37,6 +37,23 @@
     *ngIf="!isLoading && !errorMessage"
     class="dashboard-content animate-fade-in"
   >
+    <!-- Success Notification -->
+    <div
+      *ngIf="showSuccessNotification"
+      class="success-notification animate-fade-in"
+    >
+      <div class="notification-icon">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <div class="notification-content">
+        <h4>All Labs Terminated</h4>
+        <p>Your lab environments have been successfully cleaned up.</p>
+      </div>
+      <button class="notification-close" (click)="closeNotification()">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+
     <!-- Welcome Banner -->
     <div class="welcome-banner animate-slide-in-up">
       <div class="welcome-content">
@@ -106,7 +123,7 @@
 
       <!-- Empty State -->
       <div
-        *ngIf="!userProgress || Object.keys(userProgress).length === 0"
+        *ngIf="!userProgress || Object.keys(userProgress ?? {}).length === 0"
         class="empty-state"
       >
         <div class="empty-icon">
@@ -122,7 +139,7 @@
 
       <!-- Course List -->
       <div
-        *ngIf="userProgress && Object.keys(userProgress).length > 0"
+        *ngIf="userProgress && Object.keys(userProgress ?? {}).length > 0"
         class="course-list"
       >
         <div
@@ -219,26 +236,25 @@
     <div class="labs-container animate-slide-in-up" style="--delay: 0.3s">
       <div class="container-header">
         <h2>Your Active Labs</h2>
-        <a routerLink="/labs" class="btn-text">
-          <span>View All Labs</span>
-          <i class="bi bi-arrow-right"></i>
-        </a>
-      </div>
+        <div class="header-actions">
 
-      <!-- Empty State -->
-      <div *ngIf="!userLabs || userLabs.length === 0" class="empty-state">
-        <div class="empty-icon">
-          <i class="bi bi-pc-display-horizontal"></i>
+          <!-- Clean up button - always shown if user has labs -->
+          <button
+            class="btn-cleanup"
+            (click)="terminateAllLabs()"
+            [disabled]="isLoading"
+          >
+            <i class="bi bi-trash"></i>
+            <span>Terminate All Labs</span>
+          </button>
+          <a routerLink="/labs" class="btn-text">
+            <span>View All Labs</span>
+            <i class="bi bi-arrow-right"></i>
+          </a>
         </div>
-        <h3>No active labs</h3>
-        <p>Access hands-on labs to practice your skills</p>
-        <a routerLink="/labs" class="btn-primary">
-          <i class="bi bi-search"></i>
-          <span>Browse Labs</span>
-        </a>
       </div>
 
-      <!-- Labs Grid -->
+      <!-- Labs Grid: Always show demo lab, show user labs if any -->
       <div class="labs-grid">
         <!-- Demo Lab Card always visible -->
         <div class="lab-card demo-lab">
@@ -259,22 +275,74 @@
         </div>
 
         <!-- User's Active Labs -->
-        <div *ngFor="let labId of userLabs" class="lab-card">
-          <div class="lab-status">
-            <span class="status-badge">Active</span>
+        <ng-container *ngIf="userLabs && userLabs.length > 0; else noLabs">
+          <div *ngFor="let labId of userLabs" class="lab-card">
+            <div class="lab-status">
+              <span class="status-badge">Active</span>
+            </div>
+            <div class="lab-icon">
+              <i class="bi bi-pc-display-horizontal"></i>
+            </div>
+            <h3 class="lab-title">{{ labId }}</h3>
+            <p class="lab-description">
+              Access hands-on environment to practice your skills
+            </p>
+            <a [routerLink]="['/labs', labId]" class="btn-launch">
+              <span>Launch Lab</span>
+              <i class="bi bi-box-arrow-up-right"></i>
+            </a>
           </div>
-          <div class="lab-icon">
-            <i class="bi bi-pc-display-horizontal"></i>
-          </div>
-          <h3 class="lab-title">{{ labId }}</h3>
-          <p class="lab-description">
-            Access hands-on environment to practice your skills
-          </p>
-          <a [routerLink]="['/labs', labId]" class="btn-launch">
-            <span>Launch Lab</span>
-            <i class="bi bi-box-arrow-up-right"></i>
-          </a>
+        </ng-container>
+        <ng-template #noLabs></ng-template>
+      </div>
+
+      <!-- Empty State: only show if user has no labs -->
+      <div *ngIf="!userLabs || userLabs.length === 0" class="empty-state">
+        <div class="empty-icon">
+          <i class="bi bi-pc-display-horizontal"></i>
         </div>
+        <h3>No active labs</h3>
+        <p>Access hands-on labs to practice your skills</p>
+        <a routerLink="/labs" class="btn-primary">
+          <i class="bi bi-search"></i>
+          <span>Browse Labs</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div
+    class="modal-overlay"
+    *ngIf="showCleanupConfirmation"
+    (click)="cancelCleanup()"
+  >
+    <div class="confirmation-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5>Terminate All Labs</h5>
+        <button class="close-modal-btn" (click)="cancelCleanup()">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="warning-icon">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <p>
+          Are you sure you want to terminate all active labs? This action will:
+        </p>
+        <ul class="warning-list">
+          <li>End all your current lab sessions</li>
+          <li>Delete unsaved work in these environments</li>
+          <li>Free up resources for new labs</li>
+        </ul>
+        <p class="warning-text">This action cannot be undone!</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="cancelCleanup()">Cancel</button>
+        <button class="btn-confirm" (click)="confirmCleanup()">
+          <i class="bi bi-trash me-2"></i>Terminate All Labs
+        </button>
       </div>
     </div>
   </div>

@@ -291,38 +291,52 @@
     <div class="flow-divider">
       <h2 class="flow-subtitle">Document Indexing Flow (Background Process)</h2>
 
+      <!-- Improved indexing flow with continuous line -->
       <div class="indexing-flow">
-        <div
-          class="flow-box data-box animated-box"
-          (click)="toggleNodeDetails('s3Bucket')"
-        >
-          <img
-            src="/Res_Amazon-Simple-Storage-Service_S3-Standard_48.svg"
-            alt="S3"
-            class="aws-icon"
-          />
-          <div class="box-title">S3 Bucket</div>
-          <div class="box-content">Shell scripts uploaded</div>
+        <!-- Add a line container that spans the entire width -->
+        <div class="indexing-line-container"></div>
+
+        <!-- S3 Bucket -->
+        <div class="component-wrapper">
+          <div
+            class="flow-box data-box animated-box"
+            (click)="toggleNodeDetails('s3Bucket')"
+          >
+            <img
+              src="/Res_Amazon-Simple-Storage-Service_S3-Standard_48.svg"
+              alt="S3"
+              class="aws-icon"
+            />
+            <div class="box-title">S3 Bucket</div>
+            <div class="box-content">Shell scripts uploaded</div>
+          </div>
         </div>
 
-        <div class="row-arrow">
-          <i class="bi bi-arrow-right arrow-icon"></i>
-          <div class="arrow-label">EventBridge Trigger</div>
+        <!-- First Arrow -->
+        <div class="component-wrapper">
+          <div class="row-arrow">
+            <i class="bi bi-arrow-right arrow-icon"></i>
+            <div class="arrow-label">EventBridge Trigger</div>
+          </div>
         </div>
 
-        <div
-          class="flow-box lambda-box animated-box"
-          (click)="toggleNodeDetails('documentIndexer')"
-        >
-          <img
-            src="/Res_AWS-Lambda_Lambda-Function_48.svg"
-            alt="Lambda"
-            class="aws-icon"
-          />
-          <div class="box-title">Document Indexer Lambda</div>
-          <div class="box-content">Processes scripts & extracts metadata</div>
+        <!-- Document Indexer Lambda -->
+        <div class="component-wrapper">
+          <div
+            class="flow-box lambda-box animated-box"
+            (click)="toggleNodeDetails('documentIndexer')"
+          >
+            <img
+              src="/Res_AWS-Lambda_Lambda-Function_48.svg"
+              alt="Lambda"
+              class="aws-icon"
+            />
+            <div class="box-title">Document Indexer Lambda</div>
+            <div class="box-content">Processes scripts & extracts metadata</div>
+          </div>
         </div>
 
+        <!-- Details panel for Document Indexer -->
         <div *ngIf="expandedNode === 'documentIndexer'" class="details-panel">
           <h3 class="details-title">{{ nodeDetails.documentIndexer.title }}</h3>
           <p class="details-subtitle">
@@ -338,40 +352,52 @@
           </div>
         </div>
 
-        <div class="row-arrow">
-          <i class="bi bi-arrow-right arrow-icon"></i>
-          <div class="arrow-label">Titan Embeddings</div>
+        <!-- Second Arrow -->
+        <div class="component-wrapper">
+          <div class="row-arrow">
+            <i class="bi bi-arrow-right arrow-icon"></i>
+            <div class="arrow-label">Titan Embeddings</div>
+          </div>
         </div>
 
-        <div
-          class="flow-box ai-box animated-box"
-          (click)="toggleNodeDetails('bedrock')"
-        >
-          <img
-            src="/Arch_Amazon-Bedrock_64.svg"
-            alt="Bedrock"
-            class="aws-icon"
-          />
-          <div class="box-title">Amazon Bedrock</div>
-          <div class="box-content">Creates document embeddings</div>
+        <!-- Bedrock -->
+        <div class="component-wrapper">
+          <div
+            class="flow-box ai-box animated-box"
+            (click)="toggleNodeDetails('bedrock')"
+          >
+            <img
+              src="/Arch_Amazon-Bedrock_64.svg"
+              alt="Bedrock"
+              class="aws-icon"
+            />
+            <div class="box-title">Amazon Bedrock</div>
+            <div class="box-content">Creates document embeddings</div>
+          </div>
         </div>
 
-        <div class="row-arrow">
-          <i class="bi bi-arrow-right arrow-icon"></i>
-          <div class="arrow-label">Store Vectors</div>
+        <!-- Third Arrow -->
+        <div class="component-wrapper">
+          <div class="row-arrow">
+            <i class="bi bi-arrow-right arrow-icon"></i>
+            <div class="arrow-label">Store Vectors</div>
+          </div>
         </div>
 
-        <div
-          class="flow-box data-box animated-box"
-          (click)="toggleNodeDetails('lanceDB')"
-        >
-          <img
-            src="/Res_Amazon-Simple-Storage-Service_S3-Standard_48.svg"
-            alt="LanceDB"
-            class="aws-icon"
-          />
-          <div class="box-title">LanceDB</div>
-          <div class="box-content">Updates vector database</div>
+        <!-- LanceDB -->
+        <div class="component-wrapper">
+          <div
+            class="flow-box data-box animated-box"
+            (click)="toggleNodeDetails('lanceDB')"
+          >
+            <img
+              src="/Res_Amazon-Simple-Storage-Service_S3-Standard_48.svg"
+              alt="LanceDB"
+              class="aws-icon"
+            />
+            <div class="box-title">LanceDB</div>
+            <div class="box-content">Updates vector database</div>
+          </div>
         </div>
       </div>
     </div>
