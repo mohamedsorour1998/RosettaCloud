@@ -6,6 +6,14 @@
     <div class="selector-tabs">
       <button
         class="selector-tab"
+        [class.active]="activeTab === 'labs'"
+        (click)="setActiveTab('labs')"
+      >
+        <i class="bi bi-code-square"></i>
+        Interactive Labs
+      </button>
+      <button
+        class="selector-tab"
         [class.active]="activeTab === 'chatbot'"
         (click)="setActiveTab('chatbot')"
       >
@@ -20,6 +28,801 @@
         <i class="bi bi-chat-dots"></i>
         Feedback Service
       </button>
+    </div>
+  </div>
+  <!-- Add the interactive labs diagram section -->
+  <!-- Interactive Labs Tab Content -->
+  <div class="labs-flow-diagram" *ngIf="activeTab === 'labs'">
+    <h2 class="section-title">Interactive Labs Architecture</h2>
+    <p class="section-description">
+      Containerized learning environments with on-demand provisioning and
+      real-time verification
+    </p>
+
+    <!-- Lab Launch Workflow Section -->
+    <div class="flow-section">
+      <h3 class="flow-subtitle">Lab Launch Workflow</h3>
+      <p class="workflow-description">
+        How a new lab environment is created and served to users
+      </p>
+
+      <!-- Step 1: User Interaction -->
+      <div class="flow-section">
+        <div class="step-number">1</div>
+        <div class="flow-row">
+          <div
+            class="flow-box client-box animated-box"
+            (click)="toggleNodeDetails('angularFrontend')"
+          >
+            <img src="/angular.ico" alt="Angular" class="aws-icon" />
+            <div class="box-title">Angular Frontend</div>
+            <div class="box-content">
+              User clicks "Launch Lab" in the frontend app
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="expandedNode === 'angularFrontend'" class="details-panel">
+          <h3 class="details-title">
+            {{ labsNodeDetails.angularFrontend.title }}
+          </h3>
+          <p class="details-subtitle">
+            {{ labsNodeDetails.angularFrontend.description }}
+          </p>
+          <ul class="details-list">
+            <li *ngFor="let detail of labsNodeDetails.angularFrontend.details">
+              {{ detail }}
+            </li>
+          </ul>
+          <div class="code-block">
+            <pre>{{ labsNodeDetails.angularFrontend.code }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">
+        <i class="bi bi-arrow-down arrow-icon"></i>
+        <div class="arrow-label">Check for Existing Lab</div>
+      </div>
+
+      <!-- Step 2: Cache Check -->
+      <div class="flow-section">
+        <div class="step-number">2</div>
+        <div class="flow-row">
+          <div
+            class="flow-box pub-sub-box animated-box"
+            (click)="toggleNodeDetails('momentoCache')"
+          >
+            <img
+              src="/mo-momento-tee.svg"
+              alt="Momento"
+              class="tech-icon momento-icon"
+            />
+            <div class="box-title">Momento Cache</div>
+            <div class="box-content">
+              Checks for existing active lab under user ID
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="expandedNode === 'momentoCache'" class="details-panel">
+          <h3 class="details-title">
+            {{ labsNodeDetails.momentoCache.title }}
+          </h3>
+          <p class="details-subtitle">
+            {{ labsNodeDetails.momentoCache.description }}
+          </p>
+          <ul class="details-list">
+            <li *ngFor="let detail of labsNodeDetails.momentoCache.details">
+              {{ detail }}
+            </li>
+          </ul>
+          <div class="code-block">
+            <pre>{{ labsNodeDetails.momentoCache.code }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">
+        <i class="bi bi-arrow-down arrow-icon"></i>
+        <div class="arrow-label">If No Active Lab Found</div>
+      </div>
+
+      <!-- Step 3: Lab Service -->
+      <div class="flow-section">
+        <div class="step-number">3</div>
+        <div class="flow-row">
+          <div
+            class="flow-box backend-box animated-box"
+            (click)="toggleNodeDetails('labService')"
+          >
+            <img
+              src="/fastapi-1.svg"
+              alt="FastAPI"
+              class="tech-icon fastapi-icon"
+            />
+            <div class="box-title">Lab Management Service</div>
+            <div class="box-content">
+              Orchestrates container creation and lifecycle
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="expandedNode === 'labService'" class="details-panel">
+          <h3 class="details-title">{{ labsNodeDetails.labService.title }}</h3>
+          <p class="details-subtitle">
+            {{ labsNodeDetails.labService.description }}
+          </p>
+          <ul class="details-list">
+            <li *ngFor="let detail of labsNodeDetails.labService.details">
+              {{ detail }}
+            </li>
+          </ul>
+          <div class="code-block">
+            <pre>{{ labsNodeDetails.labService.code }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">
+        <i class="bi bi-arrow-down arrow-icon"></i>
+        <div class="arrow-label">Create Resources</div>
+      </div>
+
+      <!-- Step 4: Kubernetes Orchestration -->
+      <div class="flow-section">
+        <div class="step-number">4</div>
+        <div class="flow-row">
+          <div
+            class="flow-box data-box animated-box"
+            (click)="toggleNodeDetails('kubernetes')"
+          >
+            <img src="/kubernetes.svg" alt="Kubernetes" class="aws-icon" />
+            <div class="box-title">Kubernetes</div>
+            <div class="box-content">
+              Creates pod, service, and ingress resources
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="expandedNode === 'kubernetes'" class="details-panel">
+          <h3 class="details-title">{{ labsNodeDetails.kubernetes.title }}</h3>
+          <p class="details-subtitle">
+            {{ labsNodeDetails.kubernetes.description }}
+          </p>
+          <ul class="details-list">
+            <li *ngFor="let detail of labsNodeDetails.kubernetes.details">
+              {{ detail }}
+            </li>
+          </ul>
+          <div class="code-block">
+            <pre>{{ labsNodeDetails.kubernetes.code }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">
+        <i class="bi bi-arrow-down arrow-icon"></i>
+        <div class="arrow-label">Record Lab Session</div>
+      </div>
+
+      <!-- Step 5: Persistence -->
+      <div class="flow-section">
+        <div class="step-number">5</div>
+        <div class="flow-grid">
+          <!-- Left side - Cache -->
+          <div class="flow-column">
+            <div
+              class="flow-box pub-sub-box animated-box"
+              (click)="toggleNodeDetails('momentoCache')"
+            >
+              <img
+                src="/mo-momento-tee.svg"
+                alt="Momento"
+                class="tech-icon momento-icon"
+              />
+              <div class="box-title">Momento Cache</div>
+              <div class="box-content">Cache lab ID with user ID as key</div>
+            </div>
+          </div>
+
+          <!-- Right side - Database -->
+          <div class="flow-column">
+            <div
+              class="flow-box data-box animated-box"
+              (click)="toggleNodeDetails('dynamoDB')"
+            >
+              <img
+                src="/Res_Amazon-DynamoDB_Table_48.svg"
+                alt="DynamoDB"
+                class="aws-icon"
+              />
+              <div class="box-title">DynamoDB</div>
+              <div class="box-content">
+                Store user-to-lab mapping persistently
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="expandedNode === 'dynamoDB'" class="details-panel">
+          <h3 class="details-title">{{ labsNodeDetails.dynamoDB.title }}</h3>
+          <p class="details-subtitle">
+            {{ labsNodeDetails.dynamoDB.description }}
+          </p>
+          <ul class="details-list">
+            <li *ngFor="let detail of labsNodeDetails.dynamoDB.details">
+              {{ detail }}
+            </li>
+          </ul>
+          <div class="code-block">
+            <pre>{{ labsNodeDetails.dynamoDB.code }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">
+        <i class="bi bi-arrow-down arrow-icon"></i>
+        <div class="arrow-label">Container Startup</div>
+      </div>
+
+      <!-- Step 6: Lab Container -->
+      <div class="flow-section">
+        <div class="step-number">6</div>
+        <div class="flow-row">
+          <div
+            class="flow-box ai-box animated-box"
+            (click)="toggleNodeDetails('labContainer')"
+          >
+            <img src="/docker.svg" alt="Container" class="aws-icon" />
+            <div class="box-title">Lab Container</div>
+            <div class="box-content">
+              Starts VS Code, Docker, and developer tools
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="expandedNode === 'labContainer'" class="details-panel">
+          <h3 class="details-title">
+            {{ labsNodeDetails.labContainer.title }}
+          </h3>
+          <p class="details-subtitle">
+            {{ labsNodeDetails.labContainer.description }}
+          </p>
+          <ul class="details-list">
+            <li *ngFor="let detail of labsNodeDetails.labContainer.details">
+              {{ detail }}
+            </li>
+          </ul>
+          <div class="code-block">
+            <pre>{{ labsNodeDetails.labContainer.code }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">
+        <i class="bi bi-arrow-down arrow-icon"></i>
+        <div class="arrow-label">Return Lab URL</div>
+      </div>
+
+      <!-- Step 7: Frontend Loads Lab -->
+      <div class="flow-section">
+        <div class="step-number">7</div>
+        <div class="flow-row">
+          <div
+            class="flow-box client-box animated-box"
+            (click)="toggleNodeDetails('angularFrontend')"
+          >
+            <img src="/angular.ico" alt="Angular" class="aws-icon" />
+            <div class="box-title">Angular Frontend</div>
+            <div class="box-content">Loads lab environment in iframe</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Question Workflow Section -->
+    <div class="flow-divider">
+      <h3 class="flow-subtitle">Question Loading & Caching Workflow</h3>
+      <p class="workflow-description">
+        How questions are loaded, cached, and delivered to the frontend
+      </p>
+
+      <div class="flow-grid">
+        <!-- Left side - Question Source -->
+        <div class="flow-column">
+          <div class="flow-section">
+            <div class="step-number">1</div>
+            <div class="flow-row">
+              <div
+                class="flow-box data-box animated-box"
+                (click)="toggleNodeDetails('s3Storage')"
+              >
+                <img
+                  src="/Res_Amazon-Simple-Storage-Service_S3-Standard_48.svg"
+                  alt="S3"
+                  class="aws-icon"
+                />
+                <div class="box-title">S3 Storage</div>
+                <div class="box-content">
+                  Stores question scripts by module/lesson
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="expandedNode === 's3Storage'" class="details-panel">
+              <h3 class="details-title">
+                {{ labsNodeDetails.s3Storage.title }}
+              </h3>
+              <p class="details-subtitle">
+                {{ labsNodeDetails.s3Storage.description }}
+              </p>
+              <ul class="details-list">
+                <li *ngFor="let detail of labsNodeDetails.s3Storage.details">
+                  {{ detail }}
+                </li>
+              </ul>
+              <div class="code-block">
+                <pre>{{ labsNodeDetails.s3Storage.code }}</pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Parse Scripts</div>
+          </div>
+
+          <div class="flow-section">
+            <div class="step-number">2</div>
+            <div class="flow-row">
+              <div
+                class="flow-box backend-box animated-box"
+                (click)="toggleNodeDetails('questionService')"
+              >
+                <img
+                  src="/fastapi-1.svg"
+                  alt="FastAPI"
+                  class="tech-icon fastapi-icon"
+                />
+                <div class="box-title">Question Service</div>
+                <div class="box-content">
+                  Extracts metadata and cache questions
+                </div>
+              </div>
+            </div>
+
+            <div
+              *ngIf="expandedNode === 'questionService'"
+              class="details-panel"
+            >
+              <h3 class="details-title">
+                {{ labsNodeDetails.questionService.title }}
+              </h3>
+              <p class="details-subtitle">
+                {{ labsNodeDetails.questionService.description }}
+              </p>
+              <ul class="details-list">
+                <li
+                  *ngFor="let detail of labsNodeDetails.questionService.details"
+                >
+                  {{ detail }}
+                </li>
+              </ul>
+              <div class="code-block">
+                <pre>{{ labsNodeDetails.questionService.code }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right side - Caching -->
+        <div class="flow-column">
+          <div class="flow-section">
+            <div class="step-number">3</div>
+            <div class="flow-row">
+              <div
+                class="flow-box pub-sub-box animated-box"
+                (click)="toggleNodeDetails('momentoCache')"
+              >
+                <img
+                  src="/mo-momento-tee.svg"
+                  alt="Momento"
+                  class="tech-icon momento-icon"
+                />
+                <div class="box-title">Momento Cache</div>
+                <div class="box-content">
+                  Cache parsed question data for fast access
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Serve Questions</div>
+          </div>
+
+          <div class="flow-section">
+            <div class="step-number">4</div>
+            <div class="flow-row">
+              <div
+                class="flow-box client-box animated-box"
+                (click)="toggleNodeDetails('angularFrontend')"
+              >
+                <img src="/angular.ico" alt="Angular" class="aws-icon" />
+                <div class="box-title">Angular Frontend</div>
+                <div class="box-content">
+                  Display questions to user in lab interface
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solution Verification Workflow -->
+    <div class="flow-divider">
+      <h3 class="flow-subtitle">Solution Verification Workflow</h3>
+      <p class="workflow-description">
+        How different question types are verified
+      </p>
+
+      <!-- MCQ Questions -->
+      <div class="flow-section">
+        <h4 class="verification-subtitle">Multiple Choice Questions (MCQ)</h4>
+        <div class="flow-grid">
+          <!-- Left side - Frontend Verification -->
+          <div class="flow-column">
+            <div class="flow-section">
+              <div class="step-number">1</div>
+              <div class="flow-row">
+                <div class="flow-box client-box animated-box">
+                  <img src="/angular.ico" alt="Angular" class="aws-icon" />
+                  <div class="box-title">Angular Frontend</div>
+                  <div class="box-content">
+                    User selects answer and clicks "Submit"
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-arrow">
+              <i class="bi bi-arrow-down arrow-icon"></i>
+              <div class="arrow-label">Client-side Validation</div>
+            </div>
+
+            <div class="flow-section">
+              <div class="step-number">2</div>
+              <div class="flow-row">
+                <div class="flow-box client-box animated-box">
+                  <img src="/angular.ico" alt="Angular" class="aws-icon" />
+                  <div class="box-title">Frontend Logic</div>
+                  <div class="box-content">
+                    Verifies answer against correct option from cache
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right side - Progress Tracking -->
+          <div class="flow-column">
+            <div class="flow-section">
+              <div class="step-number">3</div>
+              <div class="flow-row">
+                <div class="flow-box backend-box animated-box">
+                  <img
+                    src="/fastapi-1.svg"
+                    alt="FastAPI"
+                    class="tech-icon fastapi-icon"
+                  />
+                  <div class="box-title">User Service</div>
+                  <div class="box-content">
+                    Updates progress in DynamoDB if correct
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-arrow">
+              <i class="bi bi-arrow-down arrow-icon"></i>
+              <div class="arrow-label">Update UI</div>
+            </div>
+
+            <div class="flow-section">
+              <div class="step-number">4</div>
+              <div class="flow-row">
+                <div class="flow-box client-box animated-box">
+                  <img src="/angular.ico" alt="Angular" class="aws-icon" />
+                  <div class="box-title">Frontend</div>
+                  <div class="box-content">
+                    Shows feedback and updates progress UI
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Check Questions -->
+      <div class="flow-section">
+        <h4 class="verification-subtitle">Practical "Check" Questions</h4>
+        <div class="flow-section">
+          <div class="step-number">1</div>
+          <div class="flow-row">
+            <div class="flow-box client-box animated-box">
+              <img src="/angular.ico" alt="Angular" class="aws-icon" />
+              <div class="box-title">Angular Frontend</div>
+              <div class="box-content">
+                User loads question, triggering setup script
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">
+          <i class="bi bi-arrow-down arrow-icon"></i>
+          <div class="arrow-label">Setup Environment</div>
+        </div>
+
+        <div class="flow-section">
+          <div class="step-number">2</div>
+          <div class="flow-row">
+            <div
+              class="flow-box backend-box animated-box"
+              (click)="toggleNodeDetails('questionService')"
+            >
+              <img
+                src="/fastapi-1.svg"
+                alt="FastAPI"
+                class="tech-icon fastapi-icon"
+              />
+              <div class="box-title">Question Service</div>
+              <div class="box-content">
+                Extracts -q script and copies to pod
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">
+          <i class="bi bi-arrow-down arrow-icon"></i>
+          <div class="arrow-label">Run Setup in Pod</div>
+        </div>
+
+        <div class="flow-section">
+          <div class="step-number">3</div>
+          <div class="flow-row">
+            <div
+              class="flow-box ai-box animated-box"
+              (click)="toggleNodeDetails('labContainer')"
+            >
+              <img src="/docker.svg" alt="Container" class="aws-icon" />
+              <div class="box-title">Lab Container</div>
+              <div class="box-content">
+                Executes setup script to prepare environment
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">
+          <i class="bi bi-arrow-down arrow-icon"></i>
+          <div class="arrow-label">User Works on Solution</div>
+        </div>
+
+        <div class="flow-section">
+          <div class="step-number">4</div>
+          <div class="flow-row">
+            <div class="flow-box client-box animated-box">
+              <img src="/angular.ico" alt="Angular" class="aws-icon" />
+              <div class="box-title">Angular Frontend</div>
+              <div class="box-content">User clicks "Check Solution" button</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">
+          <i class="bi bi-arrow-down arrow-icon"></i>
+          <div class="arrow-label">Extract Verification Script</div>
+        </div>
+
+        <div class="flow-section">
+          <div class="step-number">5</div>
+          <div class="flow-row">
+            <div class="flow-box backend-box animated-box">
+              <img
+                src="/fastapi-1.svg"
+                alt="FastAPI"
+                class="tech-icon fastapi-icon"
+              />
+              <div class="box-title">Question Service</div>
+              <div class="box-content">
+                Extracts -c flag script and copies to pod
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">
+          <i class="bi bi-arrow-down arrow-icon"></i>
+          <div class="arrow-label">Run Verification in Pod</div>
+        </div>
+
+        <div class="flow-section">
+          <div class="step-number">6</div>
+          <div class="flow-row">
+            <div class="flow-box ai-box animated-box">
+              <img src="/docker.svg" alt="Container" class="aws-icon" />
+              <div class="box-title">Lab Container</div>
+              <div class="box-content">
+                Executes verification script and returns exit code
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">
+          <i class="bi bi-arrow-down arrow-icon"></i>
+          <div class="arrow-label">If Solution Correct</div>
+        </div>
+
+        <div class="flow-section">
+          <div class="step-number">7</div>
+          <div class="flow-row">
+            <div
+              class="flow-box data-box animated-box"
+              (click)="toggleNodeDetails('progressTracking')"
+            >
+              <img
+                src="/Res_Amazon-DynamoDB_Table_48.svg"
+                alt="DynamoDB"
+                class="aws-icon"
+              />
+              <div class="box-title">Progress Tracking</div>
+              <div class="box-content">
+                Updates completion status in DynamoDB
+              </div>
+            </div>
+          </div>
+
+          <div
+            *ngIf="expandedNode === 'progressTracking'"
+            class="details-panel"
+          >
+            <h3 class="details-title">
+              {{ labsNodeDetails.progressTracking.title }}
+            </h3>
+            <p class="details-subtitle">
+              {{ labsNodeDetails.progressTracking.description }}
+            </p>
+            <ul class="details-list">
+              <li
+                *ngFor="let detail of labsNodeDetails.progressTracking.details"
+              >
+                {{ detail }}
+              </li>
+            </ul>
+            <div class="code-block">
+              <pre>{{ labsNodeDetails.progressTracking.code }}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">
+          <i class="bi bi-arrow-down arrow-icon"></i>
+          <div class="arrow-label">Return Status to Frontend</div>
+        </div>
+
+        <div class="flow-section">
+          <div class="step-number">8</div>
+          <div class="flow-row">
+            <div class="flow-box client-box animated-box">
+              <img src="/angular.ico" alt="Angular" class="aws-icon" />
+              <div class="box-title">Angular Frontend</div>
+              <div class="box-content">
+                Shows success message and updates progress UI
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Process Steps Sections -->
+    <div class="process-steps">
+      <h2 class="steps-title">Lab Launch Process</h2>
+      <ol class="steps-list">
+        <li *ngFor="let step of labWorkflows.launch" class="step-item">
+          <div class="step-number">{{ step.number }}</div>
+          <div class="step-content">
+            <p class="step-description">{{ step.description }}</p>
+            <div class="step-flow">
+              <span class="flow-component">{{ step.component }}</span>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Question Workflow Steps -->
+    <div class="process-steps">
+      <h2 class="steps-title">Question & Verification Process</h2>
+      <ol class="steps-list">
+        <li *ngFor="let step of labWorkflows.question" class="step-item">
+          <div class="step-number">{{ step.number }}</div>
+          <div class="step-content">
+            <p class="step-description">{{ step.description }}</p>
+            <div class="step-flow">
+              <span class="flow-component">{{ step.component }}</span>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Key Info Section -->
+    <div class="key-info">
+      <h2 class="key-info-title">Key Features</h2>
+      <div class="info-cards">
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-cloud-check"></i></div>
+          <h3 class="card-title">Serverless Architecture</h3>
+          <p class="card-text">
+            Leverages serverless services for high scalability and on-demand
+            provisioning of lab environments.
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-speedometer"></i></div>
+          <h3 class="card-title">Performance Optimized</h3>
+          <p class="card-text">
+            Multi-tier caching with Momento ensures fast question loading and
+            minimal latency for user interactions.
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-shield-check"></i></div>
+          <h3 class="card-title">Secure & Isolated</h3>
+          <p class="card-text">
+            Each lab runs in isolated container with resource limits, preventing
+            cross-user contamination.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="key-info">
+      <h2 class="key-info-title">Technical Components</h2>
+      <div class="info-cards">
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-hdd-stack"></i></div>
+          <h3 class="card-title">Containerized Tools</h3>
+          <p class="card-text">
+            Code-Server with Docker-in-Docker, allowing full container
+            capabilities in browser-based IDE.
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-lightning"></i></div>
+          <h3 class="card-title">Real-time Verification</h3>
+          <p class="card-text">
+            Shell scripts with setup and check logic for instant validation of
+            user solutions.
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-icon"><i class="bi bi-database-check"></i></div>
+          <h3 class="card-title">Persistent Tracking</h3>
+          <p class="card-text">
+            DynamoDB-powered progress tracking with granular completion status
+            for each question.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -462,6 +1265,7 @@
   </div>
 
   <!-- Feedback Flow Diagram -->
+
   <div class="feedback-flow-diagram" *ngIf="activeTab === 'feedback'">
     <h2 class="section-title">Feedback Service Architecture</h2>
     <p class="section-description">
@@ -599,10 +1403,50 @@
       </div>
     </div>
 
+    <!-- Connection arrows showing frontend progress data - NEW SECTION -->
+    <div class="flow-section">
+      <div class="step-number">4</div>
+      <div class="flow-row">
+        <div
+          class="flow-box client-box animated-box"
+          (click)="toggleNodeDetails('progressIntegration')"
+        >
+          <img src="/angular.ico" alt="Angular" class="tech-icon" />
+          <div class="box-title">Frontend Progress Data</div>
+          <div class="box-content">
+            Already has user progress and questions locally
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="expandedNode === 'progressIntegration'" class="details-panel">
+        <h3 class="details-title">
+          {{ feedbackNodeDetails.progressIntegration.title }}
+        </h3>
+        <p class="details-subtitle">
+          {{ feedbackNodeDetails.progressIntegration.description }}
+        </p>
+        <ul class="details-list">
+          <li
+            *ngFor="
+              let detail of feedbackNodeDetails.progressIntegration.details
+            "
+          >
+            {{ detail }}
+          </li>
+        </ul>
+        <div class="code-block">
+          <pre>{{ feedbackNodeDetails.progressIntegration.code }}</pre>
+        </div>
+      </div>
+    </div>
+
     <!-- Connection arrows to API Gateway for feedback request -->
     <div class="flow-arrow">
       <i class="bi bi-arrow-down arrow-icon"></i>
-      <div class="arrow-label">Submit Feedback Request (Step 4)</div>
+      <div class="arrow-label">
+        Submit Feedback Request with Local Progress Data (Step 4)
+      </div>
     </div>
 
     <!-- Row 5: API Gateway Again -->
@@ -645,7 +1489,7 @@
           />
           <div class="box-title">Feedback Request</div>
           <div class="box-content">
-            Processes feedback requests and publishes to Momento
+            Processes request with provided progress data
           </div>
         </div>
       </div>
@@ -685,7 +1529,7 @@
           (click)="toggleNodeDetails('momento')"
         >
           <img
-            src="https://docs.momentohq.com/img/momento-logo-forest.svg"
+            src="/mo-momento-tee.svg"
             alt="Momento"
             class="tech-icon momento-icon"
           />
@@ -836,7 +1680,7 @@
           (click)="toggleNodeDetails('momento')"
         >
           <img
-            src="https://docs.momentohq.com/img/momento-logo-forest.svg"
+            src="/mo-momento-tee.svg"
             alt="Momento"
             class="tech-icon momento-icon"
           />
@@ -937,7 +1781,8 @@
           <div class="step-number">4</div>
           <div class="step-content">
             <p class="step-description">
-              User initiates feedback request; Angular sends to API Gateway
+              User initiates feedback request; Frontend includes local progress
+              data and questions
             </p>
             <div class="step-flow">
               <span class="flow-from">angularFrontend</span>

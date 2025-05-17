@@ -11,8 +11,8 @@ import { FeedbackFlowDiagramComponent } from '../feedback-flow-diagram/feedback-
 })
 export class ChatbotFlowDiagramComponent implements OnInit {
   expandedNode: string | null = null;
-  activeTab: string = 'chatbot'; // Default to chatbot tab
-  feedbackSteps: any[] = []; // Will be populated from the feedback component
+  activeTab: string = 'labs';
+  feedbackSteps: any[] = [];
 
   // Node information to display when expanded for Chatbot Flow
   nodeDetails = {
@@ -605,9 +605,766 @@ saveFeedback(): void {
 }
       `,
     },
+    progressIntegration: {
+      title: 'Progress Data Integration',
+      description: 'System that connects lab progress with feedback generation',
+      details: [
+        'Retrieves user progress data from DynamoDB',
+        'Collects question metadata from cached questions',
+        'Formats data as context for AI feedback',
+        'Provides personalized assistance based on completed questions',
+      ],
+      code: `
+    // Collect data for feedback generation
+    async def request_feedback(
+        user_id: str,
+        module_uuid: str,
+        lesson_uuid: str,
+        feedback_id: str
+    ) -> JSONResponse:
+        # Get user progress
+        progress = await user_service.get_user_progress(
+            user_id,
+            module_uuid,
+            lesson_uuid
+        )
+
+        # Get questions for the module/lesson
+        questions_response = await questions_service.get_questions(
+            module_uuid,
+            lesson_uuid
+        )
+        questions = questions_response.get("questions", [])
+
+        # Format data for feedback
+        feedback_request = {
+            "user_id": user_id,
+            "module_uuid": module_uuid,
+            "lesson_uuid": lesson_uuid,
+            "feedback_id": feedback_id,
+            "questions": questions,
+            "progress": progress,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        # Publish to FeedbackRequested topic
+        await momento_service.publish(
+            "FeedbackRequested",
+            json.dumps(feedback_request)
+        )
+
+        return JSONResponse({
+            "status": "processing",
+            "feedback_id": feedback_id,
+            "message": "Feedback request submitted successfully"
+        })
+      `,
+    },
   };
 
+  labsNodeDetails = {
+    angularFrontend: {
+      title: 'Angular Frontend (Lab Component)',
+      description:
+        'User interface for launching and interacting with lab environments',
+      details: [
+        'Provides interface for launching and managing lab environments',
+        'Displays questions and verifies solutions',
+        'Embeds lab environment via iframe',
+        'Integrates with AI chatbot and feedback services',
+      ],
+      code: `
+  // Launch lab environment
+  initializeNewLab(): void {
+    try {
+      sessionStorage.removeItem(this.qStateKey);
+      this.questions = [];
+      this.currentQuestionIndex = 0;
+      this.selectedOption = null;
+      this.showFeedback = false;
+      this.feedbackMessage = '';
+      this.isAnswerCorrect = false;
+    } catch (e) {
+      console.error('Error clearing question state:', e);
+    }
+    this.launchNewLab().subscribe();
+  }
+      `,
+    },
+    labService: {
+      title: 'Lab Management Service',
+      description:
+        'Backend service that orchestrates lab containers in Kubernetes',
+      details: [
+        'Creates, manages, and terminates lab containers in Kubernetes',
+        'Provisions pods, services, and ingress routes',
+        'Tracks active labs and enforces time limits',
+        'Provides APIs for lab lifecycle management',
+      ],
+      code: `
+  async def launch(self, *, tag: str | None = None) -> str:
+      """Launch a new lab pod and return its ID"""
+      LOG.info("Launching new lab pod")
 
+      # Generate a unique lab ID if not provided
+      lab_id = tag or f"lab-{uuid.uuid4().hex[:8]}"
+
+      try:
+          # Create the pod with pre-built lab image
+          pod_id = await self._create_lab_pod(lab_id)
+
+          # Create the service
+          await self._create_lab_svc(lab_id)
+
+          # Update the ingress
+          await self._patch_ingress(lab_id, add=True)
+
+          # Track the active lab
+          self._active[lab_id] = pod_id
+          self._created[lab_id] = dt.datetime.now(dt.timezone.utc).timestamp()
+
+          LOG.info(f"Lab {lab_id} launched successfully with pod {pod_id}")
+          return lab_id
+      except Exception as e:
+          LOG.error(f"Failed to launch lab {lab_id}: {e}")
+          # Clean up if needed
+          with contextlib.suppress(Exception):
+              await self.stop(lab_id)
+          raise RuntimeError(f"Failed to launch lab: {str(e)}")
+      `,
+    },
+    labContainer: {
+      title: 'Lab Container Environment',
+      description:
+        'Containerized VS Code (Code-Server) with integrated tools for hands-on learning',
+      details: [
+        'Provides browser-based VS Code environment',
+        'Includes Docker-in-Docker for container exercises',
+        'Pre-configured with Kubernetes tools and CLI utilities',
+        'Isolated environment per user session',
+      ],
+      code: `
+  #!/usr/bin/env bash
+  set -e
+
+  # 1) Start code-server
+  sudo -u coder /usr/bin/code-server \\
+    --host 127.0.0.1 \\
+    --port 8080 \\
+    --auth none \\
+    --user-data-dir /data \\
+    --extensions-dir /data/extensions \\
+    /home/coder/lab &
+
+  # 2) Start Caddy
+  caddy run --config /etc/caddy/Caddyfile &
+
+  # 3) Start Docker & wait
+  nohup dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &
+  while ! docker info > /dev/null 2>&1; do sleep 1; done
+
+  # 4) Load Kind image and create cluster as coder
+  docker load -i /kind-node.tar
+  sudo -u coder bash -lc "kind create cluster --image=kindest/node:v1.33.0 --name rosettacloud"
+
+  # 5) Keep script alive
+  wait
+      `,
+    },
+    questionService: {
+      title: 'Question Service',
+      description:
+        'Backend service that manages lab questions and validates solutions',
+      details: [
+        'Retrieves questions from S3 storage',
+        'Parses and caches question scripts',
+        "Runs setup and validation scripts in user's lab environment",
+        'Updates progress when questions are completed successfully',
+      ],
+      code: `
+  async def execute_check_by_number(
+      self,
+      pod_name: str,
+      module_uuid: str,
+      lesson_uuid: str,
+      question_number: int,
+  ) -> bool:
+      """Run the '-c' section of one question inside the pod."""
+      shell = await self._get_shell_by_number(module_uuid, lesson_uuid, question_number)
+      if not shell:
+          logging.error("Question #%s not found", question_number)
+          return False
+      return await self._exec_script_in_pod(pod_name, shell, part="c", question_number=question_number)
+
+  async def _exec_script_in_pod(self, pod: str, shell: str, part: str, question_number: int) -> bool:
+      """Extract -q or -c, copy to pod, execute, return success."""
+      extractor = self._extract_question_script if part == "q" else self._extract_check_script
+      script_body = extractor(shell)
+
+      # write temp file
+      with tempfile.NamedTemporaryFile("w+", suffix=".sh", delete=False) as tf:
+          tf.write("#!/bin/bash\\n")
+          tf.write(script_body)
+          tf.write("\\nexit $?\\n")
+          path = tf.name
+      os.chmod(path, 0o755)
+
+      try:
+          # kubectl cp
+          dst = f"{pod}:/tmp/{question_number}_{part}_script.sh"
+          cp = subprocess.run(
+              ["kubectl", "cp", path, dst, "-n", self.namespace],
+              capture_output=True, text=True
+          )
+          if cp.returncode:
+              logging.error("kubectl cp failed: %s", cp.stderr)
+              return False
+
+          # kubectl exec
+          exec_cmd = f"chmod +x /tmp/{question_number}_{part}_script.sh && /tmp/{question_number}_{part}_script.sh"
+          ex = subprocess.run(
+              ["kubectl", "exec", pod, "-n", self.namespace, "--", "bash", "-c", exec_cmd],
+              capture_output=True, text=True
+          )
+          return ex.returncode == 0
+      finally:
+          os.unlink(path)
+      `,
+    },
+    userService: {
+      title: 'User Service',
+      description: 'Service that manages user data and progress tracking',
+      details: [
+        'Stores and retrieves user progress in DynamoDB',
+        'Handles authentication and authorization',
+        'Tracks completion status for exercises and modules',
+        'Links lab environments to user accounts',
+      ],
+      code: `
+  async def track_user_progress(self, user_id: str, module_uuid: str,
+                                lesson_uuid: str, question_number: int, completed: bool) -> bool:
+      try:
+          # Get user
+          user = await self.get_user(user_id)
+          if not user:
+              return False
+
+          # Initialize progress structure if needed
+          progress = user.get('progress', {})
+          module_progress = progress.get(module_uuid, {})
+          lesson_progress = module_progress.get(lesson_uuid, {})
+
+          # Update question completion status
+          lesson_progress[str(question_number)] = completed
+
+          # Update nested structure
+          module_progress[lesson_uuid] = lesson_progress
+          progress[module_uuid] = module_progress
+
+          # Update user
+          await self.update_user(user_id, {'progress': progress})
+
+          return True
+      except Exception as e:
+          return False
+      `,
+    },
+    s3Storage: {
+      title: 'S3 Content Storage',
+      description: 'Object storage for lab content and question scripts',
+      details: [
+        'Stores shell scripts that define lab questions',
+        'Organizes content by module and lesson structure',
+        'Provides versioning and access control',
+        'Enables dynamic content updates without service deployments',
+      ],
+      code: `
+  async def _fetch_shells(self, module_uuid: str, lesson_uuid: str) -> List[str]:
+      cache_key = f"shells:{module_uuid}:{lesson_uuid}"
+      cached = await cache.get(self.cache_name, cache_key)
+      if cached is not None:
+          try:
+              return json.loads(cached)
+          except Exception:
+              logging.warning("Corrupt cache entry %s – refetching", cache_key)
+
+      try:
+          async with aioboto3.Session().client("s3") as s3:
+              prefix = f"{module_uuid}/{lesson_uuid}/"
+              resp = await s3.list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)
+              keys = [o["Key"] for o in resp.get("Contents", []) if o["Key"].endswith(".sh")]
+
+              shells: List[str] = []
+              for key in keys:
+                  obj = await s3.get_object(Bucket=self.bucket_name, Key=key)
+                  body = await obj["Body"].read()
+                  shells.append(body.decode())
+
+          await cache.set(self.cache_name, cache_key, json.dumps(shells), self.ttl_secs)
+          return shells
+      except Exception as exc:
+          logging.error("Fetch shells failed: %s", exc)
+          return []
+      `,
+    },
+    kubernetes: {
+      title: 'Kubernetes Orchestration',
+      description:
+        'Container orchestration platform that hosts the lab environments',
+      details: [
+        'Manages pods for individual lab sessions',
+        'Provides network isolation between lab environments',
+        'Enforces resource limits and quotas',
+        'Enables scaling based on demand',
+      ],
+      code: `
+  async def _create_lab_pod(self, lab_id: str) -> str:
+      pod_id = pod_name(lab_id)
+
+      async with self._k8s() as (core, *_):
+          pod = client.V1Pod(
+              metadata=client.V1ObjectMeta(
+                  name=pod_id,
+                  namespace=NAMESPACE,
+                  labels={"app": "interactive-labs", "lab-id": lab_id}
+              ),
+              spec=client.V1PodSpec(
+                  containers=[client.V1Container(
+                      name="lab",
+                      image=POD_IMAGE,
+                      ports=[client.V1ContainerPort(container_port=80)],
+                      resources=client.V1ResourceRequirements(
+                          requests={"cpu": "500m", "memory": "1Gi"},
+                          limits={"cpu": "2", "memory": "4Gi"}
+                      ),
+                      security_context=client.V1SecurityContext(
+                          privileged=True  # Required for Docker-in-Docker
+                      )
+                  )],
+                  restart_policy="Always"
+              )
+          )
+
+          await asyncio.to_thread(core.create_namespaced_pod, NAMESPACE, pod)
+          return pod_id
+      `,
+    },
+    momentoCache: {
+      title: 'Momento Cache Service',
+      description:
+        'High-performance distributed cache for lab state and questions',
+      details: [
+        'Caches active lab IDs by user to prevent duplicate sessions',
+        'Stores parsed question data to reduce S3 access',
+        'Provides fast access to frequently requested content',
+        'Reduces latency and backend load',
+      ],
+      code: `
+  // Check if user already has an active lab
+  async def new_lab(request: LaunchLabRequest):
+      user_id = request.user_id
+      await verify_user(user_id)
+
+      # Check Momento cache first for active labs
+      active_lab = await cache_events.get("active_labs", user_id)
+      if active_lab and active_lab != "null":
+          raise HTTPException(
+              status_code=status.HTTP_400_BAD_REQUEST,
+              detail="You already have an active lab. Please terminate the existing lab first."
+          )
+
+      # If no active lab found in cache, also check DynamoDB as fallback
+      user_labs = await user_service.get_user_labs(user_id)
+      if user_labs and len(user_labs.labs) > 0:
+          raise HTTPException(
+              status_code=status.HTTP_400_BAD_REQUEST,
+              detail="You already have an active lab in our records. Please terminate it first."
+          )
+
+      # No active lab found, proceed with creation
+      lab_id = await lab_service.launch()
+
+      # Store in cache and database
+      await cache_events.set("active_labs", user_id, lab_id, TTL_SECONDS)
+      await user_service.link_lab_to_user(user_id, lab_id)
+
+      return {"lab_id": lab_id}
+      `,
+    },
+    dynamoDB: {
+      title: 'DynamoDB Storage',
+      description:
+        'Persistent NoSQL database for user data and progress tracking',
+      details: [
+        'Stores user accounts and authentication details',
+        'Maintains user-to-lab mappings for access control',
+        'Tracks progress on questions, lessons, and modules',
+        'Provides data for progress visualization and feedback',
+      ],
+      code: `
+  // User progress structure in DynamoDB
+  {
+    "user_id": "user-12345",
+    "email": "user@example.com",
+    "name": "Test User",
+    "created_at": 1651234567,
+    "labs": ["lab-8a7b6c5d"],
+    "progress": {
+      "module-uuid-1": {
+        "lesson-uuid-1": {
+          "1": true,  // Question 1 completed
+          "2": true,  // Question 2 completed
+          "3": false  // Question 3 not completed
+        },
+        "lesson-uuid-2": {
+          "1": true,
+          "2": false
+        }
+      },
+      "module-uuid-2": {
+        // Additional module progress...
+      }
+    }
+  }
+      `,
+    },
+    questionScripts: {
+      title: 'Question Shell Scripts',
+      description:
+        'Shell scripts defining question content, setup, and verification',
+      details: [
+        'Defines question text, type, and difficulty',
+        'Contains setup code (-q flag) to prepare lab environment',
+        'Contains verification code (-c flag) to check solutions',
+        'Uses exit codes to indicate success or failure',
+      ],
+      code: `
+  #!/bin/bash
+
+  # Question Number: 3
+  # Question: Create a Docker container running nginx and expose it on port 8081 of the host machine. The container should be named "nginx-test" and store its logs in /home/coder/lab/nginx-logs.
+  # Question Type: Check
+  # Question Difficulty: Medium
+
+  # -q flag: Clean up any existing container with the same name and create the log directory
+  if [[ "$1" == "-q" ]]; then
+    echo "Cleaning up any existing nginx-test container..."
+    docker rm -f nginx-test 2>/dev/null
+    mkdir -p /home/coder/lab/nginx-logs
+    exit 0
+  fi
+
+  # -c flag: Check if the container is running and exposing port 8081
+  if [[ "$1" == "-c" ]]; then
+    # Check if container exists and is running
+    if docker ps | grep -q "nginx-test"; then
+      # Check if port 8081 is mapped
+      port_mapping=$(docker port nginx-test)
+      # Check if the volume is mounted correctly
+      volume_mapping=$(docker inspect nginx-test --format='{{range .Mounts}}{{.Source}}:{{.Destination}} {{end}}')
+
+      if [[ "$port_mapping" == *"8081"* && "$port_mapping" == *"80"* &&
+            "$volume_mapping" == *"/home/coder/lab/nginx-logs"* ]]; then
+        echo "Container 'nginx-test' is running with correct port and volume mapping."
+        exit 0
+      else
+        echo "Container 'nginx-test' is running but configuration is incorrect."
+        exit 1
+      fi
+    else
+      echo "Container 'nginx-test' is not running."
+      exit 1
+    fi
+  fi
+      `,
+    },
+    progressTracking: {
+      title: 'Progress Tracking System',
+      description:
+        'Backend system that tracks user progress across learning modules',
+      details: [
+        'Records completion status for each question',
+        'Updates DynamoDB when solutions are verified as correct',
+        'Provides progress data to frontend for visualization',
+        'Integrates with feedback generation for personalized guidance',
+      ],
+      code: `
+  // When a solution is verified as correct
+  async def check_question(
+      pod_name: str,
+      module_uuid: str,
+      lesson_uuid: str,
+      question_number: int,
+      user_id: str,
+      additional_data: Optional[Dict[str, Any]] = None
+  ) -> JSONResponse:
+      # Run the check script in the pod
+      is_correct = await questions_service.execute_check_by_number(
+          pod_name,
+          module_uuid,
+          lesson_uuid,
+          question_number
+      )
+
+      # If the solution is correct, update user progress
+      if is_correct:
+          await user_service.track_user_progress(
+              user_id,
+              module_uuid,
+              lesson_uuid,
+              question_number,
+              True  # completed
+          )
+          return JSONResponse({
+              "status": "success",
+              "message": "Your solution is correct!",
+              "completed": True
+          })
+      else:
+          return JSONResponse({
+              "status": "failure",
+              "message": "Your solution is not correct. Please try again.",
+              "completed": False
+          })
+      `,
+    },
+    feedbackIntegration: {
+      title: 'Feedback Integration',
+      description:
+        'System that connects lab progress data with the feedback service',
+      details: [
+        'Retrieves user progress data from DynamoDB',
+        'Collects question metadata for context',
+        'Formats data for AI feedback generation',
+        'Provides personalized guidance based on progress',
+      ],
+      code: `
+  // Collect data for feedback generation
+  async def request_feedback(
+      user_id: str,
+      module_uuid: str,
+      lesson_uuid: str,
+      feedback_id: str
+  ) -> JSONResponse:
+      # Get user progress
+      progress = await user_service.get_user_progress(
+          user_id,
+          module_uuid,
+          lesson_uuid
+      )
+
+      # Get questions for the module/lesson
+      questions_response = await questions_service.get_questions(
+          module_uuid,
+          lesson_uuid
+      )
+      questions = questions_response.get("questions", [])
+
+      # Format data for feedback
+      feedback_request = {
+          "user_id": user_id,
+          "module_uuid": module_uuid,
+          "lesson_uuid": lesson_uuid,
+          "feedback_id": feedback_id,
+          "questions": questions,
+          "progress": progress,
+          "timestamp": datetime.utcnow().isoformat()
+      }
+
+      # Publish to FeedbackRequested topic
+      await momento_service.publish(
+          "FeedbackRequested",
+          json.dumps(feedback_request)
+      )
+
+      return JSONResponse({
+          "status": "processing",
+          "feedback_id": feedback_id,
+          "message": "Feedback request submitted successfully"
+      })
+      `,
+    },
+  };
+
+  // Add lab workflow steps
+  labWorkflows = {
+    launch: [
+      {
+        number: 1,
+        description: 'User clicks "Launch Lab" button in frontend',
+        component: 'Frontend',
+      },
+      {
+        number: 2,
+        description: 'Backend checks Momento cache for existing active lab',
+        component: 'Cache',
+      },
+      {
+        number: 3,
+        description: 'If not in cache, backend checks DynamoDB as fallback',
+        component: 'Database',
+      },
+      {
+        number: 4,
+        description: 'Lab service creates K8s pod with lab container',
+        component: 'Kubernetes',
+      },
+      {
+        number: 5,
+        description: 'Lab service creates service and updates ingress',
+        component: 'Kubernetes',
+      },
+      {
+        number: 6,
+        description: 'Lab ID stored in Momento cache with user ID as key',
+        component: 'Cache',
+      },
+      {
+        number: 7,
+        description: 'User-to-lab mapping saved in DynamoDB for persistence',
+        component: 'Database',
+      },
+      {
+        number: 8,
+        description: 'Container starts Code-Server, Docker, and Kind',
+        component: 'Lab Container',
+      },
+      {
+        number: 9,
+        description: 'Frontend loads lab in iframe using generated URL',
+        component: 'Frontend',
+      },
+    ],
+    question: [
+      {
+        number: 1,
+        description: 'Frontend requests questions for module/lesson',
+        component: 'Frontend',
+      },
+      {
+        number: 2,
+        description: 'Backend checks Momento cache for cached questions',
+        component: 'Cache',
+      },
+      {
+        number: 3,
+        description: 'If not cached, backend fetches from S3 and parses',
+        component: 'S3 Storage',
+      },
+      {
+        number: 4,
+        description: 'Backend caches parsed questions in Momento',
+        component: 'Cache',
+      },
+      {
+        number: 5,
+        description: 'Questions returned to frontend with metadata',
+        component: 'Frontend',
+      },
+      {
+        number: 6,
+        description: 'For Check-type question: Backend extracts -q flag script',
+        component: 'Question Service',
+      },
+      {
+        number: 7,
+        description: 'Setup script copied to pod via kubectl cp',
+        component: 'Kubernetes',
+      },
+      {
+        number: 8,
+        description: 'Setup script executed in pod environment',
+        component: 'Lab Container',
+      },
+      {
+        number: 9,
+        description: 'User works on solution in VS Code environment',
+        component: 'Lab Container',
+      },
+      {
+        number: 10,
+        description: 'User clicks "Check Solution" button',
+        component: 'Frontend',
+      },
+      {
+        number: 11,
+        description: 'Backend extracts -c flag script for verification',
+        component: 'Question Service',
+      },
+      {
+        number: 12,
+        description: 'Verification script copied to pod via kubectl cp',
+        component: 'Kubernetes',
+      },
+      {
+        number: 13,
+        description: 'Verification script executed to check solution',
+        component: 'Lab Container',
+      },
+      {
+        number: 14,
+        description: 'Success/failure determined by script exit code',
+        component: 'Question Service',
+      },
+      {
+        number: 15,
+        description: 'If correct, progress updated in DynamoDB',
+        component: 'User Service',
+      },
+      {
+        number: 16,
+        description: 'Updated progress returned to frontend',
+        component: 'Frontend',
+      },
+    ],
+    feedback: [
+      {
+        number: 1,
+        description: 'User requests feedback on lab progress',
+        component: 'Frontend',
+      },
+      {
+        number: 2,
+        description: 'Backend fetches user progress from DynamoDB',
+        component: 'Database',
+      },
+      {
+        number: 3,
+        description: 'Backend gets question metadata from cache or S3',
+        component: 'Cache/S3',
+      },
+      {
+        number: 4,
+        description: 'Data formatted with feedback ID for tracking',
+        component: 'Backend',
+      },
+      {
+        number: 5,
+        description: 'Request published to FeedbackRequested topic',
+        component: 'Momento',
+      },
+      {
+        number: 6,
+        description: 'Feedback service processes request with AI',
+        component: 'AI Service',
+      },
+      {
+        number: 7,
+        description: 'Generated feedback published to FeedbackGiven topic',
+        component: 'Momento',
+      },
+      {
+        number: 8,
+        description: 'Frontend receives feedback via WebSocket subscription',
+        component: 'Frontend',
+      },
+      {
+        number: 9,
+        description: 'Feedback displayed to user with formatted markdown',
+        component: 'Frontend',
+      },
+    ],
+  };
   constructor() {}
 
   ngOnInit(): void {
@@ -622,9 +1379,10 @@ saveFeedback(): void {
       this.feedbackSteps = [
         {
           number: 1,
-          description: 'Angular frontend requests Momento token from Lambda via API Gateway',
+          description:
+            'Angular frontend requests Momento token from Lambda via API Gateway',
           from: 'angularFrontend',
-          to: 'tokenVending'
+          to: 'tokenVending',
         },
         // Add the rest of your steps...
       ];
@@ -640,7 +1398,7 @@ saveFeedback(): void {
       // Don't reset expanded node when switching between tabs
       // Only reset if the type of expanded node doesn't exist in new tab
       const nodeExists =
-        tab === 'chatbot'
+        tab === 'labs'
           ? this.expandedNode !== null &&
             Object.keys(this.nodeDetails).includes(this.expandedNode)
           : this.expandedNode !== null &&
