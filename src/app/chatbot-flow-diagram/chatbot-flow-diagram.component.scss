@@ -88,7 +88,8 @@
 }
 
 .chatbot-flow-diagram,
-.feedback-flow-diagram {
+.feedback-flow-diagram,
+.labs-flow-diagram {
   width: 100%;
   background-color: var(--light-card-bg);
   border-radius: 0.75rem;
@@ -100,7 +101,8 @@
   align-items: center;
 }
 
-.feedback-flow-subtitle {
+.feedback-flow-subtitle,
+.section-description {
   font-size: 1rem;
   text-align: center;
   margin-bottom: 2rem;
@@ -116,6 +118,7 @@
   position: relative;
   width: 100%;
   max-width: 800px;
+  text-align: center;
 }
 
 .step-number {
@@ -159,12 +162,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 6rem;
+  min-height: 7rem;
   width: 16rem;
   cursor: pointer;
   transition: all 0.3s ease;
   overflow: hidden;
-  margin-bottom: 0.5rem;
+  margin: 0 auto 0.75rem;
 
   &:after {
     content: "";
@@ -233,7 +236,7 @@
     object-fit: contain !important;
     transform: scale(1.2);
     margin: 0.125rem 0 0.5rem !important;
-    transition: none !important;
+    transition: all 0.3s ease !important;
   }
 
   &:hover {
@@ -241,15 +244,11 @@
     box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.15);
 
     .aws-icon,
-    .tech-icon {
+    .tech-icon,
+    .momento-icon,
+    img[src*="momento-logo-forest"] {
       animation: floatAnimation 2s ease infinite;
     }
-  }
-  img[src*="momento-logo-forest"],
-  .momento-icon {
-    transform: scale(1.2) !important;
-    box-shadow: none !important;
-    animation: none !important;
   }
 }
 
@@ -341,7 +340,7 @@
   align-items: center;
   justify-content: center;
   color: var(--light-text-muted);
-  margin: 1rem 0;
+  margin: 0.75rem auto;
   position: relative;
 
   &:before {
@@ -430,6 +429,8 @@
   position: relative;
   z-index: 1;
   border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+  white-space: nowrap;
+  text-align: center;
 }
 
 // Details panel for node info
@@ -511,6 +512,31 @@
   width: 100%;
   max-width: 40rem;
   position: relative;
+  margin: 0 auto;
+
+  &:before {
+    content: "";
+    position: absolute;
+    top: -1rem;
+    bottom: -1rem;
+    left: 50%;
+    width: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    transform: translateX(-50%);
+  }
+}
+
+// For centered question flow grid
+.question-flow-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  width: 100%;
+  max-width: 40rem;
+  position: relative;
+  margin: 0 auto;
+  justify-content: center;
+  align-items: center;
 
   &:before {
     content: "";
@@ -529,6 +555,8 @@
   flex-direction: column;
   align-items: center;
   position: relative;
+  gap: 1rem;
+  justify-content: center;
 }
 
 // Divider for secondary flow
@@ -540,6 +568,7 @@
   width: 100%;
   position: relative;
   overflow: visible;
+  text-align: center;
 
   &:before {
     content: "Background Process";
@@ -562,6 +591,27 @@
   text-align: center;
   margin-bottom: 1.5rem;
   color: var(--primary-color);
+}
+
+// For workflow description and subtitles
+.workflow-description {
+  text-align: center;
+  color: var(--light-text-secondary);
+  margin-bottom: 1.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 0.95rem;
+}
+
+// For verification section subtitles
+.verification-subtitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  margin: 1.5rem 0 1rem;
+  color: var(--primary-color);
+  width: 100%;
 }
 
 // Horizontal flow for document indexing
@@ -774,13 +824,24 @@
     }
 
     .flow-from,
-    .flow-to {
+    .flow-to,
+    .flow-component {
       background-color: rgba(var(--bs-primary-rgb), 0.1);
       padding: 0.25rem 0.5rem;
       border-radius: 0.25rem;
       font-family: monospace;
     }
   }
+}
+
+// Add additional styling for the flow component class
+.flow-component {
+  background-color: rgba(var(--bs-primary-rgb), 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--primary-color);
 }
 
 // Key info styles for both tabs
@@ -926,9 +987,14 @@
   }
 
   .chatbot-flow-diagram,
-  .feedback-flow-diagram {
+  .feedback-flow-diagram,
+  .labs-flow-diagram {
     background-color: var(--dark-card-bg);
     box-shadow: var(--shadow-dark);
+  }
+
+  .workflow-description {
+    color: var(--dark-text-secondary);
   }
 
   .arrow-label {
@@ -1045,10 +1111,16 @@
       color: var(--dark-text-secondary);
     }
   }
+
+  .flow-component {
+    color: var(--primary-color);
+    background-color: rgba(255, 255, 255, 0.1);
+  }
 }
 
 @media (max-width: 768px) {
-  .flow-grid {
+  .flow-grid,
+  .question-flow-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
 
@@ -1120,11 +1192,16 @@
     width: 100%;
     max-width: 300px;
   }
+
+  .verification-subtitle {
+    font-size: 1rem;
+  }
 }
 
 @media (max-width: 480px) {
   .chatbot-flow-diagram,
-  .feedback-flow-diagram {
+  .feedback-flow-diagram,
+  .labs-flow-diagram {
     padding: 1rem 0.5rem;
   }
 
@@ -1167,5 +1244,13 @@
       margin-bottom: 0.5rem;
       margin-right: 0;
     }
+  }
+
+  .workflow-description {
+    font-size: 0.9rem;
+  }
+
+  .flow-subtitle {
+    font-size: 1.1rem;
   }
 }
