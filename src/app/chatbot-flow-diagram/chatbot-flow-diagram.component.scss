@@ -114,10 +114,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   margin-bottom: 1.5rem;
   position: relative;
   width: 100%;
-  max-width: 800px;
   text-align: center;
 }
 
@@ -513,6 +513,8 @@
   max-width: 40rem;
   position: relative;
   margin: 0 auto;
+  justify-content: center;
+  align-items: center;
 
   &:before {
     content: "";
@@ -525,8 +527,35 @@
     transform: translateX(-50%);
   }
 }
+// New centered flow for practical questions
+.centered-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto;
 
-// For centered question flow grid
+  .flow-section {
+    width: 100%;
+
+    .flow-row {
+      display: flex;
+      justify-content: center;
+
+      .flow-box {
+        width: 100%;
+        max-width: 20rem;
+      }
+    }
+  }
+
+  .flow-arrow {
+    width: 100%;
+    text-align: center;
+  }
+}
+// For centered question flow grid - FIXED CENTERING FOR MCQ SECTION
 .question-flow-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -609,12 +638,12 @@
   font-size: 1.1rem;
   font-weight: 600;
   text-align: center;
-  margin: 1.5rem 0 1rem;
+  margin: 1.5rem 0 1.5rem;
   color: var(--primary-color);
   width: 100%;
 }
 
-// Horizontal flow for document indexing
+// Horizontal flow for document indexing - FIXED SHADOW ISSUE
 .indexing-flow {
   display: flex;
   flex-wrap: nowrap;
@@ -633,21 +662,9 @@
   scroll-padding: 1rem;
   -webkit-overflow-scrolling: touch;
 
-  // Remove the persistent shadow at the end
+  // Remove the persistent shadow at the end by removing the ::after content
   &::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 3rem;
-    background: linear-gradient(
-      to right,
-      rgba(255, 255, 255, 0),
-      var(--light-card-bg) 90%
-    );
-    pointer-events: none;
-    z-index: 4;
+    display: none; // Removing the shadow causing noise
   }
 
   // Prevent shadow on hover for these specific elements
@@ -975,11 +992,7 @@
 // Dark mode styles
 :host-context([data-bs-theme="dark"]) {
   .indexing-flow::after {
-    background: linear-gradient(
-      to right,
-      rgba(33, 37, 41, 0),
-      var(--dark-card-bg) 90%
-    );
+    display: none; // Remove shadow in dark mode too
   }
 
   .chatbot-flow-container {
@@ -1046,7 +1059,6 @@
       }
     }
   }
-
   .aws-icon,
   .tech-icon {
     filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
@@ -1119,6 +1131,24 @@
 }
 
 @media (max-width: 768px) {
+  .flow-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    &:before {
+      display: none;
+    }
+  }
+
+  .centered-flow {
+    .flow-section {
+      .flow-row {
+        .flow-box {
+          max-width: 100%;
+        }
+      }
+    }
+  }
   .flow-grid,
   .question-flow-grid {
     grid-template-columns: 1fr;

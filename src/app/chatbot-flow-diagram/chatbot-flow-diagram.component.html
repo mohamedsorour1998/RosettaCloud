@@ -469,7 +469,7 @@
         How different question types are verified
       </p>
 
-      <!-- MCQ Questions -->
+      <!-- MCQ Questions - FIXED STRUCTURE FOR CENTERING -->
       <div class="flow-section">
         <h4 class="verification-subtitle">Multiple Choice Questions (MCQ)</h4>
         <div class="flow-grid">
@@ -550,181 +550,164 @@
       <!-- Check Questions -->
       <div class="flow-section">
         <h4 class="verification-subtitle">Practical "Check" Questions</h4>
-        <div class="flow-section">
-          <div class="step-number">1</div>
-          <div class="flow-row">
-            <div class="flow-box client-box animated-box">
-              <img src="/angular.ico" alt="Angular" class="aws-icon" />
-              <div class="box-title">Angular Frontend</div>
-              <div class="box-content">
-                User loads question, triggering setup script
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flow-arrow">
-          <i class="bi bi-arrow-down arrow-icon"></i>
-          <div class="arrow-label">Setup Environment</div>
-        </div>
-
-        <div class="flow-section">
-          <div class="step-number">2</div>
-          <div class="flow-row">
-            <div
-              class="flow-box backend-box animated-box"
-              (click)="toggleNodeDetails('questionService')"
-            >
-              <img
-                src="/fastapi-1.svg"
-                alt="FastAPI"
-                class="tech-icon fastapi-icon"
-              />
-              <div class="box-title">Question Service</div>
-              <div class="box-content">
-                Extracts -q script and copies to pod
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flow-arrow">
-          <i class="bi bi-arrow-down arrow-icon"></i>
-          <div class="arrow-label">Run Setup in Pod</div>
-        </div>
-
-        <div class="flow-section">
-          <div class="step-number">3</div>
-          <div class="flow-row">
-            <div
-              class="flow-box ai-box animated-box"
-              (click)="toggleNodeDetails('labContainer')"
-            >
-              <img src="/docker.svg" alt="Container" class="aws-icon" />
-              <div class="box-title">Lab Container</div>
-              <div class="box-content">
-                Executes setup script to prepare environment
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flow-arrow">
-          <i class="bi bi-arrow-down arrow-icon"></i>
-          <div class="arrow-label">User Works on Solution</div>
-        </div>
-
-        <div class="flow-section">
-          <div class="step-number">4</div>
-          <div class="flow-row">
-            <div class="flow-box client-box animated-box">
-              <img src="/angular.ico" alt="Angular" class="aws-icon" />
-              <div class="box-title">Angular Frontend</div>
-              <div class="box-content">User clicks "Check Solution" button</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flow-arrow">
-          <i class="bi bi-arrow-down arrow-icon"></i>
-          <div class="arrow-label">Extract Verification Script</div>
-        </div>
-
-        <div class="flow-section">
-          <div class="step-number">5</div>
-          <div class="flow-row">
-            <div class="flow-box backend-box animated-box">
-              <img
-                src="/fastapi-1.svg"
-                alt="FastAPI"
-                class="tech-icon fastapi-icon"
-              />
-              <div class="box-title">Question Service</div>
-              <div class="box-content">
-                Extracts -c flag script and copies to pod
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flow-arrow">
-          <i class="bi bi-arrow-down arrow-icon"></i>
-          <div class="arrow-label">Run Verification in Pod</div>
-        </div>
-
-        <div class="flow-section">
-          <div class="step-number">6</div>
-          <div class="flow-row">
-            <div class="flow-box ai-box animated-box">
-              <img src="/docker.svg" alt="Container" class="aws-icon" />
-              <div class="box-title">Lab Container</div>
-              <div class="box-content">
-                Executes verification script and returns exit code
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="flow-arrow">
-          <i class="bi bi-arrow-down arrow-icon"></i>
-          <div class="arrow-label">If Solution Correct</div>
-        </div>
-
-        <div class="flow-section">
-          <div class="step-number">7</div>
-          <div class="flow-row">
-            <div
-              class="flow-box data-box animated-box"
-              (click)="toggleNodeDetails('progressTracking')"
-            >
-              <img
-                src="/Res_Amazon-DynamoDB_Table_48.svg"
-                alt="DynamoDB"
-                class="aws-icon"
-              />
-              <div class="box-title">Progress Tracking</div>
-              <div class="box-content">
-                Updates completion status in DynamoDB
+        <!-- IMPORTANT: Using a centered-flow class here -->
+        <div class="centered-flow">
+          <div class="flow-section">
+            <div class="step-number">1</div>
+            <div class="flow-row">
+              <div class="flow-box client-box animated-box">
+                <img src="/angular.ico" alt="Angular" class="aws-icon" />
+                <div class="box-title">Angular Frontend</div>
+                <div class="box-content">
+                  User loads question, triggering setup script
+                </div>
               </div>
             </div>
           </div>
 
-          <div
-            *ngIf="expandedNode === 'progressTracking'"
-            class="details-panel"
-          >
-            <h3 class="details-title">
-              {{ labsNodeDetails.progressTracking.title }}
-            </h3>
-            <p class="details-subtitle">
-              {{ labsNodeDetails.progressTracking.description }}
-            </p>
-            <ul class="details-list">
-              <li
-                *ngFor="let detail of labsNodeDetails.progressTracking.details"
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Setup Environment</div>
+          </div>
+
+          <div class="flow-section">
+            <div class="step-number">2</div>
+            <div class="flow-row">
+              <div
+                class="flow-box backend-box animated-box"
+                (click)="toggleNodeDetails('questionService')"
               >
-                {{ detail }}
-              </li>
-            </ul>
-            <div class="code-block">
-              <pre>{{ labsNodeDetails.progressTracking.code }}</pre>
+                <img
+                  src="/fastapi-1.svg"
+                  alt="FastAPI"
+                  class="tech-icon fastapi-icon"
+                />
+                <div class="box-title">Question Service</div>
+                <div class="box-content">
+                  Extracts -q script and copies to pod
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="flow-arrow">
-          <i class="bi bi-arrow-down arrow-icon"></i>
-          <div class="arrow-label">Return Status to Frontend</div>
-        </div>
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Run Setup in Pod</div>
+          </div>
 
-        <div class="flow-section">
-          <div class="step-number">8</div>
-          <div class="flow-row">
-            <div class="flow-box client-box animated-box">
-              <img src="/angular.ico" alt="Angular" class="aws-icon" />
-              <div class="box-title">Angular Frontend</div>
-              <div class="box-content">
-                Shows success message and updates progress UI
+          <div class="flow-section">
+            <div class="step-number">3</div>
+            <div class="flow-row">
+              <div
+                class="flow-box ai-box animated-box"
+                (click)="toggleNodeDetails('labContainer')"
+              >
+                <img src="/docker.svg" alt="Container" class="aws-icon" />
+                <div class="box-title">Lab Container</div>
+                <div class="box-content">
+                  Executes setup script to prepare environment
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">User Works on Solution</div>
+          </div>
+
+          <div class="flow-section">
+            <div class="step-number">4</div>
+            <div class="flow-row">
+              <div class="flow-box client-box animated-box">
+                <img src="/angular.ico" alt="Angular" class="aws-icon" />
+                <div class="box-title">Angular Frontend</div>
+                <div class="box-content">
+                  User clicks "Check Solution" button
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Extract Verification Script</div>
+          </div>
+
+          <div class="flow-section">
+            <div class="step-number">5</div>
+            <div class="flow-row">
+              <div class="flow-box backend-box animated-box">
+                <img
+                  src="/fastapi-1.svg"
+                  alt="FastAPI"
+                  class="tech-icon fastapi-icon"
+                />
+                <div class="box-title">Question Service</div>
+                <div class="box-content">
+                  Extracts -c flag script and copies to pod
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Run Verification in Pod</div>
+          </div>
+
+          <div class="flow-section">
+            <div class="step-number">6</div>
+            <div class="flow-row">
+              <div class="flow-box ai-box animated-box">
+                <img src="/docker.svg" alt="Container" class="aws-icon" />
+                <div class="box-title">Lab Container</div>
+                <div class="box-content">
+                  Executes verification script and returns exit code
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">If Solution Correct</div>
+          </div>
+
+          <div class="flow-section">
+            <div class="step-number">7</div>
+            <div class="flow-row">
+              <div
+                class="flow-box data-box animated-box"
+                (click)="toggleNodeDetails('progressTracking')"
+              >
+                <img
+                  src="/Res_Amazon-DynamoDB_Table_48.svg"
+                  alt="DynamoDB"
+                  class="aws-icon"
+                />
+                <div class="box-title">Progress Tracking</div>
+                <div class="box-content">
+                  Updates completion status in DynamoDB
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-arrow">
+            <i class="bi bi-arrow-down arrow-icon"></i>
+            <div class="arrow-label">Return Status to Frontend</div>
+          </div>
+
+          <div class="flow-section">
+            <div class="step-number">8</div>
+            <div class="flow-row">
+              <div class="flow-box client-box animated-box">
+                <img src="/angular.ico" alt="Angular" class="aws-icon" />
+                <div class="box-title">Angular Frontend</div>
+                <div class="box-content">
+                  Shows success message and updates progress UI
+                </div>
               </div>
             </div>
           </div>
