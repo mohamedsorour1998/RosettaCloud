@@ -226,9 +226,14 @@
   // Fix for Momento logo
   img[src*="momento-logo-forest"],
   .momento-icon {
-    width: 2.5rem !important;
-    height: 2rem !important;
+    max-width: 3.25rem !important;
+    max-height: 2.5rem !important;
+    width: auto !important;
+    height: auto !important;
     object-fit: contain !important;
+    transform: scale(1.2);
+    margin: 0.125rem 0 0.5rem !important;
+    transition: none !important;
   }
 
   &:hover {
@@ -239,6 +244,12 @@
     .tech-icon {
       animation: floatAnimation 2s ease infinite;
     }
+  }
+  img[src*="momento-logo-forest"],
+  .momento-icon {
+    transform: scale(1.2) !important;
+    box-shadow: none !important;
+    animation: none !important;
   }
 }
 
@@ -571,6 +582,37 @@
   scroll-behavior: smooth;
   scroll-padding: 1rem;
   -webkit-overflow-scrolling: touch;
+
+  // Remove the persistent shadow at the end
+  &::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 3rem;
+    background: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0),
+      var(--light-card-bg) 90%
+    );
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  // Prevent shadow on hover for these specific elements
+  .flow-box {
+    &:hover {
+      box-shadow: none;
+    }
+  }
+
+  .animated-box {
+    &:hover {
+      box-shadow: none;
+      transform: translateY(-0.25rem);
+    }
+  }
 }
 
 // Line container spans between components but not to the edges
@@ -645,19 +687,6 @@
 
 .indexing-flow::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--bs-primary-rgb), 0.5);
-}
-
-// Add shadow indicator to show there's more content
-.indexing-flow::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 3rem;
-  background: linear-gradient(to right, transparent, var(--light-card-bg) 90%);
-  pointer-events: none;
-  z-index: 4;
 }
 
 // Animation for boxes
@@ -885,7 +914,11 @@
 // Dark mode styles
 :host-context([data-bs-theme="dark"]) {
   .indexing-flow::after {
-    background: linear-gradient(to right, transparent, var(--dark-card-bg) 90%);
+    background: linear-gradient(
+      to right,
+      rgba(33, 37, 41, 0),
+      var(--dark-card-bg) 90%
+    );
   }
 
   .chatbot-flow-container {
@@ -953,6 +986,12 @@
     filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   }
 
+  // Enhance Momento logo visibility in dark mode
+  img[src*="momento-logo-forest"],
+  .momento-icon {
+    filter: brightness(1.4);
+  }
+
   // Dark mode styles for indexing flow
   .indexing-line-container {
     background-color: rgba(255, 255, 255, 0.4);
@@ -971,14 +1010,11 @@
     box-shadow: 0 0 0 6px var(--dark-card-bg);
   }
 
-  .indexing-flow::after {
-    background: linear-gradient(to right, transparent, rgba(33, 37, 41, 0.7));
-  }
-
-  .indexing-flow .flow-box,
-  .indexing-flow .flow-box:hover,
-  .indexing-flow .animated-box:hover {
-    box-shadow: none !important;
+  .indexing-flow {
+    .flow-box:hover,
+    .animated-box:hover {
+      box-shadow: none !important;
+    }
   }
 
   .indexing-flow::before {
@@ -1011,7 +1047,6 @@
   }
 }
 
-// Responsive styles
 @media (max-width: 768px) {
   .flow-grid {
     grid-template-columns: 1fr;
@@ -1033,7 +1068,7 @@
       display: none;
     }
   }
-// // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // 
+
   .indexing-line-container {
     width: 3px; // Make line vertical
     height: 100%;
@@ -1055,11 +1090,47 @@
   .details-panel {
     max-width: 100%;
   }
+
+  .selector-tabs {
+    flex-direction: column;
+    align-items: stretch;
+
+    .selector-tab {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .flow-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .flow-box {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .info-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .info-card {
+    width: 100%;
+    max-width: 300px;
+  }
 }
 
 @media (max-width: 480px) {
-  .chatbot-flow-diagram {
+  .chatbot-flow-diagram,
+  .feedback-flow-diagram {
     padding: 1rem 0.5rem;
+  }
+
+  .chatbot-flow-title,
+  .feedback-flow-title {
+    font-size: 1.25rem;
   }
 
   .step-number {
@@ -1088,253 +1159,13 @@
     width: 100%;
     min-width: auto;
   }
-}
-// Documentation Section Selector
-.documentation-selector {
-  width: 100%;
-  margin-bottom: 2rem;
 
-  .selector-tabs {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-
-    .selector-tab {
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
-      font-weight: 500;
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      background-color: transparent;
-      border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
-      color: var(--bs-secondary);
-      cursor: pointer;
-      transition: all 0.3s ease;
-
-      i {
-        font-size: 1.25rem;
-      }
-
-      &:hover {
-        background-color: rgba(var(--bs-primary-rgb), 0.1);
-        color: var(--primary-color);
-      }
-
-      &.active {
-        background-color: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-        box-shadow: 0 0.25rem 0.75rem rgba(var(--bs-primary-rgb), 0.25);
-      }
-    }
-  }
-}
-
-// Section title for each tab
-.section-title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  text-align: center;
-  color: var(--primary-color);
-}
-
-.section-description {
-  font-size: 1.1rem;
-  text-align: center;
-  margin-bottom: 2rem;
-  max-width: 700px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-// Dark mode styles
-:host-context([data-bs-theme="dark"]) {
-  .selector-tab {
-    border-color: var(--dark-border-color);
-    color: var(--dark-text-secondary);
-
-    &:hover {
-      background-color: rgba(var(--bs-primary-rgb), 0.15);
-    }
-  }
-}
-
-// Responsive styles
-@media (max-width: 768px) {
-  .selector-tabs {
+  .step-item {
     flex-direction: column;
-    align-items: stretch;
 
-    .selector-tab {
-      width: 100%;
-      justify-content: center;
+    .step-number {
+      margin-bottom: 0.5rem;
+      margin-right: 0;
     }
   }
-}
-// Add these styles to chatbot-flow-diagram.component.scss
-// Key info styles - ensure these are consistent across tabs
-.key-info {
-  width: 100%;
-  max-width: 800px;
-  margin: 2rem 0;
-}
-
-.key-info-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  color: var(--primary-color);
-}
-
-.info-cards {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1.5rem;
-}
-
-.info-card {
-  background-color: white;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  width: 250px;
-  text-align: center;
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: translateY(-0.25rem);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  }
-
-  .card-icon {
-    width: 3rem;
-    height: 3rem;
-    margin: 0 auto 1rem;
-    background: var(--primary-gradient);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    i {
-      font-size: 1.5rem;
-    }
-  }
-
-  .card-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 0.75rem;
-  }
-
-  .card-text {
-    font-size: 0.875rem;
-    color: var(--bs-secondary);
-    line-height: 1.5;
-    margin: 0;
-  }
-}
-
-// Dark mode styles for info cards
-:host-context([data-bs-theme="dark"]) {
-  .info-card {
-    background-color: var(--dark-card-bg);
-
-    .card-text {
-      color: var(--dark-text-secondary);
-    }
-  }
-}
-
-// Responsive styles for info cards
-@media (max-width: 768px) {
-  .info-cards {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .info-card {
-    width: 100%;
-    max-width: 300px;
-  }
-}
-/* Add this to both component SCSS files */
-
-/* Standardize all icons */
-.tech-icon,
-.aws-icon {
-  width: 2.5rem !important;
-  height: 2.5rem !important;
-  object-fit: contain !important;
-  margin-bottom: 0.5rem;
-}
-
-/* Fix the FastAPI logo specifically */
-img[src*="fastapi"] {
-  height: 1.8rem !important;
-  width: auto !important;
-  margin-top: 0.35rem !important;
-}
-
-/* Fix FastAPI icon specific issues */
-.fastapi-icon {
-  height: 1.5rem !important;
-  width: auto !important;
-  margin-top: 0.5rem !important;
-}
-
-/* Split arrow styling */
-.split-arrow {
-  position: relative;
-}
-
-.split-arrow::before,
-.split-arrow::after {
-  content: "";
-  position: absolute;
-  width: 2px;
-  background-color: rgba(var(--bs-primary-rgb), 0.3);
-}
-
-.split-arrow::before {
-  top: -10px;
-  left: 30%;
-  height: 40px;
-  transform: translateX(-50%);
-}
-
-.split-arrow::after {
-  top: -10px;
-  right: 30%;
-  height: 40px;
-  transform: translateX(50%);
-}
-/* Add to your component SCSS file */
-.tech-icon,
-.aws-icon {
-  width: 2.5rem !important;
-  height: 2.5rem !important;
-  object-fit: contain !important;
-  margin-bottom: 0.5rem;
-}
-
-/* Fix FastAPI icon specific issues */
-.fastapi-icon {
-  height: 1.5rem !important;
-  width: auto !important;
-  margin-top: 0.5rem !important;
-}
-
-/* Fix Momento logo sizing */
-.momento-icon {
-  width: 2.5rem !important;
-  height: 2rem !important;
-  object-fit: contain !important;
 }
