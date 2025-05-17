@@ -22,7 +22,7 @@ from kubernetes.client.rest import ApiException
 NAMESPACE         = os.getenv("LAB_K8S_NAMESPACE", "openedx")
 INGRESS_NAMESPACE = os.getenv("LAB_INGRESS_NAMESPACE", NAMESPACE)
 INGRESS_NAME      = os.getenv("LAB_INGRESS_NAME", "rosettacloud-ingress")
-POD_IMAGE         = os.getenv("LAB_POD_IMAGE", "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:latest")
+POD_IMAGE         = os.getenv("LAB_POD_IMAGE", "339712964409.dkr.ecr.me-central-1.amazonaws.com/interactive-labs:v1")
 IMAGE_PULL_SECRET = os.getenv("LAB_IMAGE_PULL_SECRET", "ecr-creds")
 WILDCARD_DOMAIN   = os.getenv("LAB_WILDCARD_DOMAIN", "labs.dev.rosettacloud.app")
 INGRESS_CLASS     = os.getenv("LAB_INGRESS_CLASS", "nginx")
@@ -129,6 +129,7 @@ class EKSLabs:
                     containers=[client.V1Container(
                         name="lab",
                         image=POD_IMAGE,
+                        image_pull_policy="IfNotPresent",
                         ports=[client.V1ContainerPort(container_port=80)],
                         security_context=client.V1SecurityContext(
                             privileged=True,
@@ -156,22 +157,64 @@ class EKSLabs:
                 await asyncio.to_thread(core.create_namespaced_pod, NAMESPACE, pod)
                 LOG.info(f"Pod {pod_id} created successfully")
                 
-                # Wait for pod to be running
-                deadline = dt.datetime.now(dt.timezone.utc).timestamp() + 60
+                # Wait for pod to be running or detect image pull errors
+                deadline = dt.datetime.now(dt.timezone.utc).timestamp() + 120  # Increased timeout for image pulls
+                image_pull_error = False
+                
                 while dt.datetime.now(dt.timezone.utc).timestamp() < deadline:
                     pod_status = await asyncio.to_thread(
-                        core.read_namespaced_pod_status,
+                        core.read_namespaced_pod,  # Read full pod not just status
                         pod_id,
                         NAMESPACE
                     )
                     status = pod_status.status.phase
                     LOG.debug(f"Pod {pod_id} status: {status}")
                     
+                    # Check for image pull errors or backoff
+                    if pod_status.status.container_statuses:
+                        for container_status in pod_status.status.container_statuses:
+                            if container_status.state and container_status.state.waiting:
+                                reason = container_status.state.waiting.reason
+                                if reason in ["ImagePullBackOff", "ErrImagePull"]:
+                                    image_pull_error = True
+                                    LOG.warning(f"Image pull error for pod {pod_id}: {reason}")
+                                    # Delete the pod so we can retry with AlwaysPull
+                                    await asyncio.to_thread(core.delete_namespaced_pod, pod_id, NAMESPACE)
+                                    await asyncio.sleep(5)  # Wait for deletion
+                                    break
+                    
+                    if image_pull_error:
+                        break
+                    
                     if status == "Running":
                         LOG.info(f"Pod {pod_id} is running")
                         return pod_id
                     
                     await asyncio.sleep(2)
+                
+                # If we had an image pull error, retry with AlwaysPull policy
+                if image_pull_error:
+                    LOG.info(f"Retrying pod {pod_id} creation with AlwaysPull policy")
+                    pod.spec.containers[0].image_pull_policy = "Always"
+                    
+                    await asyncio.to_thread(core.create_namespaced_pod, NAMESPACE, pod)
+                    
+                    # Wait again for pod to be running
+                    deadline = dt.datetime.now(dt.timezone.utc).timestamp() + 120
+                    while dt.datetime.now(dt.timezone.utc).timestamp() < deadline:
+                        pod_status = await asyncio.to_thread(
+                            core.read_namespaced_pod_status,
+                            pod_id,
+                            NAMESPACE
+                        )
+                        status = pod_status.status.phase
+                        LOG.debug(f"Pod {pod_id} status after retry: {status}")
+                        
+                        if status == "Running":
+                            LOG.info(f"Pod {pod_id} is running after image pull")
+                            return pod_id
+                        
+                        await asyncio.sleep(2)
                 
                 # If timeout, still return pod name but log a warning
                 LOG.warning(f"Timeout waiting for pod {pod_id} to be running")
@@ -182,7 +225,7 @@ class EKSLabs:
                     LOG.warning(f"Pod {pod_id} already exists")
                     return pod_id
                 raise
-
+    
     @retry_async(exceptions=(ApiException,))
     async def _delete_lab_pod(self, lab_id: str) -> bool:
         """Delete the pod for a lab"""
