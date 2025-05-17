@@ -11,7 +11,7 @@ import { FeedbackFlowDiagramComponent } from '../feedback-flow-diagram/feedback-
 })
 export class ChatbotFlowDiagramComponent implements OnInit {
   expandedNode: string | null = null;
-  activeTab: string = 'labs';
+  activeTab: string = 'platform';
   feedbackSteps: any[] = [];
 
   // Node information to display when expanded for Chatbot Flow
@@ -1365,6 +1365,665 @@ saveFeedback(): void {
       },
     ],
   };
+
+  // First, let's add a new nodeDetails section in chatbot-flow-diagram.component.ts
+
+  platformNodeDetails = {
+    backendAPI: {
+      title: 'Backend API Service',
+      description:
+        'Central FastAPI application that serves as the hub for all platform services',
+      details: [
+        'Exposes REST endpoints for user management, lab provisioning, and questions',
+        'Connects to Kubernetes for container orchestration',
+        'Integrates with AI services for feedback and assistance',
+        'Manages caching and event streaming through Momento',
+        'Handles authentication and authorization',
+      ],
+      code: `
+# Main FastAPI application (app/main.py)
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(
+    title="RosettaCloud API",
+    description="Interactive lab platform for technical training",
+    version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Update for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(user_router, prefix="/users", tags=["users"])
+app.include_router(lab_router, prefix="/labs", tags=["labs"])
+app.include_router(question_router, prefix="/questions", tags=["questions"])
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+
+@app.get("/health-check")
+async def health_check():
+    """Simple health check endpoint."""
+    return "OK"
+    `,
+    },
+    labContainer: {
+      title: 'Containerized Lab Environments',
+      description:
+        'Isolated Kubernetes pods providing secure development environments',
+      details: [
+        'Custom Docker images with pre-installed development tools',
+        'Code-Server (VS Code in browser) as the main interface',
+        'Docker-in-Docker capability for container exercises',
+        'Time-limited sessions with automatic cleanup',
+        'Resource restrictions for fair usage',
+      ],
+      code: `
+# Kubernetes deployment manifest
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-deployment
+  namespace: interactive-labs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab-environment
+  template:
+    metadata:
+      labels:
+        app: lab-environment
+    spec:
+      containers:
+      - name: lab-container
+        image: rosettacloud/lab-environment:latest
+        resources:
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+        securityContext:
+          privileged: true  # Required for Docker-in-Docker
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: docker-graph-storage
+          mountPath: /var/lib/docker
+      volumes:
+      - name: docker-graph-storage
+        emptyDir: {}
+    `,
+    },
+    aiServices: {
+      title: 'AI System',
+      description: 'Intelligent services for real-time assistance and feedback',
+      details: [
+        'Integration with AWS Bedrock (Nova LLM) for natural language responses',
+        'Enabling Chatbot functionality',
+        'Real-time feedback on student progress and solutions',
+        'Retrieval-Augmented Generation (RAG) for context-aware assistance',
+        'Automatic evaluation of exercise submissions',
+        'Personalized learning recommendations',
+      ],
+      code: `
+# AI service module (ai_service.py)
+from typing import Union, AsyncGenerator
+import json
+import boto3
+import logging
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_MAX_TOKENS = 1024
+DEFAULT_TEMPERATURE = 0.7
+DEFAULT_MODEL_ID = "amazon.nova-lite-v1:0"
+DEFAULT_SYSTEM_ROLE = "You are an educational assistant providing help with shell scripting."
+
+async def chat(
+    prompt: str,
+    stream: bool = False,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    temperature: float = DEFAULT_TEMPERATURE,
+    model_id: str = DEFAULT_MODEL_ID,
+    system_role: str = DEFAULT_SYSTEM_ROLE,
+) -> Union[str, AsyncGenerator[str, None]]:
+    """Generate a chat response from the AI model."""
+
+    # Create the messages array with system role and user prompt
+    messages = [
+        {"role": "system", "content": system_role},
+        {"role": "user", "content": prompt}
+    ]
+
+    # Generate response from chosen AI model (Nova/Bedrock)
+    try:
+        # Implementation for single response
+        response = await _client.invoke_model(
+            modelId=model_id,
+            body=json.dumps({
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature
+            }),
+            contentType="application/json",
+            accept="application/json"
+        )
+        response_body = json.loads(await response["body"].read())
+        return response_body["completion"]
+    except Exception as e:
+        logger.exception("Error generating AI response: %s", e)
+        return f"Error generating response: {str(e)}"
+    `,
+    },
+    serverlessComponents: {
+      title: 'Serverless Components',
+      description:
+        'AWS Lambda functions providing auxiliary platform functionality',
+      details: [
+        'WebSocket-based chatbot assistant using API Gateway and Lambda',
+        'Document indexing pipeline for educational content',
+        'Feedback generation service for student progress',
+        'Token vending service for secure Momento access',
+        'Event-driven architecture for scalability',
+      ],
+      code: `
+// Token vending Lambda
+const { AuthClient, CredentialProvider, ExpiresIn, AllTopics, TokenScopes } = require('@gomomento/sdk');
+
+exports.handler = async (event) => {
+  try {
+    // Parse query parameters
+    const queryParams = event.queryStringParameters || {};
+    const userId = queryParams.user_id;
+    const cacheName = process.env.CACHE_NAME || 'interactive-labs';
+    const expiryMinutes = parseInt(queryParams.expiry_minutes || '60', 10);
+
+    if (!userId) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'Missing required parameter: user_id' })
+      };
+    }
+
+    // Generate token
+    const result = await generateToken(
+      process.env.MOMENTO_API_KEY,
+      userId,
+      cacheName,
+      expiryMinutes
+    );
+
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: result.authToken
+    };
+  } catch (error) {
+    console.error('Error generating token:', error);
+    return {
+      statusCode: 500,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: Internal server error })
+    };
+  }
+};
+    `,
+    },
+    eventDriven: {
+      title: 'Event-Driven Architecture',
+      description:
+        'Real-time messaging and caching system powering the platform',
+      details: [
+        'Momento cache for high-performance data storage',
+        'Pub/sub topics for asynchronous communication',
+        'WebSocket integration for real-time updates',
+        'Event-based triggers for serverless functions',
+        'Decoupled components for maintainability and scaling',
+      ],
+      code: `
+# Momento service implementation
+async def publish(topic_name: str, message: str) -> bool:
+    """Publish a message to a Momento topic."""
+    try:
+        client = await get_momento_client()
+        response = await client.publish(
+            cache_name=CACHE_NAME,
+            topic_name=topic_name,
+            value=message
+        )
+
+        if isinstance(response, TopicPublish.Success):
+            logger.info(f"Successfully published to {topic_name}")
+            return True
+        else:
+            logger.error(f"Failed to publish to {topic_name}: {response.message()}")
+            return False
+    except Exception as e:
+        logger.exception(f"Error publishing to Momento: {e}")
+        return False
+
+# Angular subscription component
+async subscribeToTopic(topic: string, feedbackId: string): Promise<void> {
+  try {
+    // Get authentication token
+    const token = await this.getAuthToken();
+
+    // Initialize Momento client
+    this.topicClient = new TopicClient({
+      configuration: Configurations.Browser.v1(),
+      credentialProvider: CredentialProvider.fromString({ apiKey: token }),
+    });
+
+    // Subscribe to topic
+    const response = await this.topicClient.subscribe(this.cacheName, topic, {
+      onItem: (item) => {
+        const data = JSON.parse(item.valueString());
+        if (data.feedback_id === feedbackId) {
+          this.zone.run(() => this.messageReceived.next(data));
+        }
+      },
+      onError: (err) => {
+        console.error("Subscription error:", err);
+        this.zone.run(() => this.errorOccurred.next(err));
+      }
+    });
+
+    // Store subscription for later cleanup
+    this.subscription = response;
+
+  } catch (err) {
+    console.error("Failed to subscribe:", err);
+  }
+}
+    `,
+    },
+    integrationPoints: {
+      title: 'Integration Points',
+      description: 'Connectors and APIs for external system integration',
+      details: [
+        'OpenEdX LMS integration for seamless learning experiences',
+        'REST APIs for third-party system connectivity',
+        'WebSocket APIs for real-time applications',
+        'Content management system integration',
+        'Authentication provider connectors',
+      ],
+      code: `
+# OpenEdX integration adapter (planned)
+class OpenEdxAdapter:
+    """Adapter for OpenEdX LMS integration."""
+
+    def __init__(self, api_url: str, client_id: str, client_secret: str):
+        self.api_url = api_url
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self._token = None
+        self._token_expiry = 0
+
+    async def get_course_content(self, course_id: str) -> dict:
+        """Get course content from OpenEdX."""
+        token = await self._ensure_token()
+        headers = {"Authorization": f"Bearer {token}"}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.api_url}/api/courses/v1/courses/{course_id}/",
+                headers=headers
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def update_grade(self, user_id: str, course_id: str, grade: float) -> bool:
+        """Update student grade in OpenEdX."""
+        token = await self._ensure_token()
+        headers = {"Authorization": f"Bearer {token}"}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.api_url}/api/grades/v1/gradebook/{course_id}/users/",
+                headers=headers,
+                json={
+                    "user_id": user_id,
+                    "grade": grade,
+                    "comment": "Updated from RosettaCloud"
+                }
+            )
+            return response.status_code == 200
+    `,
+    },
+    deploymentArch: {
+      title: 'Deployment Architecture',
+      description: 'AWS cloud services powering the platform infrastructure',
+      details: [
+        'Amazon EKS for Kubernetes orchestration of lab environments',
+        'Lambda for serverless components and microservices',
+        'API Gateway for WebSocket and HTTP endpoints',
+        'S3 for content storage and static files',
+        'ECR for Docker image registry',
+        'Momento for caching and pub/sub messaging',
+      ],
+      code: `
+# Terraform deployment snippet (infrastructure as code)
+provider "aws" {
+  region = "us-east-1"
+}
+
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 19.0"
+
+  cluster_name                   = "rosettacloud-cluster"
+  cluster_version                = "1.27"
+  cluster_endpoint_public_access = true
+
+  vpc_id                   = module.vpc.vpc_id
+  subnet_ids               = module.vpc.private_subnets
+  control_plane_subnet_ids = module.vpc.intra_subnets
+
+  # EKS Managed Node Group(s)
+  eks_managed_node_group_defaults = {
+    instance_types = ["m5.large", "m5a.large"]
+  }
+
+  eks_managed_node_groups = {
+    labs = {
+      min_size     = 2
+      max_size     = 10
+      desired_size = 2
+
+      instance_types = ["m5.large"]
+      capacity_type  = "ON_DEMAND"
+    }
+  }
+}
+
+# Lambda functions
+resource "aws_lambda_function" "ai_chatbot" {
+  function_name = "ai-chatbot"
+  handler       = "index.handler"
+  runtime       = "nodejs18.x"
+  timeout       = 30
+  memory_size   = 512
+
+  role = aws_iam_role.lambda_role.arn
+
+  environment {
+    variables = {
+      CACHE_NAME = "interactive-labs"
+    }
+  }
+}
+    `,
+    },
+    securityModel: {
+      title: 'Security Model',
+      description:
+        'Security architecture ensuring safe and isolated environments',
+      details: [
+        'Kubernetes namespace isolation for lab environments',
+        'API authentication and authorization',
+        'Short-lived token generation for services',
+        'Content security policies and data protection',
+        'Network security with VPC and security groups',
+      ],
+      code: `
+# Security middleware for API endpoints
+from fastapi import HTTPException, Security, status
+from fastapi.security import APIKeyHeader
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+async def get_api_key(api_key_header: str = Security(api_key_header)):
+    if api_key_header is None or not verify_api_key(api_key_header):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate API key",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+    return api_key_header
+
+async def verify_user_access(user_id: str, resource_id: str, action: str) -> bool:
+    """Verify if a user has access to a resource for a given action."""
+    # Implementation would check permissions in database
+    try:
+        # Check if user exists
+        user = await get_user_by_id(user_id)
+        if not user:
+            return False
+
+        # Check resource ownership
+        if action in ["read", "update", "delete"]:
+            resource = await get_resource_by_id(resource_id)
+            if not resource or resource.owner_id != user_id:
+                # Admins can access all resources
+                return user.role == "admin"
+
+        # Additional permission checks as needed
+        return True
+    except Exception as e:
+        logger.error(f"Error verifying user access: {e}")
+        return False
+    `,
+    },
+    lmsIntegration: {
+      title: 'Learning Management System Integration',
+      description:
+        'Connectors for seamless LMS interaction and grade synchronization',
+      details: [
+        'OpenEdX integration for course content and grades',
+        'SSO support for seamless authentication',
+        'xAPI support for learning analytics',
+        'Grade passback using LTI standards',
+        'Content synchronization for course materials',
+      ],
+      code: `
+# LTI Consumer implementation for grade passback
+from pylti1p3.grade import Grade
+from pylti1p3.lineitem import LineItem
+
+async def send_grade_to_lms(user_id: str, assignment_id: str, score: float, max_score: float = 100.0):
+    """Send a grade back to the LMS through LTI 1.3."""
+    try:
+        # Get tool and registration data
+        tool_conf = get_lti_config()
+        registration = tool_conf.get_registration_by_issuer(current_issuer)
+
+        # Create line item if it doesn't exist
+        line_item_service = LineItemService()
+        line_items = await line_item_service.get_line_items()
+
+        line_item = None
+        for item in line_items:
+            if item.get('tag') == assignment_id:
+                line_item = item
+                break
+
+        if not line_item:
+            # Create a new line item
+            line_item = LineItem()
+            line_item.set_tag(assignment_id)
+            line_item.set_score_maximum(max_score)
+            line_item.set_label(f"Assignment {assignment_id}")
+            line_item = await line_item_service.create_line_item(line_item)
+
+        # Submit the grade
+        grade = Grade()
+        grade.set_score_given(score)
+        grade.set_score_maximum(max_score)
+        grade.set_user_id(user_id)
+        grade.set_timestamp(datetime.datetime.now().isoformat())
+        grade.set_activity_progress('Completed')
+        grade.set_grading_progress('FullyGraded')
+
+        result = await line_item_service.submit_score(line_item['id'], grade)
+        return result.get('status_code') == 200
+    except Exception as e:
+        logger.error(f"Error sending grade to LMS: {e}")
+        return False
+    `,
+    },
+    infrastructure: {
+      title: 'Infrastructure Components',
+      description: 'Core infrastructure elements powering the platform',
+      details: [
+        'Kubernetes clusters for containerized lab environments',
+        'Amazon VPC for network isolation',
+        'Load balancers for traffic distribution',
+        'Auto-scaling for handling variable demand',
+        'Monitoring and logging infrastructure',
+      ],
+      code: `
+# Kubernetes configuration for lab infrastructure
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: interactive-labs
+  labels:
+    app: rosettacloud
+    environment: production
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lab-ingress
+  namespace: interactive-labs
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+spec:
+  rules:
+  - host: "*.labs.rosettacloud.com"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: lab-service
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - "*.labs.rosettacloud.com"
+    secretName: labs-tls-certificate
+    `,
+    },
+  };
+
+  // Add new tab workflows in chatbot-flow-diagram.component.ts
+  platformWorkflows = {
+    userJourney: [
+      {
+        number: 1,
+        description:
+          'User authenticates through the frontend application or LMS',
+        component: 'Authentication',
+      },
+      {
+        number: 2,
+        description: 'Frontend requests lab environment from the API',
+        component: 'API',
+      },
+      {
+        number: 3,
+        description: 'Backend service provisions a Kubernetes pod for the lab',
+        component: 'Lab Service',
+      },
+      {
+        number: 4,
+        description: 'User accesses the lab environment through an iframe',
+        component: 'Frontend',
+      },
+      {
+        number: 5,
+        description: 'User works through exercises in the lab environment',
+        component: 'Lab Container',
+      },
+      {
+        number: 6,
+        description: 'Verification scripts check solutions for correctness',
+        component: 'Question Service',
+      },
+      {
+        number: 7,
+        description: 'User progress is updated in the database',
+        component: 'User Service',
+      },
+      {
+        number: 8,
+        description: 'User requests AI assistance through the chatbot',
+        component: 'Chatbot',
+      },
+      {
+        number: 9,
+        description: 'Upon completion, user requests personalized feedback',
+        component: 'Feedback Service',
+      },
+      {
+        number: 10,
+        description: 'Progress data is synchronized back to LMS (future)',
+        component: 'LMS Integration',
+      },
+    ],
+    dataFlow: [
+      {
+        number: 1,
+        description: 'Educational content added to S3 storage',
+        component: 'Content',
+      },
+      {
+        number: 2,
+        description: 'Document indexing pipeline processes content',
+        component: 'Indexing',
+      },
+      {
+        number: 3,
+        description: 'Embeddings stored in vector database for retrieval',
+        component: 'Storage',
+      },
+      {
+        number: 4,
+        description: 'User interactions generate usage data',
+        component: 'Usage',
+      },
+      {
+        number: 5,
+        description: 'Progress tracked in database for persistence',
+        component: 'Database',
+      },
+      {
+        number: 6,
+        description: 'Real-time events flow through Momento topics',
+        component: 'Events',
+      },
+      {
+        number: 7,
+        description: 'AI services access data for personalized responses',
+        component: 'AI',
+      },
+      {
+        number: 8,
+        description: 'Aggregated analytics data for reporting (future)',
+        component: 'Analytics',
+      },
+    ],
+  };
+
   constructor() {}
 
   ngOnInit(): void {
@@ -1396,9 +2055,14 @@ saveFeedback(): void {
       this.activeTab = tab;
 
       // Don't reset expanded node when switching between tabs
-      // Only reset if the type of expanded node doesn't exist in new tab
       const nodeExists =
-        tab === 'labs'
+        tab === 'platform'
+          ? this.expandedNode !== null &&
+            Object.keys(this.platformNodeDetails).includes(this.expandedNode)
+          : tab === 'labs'
+          ? this.expandedNode !== null &&
+            Object.keys(this.labsNodeDetails).includes(this.expandedNode)
+          : tab === 'chatbot'
           ? this.expandedNode !== null &&
             Object.keys(this.nodeDetails).includes(this.expandedNode)
           : this.expandedNode !== null &&
