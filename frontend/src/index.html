@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>RosettaCloud</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+               default-src 'self';
+               script-src 'self' https: 'unsafe-inline' 'unsafe-eval';
+               worker-src 'self' blob:;
+               frame-src 'self' https: http:;
+               style-src 'self' 'unsafe-inline' https:;
+               font-src 'self' https:;
+               img-src 'self' data: https:;
+               connect-src 'self' http: https: ws: wss:;
+               "
+    />
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>

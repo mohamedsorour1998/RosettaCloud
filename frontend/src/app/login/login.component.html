@@ -1,0 +1,371 @@
+<div class="login-container">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12 col-md-8 col-lg-6">
+        <div class="card shadow login-card">
+          <div class="card-body p-4 p-md-5">
+            <!-- Card Header -->
+            <div class="text-center mb-4">
+              <h2 class="card-title mb-2">
+                {{ isLoginMode ? "Welcome Back" : "Create Account" }}
+              </h2>
+              <p class="text-muted">
+                {{
+                  isLoginMode
+                    ? "Sign in to continue to RosettaCloud"
+                    : "Join the RosettaCloud community"
+                }}
+              </p>
+            </div>
+
+            <!-- Alert Messages -->
+            <div
+              *ngIf="errorMessage"
+              class="alert alert-danger alert-dismissible fade show"
+              role="alert"
+            >
+              <span [innerHTML]="errorMessage"></span>
+              <button
+                type="button"
+                class="btn-close"
+                (click)="errorMessage = ''"
+              ></button>
+            </div>
+
+            <div
+              *ngIf="successMessage"
+              class="alert alert-success alert-dismissible fade show"
+              role="alert"
+            >
+              <span [innerHTML]="successMessage"></span>
+              <button
+                type="button"
+                class="btn-close"
+                (click)="successMessage = ''"
+              ></button>
+            </div>
+
+            <!-- Login Form -->
+            <form
+              *ngIf="isLoginMode"
+              [formGroup]="loginForm"
+              (ngSubmit)="onLogin()"
+            >
+              <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="bi bi-envelope"></i
+                  ></span>
+                  <input
+                    type="email"
+                    class="form-control"
+                    id="email"
+                    formControlName="email"
+                    placeholder="Enter your email"
+                    [ngClass]="{
+                      'is-invalid': submitted && loginForm.get('email')?.errors
+                    }"
+                  />
+                </div>
+                <div
+                  *ngIf="submitted && loginForm.get('email')?.errors"
+                  class="invalid-feedback d-block"
+                >
+                  <span *ngIf="loginForm.get('email')?.errors?.['required']"
+                    >Email is required</span
+                  >
+                  <span *ngIf="loginForm.get('email')?.errors?.['email']"
+                    >Please enter a valid email</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <label for="password" class="form-label">Password</label>
+                  <a routerLink="/forgot-password" class="text-primary small"
+                    >Forgot password?</a
+                  >
+                </div>
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="bi bi-lock"></i
+                  ></span>
+                  <input
+                    [type]="showPassword ? 'text' : 'password'"
+                    class="form-control"
+                    id="password"
+                    formControlName="password"
+                    placeholder="Enter your password"
+                    [ngClass]="{
+                      'is-invalid':
+                        submitted && loginForm.get('password')?.errors
+                    }"
+                  />
+                  <button
+                    class="input-group-text bg-transparent"
+                    type="button"
+                    (click)="togglePasswordVisibility()"
+                  >
+                    <i
+                      class="bi"
+                      [ngClass]="showPassword ? 'bi-eye-slash' : 'bi-eye'"
+                    ></i>
+                  </button>
+                </div>
+                <div
+                  *ngIf="submitted && loginForm.get('password')?.errors"
+                  class="invalid-feedback d-block"
+                >
+                  <span *ngIf="loginForm.get('password')?.errors?.['required']"
+                    >Password is required</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3 form-check">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="rememberMe"
+                  formControlName="rememberMe"
+                />
+                <label class="form-check-label" for="rememberMe"
+                  >Remember me</label
+                >
+              </div>
+
+              <div class="d-grid mb-4">
+                <button
+                  type="submit"
+                  class="btn btn-primary py-2"
+                  [disabled]="isLoading"
+                >
+                  <span
+                    *ngIf="isLoading"
+                    class="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Sign In
+                </button>
+              </div>
+            </form>
+
+            <!-- Register Form -->
+            <form
+              *ngIf="!isLoginMode"
+              [formGroup]="registerForm"
+              (ngSubmit)="onRegister()"
+            >
+              <div class="mb-3">
+                <label for="register-name" class="form-label">Full Name</label>
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="bi bi-person"></i
+                  ></span>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="register-name"
+                    formControlName="name"
+                    placeholder="Enter your full name"
+                    [ngClass]="{
+                      'is-invalid':
+                        submitted && registerForm.get('name')?.errors
+                    }"
+                  />
+                </div>
+                <div
+                  *ngIf="submitted && registerForm.get('name')?.errors"
+                  class="invalid-feedback d-block"
+                >
+                  <span *ngIf="registerForm.get('name')?.errors?.['required']"
+                    >Name is required</span
+                  >
+                  <span *ngIf="registerForm.get('name')?.errors?.['minlength']"
+                    >Name must be at least 2 characters</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="register-email" class="form-label"
+                  >Email address</label
+                >
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="bi bi-envelope"></i
+                  ></span>
+                  <input
+                    type="email"
+                    class="form-control"
+                    id="register-email"
+                    formControlName="email"
+                    placeholder="Enter your email"
+                    [ngClass]="{
+                      'is-invalid':
+                        submitted && registerForm.get('email')?.errors
+                    }"
+                  />
+                </div>
+                <div
+                  *ngIf="submitted && registerForm.get('email')?.errors"
+                  class="invalid-feedback d-block"
+                >
+                  <span *ngIf="registerForm.get('email')?.errors?.['required']"
+                    >Email is required</span
+                  >
+                  <span *ngIf="registerForm.get('email')?.errors?.['email']"
+                    >Please enter a valid email</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="register-password" class="form-label"
+                  >Password</label
+                >
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="bi bi-lock"></i
+                  ></span>
+                  <input
+                    [type]="showPassword ? 'text' : 'password'"
+                    class="form-control"
+                    id="register-password"
+                    formControlName="password"
+                    placeholder="Create a password"
+                    [ngClass]="{
+                      'is-invalid':
+                        submitted && registerForm.get('password')?.errors
+                    }"
+                  />
+                  <button
+                    class="input-group-text bg-transparent"
+                    type="button"
+                    (click)="togglePasswordVisibility()"
+                  >
+                    <i
+                      class="bi"
+                      [ngClass]="showPassword ? 'bi-eye-slash' : 'bi-eye'"
+                    ></i>
+                  </button>
+                </div>
+                <div
+                  *ngIf="submitted && registerForm.get('password')?.errors"
+                  class="invalid-feedback d-block"
+                >
+                  <span
+                    *ngIf="registerForm.get('password')?.errors?.['required']"
+                    >Password is required</span
+                  >
+                  <span
+                    *ngIf="registerForm.get('password')?.errors?.['minlength']"
+                    >Password must be at least 6 characters</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="register-confirm-password" class="form-label"
+                  >Confirm Password</label
+                >
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="bi bi-shield-lock"></i
+                  ></span>
+                  <input
+                    [type]="showPassword ? 'text' : 'password'"
+                    class="form-control"
+                    id="register-confirm-password"
+                    formControlName="confirmPassword"
+                    placeholder="Confirm your password"
+                    [ngClass]="{
+                      'is-invalid':
+                        submitted && registerForm.get('confirmPassword')?.errors
+                    }"
+                  />
+                </div>
+                <div
+                  *ngIf="
+                    submitted && registerForm.get('confirmPassword')?.errors
+                  "
+                  class="invalid-feedback d-block"
+                >
+                  <span
+                    *ngIf="registerForm.get('confirmPassword')?.errors?.['required']"
+                    >Confirm password is required</span
+                  >
+                  <span
+                    *ngIf="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']"
+                    >Passwords do not match</span
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3 form-check">
+                <input
+                  type="checkbox"
+                  class="form-check-input"
+                  id="terms"
+                  formControlName="terms"
+                />
+                <label class="form-check-label" for="terms">
+                  I agree to the
+                  <a href="#" class="text-primary">Terms of Service</a> and
+                  <a href="#" class="text-primary">Privacy Policy</a>
+                </label>
+                <div
+                  *ngIf="submitted && registerForm.get('terms')?.errors?.['required']"
+                  class="invalid-feedback d-block"
+                >
+                  You must agree to the terms to continue
+                </div>
+              </div>
+
+              <div class="d-grid mb-4">
+                <button
+                  type="submit"
+                  class="btn btn-primary py-2"
+                  [disabled]="isLoading"
+                >
+                  <span
+                    *ngIf="isLoading"
+                    class="spinner-border spinner-border-sm me-2"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  Create Account
+                </button>
+              </div>
+            </form>
+
+            <!-- Toggle between login and register -->
+            <div class="text-center">
+              <p *ngIf="isLoginMode">
+                Don't have an account?
+                <a
+                  href="javascript:void(0)"
+                  (click)="toggleMode()"
+                  class="text-primary fw-bold"
+                  >Sign Up</a
+                >
+              </p>
+              <p *ngIf="!isLoginMode">
+                Already have an account?
+                <a
+                  href="javascript:void(0)"
+                  (click)="toggleMode()"
+                  class="text-primary fw-bold"
+                  >Sign In</a
+                >
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

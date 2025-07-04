@@ -1,0 +1,533 @@
+<div class="settings-container">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container animate-fade-in">
+    <div class="spinner">
+      <svg viewBox="0 0 50 50" class="spinner-circle">
+        <circle
+          class="path"
+          cx="25"
+          cy="25"
+          r="20"
+          fill="none"
+          stroke-width="4"
+        ></circle>
+      </svg>
+    </div>
+    <h4>Loading your settings</h4>
+    <p>We're retrieving your preferences</p>
+  </div>
+
+  <!-- Error State -->
+  <div
+    *ngIf="errorMessage && !isLoading"
+    class="error-container animate-fade-in"
+  >
+    <div class="error-icon">
+      <i class="bi bi-exclamation-triangle"></i>
+    </div>
+    <h3>Something went wrong</h3>
+    <p>{{ errorMessage }}</p>
+    <button class="btn-retry" (click)="loadUserSettings()">
+      <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+    </button>
+  </div>
+
+  <!-- Settings Content -->
+  <div
+    *ngIf="!isLoading && !errorMessage"
+    class="settings-content animate-fade-in"
+  >
+    <!-- Success Message Toast -->
+    <div class="toast-container" *ngIf="successMessage">
+      <div class="toast visible">
+        <div class="toast-content">
+          <i class="bi bi-check-circle-fill"></i>
+          <span>{{ successMessage }}</span>
+          <button class="toast-close" (click)="successMessage = ''">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-layout">
+      <!-- Settings Navigation -->
+      <div class="settings-sidebar animate-slide-in-up">
+        <nav class="settings-nav">
+          <ul class="nav-list">
+            <li *ngFor="let section of settingsSections">
+              <a
+                [class.active]="activeSection === section.id"
+                (click)="setActiveSection(section.id)"
+                href="javascript:void(0)"
+              >
+                <i class="bi {{ section.icon }}"></i>
+                <span>{{ section.name }}</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+
+      <!-- Settings Panels -->
+      <div class="settings-main">
+        <!-- Account Settings -->
+        <div
+          *ngIf="activeSection === 'account'"
+          class="settings-panel animate-slide-in-up"
+          style="--delay: 0.1s"
+        >
+          <div class="panel-header">
+            <h2>Account Settings</h2>
+          </div>
+
+          <div class="panel-body">
+            <form
+              [formGroup]="accountForm"
+              (ngSubmit)="saveAccountSettings()"
+              class="settings-form"
+            >
+              <div class="form-group">
+                <label for="username">Username</label>
+                <input
+                  type="text"
+                  id="username"
+                  formControlName="username"
+                  [ngClass]="{
+                    'is-invalid':
+                      submitted && accountForm.get('username')?.errors
+                  }"
+                />
+                <div
+                  *ngIf="submitted && accountForm.get('username')?.errors"
+                  class="error-message"
+                >
+                  <span
+                    *ngIf="accountForm.get('username')?.errors?.['required']"
+                    >Username is required</span
+                  >
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="language">Language</label>
+                <select id="language" formControlName="language">
+                  <option value="en">English</option>
+                  <option value="ar">Arabic</option>
+                  <option value="fr">French</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="timezone">Timezone</label>
+                <select id="timezone" formControlName="timezone">
+                  <option value="UTC">UTC (Coordinated Universal Time)</option>
+                  <option value="EET">EET (Eastern European Time)</option>
+                  <option value="AST">AST (Arabia Standard Time)</option>
+                  <option value="GST">GST (Gulf Standard Time)</option>
+                </select>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-save" [disabled]="isSaving">
+                  <div *ngIf="isSaving" class="btn-spinner"></div>
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Notification Settings -->
+        <div
+          *ngIf="activeSection === 'notifications'"
+          class="settings-panel animate-slide-in-up"
+          style="--delay: 0.1s"
+        >
+          <div class="panel-header">
+            <h2>Notification Settings</h2>
+          </div>
+
+          <div class="panel-body">
+            <form
+              [formGroup]="notificationsForm"
+              (ngSubmit)="saveNotificationSettings()"
+              class="settings-form"
+            >
+              <div class="settings-section">
+                <h3>Email Notifications</h3>
+
+                <div class="toggle-group">
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Course updates and announcements</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        formControlName="emailCourseUpdates"
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Assignment reminders</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        formControlName="emailAssignments"
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Feedback and grading</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" formControlName="emailFeedback" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Marketing and promotional emails</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" formControlName="emailMarketing" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <h3>Platform Notifications</h3>
+
+                <div class="toggle-group">
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>New messages</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        formControlName="platformMessages"
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Course updates</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        formControlName="platformCourseUpdates"
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Due date reminders</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        formControlName="platformReminders"
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-save" [disabled]="isSaving">
+                  <div *ngIf="isSaving" class="btn-spinner"></div>
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Privacy Settings -->
+        <div
+          *ngIf="activeSection === 'privacy'"
+          class="settings-panel animate-slide-in-up"
+          style="--delay: 0.1s"
+        >
+          <div class="panel-header">
+            <h2>Privacy Settings</h2>
+          </div>
+
+          <div class="panel-body">
+            <form
+              [formGroup]="privacyForm"
+              (ngSubmit)="savePrivacySettings()"
+              class="settings-form"
+            >
+              <div class="settings-section">
+                <h3>Profile Visibility</h3>
+
+                <div class="radio-group">
+                  <label class="radio-item">
+                    <input
+                      type="radio"
+                      name="profileVisibility"
+                      value="everyone"
+                      formControlName="profileVisibility"
+                    />
+                    <span class="radio-checkmark"></span>
+                    <span class="radio-label">Everyone</span>
+                  </label>
+
+                  <label class="radio-item">
+                    <input
+                      type="radio"
+                      name="profileVisibility"
+                      value="students"
+                      formControlName="profileVisibility"
+                    />
+                    <span class="radio-checkmark"></span>
+                    <span class="radio-label">Only students & instructors</span>
+                  </label>
+
+                  <label class="radio-item">
+                    <input
+                      type="radio"
+                      name="profileVisibility"
+                      value="none"
+                      formControlName="profileVisibility"
+                    />
+                    <span class="radio-checkmark"></span>
+                    <span class="radio-label">Private (only you)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <h3>Learning Activity</h3>
+
+                <div class="toggle-group">
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Share my learning progress with instructors</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" formControlName="shareProgress" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Display my certificates on my profile</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input
+                        type="checkbox"
+                        formControlName="shareCertificates"
+                      />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <h3>Data & Cookies</h3>
+
+                <div class="toggle-group">
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span
+                        >Allow analytics cookies to improve your
+                        experience</span
+                      >
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" formControlName="allowAnalytics" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Allow marketing cookies for personalized ads</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" formControlName="allowMarketing" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-save" [disabled]="isSaving">
+                  <div *ngIf="isSaving" class="btn-spinner"></div>
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Security Settings -->
+        <div
+          *ngIf="activeSection === 'security'"
+          class="settings-panel animate-slide-in-up"
+          style="--delay: 0.1s"
+        >
+          <div class="panel-header">
+            <h2>Security Settings</h2>
+          </div>
+
+          <div class="panel-body">
+            <form
+              [formGroup]="securityForm"
+              (ngSubmit)="saveSecuritySettings()"
+              class="settings-form"
+            >
+              <div class="settings-section">
+                <h3>Change Password</h3>
+
+                <div class="form-group">
+                  <label for="currentPassword">Current Password</label>
+                  <input
+                    type="password"
+                    id="currentPassword"
+                    formControlName="currentPassword"
+                    [ngClass]="{
+                      'is-invalid':
+                        submitted && securityForm.get('currentPassword')?.errors
+                    }"
+                  />
+                  <div
+                    *ngIf="
+                      submitted && securityForm.get('currentPassword')?.errors
+                    "
+                    class="error-message"
+                  >
+                    <span
+                      *ngIf="securityForm.get('currentPassword')?.errors?.['required']"
+                    >
+                      Current password is required
+                    </span>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="newPassword">New Password</label>
+                  <input
+                    type="password"
+                    id="newPassword"
+                    formControlName="newPassword"
+                    [ngClass]="{
+                      'is-invalid':
+                        submitted && securityForm.get('newPassword')?.errors
+                    }"
+                  />
+                  <div
+                    *ngIf="submitted && securityForm.get('newPassword')?.errors"
+                    class="error-message"
+                  >
+                    <span
+                      *ngIf="securityForm.get('newPassword')?.errors?.['required']"
+                    >
+                      New password is required
+                    </span>
+                    <span
+                      *ngIf="securityForm.get('newPassword')?.errors?.['minlength']"
+                    >
+                      Password must be at least 6 characters
+                    </span>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="confirmPassword">Confirm New Password</label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    formControlName="confirmPassword"
+                    [ngClass]="{
+                      'is-invalid':
+                        submitted && securityForm.get('confirmPassword')?.errors
+                    }"
+                  />
+                  <div
+                    *ngIf="
+                      submitted && securityForm.get('confirmPassword')?.errors
+                    "
+                    class="error-message"
+                  >
+                    <span
+                      *ngIf="securityForm.get('confirmPassword')?.errors?.['required']"
+                    >
+                      Please confirm your password
+                    </span>
+                    <span
+                      *ngIf="securityForm.get('confirmPassword')?.errors?.['passwordMismatch']"
+                    >
+                      Passwords do not match
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <h3>Two-Factor Authentication</h3>
+
+                <div class="toggle-group">
+                  <div class="toggle-item">
+                    <div class="toggle-label">
+                      <span>Enable two-factor authentication</span>
+                    </div>
+                    <label class="toggle-switch">
+                      <input type="checkbox" formControlName="twoFactorAuth" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div
+                  *ngIf="securityForm.get('twoFactorAuth')?.value"
+                  class="info-box"
+                >
+                  <h4>Setup Two-Factor Authentication</h4>
+                  <p>
+                    Two-factor authentication adds an extra layer of security to
+                    your account.
+                  </p>
+                  <button type="button" class="btn-secondary">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Setup Now</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn-save" [disabled]="isSaving">
+                  <div *ngIf="isSaving" class="btn-spinner"></div>
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

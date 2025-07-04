@@ -1,0 +1,302 @@
+<!-- Hero Section -->
+<div class="features-hero">
+  <div class="container text-center py-5">
+    <h1 class="display-4 mb-3 animate-fade-in-down">
+      Powerful Features for Effective Learning
+    </h1>
+    <p class="lead mb-4 animate-fade-in">
+      Discover the tools and resources that make RosettaCloud the leading tech
+      education platform in MENA
+    </p>
+    <div class="hero-cta animate-fade-in-up">
+      <a routerLink="/register" class="btn btn-light btn-lg me-md-3"
+        >Start Learning Now</a
+      >
+      <a href="#features" class="btn btn-outline-secondary btn-lg"
+        >Explore Features</a
+      >
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <!-- Main Features Section -->
+  <section id="features" class="features-grid py-5">
+    <div class="text-center mb-5">
+      <h2 class="mb-3">Platform Features</h2>
+      <p class="lead text-muted">
+        Everything you need to master software development
+      </p>
+    </div>
+
+    <div class="row g-4">
+      <div *ngFor="let feature of features" class="col-md-6 col-lg-4">
+        <div class="feature-card h-100">
+          <div class="feature-icon">
+            <i class="bi" [ngClass]="feature.icon"></i>
+          </div>
+          <h3 class="feature-title">{{ feature.title }}</h3>
+          <p class="feature-description">{{ feature.description }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Demo Section -->
+  <section class="interactive-demo my-5 p-4 p-md-5 rounded">
+    <div class="row align-items-center">
+      <div class="col-lg-6 mb-4 mb-lg-0">
+        <div class="demo-content">
+          <h2>Interactive Learning Environment</h2>
+          <p class="lead">
+            Our browser-based coding labs eliminate setup headaches and let you
+            focus on learning.
+          </p>
+
+          <ul class="demo-features">
+            <li>
+              <i class="bi bi-check-circle-fill text-success"></i>
+              <span>Code in 15+ programming languages</span>
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success"></i>
+              <span>Real-time syntax checking and error detection</span>
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success"></i>
+              <span>Integrated AI assistance when you get stuck</span>
+            </li>
+            <li>
+              <i class="bi bi-check-circle-fill text-success"></i>
+              <span>Save your progress and continue from any device</span>
+            </li>
+          </ul>
+
+          <a routerLink="/register" class="btn btn-primary mt-3">Try It Now</a>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="demo-image">
+          <div class="code-editor-preview">
+            <div class="code-editor-header">
+              <span class="window-control"></span>
+              <span class="window-control"></span>
+              <span class="window-control"></span>
+              <div class="file-name">main.js</div>
+            </div>
+            <div class="code-editor-body">
+              <!-- Redesigned code editor content to avoid curly brace issues -->
+              <div class="code-content">
+                <div class="code-line">
+                  <span class="keyword">function</span>
+                  <span class="function-name">analyzeData</span
+                  ><span class="plain">(dataset) &#123;</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">const</span>
+                  <span class="plain">results = &#123;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">average: </span
+                  ><span class="number">0</span><span class="plain">,</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">max: </span
+                  ><span class="number">-Infinity</span
+                  ><span class="plain">,</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">min: </span
+                  ><span class="number">Infinity</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="plain">&#125;;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">if</span>
+                  <span class="plain">(!dataset || dataset.length === </span
+                  ><span class="number">0</span
+                  ><span class="plain">) &#123;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="keyword">return</span>
+                  <span class="plain">results;</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="plain">&#125;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-1">
+                  <span class="comment">// Calculate statistics</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">let</span>
+                  <span class="plain">sum = </span><span class="number">0</span
+                  ><span class="plain">;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">for</span> <span class="plain">(</span
+                  ><span class="keyword">let</span>
+                  <span class="plain">i = </span><span class="number">0</span
+                  ><span class="plain">; i < dataset.length; i++) &#123;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="keyword">const</span>
+                  <span class="plain">value = dataset[i];</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">sum += value;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-2">
+                  <span class="keyword">if</span>
+                  <span class="plain">(value > results.max) &#123;</span>
+                </div>
+                <div class="code-line code-indented-3">
+                  <span class="plain">results.max = value;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">&#125;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-2">
+                  <span class="keyword">if</span>
+                  <span class="plain">(value < results.min) &#123;</span>
+                </div>
+                <div class="code-line code-indented-3">
+                  <span class="plain">results.min = value;</span>
+                </div>
+                <div class="code-line code-indented-2">
+                  <span class="plain">&#125;</span>
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="plain">&#125;</span>
+                </div>
+                <div class="code-line">&nbsp;</div>
+                <div class="code-line code-indented-1">
+                  <span class="plain"
+                    >results.average = sum / dataset.length;</span
+                  >
+                </div>
+                <div class="code-line code-indented-1">
+                  <span class="keyword">return</span>
+                  <span class="plain">results;</span>
+                </div>
+                <div class="code-line">
+                  <span class="plain">&#125;</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Key Differentiators -->
+  <section class="key-features py-5 my-5 rounded">
+    <div class="text-center mb-5">
+      <h2>What Makes Us Different</h2>
+      <p class="lead text-muted">
+        Features designed specifically for learners in the MENA region
+      </p>
+    </div>
+
+    <div class="row justify-content-center g-4">
+      <div *ngFor="let feature of keyFeatures" class="col-md-4">
+        <div class="key-feature-card text-center h-100">
+          <div class="key-feature-icon">
+            <i class="bi" [ngClass]="feature.icon"></i>
+          </div>
+          <h3 class="key-feature-title">{{ feature.title }}</h3>
+          <p class="key-feature-description">{{ feature.description }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials Section -->
+  <section class="testimonials py-5 my-5">
+    <div class="text-center mb-5">
+      <h2>What Our Students Say</h2>
+      <p class="lead text-muted">Success stories from across the region</p>
+    </div>
+
+    <div class="row g-4">
+      <div *ngFor="let testimonial of testimonials" class="col-md-4">
+        <div class="testimonial-card h-100">
+          <div class="quote-icon" aria-hidden="true">
+            <i class="bi bi-chat-quote"></i>
+          </div>
+          <p class="testimonial-quote">{{ testimonial.quote }}</p>
+          <div class="testimonial-author">
+            <div class="author-image-container">
+              <img
+                [src]="testimonial.imageUrl"
+                [alt]="testimonial.author"
+                class="author-image"
+                (error)="imageError($event)"
+              />
+            </div>
+            <div class="author-info">
+              <h5 class="author-name">{{ testimonial.author }}</h5>
+              <p class="author-role">
+                {{ testimonial.role }}, {{ testimonial.company }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Partners Section -->
+  <section class="partners py-5 my-5">
+    <div class="text-center mb-5">
+      <h2>Trusted By Leading Companies</h2>
+      <p class="lead text-muted">
+        Our graduates work at top organizations across the region
+      </p>
+    </div>
+    <div class="partner-logos">
+      <div class="row align-items-center justify-content-center">
+        <div class="col-4 col-md-2 mb-4 mb-md-0">
+          <div class="partner-logo-placeholder">LOGO</div>
+        </div>
+        <div class="col-4 col-md-2 mb-4 mb-md-0">
+          <div class="partner-logo-placeholder">LOGO</div>
+        </div>
+        <div class="col-4 col-md-2 mb-4 mb-md-0">
+          <div class="partner-logo-placeholder">LOGO</div>
+        </div>
+        <div class="col-4 col-md-2 mb-4 mb-md-0">
+          <div class="partner-logo-placeholder">LOGO</div>
+        </div>
+        <div class="col-4 col-md-2 mb-4 mb-md-0">
+          <div class="partner-logo-placeholder">LOGO</div>
+        </div>
+        <div class="col-4 col-md-2">
+          <div class="partner-logo-placeholder">LOGO</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action -->
+  <section class="cta text-center py-5 my-5 rounded">
+    <h2 class="mb-3">Ready to Start Your Learning Journey?</h2>
+    <p class="lead mb-4">
+      Join thousands of students already mastering tech skills on RosettaCloud
+    </p>
+    <div class="cta-buttons">
+      <a routerLink="/register" class="btn btn-light btn-lg me-md-3"
+        >Sign Up Free</a
+      >
+      <a routerLink="/pricing" class="btn btn-outline-light btn-lg"
+        >View Plans</a
+      >
+    </div>
+  </section>
+</div>

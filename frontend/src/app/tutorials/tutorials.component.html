@@ -1,0 +1,508 @@
+<div class="tutorials-hero">
+  <div class="container">
+    <h1 class="animate-fade-in">Learn with Step-by-Step Tutorials</h1>
+    <p>
+      Master new skills with comprehensive, hands-on tutorials from industry
+      experts
+    </p>
+
+    <!-- Search bar -->
+    <div class="tutorials-search-container">
+      <form (submit)="searchTutorials($event)" class="tutorials-search">
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Search tutorials, topics, or authors..."
+          [(ngModel)]="searchQuery"
+          name="searchQuery"
+        />
+        <button type="submit" class="search-btn">
+          <i class="bi bi-search"></i>
+        </button>
+        <button
+          *ngIf="searchQuery"
+          type="button"
+          class="clear-btn"
+          (click)="clearSearch()"
+        >
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="tutorials-container">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-lg-3">
+      <div class="tutorials-sidebar">
+        <!-- Categories -->
+        <div class="sidebar-section categories-section">
+          <h2>Categories</h2>
+          <ul class="category-list">
+            <li *ngFor="let category of categories">
+              <a
+                [class.active]="selectedCategory === category.id"
+                (click)="setCategory(category.id)"
+              >
+                <i class="bi" [ngClass]="category.icon"></i>
+                <span>{{ category.name }}</span>
+                <span class="count">{{ category.count }}</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Difficulty Filter -->
+        <div class="sidebar-section difficulty-section">
+          <h2>Difficulty Level</h2>
+          <div class="difficulty-options">
+            <button
+              class="difficulty-option"
+              [class.active]="selectedDifficulty === 'all'"
+              (click)="setDifficulty('all')"
+            >
+              All Levels
+            </button>
+            <button
+              *ngFor="let level of difficultyLevels"
+              class="difficulty-option"
+              [class.active]="selectedDifficulty === level.id"
+              [ngClass]="'difficulty-' + level.color"
+              (click)="setDifficulty(level.id)"
+            >
+              {{ level.name }}
+              <span class="count">{{ level.count }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sort By -->
+        <div class="sidebar-section sort-section">
+          <h2>Sort By</h2>
+          <div class="sort-options">
+            <button
+              class="sort-option"
+              [class.active]="sortBy === 'newest'"
+              (click)="sortBy = 'newest'"
+            >
+              <i class="bi bi-calendar-date"></i>
+              Newest First
+            </button>
+            <button
+              class="sort-option"
+              [class.active]="sortBy === 'popular'"
+              (click)="sortBy = 'popular'"
+            >
+              <i class="bi bi-graph-up-arrow"></i>
+              Most Popular
+            </button>
+            <button
+              class="sort-option"
+              [class.active]="sortBy === 'shortest'"
+              (click)="sortBy = 'shortest'"
+            >
+              <i class="bi bi-clock"></i>
+              Shortest First
+            </button>
+          </div>
+        </div>
+
+        <!-- Stats Card -->
+        <div class="sidebar-section stats-section">
+          <div class="stats-card">
+            <div class="stats-header">
+              <h3>{{ getCategoryName(selectedCategory) }} Tutorials</h3>
+            </div>
+            <div class="stats-body">
+              <div class="stat-item">
+                <div class="stat-icon">
+                  <i class="bi bi-collection"></i>
+                </div>
+                <div class="stat-info">
+                  <div class="stat-value">
+                    {{
+                      selectedCategory === "all"
+                        ? tutorials.length
+                        : countTutorialsInCategory(selectedCategory)
+                    }}
+                  </div>
+                  <div class="stat-label">Tutorials</div>
+                </div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-icon">
+                  <i class="bi bi-clock"></i>
+                </div>
+                <div class="stat-info">
+                  <div class="stat-value">
+                    {{
+                      formatDuration(getTotalTimeForCategory(selectedCategory))
+                    }}
+                  </div>
+                  <div class="stat-label">Total Time</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-lg-9">
+      <!-- Continue Learning Section (for logged in users) -->
+      <div
+        *ngIf="
+          isLoggedIn &&
+          inProgressTutorials.length > 0 &&
+          !searchQuery &&
+          selectedCategory === 'all' &&
+          selectedDifficulty === 'all'
+        "
+        class="continue-learning-section"
+      >
+        <h2 class="section-title">
+          <i class="bi bi-play-circle"></i>
+          Continue Learning
+        </h2>
+
+        <div class="in-progress-tutorials">
+          <div
+            *ngFor="let tutorial of inProgressTutorials"
+            class="in-progress-card"
+          >
+            <div class="progress-info">
+              <div class="tutorial-meta">
+                <h3>{{ tutorial.title }}</h3>
+                <div class="meta-details">
+                  <span class="section-info">
+                    <i class="bi bi-collection"></i>
+                    {{ tutorial.sections.length }} sections
+                  </span>
+                  <span class="dot">•</span>
+                  <span class="time-info">
+                    <i class="bi bi-clock"></i>
+                    {{ formatDuration(tutorial.duration) }}
+                  </span>
+                </div>
+              </div>
+              <div class="progress-bar-container">
+                <div class="progress">
+                  <div
+                    class="progress-bar"
+                    role="progressbar"
+                    [style.width.%]="tutorial.progress"
+                    [attr.aria-valuenow]="tutorial.progress"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                  >
+                    {{ tutorial.progress }}%
+                  </div>
+                </div>
+              </div>
+              <a
+                [routerLink]="['/tutorials', tutorial.id]"
+                class="btn btn-primary"
+                >Continue</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Featured Tutorials (when no filters are applied) -->
+      <div
+        *ngIf="
+          !searchQuery &&
+          selectedCategory === 'all' &&
+          selectedDifficulty === 'all'
+        "
+        class="featured-tutorials"
+      >
+        <h2 class="section-title">
+          <i class="bi bi-star-fill"></i>
+          Featured Tutorials
+        </h2>
+
+        <div class="featured-tutorials-grid">
+          <div
+            *ngFor="let tutorial of featuredTutorials"
+            class="tutorial-card featured"
+          >
+            <div class="tutorial-image">
+              <img [src]="tutorial.imageUrl" [alt]="tutorial.title" />
+              <div class="featured-badge">
+                <i class="bi bi-star-fill"></i>
+                Featured
+              </div>
+              <div class="category-badge">
+                <i
+                  class="bi"
+                  [ngClass]="getCategoryIcon(tutorial.category)"
+                ></i>
+                {{ getCategoryName(tutorial.category) }}
+              </div>
+
+              <!-- Progress indicator for logged in users -->
+              <div
+                *ngIf="isLoggedIn && tutorial.progress !== undefined"
+                class="progress-indicator"
+                [style.width.%]="tutorial.progress"
+              ></div>
+            </div>
+
+            <div class="tutorial-content">
+              <!-- Difficulty badge -->
+              <div
+                class="difficulty-badge"
+                [ngClass]="
+                  'difficulty-' + getDifficultyInfo(tutorial.difficulty).color
+                "
+              >
+                {{ getDifficultyInfo(tutorial.difficulty).name }}
+              </div>
+
+              <h3 class="tutorial-title">{{ tutorial.title }}</h3>
+
+              <p class="tutorial-description">{{ tutorial.description }}</p>
+
+              <div class="tutorial-meta">
+                <div class="author-info">
+                  <img
+                    [src]="tutorial.authorAvatar"
+                    [alt]="tutorial.authorName"
+                  />
+                  <span>{{ tutorial.authorName }}</span>
+                </div>
+                <div class="tutorial-stats">
+                  <span class="stat">
+                    <i class="bi bi-clock"></i>
+                    {{ formatDuration(tutorial.duration) }}
+                  </span>
+                  <span class="stat">
+                    <i class="bi bi-eye"></i>
+                    {{ formatNumber(tutorial.views) }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Tutorial tags -->
+              <div class="tutorial-tags">
+                <span *ngFor="let tag of tutorial.tags" class="tag">{{
+                  tag
+                }}</span>
+              </div>
+
+              <a
+                [routerLink]="['/tutorials', tutorial.id]"
+                class="btn btn-primary"
+                >Start Tutorial</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- All/Filtered Tutorials -->
+      <div class="all-tutorials">
+        <!-- Header section with filters -->
+        <div class="tutorials-header">
+          <h2 class="section-title">
+            <i *ngIf="searchQuery" class="bi bi-search"></i>
+            <i *ngIf="!searchQuery" class="bi bi-collection"></i>
+            <span *ngIf="searchQuery"
+              >Search Results for "{{ searchQuery }}"</span
+            >
+            <span *ngIf="!searchQuery"
+              >{{
+                selectedCategory !== "all"
+                  ? getCategoryName(selectedCategory)
+                  : "All"
+              }}
+              Tutorials</span
+            >
+            <span *ngIf="selectedDifficulty !== 'all'">
+              - {{ getDifficultyInfo(selectedDifficulty).name }} Level</span
+            >
+          </h2>
+
+          <div *ngIf="filteredTutorials.length > 0" class="results-count">
+            Showing {{ filteredTutorials.length }} tutorial{{
+              filteredTutorials.length !== 1 ? "s" : ""
+            }}
+          </div>
+        </div>
+        <!-- No results message -->
+        <div *ngIf="filteredTutorials.length === 0" class="no-tutorials">
+          <i class="bi bi-journal-x"></i>
+          <h3>No tutorials found</h3>
+          <p *ngIf="searchQuery">
+            No results match your search criteria. Try different keywords or
+            <a (click)="clearSearch()">clear your search</a>.
+          </p>
+          <p
+            *ngIf="
+              !searchQuery &&
+              (selectedCategory !== 'all' || selectedDifficulty !== 'all')
+            "
+          >
+            No tutorials match the selected filters. Try adjusting your filters.
+          </p>
+          <div class="no-results-actions">
+            <button
+              *ngIf="selectedCategory !== 'all'"
+              class="btn btn-outline-primary"
+              (click)="setCategory('all')"
+            >
+              View All Categories
+            </button>
+            <button
+              *ngIf="selectedDifficulty !== 'all'"
+              class="btn btn-outline-primary"
+              (click)="setDifficulty('all')"
+            >
+              View All Difficulty Levels
+            </button>
+          </div>
+        </div>
+
+        <!-- Tutorials grid -->
+        <div class="tutorials-grid">
+          <div *ngFor="let tutorial of filteredTutorials" class="tutorial-card">
+            <div class="tutorial-image">
+              <img [src]="tutorial.imageUrl" [alt]="tutorial.title" />
+              <div class="category-badge">
+                <i
+                  class="bi"
+                  [ngClass]="getCategoryIcon(tutorial.category)"
+                ></i>
+                {{ getCategoryName(tutorial.category) }}
+              </div>
+
+              <!-- New badge if applicable -->
+              <div *ngIf="tutorial.isNew" class="new-badge">
+                <i class="bi bi-lightning-fill"></i>
+                New
+              </div>
+
+              <!-- Progress indicator for logged in users -->
+              <div
+                *ngIf="isLoggedIn && tutorial.progress !== undefined"
+                class="progress-indicator"
+                [style.width.%]="tutorial.progress"
+              ></div>
+            </div>
+
+            <div class="tutorial-content">
+              <!-- Difficulty badge -->
+              <div
+                class="difficulty-badge"
+                [ngClass]="
+                  'difficulty-' + getDifficultyInfo(tutorial.difficulty).color
+                "
+              >
+                {{ getDifficultyInfo(tutorial.difficulty).name }}
+              </div>
+
+              <h3 class="tutorial-title">{{ tutorial.title }}</h3>
+
+              <p class="tutorial-description">{{ tutorial.description }}</p>
+
+              <div class="tutorial-sections">
+                <div class="sections-header">
+                  <i class="bi bi-collection"></i>
+                  <span>{{ tutorial.sections.length }} sections</span>
+                  <span class="total-time">{{
+                    formatDuration(tutorial.duration)
+                  }}</span>
+                </div>
+                <div class="sections-list">
+                  <div
+                    *ngFor="let section of tutorial.sections.slice(0, 3)"
+                    class="section-item"
+                  >
+                    <div class="section-title">{{ section.title }}</div>
+                    <div class="section-duration">
+                      {{ formatDuration(section.duration) }}
+                    </div>
+                  </div>
+                  <div
+                    *ngIf="tutorial.sections.length > 3"
+                    class="more-sections"
+                  >
+                    + {{ tutorial.sections.length - 3 }} more sections
+                  </div>
+                </div>
+              </div>
+
+              <div class="tutorial-meta">
+                <div class="author-info">
+                  <img
+                    [src]="tutorial.authorAvatar"
+                    [alt]="tutorial.authorName"
+                  />
+                  <span>{{ tutorial.authorName }}</span>
+                </div>
+                <div class="tutorial-stats">
+                  <span class="stat">
+                    <i class="bi bi-eye"></i>
+                    {{ formatNumber(tutorial.views) }}
+                  </span>
+                  <span class="stat">
+                    <i class="bi bi-hand-thumbs-up"></i>
+                    {{ formatNumber(tutorial.likes) }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Continue or Start button based on progress -->
+              <a
+                [routerLink]="['/tutorials', tutorial.id]"
+                class="btn btn-primary"
+              >
+                <span
+                  *ngIf="
+                    !isLoggedIn ||
+                    tutorial.progress === 0 ||
+                    tutorial.progress === undefined
+                  "
+                  >Start Tutorial</span
+                >
+                <span
+                  *ngIf="
+                    isLoggedIn &&
+                    tutorial.progress !== undefined &&
+                    tutorial.progress > 0 &&
+                    tutorial.progress < 100
+                  "
+                  >Continue ({{ tutorial.progress }}%)</span
+                >
+                <span *ngIf="isLoggedIn && tutorial.progress === 100"
+                  >Review Tutorial</span
+                >
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom CTA -->
+      <div class="bottom-cta">
+        <div class="cta-content">
+          <div class="cta-icon">
+            <i class="bi bi-lightbulb-fill"></i>
+          </div>
+          <div class="cta-text">
+            <h3>Want to share your knowledge?</h3>
+            <p>Create your own tutorials and help others learn</p>
+          </div>
+          <a routerLink="/create-tutorial" class="btn btn-primary"
+            >Become an Author</a
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

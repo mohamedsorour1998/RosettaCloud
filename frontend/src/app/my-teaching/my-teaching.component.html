@@ -1,0 +1,266 @@
+<div class="my-teaching-hero">
+  <div class="container py-5">
+    <div class="row align-items-center">
+      <div class="col-lg-6">
+        <h1 class="display-5 fw-bold mb-3 animate-fade-in-down">
+          My Teaching Dashboard
+        </h1>
+        <p class="lead mb-4 animate-fade-in">
+          Manage your courses, track performance, and engage with your students.
+        </p>
+      </div>
+      <div
+        class="col-lg-6 d-flex justify-content-lg-end mt-4 mt-lg-0 animate-fade-in-up"
+      >
+        <div class="teaching-stats">
+          <div class="stats-card" *ngIf="instructorCourses.length > 0">
+            <div class="stats-header">
+              <h3>Revenue Summary</h3>
+              <div
+                class="revenue-change"
+                [class.positive]="revenueGrowth >= 0"
+                [class.negative]="revenueGrowth < 0"
+              >
+                <i
+                  class="bi"
+                  [ngClass]="
+                    revenueGrowth >= 0
+                      ? 'bi-graph-up-arrow'
+                      : 'bi-graph-down-arrow'
+                  "
+                ></i>
+                <span
+                  >{{ revenueGrowth >= 0 ? "+" : ""
+                  }}{{ revenueGrowth.toFixed(1) }}%</span
+                >
+              </div>
+            </div>
+            <div class="stats-row">
+              <div class="stat-item">
+                <div class="stat-value">
+                  {{ formatCurrency(currentMonthRevenue) }}
+                </div>
+                <div class="stat-label">This Month</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">
+                  {{ formatCurrency(previousMonthRevenue) }}
+                </div>
+                <div class="stat-label">Last Month</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value">{{ formatCurrency(totalRevenue) }}</div>
+                <div class="stat-label">All Time</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <!-- Teaching Performance Card -->
+  <div class="row mb-4 animate-on-scroll">
+    <div class="col-12">
+      <div class="teaching-metrics-card">
+        <div class="metrics-nav">
+          <button
+            [class.active]="selectedMetric === 'students'"
+            (click)="setMetric('students')"
+          >
+            <i class="bi bi-people-fill"></i>
+            <span>Students</span>
+          </button>
+          <button
+            [class.active]="selectedMetric === 'engagement'"
+            (click)="setMetric('engagement')"
+          >
+            <i class="bi bi-bar-chart-line-fill"></i>
+            <span>Engagement</span>
+          </button>
+          <button
+            [class.active]="selectedMetric === 'reviews'"
+            (click)="setMetric('reviews')"
+          >
+            <i class="bi bi-star-fill"></i>
+            <span>Reviews</span>
+          </button>
+          <button
+            [class.active]="selectedMetric === 'questions'"
+            (click)="setMetric('questions')"
+          >
+            <i class="bi bi-chat-dots-fill"></i>
+            <span>Questions</span>
+          </button>
+        </div>
+
+        <div class="metrics-content">
+          <!-- Students Metrics -->
+          <div *ngIf="selectedMetric === 'students'" class="metric-details">
+            <div class="metric-summary">
+              <div class="metric-icon">
+                <i class="bi bi-people-fill"></i>
+              </div>
+              <div class="metric-numbers">
+                <div class="primary-metric">
+                  {{ formatNumber(totalStudents) }}
+                </div>
+                <div class="secondary-metric">Total Students</div>
+              </div>
+            </div>
+            <div class="metric-breakdown">
+              <div
+                class="breakdown-item"
+                *ngFor="let course of filteredCourses.slice(0, 3)"
+              >
+                <div class="breakdown-course">
+                  <div class="course-name">{{ course.title }}</div>
+                  <div class="course-value">
+                    {{ formatNumber(course.enrolledStudents) }}
+                  </div>
+                </div>
+                <div class="breakdown-bar">
+                  <div
+                    class="bar-fill"
+                    [style.width.%]="
+                      (course.enrolledStudents / totalStudents) * 100
+                    "
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <div class="metric-actions">
+              <a
+                routerLink="/analytics/students"
+                class="btn btn-outline-primary"
+                >View Detailed Analytics</a
+              >
+            </div>
+          </div>
+
+          <!-- Engagement Metrics -->
+          <div *ngIf="selectedMetric === 'engagement'" class="metric-details">
+            <div class="metric-summary">
+              <div class="metric-icon">
+                <i class="bi bi-bar-chart-line-fill"></i>
+              </div>
+              <div class="metric-numbers">
+                <!-- Fixed problematic calculation -->
+                <div class="primary-metric">{{ getAverageEngagement() }}%</div>
+                <div class="secondary-metric">Average Engagement</div>
+              </div>
+            </div>
+            <div class="metric-breakdown">
+              <div
+                class="breakdown-item"
+                *ngFor="let course of filteredCourses.slice(0, 3)"
+              >
+                <div class="breakdown-course">
+                  <div class="course-name">{{ course.title }}</div>
+                  <div class="course-value">{{ course.engagement || 0 }}%</div>
+                </div>
+                <div class="breakdown-bar">
+                  <div
+                    class="bar-fill"
+                    [style.width.%]="course.engagement || 0"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <div class="metric-actions">
+              <a
+                routerLink="/analytics/engagement"
+                class="btn btn-outline-primary"
+                >View Detailed Analytics</a
+              >
+            </div>
+          </div>
+
+          <!-- Reviews Metrics -->
+          <div *ngIf="selectedMetric === 'reviews'" class="metric-details">
+            <div class="metric-summary">
+              <div class="metric-icon">
+                <i class="bi bi-star-fill"></i>
+              </div>
+              <div class="metric-numbers">
+                <div class="primary-metric">{{ averageRating.toFixed(1) }}</div>
+                <div class="secondary-metric">
+                  Average Rating ({{ getTotalReviews() }} reviews)
+                </div>
+              </div>
+            </div>
+            <div class="metric-breakdown">
+              <div
+                class="breakdown-item"
+                *ngFor="let course of filteredCourses.slice(0, 3)"
+              >
+                <div class="breakdown-course">
+                  <div class="course-name">{{ course.title }}</div>
+                  <div class="course-value">
+                    {{ course.averageRating.toFixed(1) }} ({{
+                      course.totalReviews
+                    }})
+                  </div>
+                </div>
+                <div class="rating-stars">
+                  {{ getRatingStars(course.averageRating) }}
+                </div>
+              </div>
+            </div>
+            <div class="metric-actions">
+              <a routerLink="/analytics/reviews" class="btn btn-outline-primary"
+                >Read All Reviews</a
+              >
+            </div>
+          </div>
+
+          <!-- Questions Metrics -->
+          <div *ngIf="selectedMetric === 'questions'" class="metric-details">
+            <div class="metric-summary">
+              <div class="metric-icon">
+                <i class="bi bi-chat-dots-fill"></i>
+              </div>
+              <div class="metric-numbers">
+                <div class="primary-metric">{{ coursesWithQuestions }}</div>
+                <div class="secondary-metric">Courses with Questions</div>
+                <div class="secondary-metric">
+                  {{ totalPendingFeedback }} Assignments Pending Feedback
+                </div>
+              </div>
+            </div>
+            <div class="metric-breakdown" *ngIf="coursesWithQuestions > 0">
+              <div
+                class="breakdown-item"
+                *ngFor="let course of getCoursesWithQuestions()"
+              >
+                <div class="breakdown-course">
+                  <div class="course-name">{{ course.title }}</div>
+                  <div class="course-badge">
+                    <i class="bi bi-chat-dots-fill"></i> Questions
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="metric-actions">
+              <a
+                routerLink="/teaching/discussions"
+                class="btn btn-outline-primary"
+                >Answer Questions</a
+              >
+              <a
+                routerLink="/teaching/feedback"
+                class="btn btn-outline-primary ms-2"
+                >Review Assignments</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rest of your HTML remains the same -->
+  <!-- ... -->
+</div>

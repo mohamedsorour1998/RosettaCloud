@@ -1,0 +1,1286 @@
+// Animation Keyframes
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(1.25rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0.4);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 0.625rem rgba(var(--bs-primary-rgb), 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0);
+  }
+}
+
+@keyframes floatAnimation {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
+// Main container
+.chatbot-flow-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  background-color: var(--light-secondary-bg);
+  padding: 1.5rem;
+  font-family: var(--bs-font-sans-serif);
+}
+
+.chatbot-flow-title,
+.feedback-flow-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.chatbot-flow-diagram,
+.feedback-flow-diagram,
+.labs-flow-diagram {
+  width: 100%;
+  background-color: var(--light-card-bg);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.feedback-flow-subtitle,
+.section-description {
+  font-size: 1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  max-width: 700px;
+}
+
+// Flow sections and components
+.flow-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  position: relative;
+  width: 100%;
+  text-align: center;
+}
+
+.step-number {
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  z-index: 2;
+}
+
+.flow-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  width: 100%;
+}
+
+// Fix for number-api class to hide it
+.number-api {
+  display: none;
+}
+
+// AWS styled boxes
+.flow-box {
+  position: relative;
+  border: 2px solid;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 7rem;
+  width: 16rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  margin: 0 auto 0.75rem;
+
+  &:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    pointer-events: none;
+  }
+
+  .box-title {
+    font-weight: 600;
+    margin: 0.5rem 0;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+  }
+
+  .box-content {
+    font-size: 0.875rem;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 0 0.5rem;
+  }
+
+  .box-subcontent {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    opacity: 0.8;
+    position: relative;
+    z-index: 1;
+  }
+
+  .aws-icon,
+  .tech-icon {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+    object-fit: contain !important;
+  }
+
+  // Fix for specific icons
+  img[src*="fastapi"],
+  .fastapi-icon {
+    height: 1.5rem !important;
+    width: auto !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  // Fix for Momento logo
+  img[src*="momento-logo-forest"],
+  .momento-icon {
+    max-width: 3.25rem !important;
+    max-height: 2.5rem !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    transform: scale(1.2);
+    margin: 0.125rem 0 0.5rem !important;
+    transition: all 0.3s ease !important;
+  }
+
+  &:hover {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.15);
+
+    .aws-icon,
+    .tech-icon,
+    .momento-icon,
+    img[src*="momento-logo-forest"] {
+      animation: floatAnimation 2s ease infinite;
+    }
+  }
+}
+
+// Box types - AWS service colors
+.client-box {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.2) 0%,
+      rgba(59, 130, 246, 0) 100%
+    );
+  }
+}
+
+.api-box {
+  border-color: #c94899;
+  background-color: rgba(201, 72, 153, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(201, 72, 153, 0.2) 0%,
+      rgba(201, 72, 153, 0) 100%
+    );
+  }
+}
+
+.lambda-box {
+  border-color: #f58536;
+  background-color: rgba(245, 133, 54, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(245, 133, 54, 0.2) 0%,
+      rgba(245, 133, 54, 0) 100%
+    );
+  }
+}
+
+.data-box {
+  border-color: #4d27aa;
+  background-color: rgba(77, 39, 170, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(77, 39, 170, 0.2) 0%,
+      rgba(77, 39, 170, 0) 100%
+    );
+  }
+}
+
+.ai-box {
+  border-color: #3b48cc;
+  background-color: rgba(59, 72, 204, 0.1);
+
+  &:before {
+    background: linear-gradient(
+      135deg,
+      rgba(59, 72, 204, 0.2) 0%,
+      rgba(59, 72, 204, 0) 100%
+    );
+  }
+}
+
+.pub-sub-box {
+  border-color: #2e7d32; // Momento green
+  background-color: rgba(46, 125, 50, 0.1);
+}
+
+.display-box {
+  border-color: #f57c00; // UI orange
+  background-color: rgba(245, 124, 0, 0.1);
+}
+
+.backend-box {
+  border-color: #1565c0; // Backend blue
+  background-color: rgba(21, 101, 192, 0.1);
+}
+
+// Arrows and connectors
+.flow-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--light-text-muted);
+  margin: 0.75rem auto;
+  position: relative;
+
+  &:before {
+    content: "";
+    position: absolute;
+    top: -1.5rem;
+    bottom: -1.5rem;
+    width: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.2);
+    z-index: 0;
+  }
+
+  &.arrow-down {
+    &:before {
+      content: "";
+      position: absolute;
+      top: -10px;
+      height: 40px;
+      width: 2px;
+      background-color: rgba(var(--bs-primary-rgb), 0.3);
+      z-index: 0;
+    }
+  }
+
+  .arrow-icon {
+    font-size: 1.5rem;
+    position: relative;
+    z-index: 1;
+    background-color: var(--light-card-bg);
+    border-radius: 50%;
+    padding: 0.5rem;
+    color: var(--primary-color);
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.1);
+  }
+}
+
+.row-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--light-text-muted);
+  margin: 0 1.5rem;
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 5rem;
+
+  &:before {
+    content: "";
+    position: absolute;
+    left: -1.5rem;
+    right: -1.5rem;
+    height: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.2);
+    z-index: 0;
+  }
+
+  .arrow-icon {
+    font-size: 1.5rem;
+    position: relative;
+    z-index: 1;
+    background-color: var(--light-card-bg);
+    border-radius: 50%;
+    padding: 0.5rem;
+    color: var(--primary-color);
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.1);
+  }
+}
+
+.arrow-label {
+  background-color: var(--light-secondary-bg);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--light-text-muted);
+  margin-top: 0.25rem;
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+  white-space: nowrap;
+  text-align: center;
+}
+
+// Details panel for node info
+.details-panel {
+  background-color: var(--light-card-bg);
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 30rem;
+  animation: fadeIn 0.3s ease;
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 5;
+
+  &:before {
+    content: "";
+    position: absolute;
+    top: -0.5rem;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 1rem;
+    height: 1rem;
+    background-color: var(--light-card-bg);
+    border-top: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+    border-left: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+    z-index: -1;
+  }
+
+  .details-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+  }
+
+  .details-subtitle {
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    color: var(--light-text-secondary);
+  }
+
+  .details-list {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+
+    li {
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+  }
+
+  .code-block {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    max-height: 15rem;
+    overflow-y: auto;
+
+    pre {
+      margin: 0;
+      font-family: "Consolas", "Monaco", "Courier New", monospace;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      color: var(--light-text);
+    }
+  }
+}
+
+// Grid layout for parallel processes
+.flow-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  width: 100%;
+  max-width: 40rem;
+  position: relative;
+  margin: 0 auto;
+  justify-content: center;
+  align-items: center;
+
+  &:before {
+    content: "";
+    position: absolute;
+    top: -1rem;
+    bottom: -1rem;
+    left: 50%;
+    width: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    transform: translateX(-50%);
+  }
+}
+// New centered flow for practical questions
+.centered-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 30rem;
+  margin: 0 auto;
+
+  .flow-section {
+    width: 100%;
+
+    .flow-row {
+      display: flex;
+      justify-content: center;
+
+      .flow-box {
+        width: 100%;
+        max-width: 20rem;
+      }
+    }
+  }
+
+  .flow-arrow {
+    width: 100%;
+    text-align: center;
+  }
+}
+// For centered question flow grid - FIXED CENTERING FOR MCQ SECTION
+.question-flow-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  width: 100%;
+  max-width: 40rem;
+  position: relative;
+  margin: 0 auto;
+  justify-content: center;
+  align-items: center;
+
+  &:before {
+    content: "";
+    position: absolute;
+    top: -1rem;
+    bottom: -1rem;
+    left: 50%;
+    width: 2px;
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    transform: translateX(-50%);
+  }
+}
+
+.flow-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  gap: 1rem;
+  justify-content: center;
+}
+
+// Divider for secondary flow
+.flow-divider {
+  margin-top: 4rem;
+  margin-bottom: 2rem;
+  border-top: 2px solid var(--light-border-color);
+  padding-top: 2rem;
+  width: 100%;
+  position: relative;
+  overflow: visible;
+  text-align: center;
+
+  &:before {
+    content: "Background Process";
+    position: absolute;
+    top: -0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--light-card-bg);
+    padding: 0 1rem;
+    font-size: 0.75rem;
+    color: var(--light-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+}
+
+.flow-subtitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+// For workflow description and subtitles
+.workflow-description {
+  text-align: center;
+  color: var(--light-text-secondary);
+  margin-bottom: 1.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 0.95rem;
+}
+
+// For verification section subtitles
+.verification-subtitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  margin: 1.5rem 0 1.5rem;
+  color: var(--primary-color);
+  width: 100%;
+}
+
+// Horizontal flow for document indexing - FIXED SHADOW ISSUE
+.indexing-flow {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  overflow-x: auto;
+  padding: 1rem 0.5rem;
+  padding-left: 3rem;
+  padding-right: 3rem;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  scroll-behavior: smooth;
+  scroll-padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+
+  // Remove the persistent shadow at the end by removing the ::after content
+  &::after {
+    display: none; // Removing the shadow causing noise
+  }
+
+  // Prevent shadow on hover for these specific elements
+  .flow-box {
+    &:hover {
+      box-shadow: none;
+    }
+  }
+
+  .animated-box {
+    &:hover {
+      box-shadow: none;
+      transform: translateY(-0.25rem);
+    }
+  }
+}
+
+// Line container spans between components but not to the edges
+.indexing-line-container {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 50%;
+  height: 3px;
+  background-color: rgba(var(--bs-primary-rgb), 0.4);
+  transform: translateY(-50%);
+  z-index: 0;
+  width: 70%;
+  pointer-events: none;
+  margin: 0 auto;
+}
+
+// Component wrapper to position elements above the line
+.component-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  background-color: var(--light-card-bg);
+  padding: 0.5rem;
+}
+
+// First and last component wrappers should cover the line
+.indexing-flow .component-wrapper:first-child,
+.indexing-flow .component-wrapper:last-child {
+  z-index: 3;
+}
+
+// Fix for unwanted shadows on data boxes
+.indexing-flow .data-box {
+  box-shadow: none;
+}
+
+// Ensure boxes appear above the line with background
+.flow-box {
+  position: relative;
+  z-index: 2;
+  background-color: var(--light-card-bg);
+}
+
+// Hide individual arrow lines in Document Indexing Flow
+.indexing-flow .row-arrow::before {
+  display: none;
+}
+
+// Ensure arrow icons cover the line
+.indexing-flow .row-arrow .arrow-icon {
+  background-color: var(--light-card-bg);
+  box-shadow: 0 0 0 6px var(--light-card-bg);
+  z-index: 3;
+}
+
+// Style the scrollbar for the indexing flow
+.indexing-flow::-webkit-scrollbar {
+  height: 8px;
+}
+
+.indexing-flow::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.indexing-flow::-webkit-scrollbar-thumb {
+  background: rgba(var(--bs-primary-rgb), 0.3);
+  border-radius: 4px;
+}
+
+.indexing-flow::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--bs-primary-rgb), 0.5);
+}
+
+// Animation for boxes
+.animated-box {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  &:hover {
+    transform: translateY(-0.25rem) scale(1.05);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15);
+    z-index: 10;
+  }
+}
+
+// Process steps - Fix for Feedback Flow
+.process-steps {
+  width: 100%;
+  max-width: 800px;
+  margin: 3rem 0 2rem;
+}
+
+.steps-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.steps-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  background-color: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-left: 3px solid var(--primary-color);
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateX(0.25rem);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+
+  .step-number {
+    background-color: var(--primary-color);
+    color: white;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+
+  .step-content {
+    flex: 1;
+  }
+
+  .step-description {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .step-flow {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--bs-secondary);
+
+    i {
+      margin: 0 0.5rem;
+      color: var(--primary-color);
+    }
+
+    .flow-from,
+    .flow-to,
+    .flow-component {
+      background-color: rgba(var(--bs-primary-rgb), 0.1);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-family: monospace;
+    }
+  }
+}
+
+// Add additional styling for the flow component class
+.flow-component {
+  background-color: rgba(var(--bs-primary-rgb), 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+}
+
+// Key info styles for both tabs
+.key-info {
+  width: 100%;
+  max-width: 800px;
+  margin: 2rem 0;
+}
+
+.key-info-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.info-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.info-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  width: 250px;
+  text-align: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-0.25rem);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  .card-icon {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    i {
+      font-size: 1.5rem;
+    }
+  }
+
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .card-text {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    line-height: 1.5;
+    margin: 0;
+  }
+}
+
+// Documentation Section Selector
+.documentation-selector {
+  width: 100%;
+  margin-bottom: 2rem;
+
+  .selector-tabs {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+
+    .selector-tab {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: transparent;
+      border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+      color: var(--bs-secondary);
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      i {
+        font-size: 1.25rem;
+      }
+
+      &:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--primary-color);
+      }
+
+      &.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        box-shadow: 0 0.25rem 0.75rem rgba(var(--bs-primary-rgb), 0.25);
+      }
+    }
+  }
+}
+
+// Section title for each tab
+.section-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  text-align: center;
+  color: var(--primary-color);
+}
+
+.section-description {
+  font-size: 1.1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// Dark mode styles
+:host-context([data-bs-theme="dark"]) {
+  .indexing-flow::after {
+    display: none; // Remove shadow in dark mode too
+  }
+
+  .chatbot-flow-container {
+    background-color: var(--dark-bg);
+  }
+
+  .chatbot-flow-diagram,
+  .feedback-flow-diagram,
+  .labs-flow-diagram {
+    background-color: var(--dark-card-bg);
+    box-shadow: var(--shadow-dark);
+  }
+
+  .workflow-description {
+    color: var(--dark-text-secondary);
+  }
+
+  .arrow-label {
+    background-color: var(--dark-secondary-bg);
+    color: var(--dark-text-muted);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .flow-arrow,
+  .row-arrow {
+    &:before {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .arrow-icon {
+      background-color: var(--dark-card-bg);
+    }
+  }
+
+  .flow-divider {
+    border-color: var(--dark-border-color);
+
+    &:before {
+      background-color: var(--dark-card-bg);
+      color: var(--dark-text-muted);
+    }
+  }
+
+  .details-panel {
+    background-color: var(--dark-card-bg);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.3);
+
+    &:before {
+      background-color: var(--dark-card-bg);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .details-subtitle {
+      color: var(--dark-text-secondary);
+    }
+
+    .code-block {
+      background-color: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+
+      pre {
+        color: var(--dark-text);
+      }
+    }
+  }
+  .aws-icon,
+  .tech-icon {
+    filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+
+  // Enhance Momento logo visibility in dark mode
+  img[src*="momento-logo-forest"],
+  .momento-icon {
+    filter: brightness(1.4);
+  }
+
+  // Dark mode styles for indexing flow
+  .indexing-line-container {
+    background-color: rgba(255, 255, 255, 0.4);
+  }
+
+  .component-wrapper {
+    background-color: var(--dark-card-bg);
+  }
+
+  .flow-box {
+    background-color: var(--dark-card-bg);
+  }
+
+  .indexing-flow .row-arrow .arrow-icon {
+    background-color: var(--dark-card-bg);
+    box-shadow: 0 0 0 6px var(--dark-card-bg);
+  }
+
+  .indexing-flow {
+    .flow-box:hover,
+    .animated-box:hover {
+      box-shadow: none !important;
+    }
+  }
+
+  .indexing-flow::before {
+    content: "";
+    display: block;
+    width: 3rem;
+    flex: 0 0 3rem;
+  }
+
+  .selector-tab {
+    border-color: var(--dark-border-color);
+    color: var(--dark-text-secondary);
+
+    &:hover {
+      background-color: rgba(var(--bs-primary-rgb), 0.15);
+    }
+  }
+
+  .step-item {
+    background-color: var(--dark-card-bg);
+    border-color: var(--primary-color);
+  }
+
+  .info-card {
+    background-color: var(--dark-card-bg);
+
+    .card-text {
+      color: var(--dark-text-secondary);
+    }
+  }
+
+  .flow-component {
+    color: var(--primary-color);
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+@media (max-width: 768px) {
+  .flow-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    &:before {
+      display: none;
+    }
+  }
+
+  .centered-flow {
+    .flow-section {
+      .flow-row {
+        .flow-box {
+          max-width: 100%;
+        }
+      }
+    }
+  }
+  .flow-grid,
+  .question-flow-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    &:before {
+      display: none;
+    }
+  }
+
+  .indexing-flow {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+
+    &::after {
+      display: none;
+    }
+  }
+
+  .indexing-line-container {
+    width: 3px; // Make line vertical
+    height: 100%;
+    left: 50%;
+    top: 0;
+    right: auto; // Remove right position
+    transform: translateX(-50%); // Center horizontally
+  }
+
+  .component-wrapper {
+    width: 100%;
+  }
+
+  .indexing-flow .row-arrow {
+    transform: rotate(90deg); // Rotate arrows to vertical
+    margin: 0.5rem 0;
+  }
+
+  .details-panel {
+    max-width: 100%;
+  }
+
+  .selector-tabs {
+    flex-direction: column;
+    align-items: stretch;
+
+    .selector-tab {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .flow-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .flow-box {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .info-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .info-card {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .verification-subtitle {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .chatbot-flow-diagram,
+  .feedback-flow-diagram,
+  .labs-flow-diagram {
+    padding: 1rem 0.5rem;
+  }
+
+  .chatbot-flow-title,
+  .feedback-flow-title {
+    font-size: 1.25rem;
+  }
+
+  .step-number {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.75rem;
+  }
+
+  .details-panel {
+    padding: 1rem 0.75rem;
+
+    .details-title {
+      font-size: 1rem;
+    }
+
+    .code-block {
+      padding: 0.75rem;
+
+      pre {
+        font-size: 0.7rem;
+      }
+    }
+  }
+
+  .flow-box {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .step-item {
+    flex-direction: column;
+
+    .step-number {
+      margin-bottom: 0.5rem;
+      margin-right: 0;
+    }
+  }
+
+  .workflow-description {
+    font-size: 0.9rem;
+  }
+
+  .flow-subtitle {
+    font-size: 1.1rem;
+  }
+}

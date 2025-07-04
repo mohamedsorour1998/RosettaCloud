@@ -1,0 +1,74 @@
+name: Build & publish images
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Docker tag
+        default: latest
+        type: string
+      github_iam_role:
+        description: IAM role for GitHub Actions
+        default: github-actions-role
+        type: string
+      aws_account_id:
+        description: AWS Account ID
+        default: "339712964409"
+        type: string
+      aws_region:
+        description: AWS Region
+        default: me-central-1
+        type: string
+
+jobs:
+  # Combined job to build images and update Lambdas sequentially
+  build-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ inputs.aws_account_id }}:role/${{ inputs.github_iam_role }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ inputs.aws_account_id }}
+
+      # Build and push frontend image
+      - name: Build & push frontend image
+        id: push-frontend
+        env:
+          REGISTRY: ${{ steps.login.outputs.registry }}
+          ECR_REPOSITORY: rosettacloud-frontend
+          DOCKERFILE_PATH: Dockerfile
+          BUILD_DIR: .
+        run: |
+          # Check paths
+          if [ ! -f "$DOCKERFILE_PATH" ]; then
+            echo "::error::Dockerfile '$DOCKERFILE_PATH' not found!"
+            exit 1
+          fi
+
+          # Ensure repository exists
+          aws ecr describe-repositories --repository-names $ECR_REPOSITORY \
+          || aws ecr create-repository --repository-name $ECR_REPOSITORY
+
+          # Build and push
+          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
+
+          echo "Building frontend image"
+          docker build --platform linux/amd64 \
+            -f $DOCKERFILE_PATH \
+            $BUILD_DIR \
+            -t "$IMAGE_URI"
+
+          docker push "$IMAGE_URI"
+
+          echo "Successfully pushed frontend image: $IMAGE_URI"

@@ -1,0 +1,11 @@
+# shorthand
+ng serve -c=development
+ng serve -c=uat
+ng serve -c=stg
+ng serve -c=production
+
+# build for deploy
+ng build --configuration=development
+ng build --configuration=uat
+ng build --configuration=stg
+ng build --configuration=production

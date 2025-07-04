@@ -1,0 +1,133 @@
+<div class="accessibility-hero">
+  <div class="container">
+    <h1 class="animate-fade-in">{{ pageTitle }}</h1>
+    <p>{{ pageDescription }}</p>
+  </div>
+</div>
+
+<div class="accessibility-container">
+  <!-- Font Size Controls -->
+  <section class="accessibility-section">
+    <div class="section-header">
+      <h2><i class="bi bi-type"></i> {{ fontSizeTitle }}</h2>
+      <p>{{ fontSizeDescription }}</p>
+    </div>
+
+    <div class="font-size-controls">
+      <button
+        class="size-btn decrease-btn"
+        (click)="decreaseFontSize()"
+        [disabled]="fontSize <= 70"
+      >
+        <i class="bi bi-dash-lg"></i>
+      </button>
+      <div class="font-size-display">
+        <div class="font-size-value">{{ fontSize }}%</div>
+        <div class="font-size-slider">
+          <input
+            type="range"
+            class="form-range"
+            min="70"
+            max="200"
+            step="10"
+            [(ngModel)]="fontSize"
+            (ngModelChange)="applyFontSize()"
+          />
+        </div>
+      </div>
+      <button
+        class="size-btn increase-btn"
+        (click)="increaseFontSize()"
+        [disabled]="fontSize >= 200"
+      >
+        <i class="bi bi-plus-lg"></i>
+      </button>
+    </div>
+
+    <div class="font-size-preview">
+      <p>Text will appear at this size across the platform.</p>
+    </div>
+  </section>
+
+  <!-- Text Direction Controls -->
+  <section class="accessibility-section">
+    <div class="section-header">
+      <h2><i class="bi bi-text-left"></i> {{ textDirectionTitle }}</h2>
+      <p>{{ textDirectionDescription }}</p>
+    </div>
+
+    <div class="text-direction-controls">
+      <div
+        class="direction-option"
+        [class.active]="textDirection === 'ltr'"
+        (click)="changeTextDirection('ltr')"
+      >
+        <i class="bi bi-text-left"></i>
+        <span>Left to Right (LTR)</span>
+      </div>
+      <div
+        class="direction-option"
+        [class.active]="textDirection === 'rtl'"
+        (click)="changeTextDirection('rtl')"
+      >
+        <i class="bi bi-text-right"></i>
+        <span>Right to Left (RTL)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Accessibility Options -->
+  <section *ngFor="let category of categories" class="accessibility-section">
+    <div class="section-header">
+      <h2>
+        <i class="bi" [ngClass]="'bi-' + category.id"></i> {{ category.title }}
+      </h2>
+      <p>{{ category.description }}</p>
+    </div>
+
+    <div class="accessibility-options">
+      <div
+        *ngFor="let option of category.options"
+        class="accessibility-option"
+        [class.active]="option.enabled"
+        (click)="toggleOption(option)"
+      >
+        <div class="option-icon">
+          <i class="bi" [ngClass]="option.icon"></i>
+        </div>
+        <div class="option-content">
+          <h3>{{ option.name }}</h3>
+          <p>{{ option.description }}</p>
+        </div>
+        <div class="option-toggle">
+          <div class="toggle-switch">
+            <div class="toggle-indicator"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Save Preferences Section -->
+  <section class="accessibility-section profile-section">
+    <div class="section-header">
+      <h2><i class="bi bi-person-gear"></i> {{ profileSectionTitle }}</h2>
+      <p>{{ profileSectionDescription }}</p>
+    </div>
+
+    <div class="button-group">
+      <button class="btn save-btn" (click)="saveSettingsManually()">
+        <i class="bi bi-save"></i> {{ saveButtonText }}
+      </button>
+      <button class="btn reset-btn" (click)="resetSettings()">
+        <i class="bi bi-arrow-counterclockwise"></i> {{ resetButtonText }}
+      </button>
+    </div>
+  </section>
+
+  <!-- Status Message -->
+  <div class="status-message" [class.show]="showStatusMessage">
+    <i class="bi bi-check-circle-fill"></i>
+    <span>{{ statusMessage }}</span>
+  </div>
+</div>

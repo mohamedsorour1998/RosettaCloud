@@ -1,0 +1,204 @@
+.login-container {
+  background: var(--primary-gradient);
+  min-height: calc(100vh - 3.5rem); // Adjust based on your navbar height
+  display: flex;
+  align-items: center;
+  padding: 2rem 0;
+}
+
+.login-card {
+  border: none;
+  border-radius: 0.625rem; // 10px in rem
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow);
+
+  .card-title {
+    font-weight: 700;
+    font-size: 1.75rem;
+  }
+}
+
+.input-group-text {
+  background-color: transparent;
+  border-right: 0;
+  transition: all 0.2s ease;
+}
+
+.form-control {
+  border-left: 0;
+  transition: all 0.2s ease;
+
+  &:focus {
+    box-shadow: none;
+  }
+
+  &.is-invalid {
+    border-color: #dc3545;
+    background-image: none;
+  }
+}
+
+.invalid-feedback {
+  font-size: 0.8rem;
+}
+
+.btn-primary {
+  background: var(--primary-gradient);
+  border: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--primary-darker-gradient);
+    transform: translateY(-0.0625rem);
+    box-shadow: 0 0.25rem 0.625rem rgba(0, 0, 0, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.form-check-label {
+  font-size: 0.9rem;
+}
+
+.spinner-border {
+  width: 1rem;
+  height: 1rem;
+}
+
+// Dark mode styles
+[data-bs-theme="dark"] {
+  .login-card {
+    background-color: var(--dark-card-bg);
+    color: var(--dark-text);
+    box-shadow: var(--shadow-dark);
+  }
+
+  .form-control {
+    background-color: var(--dark-secondary-bg);
+    border-color: var(--dark-border-color);
+    color: var(--dark-text);
+
+    &:focus {
+      background-color: var(--dark-secondary-bg);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: var(--dark-text);
+    }
+  }
+
+  .input-group-text {
+    background-color: var(--dark-secondary-bg);
+    border-color: var(--dark-border-color);
+    color: var(--dark-text-muted);
+  }
+
+  .text-muted {
+    color: var(--dark-text-muted) !important;
+  }
+
+  .form-label {
+    color: var(--dark-text);
+  }
+
+  .form-check-label {
+    color: var(--dark-text-secondary);
+  }
+
+  a {
+    color: #6ea8fe; // Bootstrap's default blue link color for dark mode
+
+    &:hover {
+      color: #8bb9fe;
+    }
+  }
+
+  .alert {
+    background-color: var(--dark-secondary-bg);
+    border-color: var(--dark-border-color);
+  }
+
+  .alert-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: #f8d7da;
+  }
+
+  .alert-success {
+    background-color: rgba(25, 135, 84, 0.15);
+    color: #d1e7dd;
+  }
+}
+
+// Light mode styles
+[data-bs-theme="light"] {
+  .login-card {
+    background-color: var(--light-card-bg);
+    color: var(--light-text);
+    box-shadow: var(--shadow);
+  }
+
+  .form-control {
+    background-color: var(--light-bg);
+    border-color: var(--light-border-color);
+    color: var(--light-text);
+
+    &:focus {
+      background-color: var(--light-bg);
+      border-color: rgba(0, 0, 0, 0.2);
+      color: var(--light-text);
+    }
+  }
+
+  .input-group-text {
+    background-color: var(--light-bg);
+    border-color: var(--light-border-color);
+    color: var(--light-text-secondary);
+  }
+
+  .text-muted {
+    color: var(--light-text-muted) !important;
+  }
+
+  .form-label {
+    color: var(--light-text);
+  }
+
+  .form-check-label {
+    color: var(--light-text-secondary);
+  }
+
+  a {
+    color: var(--primary-color);
+
+    &:hover {
+      color: #0d6efd;
+    }
+  }
+
+  .alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+  }
+
+  .alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+  }
+}
+
+@media (max-width: 576px) {
+  .login-container {
+    padding: 1rem;
+  }
+
+  .card-body {
+    padding: 1.5rem !important;
+  }
+}

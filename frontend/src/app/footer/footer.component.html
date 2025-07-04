@@ -1,0 +1,131 @@
+<footer>
+  <div class="footer-main">
+    <div class="container">
+      <div class="row g-4">
+        <!-- Logo and tagline -->
+        <div class="col-lg-4 mb-4 mb-lg-0">
+          <div class="footer-brand">
+            <a
+              (click)="navigateWithScroll('/')"
+              class="footer-logo d-inline-block mb-3"
+              style="cursor: pointer"
+            >
+              <span class="logo-text">RosettaCloud</span>
+            </a>
+            <p class="footer-tagline mb-3">
+              Empowering learners and instructors across the MENA region with
+              accessible, high-quality education and innovative learning
+              solutions.
+            </p>
+            <div class="social-links">
+              <span class="me-2 social-text">Connect with us:</span>
+              <div class="d-inline-block">
+                <a
+                  *ngFor="let social of socialLinks"
+                  [href]="social.url"
+                  class="social-icon"
+                  target="_blank"
+                  rel="noopener"
+                  [attr.aria-label]="social.label"
+                >
+                  <i class="bi {{ social.icon }}"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick links -->
+        <div class="col-6 col-md-4 col-lg-2">
+          <h5 class="footer-heading">Navigate</h5>
+          <ul class="footer-links">
+            <li *ngFor="let link of navigationLinks">
+              <a
+                (click)="navigateWithScroll(link.route)"
+                style="cursor: pointer"
+                >{{ link.name }}</a
+              >
+            </li>
+          </ul>
+        </div>
+
+        <!-- Resources links -->
+        <div class="col-6 col-md-4 col-lg-2">
+          <h5 class="footer-heading">Resources</h5>
+          <ul class="footer-links">
+            <li>
+              <a (click)="navigateWithScroll('/blog')" style="cursor: pointer"
+                >Learning Blog</a
+              >
+            </li>
+            <li>
+              <a (click)="navigateWithScroll('/faq')" style="cursor: pointer"
+                >Help Center</a
+              >
+            </li>
+            <li>
+              <a
+                (click)="navigateWithScroll('/tutorials')"
+                style="cursor: pointer"
+                >Tutorials</a
+              >
+            </li>
+            <li>
+              <a
+                (click)="navigateWithScroll('/webinars')"
+                style="cursor: pointer"
+                >Webinars</a
+              >
+            </li>
+          </ul>
+        </div>
+
+        <!-- Contact information -->
+        <div class="col-md-4 col-lg-4">
+          <h5 class="footer-heading">Contact Us</h5>
+          <ul class="footer-contact">
+            <li>
+              <i class="bi bi-geo-alt-fill"></i>
+              <span>1234 Digital Avenue, Cairo, Egypt</span>
+            </li>
+            <li>
+              <i class="bi bi-envelope-fill"></i>
+              <a href="mailto:info&#64;rosettacloud.app"
+                >info&#64;rosettacloud.app</a
+              >
+            </li>
+            <li>
+              <i class="bi bi-telephone-fill"></i>
+              <a href="tel:+201234567890">+20 123 456 7890</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar with copyright and legal links -->
+  <div class="footer-bottom">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-md-6 text-center text-md-start mb-2 mb-md-0">
+          <p class="mb-0">
+            &copy; {{ year }} RosettaCloud. All rights reserved.
+          </p>
+        </div>
+        <div class="col-md-6 text-center text-md-end">
+          <ul class="footer-legal">
+            <li *ngFor="let link of legalLinks; let last = last">
+              <a
+                (click)="navigateWithScroll(link.route)"
+                style="cursor: pointer"
+                >{{ link.name }}</a
+              >
+              <span *ngIf="!last" class="separator">•</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>

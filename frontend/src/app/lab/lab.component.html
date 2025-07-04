@@ -1,0 +1,367 @@
+<div class="lab-container">
+  <!-- Header -->
+  <header class="lab-header">
+    <div class="lab-title">
+      <h4>RosettaCloud Lab</h4>
+      <div class="lab-status" *ngIf="labInfo$ | async as labInfo">
+        <span
+          class="status-indicator"
+          [ngClass]="{
+            active: labInfo.status === 'running',
+            error: labInfo.status === 'error',
+            pending: labInfo.status === 'pending'
+          }"
+        ></span>
+        <span class="status-text">{{ labInfo.status | titlecase }}</span>
+        <span class="time-remaining" *ngIf="timeRemaining$ | async as t">
+          <i class="bi bi-clock"></i> {{ t }}
+        </span>
+      </div>
+    </div>
+
+    <div class="lab-actions">
+      <!-- Lab controls -->
+      <button
+        class="btn-info"
+        (click)="toggleInstructions()"
+        title="Toggle Instructions"
+      >
+        <i class="bi bi-info-circle"></i>
+        <span class="action-text">Instructions</span>
+      </button>
+      <button
+        class="btn-refresh"
+        (click)="refreshLab()"
+        [disabled]="!isLabActive || isLoading"
+        title="Refresh Lab Environment"
+      >
+        <i class="bi bi-arrow-clockwise"></i>
+        <span class="action-text">Refresh</span>
+      </button>
+      <button
+        class="btn-terminate"
+        (click)="terminateLab()"
+        [disabled]="!isLabActive"
+        title="Terminate Lab"
+      >
+        <i class="bi bi-stop-circle"></i>
+        <span class="action-text">Terminate</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Connection Warning Banner -->
+  <div class="api-connection-warning" *ngIf="showApiBanner">
+    <i class="bi bi-wifi-off wifi-icon"></i> Connection to lab service lost.
+    <span class="retry-text">Retrying…</span>
+    <button class="retry-btn" (click)="manualRetryConnection()">
+      <i class="bi bi-arrow-clockwise"></i> Try Now
+    </button>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="lab-content" [class.instructions-open]="showInstructions">
+    <!-- Question Sidebar -->
+    <aside class="lab-sidebar" [class.mobile-hidden]="isMobile && !showSidebar">
+      <!-- Mobile close button -->
+      <button
+        *ngIf="isMobile"
+        class="mobile-close-btn"
+        (click)="toggleSidebar()"
+      >
+        <i class="bi bi-x-lg"></i>
+      </button>
+
+      <!-- Instructions Area -->
+      <div class="instructions-area" [class.active]="showInstructions">
+        <div class="instructions-header">
+          <h5>Lab Instructions</h5>
+          <button class="close-instructions-btn" (click)="toggleInstructions()">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        <div class="instructions-content">
+          <h6>Welcome to the Lab Environment</h6>
+          <p>
+            This lab allows you to practice coding skills in a real development
+            environment. Follow the questions on the left panel to complete the
+            lab exercises.
+          </p>
+
+          <div class="instruction-section">
+            <h6>Getting Started</h6>
+            <ul>
+              <li>The code editor is loaded in the main panel</li>
+              <li>Navigate through questions using the question navigator</li>
+              <li>Submit your answers to check if they're correct</li>
+              <li>Use the AI assistant for help if you get stuck</li>
+            </ul>
+          </div>
+
+          <div class="instruction-section">
+            <h6>Interface Guide</h6>
+            <ul>
+              <li>
+                <strong>Question Panel:</strong> Navigate through lab questions
+              </li>
+              <li><strong>Editor Panel:</strong> Write and test your code</li>
+              <li><strong>AI Assistant:</strong> Get help and guidance</li>
+            </ul>
+          </div>
+
+          <div class="instruction-section">
+            <h6>Time Limit</h6>
+            <p>
+              This lab has a limited time duration. Your progress is saved
+              automatically as you complete questions.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-header">
+        <h5>Lab Questions</h5>
+        <div class="progress-indicator">
+          <div class="progress-text">
+            {{ getCompletedQuestionsCount() }}/{{ questions.length }}
+          </div>
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              [style.width.%]="
+                (getCompletedQuestionsCount() / questions.length) * 100
+              "
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Question Navigation -->
+      <div class="question-navigation" *ngIf="questions.length">
+        <button
+          class="nav-btn prev-btn"
+          (click)="navigateToPrevQuestion()"
+          [disabled]="currentQuestionIndex === 0"
+          title="Previous Question"
+        >
+          <i class="bi bi-chevron-left"></i>
+        </button>
+
+        <div class="question-indicators">
+          <div
+            *ngFor="let q of questions; let i = index"
+            class="question-indicator"
+            [ngClass]="{
+              active: currentQuestionIndex === i,
+              visited: q.visited,
+              completed: q.completed
+            }"
+            (click)="navigateToQuestion(i + 1)"
+            [attr.aria-label]="'Question ' + (i + 1)"
+            [attr.title]="
+              'Question ' + (i + 1) + (q.completed ? ' (Completed)' : '')
+            "
+          >
+            {{ i + 1 }}
+          </div>
+        </div>
+
+        <button
+          class="nav-btn next-btn"
+          (click)="navigateToNextQuestion()"
+          [disabled]="currentQuestionIndex === questions.length - 1"
+          title="Next Question"
+        >
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+
+      <!-- Question Details -->
+      <div class="question-details" *ngIf="currentQuestion as cq">
+        <h5 class="question-title">{{ cq.question }}</h5>
+
+        <!-- Multiple Choice Questions -->
+        <div
+          class="question-options"
+          *ngIf="cq.type === 'mcq' && cq.options?.length"
+        >
+          <div
+            *ngFor="let opt of cq.options; let i = index"
+            class="option-item"
+            [ngClass]="{
+              selected: selectedOption === i,
+              correct: showFeedback && selectedOption === i && isAnswerCorrect,
+              incorrect:
+                showFeedback && selectedOption === i && !isAnswerCorrect,
+              'disabled-wrong': cq.disabledOptions.includes(i)
+            }"
+            (click)="setSelectedOption(i)"
+          >
+            <div class="option-marker">{{ ["A", "B", "C", "D", "E"][i] }}</div>
+            <div class="option-text">{{ opt }}</div>
+          </div>
+        </div>
+
+        <div class="feedback-area" *ngIf="showFeedback">
+          <div
+            class="feedback-message"
+            [ngClass]="{
+              'feedback-correct': isAnswerCorrect,
+              'feedback-incorrect': !isAnswerCorrect && !checkInProgress,
+              'feedback-checking': checkInProgress
+            }"
+          >
+            <i *ngIf="isAnswerCorrect" class="bi bi-check-circle-fill"></i>
+            <i
+              *ngIf="!isAnswerCorrect && !checkInProgress"
+              class="bi bi-x-circle-fill"
+            ></i>
+            <i *ngIf="checkInProgress" class="bi bi-arrow-repeat"></i>
+            {{ feedbackMessage }}
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="question-buttons">
+          <button
+            class="btn-submit"
+            [ngClass]="{ loading: checkInProgress }"
+            *ngIf="cq.type === 'mcq' && !cq.completed"
+            [disabled]="
+              selectedOption === null || !isLabActive || checkInProgress
+            "
+            (click)="checkAnswer()"
+          >
+            <span class="spinner" *ngIf="checkInProgress"></span>
+            <span class="btn-text">Submit Answer</span>
+          </button>
+
+          <button
+            class="btn-submit"
+            [ngClass]="{ loading: checkInProgress }"
+            *ngIf="cq.type === 'check' && !cq.completed"
+            [disabled]="checkInProgress || !isLabActive"
+            (click)="checkQuestion(currentQuestionIndex + 1)"
+          >
+            <span class="spinner" *ngIf="checkInProgress"></span>
+            <span class="btn-text">Check Solution</span>
+          </button>
+
+          <button
+            class="btn-next"
+            *ngIf="
+              (cq.completed || (showFeedback && isAnswerCorrect)) &&
+              currentQuestionIndex < questions.length - 1
+            "
+            (click)="navigateToNextQuestion()"
+          >
+            <i class="bi bi-arrow-right"></i> Next Question
+          </button>
+
+          <button
+            class="btn-try-again"
+            *ngIf="showFeedback && !isAnswerCorrect && !cq.completed"
+            (click)="resetCurrentQuestionAttempt()"
+          >
+            <i class="bi bi-arrow-repeat"></i> Try Again
+          </button>
+
+          <button
+            class="btn-skip"
+            *ngIf="
+              cq.wrongAttempt &&
+              !cq.completed &&
+              currentQuestionIndex < questions.length - 1
+            "
+            (click)="navigateToNextQuestion()"
+          >
+            <i class="bi bi-skip-forward"></i> Skip Question
+          </button>
+        </div>
+      </div>
+
+      <!-- Feedback Section -->
+      <div class="lab-feedback-section" *ngIf="showFeedbackButton">
+        <app-feedback
+          [moduleUuid]="moduleUuid ?? ''"
+          [lessonUuid]="lessonUuid ?? ''"
+          [questions]="questions"
+          [userProgress]="userProgressData"
+          (terminateLabRequest)="terminateLab()"
+        ></app-feedback>
+      </div>
+    </aside>
+
+    <!-- Main Editor Panel -->
+    <main class="lab-main">
+      <!-- Loading State -->
+      <div class="lab-loading" *ngIf="isLoading">
+        <div class="spinner-container">
+          <div class="spinner"></div>
+        </div>
+        <p class="loading-message">
+          {{
+            isInitializing ? "Initializing lab environment..." : "Loading..."
+          }}
+        </p>
+        <p class="loading-subtext" *ngIf="isInitializing">
+          This may take up to 1 minute
+        </p>
+      </div>
+
+      <!-- Error State -->
+      <div class="lab-error" *ngIf="!isLoading && errorMessage">
+        <div class="error-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <h5>Oops! Something went wrong</h5>
+        <p>{{ errorMessage }}</p>
+        <button class="btn-retry" (click)="initializeNewLab()">
+          <i class="bi bi-arrow-clockwise"></i> Try Again
+        </button>
+      </div>
+
+      <!-- Active Lab Frame -->
+      <div class="lab-frame" *ngIf="!isLoading && isLabActive && codeServerUrl">
+        <iframe
+          class="code-server-iframe"
+          [src]="codeServerUrl"
+          title="Lab Environment"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+        ></iframe>
+      </div>
+
+      <!-- Mobile navigation buttons -->
+      <div class="mobile-nav-buttons" *ngIf="isMobile">
+        <button
+          class="mobile-sidebar-btn"
+          (click)="toggleSidebar()"
+          title="Questions"
+        >
+          <i class="bi bi-list-check"></i>
+        </button>
+        <button
+          class="mobile-chat-btn"
+          (click)="toggleChatbot()"
+          title="AI Assistant"
+        >
+          <i class="bi bi-chat-dots"></i>
+        </button>
+      </div>
+    </main>
+
+    <!-- Chatbot Panel -->
+    <aside
+      class="chatbot-panel"
+      [class.mobile-hidden]="isMobile && !showChatbot"
+    >
+      <!-- Mobile close button -->
+      <button
+        *ngIf="isMobile"
+        class="mobile-close-btn"
+        (click)="toggleChatbot()"
+      >
+        <i class="bi bi-x-lg"></i>
+      </button>
+      <app-chatbot></app-chatbot>
+    </aside>
+  </div>
+</div>

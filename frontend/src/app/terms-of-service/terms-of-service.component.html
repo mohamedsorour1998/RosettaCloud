@@ -1,0 +1,89 @@
+<div class="terms-hero">
+  <div class="container">
+    <h1 class="animate-fade-in">{{ heroTitle }}</h1>
+    <p>{{ heroSubtitle }}</p>
+    <div class="terms-dates">
+      <div class="date-item">
+        <div class="date-label">Last Updated</div>
+        <div class="date-value">{{ lastUpdated }}</div>
+      </div>
+      <div class="date-item">
+        <div class="date-label">Effective Date</div>
+        <div class="date-value">{{ effectiveDate }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="terms-container">
+  <div class="row">
+    <div class="col-lg-4">
+      <div class="terms-toc">
+        <h2>Contents</h2>
+        <ul>
+          <li *ngFor="let item of tocItems">
+            <a
+              [href]="'#' + item.id"
+              (click)="scrollToSection(item.id); $event.preventDefault()"
+              >{{ item.title }}</a
+            >
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="terms-content">
+        <section
+          *ngFor="let section of termsSections"
+          [id]="section.id"
+          class="terms-section"
+        >
+          <h2>{{ section.title }}</h2>
+
+          <p *ngFor="let paragraph of section.content">{{ paragraph }}</p>
+
+          <div *ngIf="section.highlightedBox" class="highlighted-box">
+            <p>{{ section.highlightedBox }}</p>
+          </div>
+
+          <div *ngFor="let subsection of section.subsections">
+            <h3>{{ subsection.title }}</h3>
+            <p *ngFor="let paragraph of subsection.content">{{ paragraph }}</p>
+
+            <ul *ngIf="subsection.isList">
+              <li *ngFor="let item of subsection.listItems">{{ item }}</li>
+            </ul>
+          </div>
+
+          <!-- Contact section at the end of the last section -->
+          <div *ngIf="section.id === 'contact'" class="contact-section">
+            <h3>{{ contactSectionTitle }}</h3>
+            <p>{{ contactSectionContent }}</p>
+            <a [href]="'mailto:' + contactEmail" class="contact-email">{{
+              contactEmail
+            }}</a>
+          </div>
+        </section>
+
+        <div class="acceptance-section">
+          <div class="container">
+            <h3>{{ acceptanceSectionTitle }}</h3>
+            <p>{{ acceptanceSectionContent }}</p>
+            <a [routerLink]="acceptanceButtonLink" class="btn">{{
+              acceptanceButtonText
+            }}</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button
+  class="back-to-top"
+  [class.visible]="showBackToTop"
+  (click)="scrollToTop()"
+>
+  <i class="bi bi-arrow-up"></i>
+</button>

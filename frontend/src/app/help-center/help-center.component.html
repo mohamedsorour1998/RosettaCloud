@@ -1,0 +1,155 @@
+<!-- help-center.component.html -->
+<div class="help-hero component-hero">
+  <div class="container text-center py-5">
+    <h1 class="display-4 mb-3 animate-fade-in-down">How Can We Help You?</h1>
+    <p class="lead mb-4 animate-fade-in">
+      Find answers to your questions and get the support you need
+    </p>
+    <div class="search-bar-container animate-fade-in-up">
+      <div class="search-bar mx-auto">
+        <i class="bi bi-search search-icon"></i>
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Search for help articles..."
+          [(ngModel)]="searchQuery"
+          (input)="searchArticles()"
+        />
+        <button
+          *ngIf="searchQuery"
+          class="search-clear-btn"
+          (click)="clearSearch()"
+        >
+          <i class="bi bi-x-circle-fill"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <!-- Search Results -->
+  <div class="search-results animate-fade-in" *ngIf="showSearchResults">
+    <div class="search-header">
+      <h2 *ngIf="!isSearching">
+        {{
+          searchResults.length > 0
+            ? searchResults.length + ' results for "' + searchQuery + '"'
+            : 'No results found for "' + searchQuery + '"'
+        }}
+      </h2>
+      <h2 *ngIf="isSearching">Searching for "{{ searchQuery }}"...</h2>
+      <button class="btn btn-link" (click)="clearSearch()">
+        Clear results
+      </button>
+    </div>
+
+    <div class="results-container" *ngIf="!isSearching">
+      <!-- Loading indicator -->
+      <div class="text-center py-5" *ngIf="isSearching">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3">Searching our knowledge base...</p>
+      </div>
+
+      <!-- No results state -->
+      <div
+        class="no-results text-center py-5"
+        *ngIf="searchResults.length === 0 && !isSearching"
+      >
+        <div class="no-results-icon">
+          <i class="bi bi-search"></i>
+        </div>
+        <h3>No results found</h3>
+        <p>We couldn't find any articles matching "{{ searchQuery }}"</p>
+        <p>
+          Try using different keywords or
+          <a routerLink="/contact">contact our support team</a>
+        </p>
+      </div>
+
+      <!-- Results list -->
+      <div class="row g-4" *ngIf="searchResults.length > 0">
+        <div class="col-md-6" *ngFor="let article of searchResults">
+          <div class="article-card" (click)="navigateToArticle(article.id)">
+            <h3 class="article-title">{{ article.title }}</h3>
+            <p class="article-summary">{{ article.summary }}</p>
+            <div class="article-category">
+              <i class="bi bi-folder"></i>
+              <span>{{ getCategoryTitle(article.categoryId) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Categories -->
+  <div *ngIf="!showSearchResults">
+    <h2 class="section-title text-center mb-5 animate-on-scroll">
+      Browse Help Topics
+    </h2>
+
+    <div class="row g-4 mb-5">
+      <div class="col-lg-4 col-md-6" *ngFor="let category of helpCategories">
+        <div
+          class="help-category animate-on-scroll"
+          (click)="navigateToCategory(category.id)"
+        >
+          <div class="category-icon">
+            <i class="bi" [ngClass]="category.icon"></i>
+          </div>
+          <h3 class="category-title">{{ category.title }}</h3>
+          <p class="category-description">{{ category.description }}</p>
+          <div class="article-count">
+            <i class="bi bi-file-text"></i>
+            <span>{{ category.articleCount }} articles</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Featured Articles -->
+    <div class="featured-articles-section animate-on-scroll">
+      <h2 class="section-title text-center mb-5">Popular Articles</h2>
+      <div class="row g-4">
+        <div class="col-lg-6" *ngFor="let article of featuredArticles">
+          <div class="featured-article" (click)="navigateToArticle(article.id)">
+            <div class="article-icon">
+              <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <div class="article-content">
+              <h3 class="article-title">{{ article.title }}</h3>
+              <p class="article-summary">{{ article.summary }}</p>
+              <div class="read-more">
+                Read Article <i class="bi bi-arrow-right"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAQ Section using the reusable component -->
+    <app-faq [faqItems]="faqItems" [title]="'Frequently Asked Questions'"></app-faq>
+
+    <!-- Support CTA Section -->
+    <div class="support-cta text-center py-5 my-5 rounded animate-on-scroll">
+      <h2>Still Need Help?</h2>
+      <p class="lead mb-4">Our support team is available to assist you</p>
+      <div class="cta-buttons">
+        <a routerLink="/contact" class="btn btn-primary btn-lg me-3">
+          <i class="bi bi-chat-dots me-2"></i>Contact Support
+        </a>
+
+        <a
+          href="mailto:supportrosettacloud.app"
+          class="btn btn-outline-primary btn-lg"
+        >
+          <i class="bi bi-envelope me-2"></i>Email Us
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

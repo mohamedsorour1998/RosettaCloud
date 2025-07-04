@@ -1,0 +1,366 @@
+<div class="dashboard-container">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container animate-fade-in">
+    <div class="spinner">
+      <svg viewBox="0 0 50 50" class="spinner-circle">
+        <circle
+          class="path"
+          cx="25"
+          cy="25"
+          r="20"
+          fill="none"
+          stroke-width="4"
+        ></circle>
+      </svg>
+    </div>
+    <h4>Loading your dashboard</h4>
+    <p>We're preparing your learning environment</p>
+  </div>
+
+  <!-- Error State -->
+  <div
+    *ngIf="errorMessage && !isLoading"
+    class="error-container animate-fade-in"
+  >
+    <div class="error-icon">
+      <i class="bi bi-exclamation-triangle"></i>
+    </div>
+    <h3>Something went wrong</h3>
+    <p>{{ errorMessage }}</p>
+    <button class="btn-retry" (click)="loadDashboardData()">
+      <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+    </button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div
+    *ngIf="!isLoading && !errorMessage"
+    class="dashboard-content animate-fade-in"
+  >
+    <!-- Success Notification -->
+    <div
+      *ngIf="showSuccessNotification"
+      class="success-notification animate-fade-in"
+    >
+      <div class="notification-icon">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <div class="notification-content">
+        <h4>All Labs Terminated</h4>
+        <p>Your lab environments have been successfully cleaned up.</p>
+      </div>
+      <button class="notification-close" (click)="closeNotification()">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+
+    <!-- Welcome Banner -->
+    <div class="welcome-banner animate-slide-in-up">
+      <div class="welcome-content">
+        <div class="welcome-text">
+          <h1 class="welcome-title">
+            Welcome back, {{ user?.name || "Student" }}!
+          </h1>
+          <p class="welcome-subtitle">
+            Track your progress and continue your learning journey
+          </p>
+        </div>
+        <div class="welcome-actions">
+          <a routerLink="/courses" class="btn-primary">
+            <i class="bi bi-book"></i>
+            <span>Explore Courses</span>
+          </a>
+          <a routerLink="/profile" class="btn-secondary">
+            <i class="bi bi-person"></i>
+            <span>My Profile</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-container animate-slide-in-up" style="--delay: 0.1s">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="bi bi-book"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ userModules.length }}</h3>
+          <p class="stat-label">Enrolled Courses</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon success">
+          <i class="bi bi-check-lg"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ completedLessons }}</h3>
+          <p class="stat-label">Completed Lessons</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon info">
+          <i class="bi bi-code-square"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ userLabs.length }}</h3>
+          <p class="stat-label">Active Labs</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Course Progress -->
+    <div class="progress-container animate-slide-in-up" style="--delay: 0.2s">
+      <div class="container-header">
+        <h2>Your Learning Progress</h2>
+        <a routerLink="/courses" class="btn-text">
+          <span>View All Courses</span>
+          <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="isObjectEmpty(userProgress)" class="empty-state">
+        <div class="empty-icon">
+          <i class="bi bi-journal-text"></i>
+        </div>
+        <h3>No courses started yet</h3>
+        <p>Enroll in a course to start your learning journey</p>
+        <a routerLink="/courses" class="btn-primary">
+          <i class="bi bi-search"></i>
+          <span>Browse Courses</span>
+        </a>
+      </div>
+
+      <!-- Course List -->
+      <div *ngIf="hasObjectKeys(userProgress)" class="course-list">
+        <div
+          *ngFor="let moduleId of userModules; let i = index"
+          class="course-item"
+          [class.has-border]="i < userModules.length - 1"
+        >
+          <div class="course-header">
+            <h3 class="course-title">{{ moduleId }}</h3>
+            <div class="course-meta">
+              <span class="course-badge">
+                <i class="bi bi-book"></i>
+                <span>{{ getModuleLessons(moduleId).length }} lessons</span>
+              </span>
+              <span class="course-progress-text">
+                <i class="bi bi-bar-chart-fill"></i>
+                <span
+                  >{{ getModuleCompletionPercentage(moduleId) }}% complete</span
+                >
+              </span>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="progress-track">
+            <div
+              class="progress-fill"
+              [style.width.%]="getModuleCompletionPercentage(moduleId)"
+            ></div>
+          </div>
+
+          <!-- Course Actions -->
+          <div class="course-actions">
+            <button class="btn-toggle" (click)="toggleModuleExpand(moduleId)">
+              <i
+                class="bi"
+                [ngClass]="
+                  expandedModules && expandedModules[moduleId]
+                    ? 'bi-chevron-up'
+                    : 'bi-chevron-down'
+                "
+              ></i>
+              <span>{{
+                expandedModules && expandedModules[moduleId]
+                  ? "Hide lessons"
+                  : "Show lessons"
+              }}</span>
+            </button>
+            <a [routerLink]="['/courses', moduleId]" class="btn-continue">
+              <span>Continue Learning</span>
+              <i class="bi bi-arrow-right"></i>
+            </a>
+          </div>
+
+          <!-- Lessons List (Collapsible) -->
+          <div
+            class="lesson-list"
+            [class.expanded]="expandedModules && expandedModules[moduleId]"
+          >
+            <div
+              *ngFor="let lessonId of getModuleLessons(moduleId)"
+              class="lesson-item"
+            >
+              <div
+                class="lesson-status"
+                [class.completed]="isLessonCompleted(moduleId, lessonId)"
+              >
+                <i
+                  class="bi"
+                  [ngClass]="
+                    isLessonCompleted(moduleId, lessonId)
+                      ? 'bi-check-lg'
+                      : 'bi-circle'
+                  "
+                ></i>
+              </div>
+              <div class="lesson-info">
+                <span class="lesson-name">{{ lessonId }}</span>
+                <span class="lesson-progress">
+                  {{ getCompletedQuestionsCount(moduleId, lessonId) }}/{{
+                    getTotalQuestionsCount(moduleId, lessonId)
+                  }}
+                  questions
+                </span>
+              </div>
+              <a
+                [routerLink]="['/courses', moduleId, lessonId]"
+                class="lesson-link"
+              >
+                <i class="bi bi-arrow-right-circle"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Demo Lab Section  -->
+    <div class="labs-container animate-slide-in-up" style="--delay: 0.25s">
+      <div class="container-header">
+        <h2>Demo lab</h2>
+      </div>
+
+      <div class="labs-grid">
+        <!-- Demo Lab Card always visible -->
+        <div class="lab-card demo-lab">
+          <div class="lab-status">
+            <span class="status-badge demo">Demo</span>
+          </div>
+          <div class="lab-icon demo">
+            <i class="bi bi-lightning"></i>
+          </div>
+          <h3 class="lab-title">Demo Lab</h3>
+          <p class="lab-description">
+            Try our interactive lab environment with sample content
+          </p>
+          <a
+            href="/lab/module/1/lesson/1"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-launch"
+          >
+            <span>Launch Demo</span>
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Labs -->
+    <div class="labs-container animate-slide-in-up" style="--delay: 0.3s">
+      <div class="container-header">
+        <h2>Your Active Labs</h2>
+        <div class="header-actions">
+          <!-- Clean up button - with disabled state and tooltip -->
+          <button
+            class="btn-cleanup"
+            (click)="terminateAllLabs()"
+            [disabled]="!userLabs || userLabs.length === 0 || isLoading"
+            [title]="
+              !userLabs || userLabs.length === 0
+                ? 'There must be at least one active lab'
+                : 'Terminate all active labs'
+            "
+          >
+            <i class="bi bi-trash"></i>
+            <span>{{
+              !userLabs || userLabs.length === 0
+                ? "No Active Labs"
+                : "Terminate All Labs"
+            }}</span>
+          </button>
+          <a routerLink="/labs" class="btn-text">
+            <span>View All Labs</span>
+            <i class="bi bi-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- User's Active Labs Grid -->
+      <div class="labs-grid" *ngIf="userLabs && userLabs.length > 0">
+        <div *ngFor="let labId of userLabs" class="lab-card">
+          <div class="lab-status">
+            <span class="status-badge">Active</span>
+          </div>
+          <div class="lab-icon">
+            <i class="bi bi-pc-display-horizontal"></i>
+          </div>
+          <h3 class="lab-title">{{ labId }}</h3>
+          <p class="lab-description">
+            Access hands-on environment to practice your skills
+          </p>
+          <a [routerLink]="['/labs', labId]" class="btn-launch">
+            <span>Launch Lab</span>
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Empty State: only show if user has no labs -->
+      <div *ngIf="!userLabs || userLabs.length === 0" class="empty-state">
+        <div class="empty-icon">
+          <i class="bi bi-pc-display-horizontal"></i>
+        </div>
+        <h3>No active labs</h3>
+        <p>Access hands-on labs to practice your skills</p>
+        <a routerLink="/labs" class="btn-primary">
+          <i class="bi bi-search"></i>
+          <span>Browse Labs</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div
+    class="modal-overlay"
+    *ngIf="showCleanupConfirmation"
+    (click)="cancelCleanup()"
+  >
+    <div class="confirmation-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5>Terminate All Labs</h5>
+        <button class="close-modal-btn" (click)="cancelCleanup()">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="warning-icon">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <p>
+          Are you sure you want to terminate all active labs? This action will:
+        </p>
+        <ul class="warning-list">
+          <li>End all your current lab sessions</li>
+          <li>Delete unsaved work in these environments</li>
+          <li>Free up resources for new labs</li>
+        </ul>
+        <p class="warning-text">This action cannot be undone!</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="cancelCleanup()">Cancel</button>
+        <button class="btn-confirm" (click)="confirmCleanup()">
+          <i class="bi bi-trash me-2"></i>Terminate All Labs
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

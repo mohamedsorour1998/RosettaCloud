@@ -1,0 +1,149 @@
+<!-- pricing.component.html -->
+<div class="pricing-hero component-hero">
+  <div class="container text-center py-5">
+    <h1 class="display-4 mb-3 animate-fade-in-down">
+      Simple, Transparent Pricing
+    </h1>
+    <p class="lead mb-4 animate-fade-in">
+      Choose the plan that fits your learning needs
+    </p>
+    <div class="billing-toggle animate-fade-in-up">
+      <div class="toggle-container">
+        <button
+          [class.active]="billingCycle === 'monthly'"
+          (click)="toggleBillingCycle('monthly')"
+          class="toggle-btn monthly"
+        >
+          Monthly
+        </button>
+        <button
+          [class.active]="billingCycle === 'annual'"
+          (click)="toggleBillingCycle('annual')"
+          class="toggle-btn annual"
+        >
+          Annual <span class="save-badge">Save 20%</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <!-- Pricing Cards -->
+  <div class="row justify-content-center g-4 mb-5">
+    <div *ngFor="let plan of pricingPlans" class="col-lg-4 col-md-6">
+      <div
+        class="pricing-table animate-on-scroll"
+        [class.featured]="plan.featured"
+      >
+        <div class="pricing-header">
+          <h3 class="plan-name">{{ plan.name }}</h3>
+          <div class="plan-price">
+            {{
+              billingCycle === "monthly"
+                ? plan.price.monthly
+                : plan.price.annual
+            }}
+            <span
+              class="price-period"
+              *ngIf="
+                plan.price.monthly !== 'Free' && plan.price.monthly !== 'Custom'
+              "
+            >
+              {{ billingCycle === "monthly" ? "/mo" : "/year" }}
+            </span>
+          </div>
+          <div class="plan-billing">{{ plan.description }}</div>
+        </div>
+        <div class="pricing-features">
+          <ul class="features-list">
+            <li
+              *ngFor="let feature of plan.features"
+              [class.excluded]="!feature.included"
+            >
+              <i
+                class="bi"
+                [ngClass]="
+                  feature.included ? 'bi-check-circle-fill' : 'bi-x-circle'
+                "
+                class="feature-icon"
+              ></i>
+              <span>{{ feature.text }}</span>
+            </li>
+          </ul>
+        </div>
+        <div class="pricing-footer">
+          <a
+            [routerLink]="plan.buttonLink"
+            class="btn"
+            [ngClass]="plan.featured ? 'btn-primary' : 'btn-outline-primary'"
+          >
+            {{ plan.buttonText }}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Additional Features Section -->
+  <div class="additional-features my-5 py-4 animate-on-scroll">
+    <h2 class="section-title text-center mb-5">All Plans Include</h2>
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-shield-check"></i>
+          </div>
+          <h3 class="feature-title">Secure Platform</h3>
+          <p class="feature-text">
+            Your data is protected with enterprise-grade security and regular
+            backups.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-globe2"></i>
+          </div>
+          <h3 class="feature-title">Multilingual Support</h3>
+          <p class="feature-text">
+            Content available in Arabic, English, and French with more languages
+            coming soon.
+          </p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="bi bi-device-ssd"></i>
+          </div>
+          <h3 class="feature-title">Cloud Saves</h3>
+          <p class="feature-text">
+            Your progress is automatically saved and synced across all your
+            devices.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ Section using the reusable FAQ component -->
+  <app-faq [faqItems]="faqItems" title="Pricing FAQs"></app-faq>
+
+  <!-- CTA Section -->
+  <div class="pricing-cta text-center py-5 my-5 rounded animate-on-scroll">
+    <h2>Ready to Start Your Learning Journey?</h2>
+    <p class="lead mb-4">
+      Join thousands of students who are already transforming their careers
+    </p>
+    <div class="cta-buttons">
+      <a routerLink="/register" class="btn btn-primary btn-lg me-3">
+        <i class="bi bi-person-plus me-2"></i>Sign Up Now
+      </a>
+      <a routerLink="/contact" class="btn btn-outline-primary btn-lg">
+        <i class="bi bi-chat-dots me-2"></i>Contact Sales
+      </a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,248 @@
+<!-- Hero Section -->
+<div class="about-hero">
+  <div class="container text-center py-5">
+    <h1 class="display-4 mb-3 animate-fade-in-down">Our Mission & Story</h1>
+    <p class="lead mb-4 animate-fade-in">
+      Transforming education across the MENA region through accessible,
+      innovative, and culturally relevant learning experiences
+    </p>
+    <div class="hero-buttons animate-fade-in-up">
+      <a routerLink="/contact" class="btn btn-primary me-2">
+        <i class="bi bi-chat-dots me-2"></i>Contact Us
+      </a>
+      <a routerLink="/careers" class="btn btn-outline-light">
+        <i class="bi bi-briefcase me-2"></i>Join Our Team
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="container py-5">
+  <!-- About Overview Section -->
+  <div class="row g-4 mb-5 mt-n5">
+    <div class="col-lg-6">
+      <div class="about-card animate-on-scroll">
+        <h2 class="section-title">Who We Are</h2>
+        <p class="mb-4">
+          RosettaCloud is an educational technology company founded in Cairo,
+          Egypt, with a mission to make quality education accessible to everyone
+          in the Middle East and North Africa. Since our founding in 2015, we've
+          grown to become a leading platform for online learning in the region.
+        </p>
+        <p class="mb-4">
+          Our name was inspired by the Rosetta Stone, which unlocked the
+          understanding of Egyptian hieroglyphics and connected ancient
+          knowledge with the modern world. Similarly, we aim to unlock potential
+          and bridge educational gaps across languages and cultures.
+        </p>
+        <p>
+          Today, we serve students and professionals from across 25+ countries
+          with courses in Arabic, English, and French, taught by
+          industry-leading experts and renowned academics. With our innovative
+          learning platform, we're redefining education for the digital age.
+        </p>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="about-image-container animate-on-scroll">
+        <img
+          src="assets/about/office-team.jpg"
+          alt="RosettaCloud team members collaborating in our Cairo office"
+          class="about-image"
+          onError="this.onerror=null; this.src='assets/about/fallback-image.jpg';"
+        />
+        <div class="about-image-caption">
+          Our team at the Cairo headquarters
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Section -->
+  <div class="about-stats py-5 my-5 text-center rounded animate-on-scroll">
+    <h2 class="section-title text-center mb-5">Our Impact</h2>
+    <div class="row">
+      <div *ngFor="let stat of stats" class="col-6 col-md-3 mb-4 mb-md-0">
+        <div class="stat-item">
+          <i class="bi {{ stat.icon }} stat-icon"></i>
+          <div class="stat-number">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Values Section -->
+  <div class="core-values mb-5 animate-on-scroll">
+    <h2 class="section-title text-center mb-5">Our Core Values</h2>
+    <div class="row g-4">
+      <div *ngFor="let value of coreValues" class="col-md-6 col-lg-4">
+        <div class="value-card h-100">
+          <div class="value-icon">
+            <i class="bi {{ value.icon }}"></i>
+          </div>
+          <h3 class="value-title">{{ value.title }}</h3>
+          <p class="value-description">{{ value.description }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Our Story Timeline -->
+  <div class="our-story mb-5 animate-on-scroll">
+    <h2 class="section-title text-center mb-5">Our Journey</h2>
+    <div class="timeline-container">
+      <div class="timeline">
+        <div
+          *ngFor="let milestone of milestones; let odd = odd; let even = even"
+          class="timeline-item"
+          [class.left]="even"
+          [class.right]="odd"
+        >
+          <div class="timeline-content">
+            <div class="timeline-date">
+              <span>{{ milestone.year }}</span>
+            </div>
+            <div class="timeline-marker">
+              <i class="bi {{ milestone.icon }}"></i>
+            </div>
+            <div class="timeline-body">
+              <h3 class="timeline-title">{{ milestone.title }}</h3>
+              <p class="timeline-text">{{ milestone.description }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leadership Team -->
+  <div class="leadership-team mb-5 animate-on-scroll">
+    <h2 class="section-title text-center mb-5">Our Leadership</h2>
+    <div class="row g-5">
+      <div *ngFor="let member of leadershipTeam" class="col-md-4">
+        <div class="team-card h-100">
+          <div class="team-img-container">
+            <img
+              [src]="member.imageUrl"
+              [alt]="member.name"
+              class="team-img"
+              (error)="handleImageError($event, member)"
+            />
+          </div>
+          <div class="team-body">
+            <h3 class="team-name">{{ member.name }}</h3>
+            <p class="team-role text-primary">{{ member.role }}</p>
+            <p class="team-bio">{{ member.bio }}</p>
+            <div class="social-links mt-3" *ngIf="member.socialLinks">
+              <a
+                *ngIf="member.socialLinks.twitter"
+                [href]="member.socialLinks.twitter"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+                aria-label="Twitter"
+              >
+                <i class="bi bi-twitter"></i>
+              </a>
+              <a
+                *ngIf="member.socialLinks.linkedin"
+                [href]="member.socialLinks.linkedin"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+                aria-label="LinkedIn"
+              >
+                <i class="bi bi-linkedin"></i>
+              </a>
+              <a
+                *ngIf="member.socialLinks.github"
+                [href]="member.socialLinks.github"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+                aria-label="GitHub"
+              >
+                <i class="bi bi-github"></i>
+              </a>
+              <a
+                *ngIf="member.socialLinks.website"
+                [href]="member.socialLinks.website"
+                class="social-icon"
+                target="_blank"
+                rel="noopener"
+                aria-label="Website"
+              >
+                <i class="bi bi-globe"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA Section -->
+  <div class="about-cta text-center py-5 my-5 rounded animate-on-scroll">
+    <h2>Ready to Start Your Learning Journey?</h2>
+    <p class="lead mb-4">
+      Join thousands of students who are already transforming their careers and
+      lives
+    </p>
+    <div class="cta-buttons">
+      <a routerLink="/courses" class="btn btn-primary btn-lg me-3">
+        <i class="bi bi-collection-play me-2"></i>Explore Courses
+      </a>
+      <a routerLink="/register" class="btn btn-outline-light btn-lg">
+        <i class="bi bi-person-plus me-2"></i>Sign Up Free
+      </a>
+    </div>
+  </div>
+
+  <!-- Partners Section -->
+  <div class="partners mb-5 animate-on-scroll">
+    <h2 class="section-title text-center mb-5">Our Partners</h2>
+    <p class="text-center mb-5">
+      We collaborate with leading organizations to deliver the highest quality
+      education
+    </p>
+    <div class="partners-logos">
+      <div class="partner-logo">
+        <img
+          src="assets/partners/partner1.png"
+          alt="Partner logo"
+          onError="this.style.display='none'"
+        />
+      </div>
+      <div class="partner-logo">
+        <img
+          src="assets/partners/partner2.png"
+          alt="Partner logo"
+          onError="this.style.display='none'"
+        />
+      </div>
+      <div class="partner-logo">
+        <img
+          src="assets/partners/partner3.png"
+          alt="Partner logo"
+          onError="this.style.display='none'"
+        />
+      </div>
+      <div class="partner-logo">
+        <img
+          src="assets/partners/partner4.png"
+          alt="Partner logo"
+          onError="this.style.display='none'"
+        />
+      </div>
+      <div class="partner-logo">
+        <img
+          src="assets/partners/partner5.png"
+          alt="Partner logo"
+          onError="this.style.display='none'"
+        />
+      </div>
+    </div>
+  </div>
+</div>

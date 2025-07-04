@@ -1,0 +1,252 @@
+<div class="chatbot-widget">
+  <!-- Header Section -->
+  <div class="chatbot-header">
+    <div class="title-area">
+      <div
+        class="status-indicator"
+        [class.connected]="isConnected"
+        [title]="isConnected ? 'Connected' : 'Disconnected'"
+      ></div>
+      <h3>RosettaCloud AI</h3>
+    </div>
+    <div class="actions">
+      <button
+        class="action-btn"
+        (click)="toggleSources()"
+        *ngIf="sources.length > 0"
+        title="Reference Sources"
+      >
+        <i
+          class="bi"
+          [ngClass]="{
+            'bi-info-circle-fill': showSources,
+            'bi-info-circle': !showSources
+          }"
+        ></i>
+      </button>
+      <button
+        class="action-btn"
+        (click)="confirmClearChat()"
+        title="Clear Chat"
+      >
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Chat Body -->
+  <div class="chatbot-body">
+    <!-- Sources Panel - Slide in from right when active -->
+    <div
+      class="sources-panel"
+      [ngClass]="{ active: showSources && sources.length > 0 }"
+    >
+      <div class="sources-header">
+        <h4>Reference Sources</h4>
+        <button class="close-sources-btn" (click)="toggleSources()">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <ul class="sources-list">
+        <li *ngFor="let source of sources">
+          <div class="source-item">
+            <i class="bi bi-file-earmark-code"></i>
+            <span class="source-name">{{ getSourceDisplayName(source) }}</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="chat-container" #chatContainer (scroll)="onScroll($event)">
+      <!-- Welcome Message - Only show when no messages or hasUserSentMessage is false -->
+      <div
+        *ngIf="messages.length === 0 || !hasUserSentMessage"
+        class="welcome-message"
+      >
+        <div class="welcome-content">
+          <div class="welcome-icon">
+            <i class="bi bi-robot"></i>
+          </div>
+          <h4>Welcome to RosettaCloud Assistant</h4>
+          <p>
+            Ask me anything about your labs, assignments, or coding questions!
+          </p>
+          <div class="example-queries">
+            <button
+              class="example-query"
+              (click)="sendSuggestion('How do I Create a new container?')"
+            >
+              How do I Create a new container?
+            </button>
+            <button
+              class="example-query"
+              (click)="sendSuggestion('What are the common pipeline stages?')"
+            >
+              What are the common pipeline stages?
+            </button>
+            <button
+              class="example-query"
+              (click)="sendSuggestion('Explain kubernetes deployments')"
+            >
+              Explain kubernetes deployments
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Messages -->
+      <div
+        class="message-wrapper"
+        *ngFor="let message of messages; let i = index; let last = last"
+        [ngClass]="{ 'first-message': i === 0, 'last-message': last }"
+      >
+        <!-- Skip system messages that mention "Connected to RosettaCloud Assistant" -->
+        <div
+          *ngIf="
+            !(
+              message.role === 'system' &&
+              message.content.includes('Connected to RosettaCloud Assistant')
+            )
+          "
+          class="message"
+          [ngClass]="getRoleClass(message.role)"
+        >
+          <!-- Avatar for User and Assistant messages -->
+          <div
+            class="message-avatar"
+            *ngIf="message.role === 'user' || message.role === 'assistant'"
+            [ngClass]="
+              message.role === 'user' ? 'user-avatar' : 'assistant-avatar'
+            "
+          >
+            <i *ngIf="message.role === 'user'" class="bi bi-person"></i>
+            <i *ngIf="message.role === 'assistant'" class="bi bi-robot"></i>
+          </div>
+
+          <!-- Message Content -->
+          <div class="message-content">
+            <div class="message-bubble">
+              <div
+                class="message-text"
+                [innerHTML]="formatMessage(message.content)"
+              ></div>
+            </div>
+            <div class="message-meta" *ngIf="message.role !== 'system'">
+              <span class="message-time">{{
+                message.timestamp | date : "shortTime"
+              }}</span>
+
+              <!-- Copy and Thumbs up/down options for assistant messages -->
+              <div class="message-actions" *ngIf="message.role === 'assistant'">
+                <button
+                  class="action-btn copy-btn"
+                  (click)="copyMessage(message.content)"
+                  title="Copy to clipboard"
+                  [ngClass]="{
+                    copied: copiedMessageId === message.content.substring(0, 20)
+                  }"
+                >
+                  <i
+                    class="bi"
+                    [ngClass]="
+                      copiedMessageId === message.content.substring(0, 20)
+                        ? 'bi-check-lg'
+                        : 'bi-clipboard'
+                    "
+                  ></i>
+                </button>
+                <button
+                  class="action-btn thumbs-up-btn"
+                  (click)="rateMessage(message, 'up')"
+                  title="This was helpful"
+                  [ngClass]="{ active: hasRating(message, 'up') }"
+                >
+                  <i class="bi bi-hand-thumbs-up"></i>
+                </button>
+                <button
+                  class="action-btn thumbs-down-btn"
+                  (click)="rateMessage(message, 'down')"
+                  title="This wasn't helpful"
+                  [ngClass]="{ active: hasRating(message, 'down') }"
+                >
+                  <i class="bi bi-hand-thumbs-down"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div class="loading-indicator" *ngIf="isLoading">
+        <div class="loading-animation">
+          <div class="dot dot-1"></div>
+          <div class="dot dot-2"></div>
+          <div class="dot dot-3"></div>
+        </div>
+        <div class="loading-text">Processing your request...</div>
+      </div>
+
+      <!-- Scroll to Bottom Button -->
+      <button
+        class="scroll-bottom-btn"
+        *ngIf="!shouldAutoScroll && messages.length > 0"
+        (click)="scrollToBottomManually()"
+      >
+        <i class="bi bi-chevron-down"></i>
+      </button>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <textarea
+        #messageInput
+        class="message-input"
+        placeholder="Ask a question or send a message..."
+        [(ngModel)]="currentMessage"
+        (keydown)="onKeyDown($event)"
+        (input)="adjustTextareaHeight()"
+        [disabled]="!isConnected || isLoading"
+        rows="1"
+      ></textarea>
+
+      <div class="input-actions">
+        <button
+          class="send-button"
+          (click)="sendMessage()"
+          [disabled]="!currentMessage.trim() || !isConnected || isLoading"
+          [ngClass]="{ active: currentMessage.trim() }"
+        >
+          <i class="bi bi-send-fill"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Chat Confirmation Modal -->
+  <div
+    class="modal-overlay"
+    *ngIf="showClearConfirmation"
+    (click)="cancelClearChat()"
+  >
+    <div class="confirmation-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5>Clear Chat History</h5>
+        <button class="close-modal-btn" (click)="cancelClearChat()">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Are you sure you want to clear all chat messages? This action cannot
+          be undone.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="cancelClearChat()">Cancel</button>
+        <button class="btn-confirm" (click)="doClearChat()">Clear Chat</button>
+      </div>
+    </div>
+  </div>
+</div>
