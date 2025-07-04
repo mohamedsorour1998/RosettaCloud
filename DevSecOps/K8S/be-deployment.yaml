@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rosettacloud-backend-config
+  namespace: openedx
+data:
+  LAB_IMAGE_PULL_SECRET: "ecr-creds"
+  MOMENTO_API_KEY: "<>" # You should replace this with the actual API key
+  AWS_ACCESS_KEY_ID: "<>"
+  AWS_SECRET_ACCESS_KEY: "<>"
+  AWS_REGION: "us-east-1"
+  INGRESS_NAME: "rosettacloud-ingress"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rosettacloud-backend
+  namespace: openedx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rosettacloud-backend
+  template:
+    metadata:
+      labels:
+        app: rosettacloud-backend
+    spec:
+      containers:
+        - name: rosettacloud-backend
+          image: 339712964409.dkr.ecr.me-central-1.amazonaws.com/rosettacloud-backend:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: LAB_IMAGE_PULL_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: LAB_IMAGE_PULL_SECRET
+            - name: MOMENTO_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: MOMENTO_API_KEY
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: AWS_REGION
+            - name: INGRESS_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: INGRESS_NAME
+      imagePullSecrets:
+        - name: ecr-creds
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rosettacloud-backend-service
+  namespace: openedx
+spec:
+  selector:
+    app: rosettacloud-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30085  # nodePort moved inside the ports array
+  type: NodePort

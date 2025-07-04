@@ -1,0 +1,80 @@
+sudo apt update
+sudo apt install certbot python3-certbot-dns-route53 -y
+
+# Generate certificate with sudo
+sudo certbot certonly \
+  --dns-route53 \
+  --config-dir /etc/letsencrypt \
+  -d rosettacloud.app \
+  -d "*.rosettacloud.app" \
+  -d "*.dev.rosettacloud.app" \
+  -d "*.learn.dev.rosettacloud.app" \
+  -d "*.stg.rosettacloud.app" \
+  -d "*.learn.stg.rosettacloud.app" \
+  -d "*.uat.rosettacloud.app" \
+  -d "*.learn.uat.rosettacloud.app" \
+  -d "*.labs.dev.rosettacloud.app
+
+kubectl delete secret rosettacloud-tls rosettacloud-labs-tls -n openedx --ignore-not-found
+
+# Create a temporary directory to store the certificates
+mkdir -p ~/temp_certs
+
+# Copy the certificates with sudo (since they might be owned by root)
+sudo cp ~/.certbot/config/live/rosettacloud.app/fullchain.pem ~/temp_certs/
+sudo cp ~/.certbot/config/live/rosettacloud.app/privkey.pem ~/temp_certs/
+
+# Fix permissions
+sudo chown ubuntu:ubuntu ~/temp_certs/*
+chmod 644 ~/temp_certs/fullchain.pem
+chmod 600 ~/temp_certs/privkey.pem
+
+# Verify the files exist and have the correct permissions
+ls -la ~/temp_certs/
+# Get the full path to your home directory
+HOMEDIR=$(echo ~)
+echo $HOMEDIR
+
+# Create the secrets using absolute paths
+kubectl create secret tls rosettacloud-tls \
+  --cert="$HOMEDIR/temp_certs/fullchain.pem" \
+  --key="$HOMEDIR/temp_certs/privkey.pem" \
+  -n openedx
+
+kubectl create secret tls rosettacloud-labs-tls \
+  --cert="$HOMEDIR/temp_certs/fullchain.pem" \
+  --key="$HOMEDIR/temp_certs/privkey.pem" \
+  -n openedx
+
+
+
+
+
+
+
+
+
+# Create a renewal script
+cat <<EOF > ~/renew-certs.sh
+#!/bin/bash
+certbot renew --quiet --config-dir ~/.certbot/config --work-dir ~/.certbot/work --logs-dir ~/.certbot/logs
+
+if [ \$? -eq 0 ]; then
+  # Certificate was renewed, update Kubernetes secrets
+  mkdir -p ~/temp_certs
+  sudo cp ~/.certbot/config/live/rosettacloud.app/fullchain.pem ~/temp_certs/
+  sudo cp ~/.certbot/config/live/rosettacloud.app/privkey.pem ~/temp_certs/
+  sudo chown ubuntu:ubuntu ~/temp_certs/*
+  chmod 644 ~/temp_certs/fullchain.pem
+  chmod 600 ~/temp_certs/privkey.pem
+  
+  kubectl delete secret rosettacloud-tls rosettacloud-labs-tls -n openedx --ignore-not-found
+  kubectl create secret tls rosettacloud-tls --cert=~/temp_certs/fullchain.pem --key=~/temp_certs/privkey.pem -n openedx
+  kubectl create secret tls rosettacloud-labs-tls --cert=~/temp_certs/fullchain.pem --key=~/temp_certs/privkey.pem -n openedx
+fi
+EOF
+
+chmod +x ~/renew-certs.sh
+
+# Set up a cron job to run the renewal script
+(crontab -l 2>/dev/null; echo "0 3 * * * ~/renew-certs.sh") | crontab -
