@@ -1,0 +1,11 @@
+app/__pycache__
+app/backends/__pycache__
+app/services/__pycache__
+serverless/Lambda/feedback_request/deploy.zip
+serverless/Lambda/feedback_request/build
+serverless/Lambda/document_indexer/deploy.zip
+serverless/Lambda/document_indexer/build
+serverless/Lambda/ai_chatbot/deploy.zip
+serverless/Lambda/ai_chatbot/build
+serverless/Lambda/momento_token_vending/node_modules
+serverless/Lambda/momento_token_vending/function.zip

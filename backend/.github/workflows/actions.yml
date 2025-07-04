@@ -1,0 +1,211 @@
+name: Build & publish images + update Lambda
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Docker tag
+        default: latest
+        type: string
+      github_iam_role:
+        description: IAM role for GitHub Actions
+        default: github-actions-role
+        type: string
+      aws_account_id:
+        description: AWS Account ID
+        default: "339712964409"
+        type: string
+      aws_region:
+        description: AWS Region
+        default: me-central-1
+        type: string
+
+jobs:
+  # Combined job to build images and update Lambdas sequentially
+  build-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ inputs.aws_account_id }}:role/${{ inputs.github_iam_role }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ inputs.aws_account_id }}
+
+      # Build and push document_indexer image
+      - name: Build & push document_indexer image
+        id: push-document-indexer
+        env:
+          REGISTRY: ${{ steps.login.outputs.registry }}
+          ECR_REPOSITORY: rosettacloud-document_indexer-lambda
+          DOCKERFILE_PATH: serverless/Lambda/document_indexer/Dockerfile
+          BUILD_DIR: serverless/Lambda/document_indexer
+        run: |
+          # Check paths
+          if [ ! -d "$BUILD_DIR" ]; then
+            echo "::error::Directory '$BUILD_DIR' not found!"
+            exit 1
+          fi
+
+          if [ ! -f "$DOCKERFILE_PATH" ]; then
+            echo "::error::Dockerfile '$DOCKERFILE_PATH' not found!"
+            exit 1
+          fi
+
+          # Ensure repository exists
+          aws ecr describe-repositories --repository-names $ECR_REPOSITORY \
+          || aws ecr create-repository --repository-name $ECR_REPOSITORY
+
+          # Build and push
+          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
+
+          echo "Building document_indexer image"
+          docker build --platform linux/amd64 \
+            -f $DOCKERFILE_PATH \
+            $BUILD_DIR \
+            -t "$IMAGE_URI"
+
+          docker push "$IMAGE_URI"
+          echo "document_indexer_image=$IMAGE_URI" >> $GITHUB_ENV
+
+          echo "Successfully pushed document_indexer image: $IMAGE_URI"
+
+      # Update document-indexer Lambda and wait for completion
+      - name: Update document-indexer Lambda
+        run: |
+          echo "Updating document_indexer with image: ${{ env.document_indexer_image }}"
+
+          aws lambda update-function-code \
+            --function-name document_indexer \
+            --image-uri ${{ env.document_indexer_image }} \
+            --region ${{ inputs.aws_region }}
+            
+          echo "Waiting for document_indexer update to complete..."
+
+          STATUS="InProgress"
+          while [ "$STATUS" = "InProgress" ]; do
+            echo "Checking Lambda update status..."
+            STATUS=$(aws lambda get-function --function-name document_indexer \
+                    --query 'Configuration.LastUpdateStatus' --output text)
+            echo "Current status: $STATUS"
+            if [ "$STATUS" = "InProgress" ]; then
+              echo "Update still in progress, waiting 10 seconds..."
+              sleep 10
+            fi
+          done
+
+          if [ "$STATUS" = "Successful" ]; then
+            echo "document_indexer update completed successfully!"
+          else
+            echo "::warning::document_indexer update did not complete successfully. Status: $STATUS"
+            # Continue anyway to attempt the next Lambda update
+          fi
+
+      # Build and push ai_chatbot image
+      - name: Build & push ai_chatbot image
+        id: push-ai-chatbot
+        env:
+          REGISTRY: ${{ steps.login.outputs.registry }}
+          ECR_REPOSITORY: rosettacloud-ai_chatbot-lambda
+          DOCKERFILE_PATH: serverless/Lambda/ai_chatbot/Dockerfile
+          BUILD_DIR: serverless/Lambda/ai_chatbot
+        run: |
+          # Check paths
+          if [ ! -d "$BUILD_DIR" ]; then
+            echo "::error::Directory '$BUILD_DIR' not found!"
+            exit 1
+          fi
+
+          if [ ! -f "$DOCKERFILE_PATH" ]; then
+            echo "::error::Dockerfile '$DOCKERFILE_PATH' not found!"
+            exit 1
+          fi
+
+          # Ensure repository exists
+          aws ecr describe-repositories --repository-names $ECR_REPOSITORY \
+          || aws ecr create-repository --repository-name $ECR_REPOSITORY
+
+          # Build and push
+          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
+
+          echo "Building ai_chatbot image"
+          docker build --platform linux/amd64 \
+            -f $DOCKERFILE_PATH \
+            $BUILD_DIR \
+            -t "$IMAGE_URI"
+
+          docker push "$IMAGE_URI"
+          echo "ai_chatbot_image=$IMAGE_URI" >> $GITHUB_ENV
+
+          echo "Successfully pushed ai_chatbot image: $IMAGE_URI"
+
+      # Update ai-chatbot Lambda
+      - name: Update ai-chatbot Lambda
+        run: |
+          echo "Updating ai_chatbot with image: ${{ env.ai_chatbot_image }}"
+
+          aws lambda update-function-code \
+            --function-name ai_chatbot \
+            --image-uri ${{ env.ai_chatbot_image }} \
+            --region ${{ inputs.aws_region }}
+            
+          echo "Waiting for ai_chatbot update to complete..."
+
+          STATUS="InProgress"
+          while [ "$STATUS" = "InProgress" ]; do
+            echo "Checking Lambda update status..."
+            STATUS=$(aws lambda get-function --function-name ai_chatbot \
+                    --query 'Configuration.LastUpdateStatus' --output text)
+            echo "Current status: $STATUS"
+            if [ "$STATUS" = "InProgress" ]; then
+              echo "Update still in progress, waiting 10 seconds..."
+              sleep 10
+            fi
+          done
+
+          if [ "$STATUS" = "Successful" ]; then
+            echo "ai_chatbot update completed successfully!"
+          else
+            echo "::warning::ai_chatbot update did not complete successfully. Status: $STATUS"
+          fi
+
+      # Build and push backend image
+      - name: Build & push backend image
+        id: push-backend
+        env:
+          REGISTRY: ${{ steps.login.outputs.registry }}
+          ECR_REPOSITORY: rosettacloud-backend
+          DOCKERFILE_PATH: Dockerfile
+          BUILD_DIR: .
+        run: |
+          # Check paths
+          if [ ! -f "$DOCKERFILE_PATH" ]; then
+            echo "::error::Dockerfile '$DOCKERFILE_PATH' not found!"
+            exit 1
+          fi
+
+          # Ensure repository exists
+          aws ecr describe-repositories --repository-names $ECR_REPOSITORY \
+          || aws ecr create-repository --repository-name $ECR_REPOSITORY
+
+          # Build and push
+          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
+
+          echo "Building backend image"
+          docker build --platform linux/amd64 \
+            -f $DOCKERFILE_PATH \
+            $BUILD_DIR \
+            -t "$IMAGE_URI"
+
+          docker push "$IMAGE_URI"
+
+          echo "Successfully pushed backend image: $IMAGE_URI"

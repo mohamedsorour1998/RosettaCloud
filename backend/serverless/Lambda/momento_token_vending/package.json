@@ -1,0 +1,11 @@
+{
+  "name": "momento-token-vending-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to vend Momento tokens",
+  "main": "index.js",
+  "dependencies": {
+    "@gomomento/sdk": "^1.111.0",
+    "google-protobuf": "^3.21.2",
+    "aws-lambda": "1.0.7"
+  }
+}
