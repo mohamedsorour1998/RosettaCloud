@@ -9,9 +9,12 @@
 
 RosettaCloud is a production-ready, event-driven learning platform that enhances existing Learning Management Systems with hands-on lab environments, AI-powered assistance, and real-time feedback. Built with modern DevOps practices and cloud-native architecture, it demonstrates enterprise-level platform engineering while solving real educational challenges.
 
-## 🚀 Live Demo
+![Platform](https://github.com/user-attachments/assets/6dea8e4e-e2d8-4bad-8115-07db44d01cba)
 
-**[📖 Interactive Documentation](https://rosettacloud-docs.com)** - Experience the full technical documentation with live code snippets and high-quality diagrams.
+
+## 🚀 Live Video
+
+https://github.com/user-attachments/assets/55d881d1-ea73-475a-89a8-39b8749c5f99
 
 ## 🎯 What Problem Does It Solve?
 
@@ -164,11 +167,15 @@ The platform leverages **Momento Cache** and **Topics** to create a truly scalab
 3. **Vector Storage**: LanceDB stores embeddings with metadata for fast retrieval
 4. **Query Processing**: Semantic search finds relevant context for user questions
 
+![Document Indexing Flow](https://github.com/user-attachments/assets/ecacc27a-451d-4739-a245-e9c8e923358a)
+
 **Conversational AI Stack:**
 - **WebSocket Gateway**: Real-time bidirectional communication
 - **LangChain Integration**: Orchestrates RAG pipeline and memory management
 - **Amazon Bedrock**: Powers language model inference (Nova/Claude models)
 - **DynamoDB**: Stores conversation history for contextual understanding
+  
+![Chatbot Architecture](https://github.com/user-attachments/assets/3fc83850-887a-48d3-a094-13c0d8049938)
 
 ## 🛠️ Technology Stack & DevOps Practices
 
@@ -177,18 +184,22 @@ The platform leverages **Momento Cache** and **Topics** to create a truly scalab
 - **Bootstrap 5** and **TypeScript** for maintainable, responsive UIs
 - **Momento SDK Web** for real-time event handling
 - **xterm.js** for browser-based terminal emulation
+![dev rosettacloud app_register(High Res)](https://github.com/user-attachments/assets/4d46db80-687d-4e4f-a1eb-0a9fcddc070a)
 
 ### Backend & API Development
 - **FastAPI** for high-performance, auto-documented APIs
 - **Python 3.9+** with async/await patterns for concurrency
 - **LanceDB** vector database for AI/ML workloads
 - **LangChain** for AI orchestration and prompt management
+  ![Momento](https://github.com/user-attachments/assets/77274e87-2fd5-4173-bcb9-59356d40ab88)
 
 ### AI/ML Services
 - **Amazon Bedrock** with Nova and Claude models for language processing
 - **Amazon Titan** embeddings for document vectorization
 - **LangChain** framework for RAG pipeline orchestration
 - **Retrieval-Augmented Generation** for context-aware responses
+- 
+![Bedrock](https://github.com/user-attachments/assets/6a62f842-420d-499d-9b99-6348255d312f)
 
 ### Cloud Infrastructure (AWS)
 - **Amazon EKS** for container orchestration and scaling
@@ -197,6 +208,9 @@ The platform leverages **Momento Cache** and **Topics** to create a truly scalab
 - **DynamoDB** for fast, scalable NoSQL data storage
 - **Amazon S3** for vector database backend and file storage
 - **ECR** for secure container image management
+![API Gateway](https://github.com/user-attachments/assets/5b8f4c60-4785-4419-aab8-f7fe920ad812)
+![DynamoDB](https://github.com/user-attachments/assets/9625d3e5-4b3e-4ecd-8542-88452ef7f86a)
+![Lambda](https://github.com/user-attachments/assets/fec91bbe-74bd-401d-87aa-4d95105aade7)
 
 ### DevOps & Platform Engineering
 - **GitHub Actions** for automated CI/CD pipelines
