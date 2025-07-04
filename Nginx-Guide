@@ -1,0 +1,300 @@
+# Complete Guide: NGINX as HTTPS Proxy to Kubernetes Caddy Service
+
+This guide documents the process of setting up NGINX on an EC2 instance to handle HTTPS traffic (with SSL termination) and forward it to a Caddy service running in a Kubernetes cluster and exposed via NodePort.
+
+## System Architecture
+
+```
+Client → NGINX (HTTPS on 443) → Kubernetes NodePort Service (30080) → Caddy Pod (HTTP on 80) → Backend Applications
+```
+
+NGINX terminates SSL and forwards regular HTTP traffic to the Caddy service, which then routes to the appropriate backend services.
+
+## 1. Install NGINX
+
+```bash
+# Update package lists
+sudo apt update
+
+# Install NGINX
+sudo apt install nginx -y
+
+# Start NGINX and enable it to start on boot
+sudo systemctl start nginx
+sudo systemctl enable nginx
+```
+
+## 2. Install Certbot for SSL Certificates
+
+```bash
+# Install Certbot and NGINX plugin
+sudo apt install certbot python3-certbot-nginx -y
+```
+
+## 3. Create Initial NGINX Configuration
+
+```bash
+# Create a site configuration file
+sudo nano /etc/nginx/sites-available/openedx-proxy
+```
+
+Add this initial configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name learn.dev.example.com preview.learn.dev.example.com studio.dev.example.com apps.learn.dev.example.com meilisearch.learn.dev.example.com;
+    
+    # This section will be used by Certbot to add SSL configuration
+}
+```
+
+Replace the domain names with your actual domains.
+
+## 4. Enable the Site Configuration
+
+```bash
+# Create symbolic link
+sudo ln -s /etc/nginx/sites-available/openedx-proxy /etc/nginx/sites-enabled/
+
+# Remove default site (optional but recommended)
+sudo rm /etc/nginx/sites-enabled/default
+
+# Test NGINX configuration
+sudo nginx -t
+
+# Reload NGINX
+sudo systemctl reload nginx
+```
+
+## 5. Obtain SSL Certificates with Certbot
+
+```bash
+sudo certbot --nginx -d learn.dev.example.com -d preview.learn.dev.example.com -d studio.dev.example.com -d apps.learn.dev.example.com -d meilisearch.learn.dev.example.com
+```
+
+When prompted:
+- Choose to redirect HTTP traffic to HTTPS (option 2)
+
+## 6. Configure Kubernetes Caddy Service as NodePort
+
+First, verify what port Caddy is listening on inside the container:
+
+```bash
+CADDY_POD=$(kubectl get pods -n openedx | grep caddy | awk '{print $1}')
+kubectl logs -n openedx $CADDY_POD
+```
+
+Look for a line like: `"server is listening only on the HTTP port"` and note the port (usually 80).
+
+Then update the service to use NodePort:
+
+```bash
+kubectl patch svc caddy -n openedx -p '{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 81, "targetPort": 80, "nodePort": 30080}]}}'
+```
+
+Key parameters:
+- `port`: The port that other services within the cluster will use to access this service
+- `targetPort`: The port the container is listening on (from the logs)
+- `nodePort`: The externally accessible port (must be between 30000-32767)
+
+Verify the service configuration:
+
+```bash
+kubectl get svc caddy -n openedx
+```
+
+## 7. Update NGINX Configuration for Proxying
+
+```bash
+sudo nano /etc/nginx/sites-available/openedx-proxy
+```
+
+Certbot will have modified your configuration. Update the HTTPS server block to include these proxy settings:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name learn.dev.example.com preview.learn.dev.example.com studio.dev.example.com apps.learn.dev.example.com meilisearch.learn.dev.example.com;
+
+    # SSL settings (added by Certbot)
+    ssl_certificate /etc/letsencrypt/live/learn.dev.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/learn.dev.example.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Proxy to Caddy
+    location / {
+        proxy_pass http://localhost:30080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Port 443;
+        
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # Increased buffer size for large uploads
+        client_max_body_size 250M;
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+        
+        # Increased timeout for long connections
+        proxy_connect_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+    }
+}
+
+# HTTP redirect to HTTPS should be handled by Certbot automatically
+```
+
+## 8. Test and Apply Configuration
+
+```bash
+# Test NGINX configuration
+sudo nginx -t
+
+# Reload NGINX
+sudo systemctl reload nginx
+```
+
+## 9. Verify End-to-End Connectivity
+
+Test that you can access the service from localhost:
+
+```bash
+curl localhost:30080
+```
+
+Test that you can access your site via HTTPS:
+
+```bash
+curl -k https://learn.dev.example.com
+```
+
+## 10. Set Up Certificate Auto-Renewal
+
+Certbot should have already set up a cron job or systemd timer for auto-renewal, but let's verify:
+
+```bash
+sudo systemctl list-timers | grep certbot
+```
+
+If you don't see a timer, set it up manually:
+
+```bash
+sudo systemctl enable certbot.timer
+sudo systemctl start certbot.timer
+```
+
+Test the certificate renewal process:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+## 11. Fallback: Port Forwarding Method (If NodePort Doesn't Work)
+
+If you encounter issues with NodePort, you can use kubectl port-forwarding instead:
+
+```bash
+# Create a systemd service for port forwarding
+sudo nano /etc/systemd/system/k8s-caddy-portforward.service
+```
+
+Add this content:
+
+```ini
+[Unit]
+Description=Kubernetes Port Forward for Caddy
+After=network.target
+
+[Service]
+User=ubuntu
+ExecStart=/usr/bin/kubectl port-forward svc/caddy 30080:81 -n openedx --address 0.0.0.0
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable k8s-caddy-portforward
+sudo systemctl start k8s-caddy-portforward
+```
+
+## Troubleshooting
+
+### 1. NGINX Issues
+
+Check NGINX logs:
+```bash
+sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/log/nginx/access.log
+```
+
+### 2. Certbot Issues
+
+Check Certbot logs:
+```bash
+sudo journalctl -u certbot
+```
+
+### 3. NodePort Issues
+
+Check if port is open:
+```bash
+sudo netstat -tulpn | grep 30080
+```
+
+Check Kubernetes events:
+```bash
+kubectl get events -n openedx
+```
+
+### 4. Caddy Issues
+
+Check Caddy logs:
+```bash
+kubectl logs -n openedx $(kubectl get pods -n openedx | grep caddy | awk '{print $1}')
+```
+
+## Security Considerations
+
+1. Ensure your EC2 security group allows:
+   - Inbound traffic on port 80 (HTTP) for Certbot
+   - Inbound traffic on port 443 (HTTPS) for clients
+   - Restrict direct access to port 30080 to localhost only
+
+2. Consider implementing rate limiting in NGINX for additional security.
+
+3. Keep your certificates up to date and ensure the Certbot renewal service is running.
+
+## Maintenance
+
+1. NGINX updates:
+   ```bash
+   sudo apt update
+   sudo apt upgrade nginx
+   ```
+
+2. Manual certificate renewal (if needed):
+   ```bash
+   sudo certbot renew
+   ```
+
+3. Checking certificate expiration:
+   ```bash
+   sudo certbot certificates
+   ```
+
+This setup provides SSL termination at the NGINX level, with traffic forwarded as HTTP to your Kubernetes Caddy service. It ensures secure communication for clients while properly integrating with your OpenEdX infrastructure.

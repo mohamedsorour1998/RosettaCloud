@@ -4,11 +4,12 @@ metadata:
   name: rosettacloud-backend-config
   namespace: openedx
 data:
-  LAB_IMAGE_PULL_SECRET: "True"
-  MOMENTO_API_KEY: "ey"
-  AWS_ACCESS_KEY_ID: "AK"
-  AWS_SECRET_ACCESS_KEY: "ol3xo"
+  LAB_IMAGE_PULL_SECRET: "ecr-creds"
+  MOMENTO_API_KEY: "<>" # You should replace this with the actual API key
+  AWS_ACCESS_KEY_ID: "<>"
+  AWS_SECRET_ACCESS_KEY: "<>"
   AWS_REGION: "us-east-1"
+  INGRESS_NAME: "rosettacloud-ingress"
 
 ---
 apiVersion: apps/v1
@@ -57,6 +58,11 @@ spec:
                 configMapKeyRef:
                   name: rosettacloud-backend-config
                   key: AWS_REGION
+            - name: INGRESS_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: INGRESS_NAME
       imagePullSecrets:
         - name: ecr-creds
 
@@ -73,5 +79,5 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
+      nodePort: 30085  # nodePort moved inside the ports array
   type: NodePort
-  nodePort: 30085

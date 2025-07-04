@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rosettacloud-frontend
+  namespace: openedx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rosettacloud-frontend
+  template:
+    metadata:
+      labels:
+        app: rosettacloud-frontend
+    spec:
+      containers:
+        - name: rosettacloud-frontend
+          image: 339712964409.dkr.ecr.me-central-1.amazonaws.com/rosettacloud-frontend:latest
+          ports:
+            - containerPort: 4200
+      imagePullSecrets:
+        - name: ecr-creds
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rosettacloud-frontend-service
+  namespace: openedx
+spec:
+  selector:
+    app: rosettacloud-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 4200
+      nodePort: 30089
+  type: NodePort

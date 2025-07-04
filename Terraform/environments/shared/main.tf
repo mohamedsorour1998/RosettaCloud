@@ -183,19 +183,20 @@ module "ec2" {
         kubectl create token default --duration=24h
 
         # Tutor
-        tutor config save --set ENABLE_WEB_PROXY=false
-        tutor config save --set ENABLE_HTTPS=false
+        tutor config save --set ENABLE_WEB_PROXY=false --set CADDY_HTTP_PORT=81
+        tutor config save --set ENABLE_HTTPS=true
         # tutor k8s do createuser --staff --superuser admin admin@rosettacloud.app
         tutor k8s do importdemocourse
         sudo pip install tutor-indigo --break-system-packages
         tutor plugins enable fourms
       # tutor k8s launch
-      # active ssl/tls cert: No
+      # active ssl/tls cert: Yes
 
         # Caddy
-      # kubectl patch svc caddy -n openedx -p '{"spec": {"type": "NodePort", "ports": [{"port": 80, "targetPort": 80, "nodePort": 30080}]}}'
+      # kubectl patch svc caddy -n openedx -p '{"spec": {"type": "NodePort", "ports": [{"port": 81, "targetPort": 81, "nodePort": 30080}]}}'
       # caddy logs: kubectl logs -f caddy-0 -n openedx
        #tutor config printroot
+      #  cat "$(tutor config printroot)/config.yml"
        #cat $(tutor config printroot)/env/apps/caddy/Caddyfile
 
       EOF
@@ -281,6 +282,18 @@ module "records" {
     },
     {
       name    = "meilisearch.learn.dev"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "*.labs.dev"
+      type    = "A"
+      ttl     = 5
+      records = [module.ec2.public_ips["RosettaCloud"]]
+    },
+    {
+      name    = "api.dev"
       type    = "A"
       ttl     = 5
       records = [module.ec2.public_ips["RosettaCloud"]]
@@ -380,7 +393,7 @@ module "acm_useast1" {
     "*.learn.stg.rosettacloud.app",
     "*.uat.rosettacloud.app",
     "*.learn.uat.rosettacloud.app",
-    "*.labs.rosettacloud.app"
+    "*.dev.labs.rosettacloud.app"
   ]
 
   wait_for_validation = true
@@ -405,7 +418,7 @@ module "acm" {
     "*.learn.stg.rosettacloud.app",
     "*.uat.rosettacloud.app",
     "*.learn.uat.rosettacloud.app",
-    "*.labs.rosettacloud.app"
+    "*.dev.labs.rosettacloud.app"
 
   ]
 
@@ -478,6 +491,61 @@ module "ecr_2" {
   version = "2.4.0"
 
   repository_name                 = "rosettacloud-frontend"
+  repository_image_tag_mutability = "MUTABLE"
+  repository_read_write_access_arns = [
+    "arn:aws:iam::339712964409:root"
+  ]
+
+  repository_lifecycle_policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire images, keep last 5"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 5
+        }
+        action = { type = "expire" }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+module "ecr_3" {
+  source  = "terraform-aws-modules/ecr/aws"
+  version = "2.4.0"
+
+  repository_name                 = "rosettacloud-document_indexer-lambda"
+  repository_image_tag_mutability = "MUTABLE"
+  repository_read_write_access_arns = [
+    "arn:aws:iam::339712964409:root"
+  ]
+
+  repository_lifecycle_policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire images, keep last 5"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 5
+        }
+        action = { type = "expire" }
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+module "ecr_4" {
+  source  = "terraform-aws-modules/ecr/aws"
+  version = "2.4.0"
+
+  repository_name                 = "rosettacloud-ai_chatbot-lambda"
   repository_image_tag_mutability = "MUTABLE"
   repository_read_write_access_arns = [
     "arn:aws:iam::339712964409:root"

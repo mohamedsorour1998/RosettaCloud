@@ -1,0 +1,54 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rosettacloud-ingress
+  namespace: openedx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "250m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dev.rosettacloud.app
+        - api.dev.rosettacloud.app
+      secretName: rosettacloud-tls
+    - hosts:
+        - "*.labs.dev.rosettacloud.app"
+      secretName: rosettacloud-labs-tls
+  rules:
+    - host: api.dev.rosettacloud.app
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rosettacloud-backend-service
+                port:
+                  number: 80
+    - host: dev.rosettacloud.app
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rosettacloud-frontend-service
+                port:
+                  number: 80
+    # # This is a default rule for lab subdomains
+    # # Your backend will create/update more specific rules
+    # - host: "lab-default.labs.dev.rosettacloud.app"
+    #   http:
+    #     paths:
+    #       - path: /
+    #         pathType: Prefix
+    #         backend:
+    #           service:
+    #             name: interactive-labs-service
+    #             port:
+    #               number: 80
