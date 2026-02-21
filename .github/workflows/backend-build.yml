@@ -1,0 +1,45 @@
+name: Build & push backend image
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Docker tag
+        default: latest
+        type: string
+      aws_region:
+        description: AWS Region
+        default: us-east-1
+        type: string
+
+env:
+  AWS_ACCOUNT_ID: "339712964409"
+  IAM_ROLE: github-actions-role
+  ECR_REPOSITORY: rosettacloud-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ env.AWS_ACCOUNT_ID }}
+
+      - name: Build & push
+        run: |
+          IMAGE=${{ steps.login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ inputs.image_tag }}
+          docker build --platform linux/amd64 -f Backend/Dockerfile Backend -t "$IMAGE"
+          docker push "$IMAGE"
+          echo "Pushed $IMAGE"
