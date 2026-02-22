@@ -1,0 +1,17 @@
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: rosettacloud-gateway
+  namespace: dev
+spec:
+  selector:
+    istio: ingress
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "dev.rosettacloud.app"
+        - "api.dev.rosettacloud.app"
+        - "*.labs.dev.rosettacloud.app"

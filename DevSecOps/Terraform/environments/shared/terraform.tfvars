@@ -1,7 +1,7 @@
 github_oidc_roles = [
   {
     name     = "github-actions-role"
-    subjects = ["repo:RosettaCloud/DevSecOps:*","repo:RosettaCloud/RosettaCloud-Backend:*","repo:RosettaCloud/RosettaCloud-Frontend:*"]
+    subjects = ["repo:mohamedsorour1998/RosettaCloud:*"]
     policies = {
       AmazonEC2ContainerRegistryFullAccess = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
       AWSLambda_FullAccess = "arn:aws:iam::aws:policy/AWSLambda_FullAccess"
@@ -10,3 +10,6 @@ github_oidc_roles = [
     tags = { Environment = "dev" }
   }
 ]
+
+node_public_dns     = "ec2-3-80-227-42.compute-1.amazonaws.com"
+istio_http_nodeport = 30578
