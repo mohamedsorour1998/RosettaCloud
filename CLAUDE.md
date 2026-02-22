@@ -44,13 +44,13 @@ terraform plan -var-file="terraform.tfvars"
 terraform apply -var-file="terraform.tfvars"
 ```
 
-Remote state: S3 bucket `rosettacloud-shared-terraform-backend` in `me-central-1`.
+Remote state: S3 bucket `rosettacloud-shared-terraform-backend` in `us-east-1`.
 
 ### Kubernetes
 
 ```bash
-kubectl apply -f DevSecOps/K8S/    # deploys to namespace 'openedx'
-kubectl get pods -n openedx
+kubectl apply -f DevSecOps/K8S/    # deploys to namespace 'dev'
+kubectl get pods -n dev
 ```
 
 ## Architecture
