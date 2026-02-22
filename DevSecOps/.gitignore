@@ -1,3 +1,5 @@
 Terraform/environments/shared/keys/*
 Terraform/environments/shared/.terraform
 Terraform/environments/shared/.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
