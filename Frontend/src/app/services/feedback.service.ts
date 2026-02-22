@@ -2,32 +2,19 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { MomentoService } from './momento.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class FeedbackService {
-  private apiUrl =
-    environment.feedbackApiUrl;
-  private feedbackId: string | null = null;
+  private feedbackApiUrl = environment.feedbackApiUrl;
+  private apiUrl = environment.apiUrl;
   private feedbackReceivedSubject = new Subject<any>();
   public feedbackReceived$ = this.feedbackReceivedSubject.asObservable();
+  private pollingTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(
-    private http: HttpClient,
-    private momentoService: MomentoService
-  ) {}
+  constructor(private http: HttpClient) {}
 
-  /**
-   * Request feedback from the API
-   * @param userId User ID
-   * @param moduleUuid Module UUID
-   * @param lessonUuid Lesson UUID
-   * @param questions Questions data
-   * @param userProgress User progress data
-   * @returns Observable of the feedback request response
-   */
   public requestFeedback(
     userId: string,
     moduleUuid: string,
@@ -35,27 +22,25 @@ export class FeedbackService {
     questions: any[],
     userProgress: any
   ): Observable<any> {
-    this.feedbackId = this.momentoService.generateFeedbackId();
+    const feedbackId = 'fb-' + Math.random().toString(36).slice(2, 10);
     const payload = {
       user_id: userId,
       module_uuid: moduleUuid,
       lesson_uuid: lessonUuid,
-      feedback_id: this.feedbackId,
+      feedback_id: feedbackId,
       questions: questions,
       progress: userProgress,
     };
-    this.setupMomentoSubscription(userId, this.feedbackId);
+
     return new Observable((observer) => {
       this.http
-        .post<any>(`${this.apiUrl}/feedback/request`, payload)
+        .post<any>(`${this.feedbackApiUrl}/feedback/request`, payload)
         .subscribe({
           next: (response) => {
             console.log('Feedback request successful:', response);
-            observer.next({
-              ...response,
-              feedback_id: this.feedbackId,
-            });
+            observer.next({ ...response, feedback_id: feedbackId });
             observer.complete();
+            this.pollForFeedback(feedbackId);
           },
           error: (err) => {
             console.error('Error requesting feedback:', err);
@@ -65,61 +50,49 @@ export class FeedbackService {
     });
   }
 
-  /**
-   * Set up subscription to Momento for feedback updates
-   * @param userId User ID for token request
-   * @param feedbackId The feedback ID to filter messages by
-   */
-  private async setupMomentoSubscription(
-    userId: string,
-    feedbackId: string
-  ): Promise<void> {
-    try {
-      console.log(
-        `Setting up Momento subscription for feedback ID: ${feedbackId}`
-      );
-      const token = await this.momentoService.getToken(userId);
-      console.log('Received Momento token');
-      this.momentoService.initializeClient(token);
-      console.log('Momento client initialized');
-      const success = await this.momentoService.subscribe(
-        feedbackId,
-        (data) => {
-          console.log('Received feedback message:', data);
-          const content = data.content || data.feedback || JSON.stringify(data);
-          this.feedbackReceivedSubject.next(content);
-        },
-        async (error) => {
-          if (error.type === 'token_expired') {
-            console.log('Token expired, refreshing...');
-            this.momentoService.unsubscribe();
-            await this.setupMomentoSubscription(userId, feedbackId);
-          }
-        }
-      );
+  private pollForFeedback(feedbackId: string): void {
+    this.stopPolling();
+    const startTime = Date.now();
+    const timeoutMs = 60_000;
+    const intervalMs = 2_000;
 
-      if (success) {
-        console.log('Successfully subscribed to Momento topic');
-      } else {
-        console.error('Failed to subscribe to Momento topic');
+    this.pollingTimer = setInterval(() => {
+      if (Date.now() - startTime > timeoutMs) {
+        console.warn('Feedback polling timed out for', feedbackId);
+        this.stopPolling();
+        return;
       }
-    } catch (error) {
-      console.error('Error setting up Momento subscription:', error);
+
+      this.http
+        .get<any>(`${this.apiUrl}/feedback/${feedbackId}`)
+        .subscribe({
+          next: (res) => {
+            if (res.status === 'ready') {
+              const content =
+                res.content || res.data?.content || JSON.stringify(res.data);
+              this.feedbackReceivedSubject.next(content);
+              this.stopPolling();
+            }
+          },
+          error: (err) => {
+            console.error('Feedback poll error:', err);
+          },
+        });
+    }, intervalMs);
+  }
+
+  private stopPolling(): void {
+    if (this.pollingTimer !== null) {
+      clearInterval(this.pollingTimer);
+      this.pollingTimer = null;
     }
   }
 
-  /**
-   * Connect to WebSocket (keeping for backward compatibility)
-   */
   public connectToFeedbackWebSocket(): void {
-    console.log('Using Momento for real-time updates instead of WebSocket');
+    // No-op: kept for backward compatibility
   }
 
-  /**
-   * Disconnect from WebSocket (keeping for backward compatibility)
-   */
   public disconnectFromFeedbackWebSocket(): void {
-    this.momentoService.unsubscribe();
-    this.feedbackId = null;
+    this.stopPolling();
   }
 }

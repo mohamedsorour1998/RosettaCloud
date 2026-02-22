@@ -1,121 +1,100 @@
 """
-Concrete back‑end factories for cache_events_service.
+Concrete back-end factories for cache_events_service.
 
-• Momento  – fully implemented.
+- redis_sqs – Redis for cache + SQS for pub/sub.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
-from datetime import timedelta
 from typing import AsyncGenerator, Optional
+
+import aioboto3
+import redis.asyncio as aioredis
 
 _DEFAULT_CACHE = os.getenv("CACHE_EVENTS_DEFAULT_CACHE", "interactive-labs")
 _DEFAULT_TTL   = int(os.getenv("CACHE_EVENTS_DEFAULT_TTL", "900"))
 
-def get_momento_backend():
-    from momento import (
-        CacheClientAsync,
-        Configurations,
-        CredentialProvider,
-        TopicClientAsync,
-        TopicConfigurations,
-    )
-    from momento.responses import (
-        CacheGet,
-        CacheSet,
-        CreateCache,
-        TopicPublish,
-        TopicSubscribe,
-        TopicSubscriptionItem,
-    )
-    from momento.errors import InvalidArgumentException
 
-    class MomentoCacheEvents:
-        _known: set[str] = set()
-        _lock = asyncio.Lock()
-        _log  = logging.getLogger("cache_events_service.momento")
+def get_redis_sqs_backend():
 
-        _cache: Optional[CacheClientAsync] = None
-        _topic: Optional[TopicClientAsync] = None
+    class RedisSqsCacheEvents:
+        _log = logging.getLogger("cache_events_service.redis_sqs")
+
+        _redis: Optional[aioredis.Redis] = None
+        _sqs_client = None
+        _session = None
+        _queue_url: str = ""
 
         async def init(self) -> None:
-            if self._cache:
+            if self._redis:
                 return
-            token = os.getenv("MOMENTO_API_KEY")
-            if not token:
-                raise RuntimeError("MOMENTO_API_KEY env var not set")
 
-            try:
-                creds = CredentialProvider.from_string(token)
-            except InvalidArgumentException as e:
-                raise RuntimeError(f"Invalid MOMENTO_API_KEY: {e}") from e
-
-            self._cache = await CacheClientAsync.create(
-                Configurations.Laptop.v1(), creds, timedelta(seconds=_DEFAULT_TTL)
+            redis_host = os.getenv("REDIS_HOST", "redis-service")
+            redis_port = int(os.getenv("REDIS_PORT", "6379"))
+            self._redis = aioredis.Redis(
+                host=redis_host, port=redis_port, decode_responses=True
             )
-            self._topic = TopicClientAsync(TopicConfigurations.Default.v1(), creds)
-            await self._ensure_cache(_DEFAULT_CACHE)
-            self._log.info("Momento backend ready (cache=%s)", _DEFAULT_CACHE)
+            await self._redis.ping()
+
+            self._queue_url = os.getenv("SQS_QUEUE_URL", "")
+            self._session = aioboto3.Session()
+
+            self._log.info(
+                "Redis+SQS backend ready (redis=%s:%s, queue=%s)",
+                redis_host, redis_port, self._queue_url,
+            )
 
         async def close(self) -> None:
-            if self._cache and hasattr(self._cache, "close"):
-                await self._cache.close()
-            if self._topic and hasattr(self._topic, "close"):
-                await self._topic.close()
+            if self._redis:
+                await self._redis.aclose()
+                self._redis = None
 
-        async def _ensure_cache(self, name: str) -> None:
-            if name in self._known:
+        async def set(self, cache: str, key: str, value: str, ttl: int | None = None) -> None:
+            effective_ttl = ttl or _DEFAULT_TTL
+            await self._redis.setex(f"cache:{cache}:{key}", effective_ttl, value)
+
+        async def get(self, cache: str, key: str) -> str | None:
+            return await self._redis.get(f"cache:{cache}:{key}")
+
+        async def publish(self, topic: str, payload: str, cache: str = _DEFAULT_CACHE) -> None:
+            # If the payload contains a feedback_id, also store the result in Redis
+            # so the frontend can poll for it
+            try:
+                data = json.loads(payload)
+                feedback_id = data.get("feedback_id")
+                if feedback_id:
+                    await self._redis.setex(
+                        f"cache:feedback:{feedback_id}", 600, payload
+                    )
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        async def subscribe(self, topic: str, cache: str = _DEFAULT_CACHE) -> AsyncGenerator[str, None]:
+            """Long-poll SQS for messages on the given topic."""
+            if not self._queue_url:
+                self._log.warning("SQS_QUEUE_URL not set, subscribe is a no-op")
                 return
-            async with self._lock:
-                if name in self._known:
-                    return
-                resp = await self._cache.create_cache(name)
-                if isinstance(resp, CreateCache.Error):
-                    raise RuntimeError(resp.message)
-                self._known.add(name)
 
-        async def set(self, cache, key, value, ttl=None):
-            await self._ensure_cache(cache)
-            resp = await self._cache.set(
-                cache, key, value, timedelta(seconds=ttl) if ttl else None
-            )
-            if isinstance(resp, CacheSet.Error):
-                raise RuntimeError(resp.message)
+            async with self._session.client("sqs", region_name=os.getenv("AWS_REGION", "us-east-1")) as sqs:
+                while True:
+                    try:
+                        resp = await sqs.receive_message(
+                            QueueUrl=self._queue_url,
+                            MaxNumberOfMessages=10,
+                            WaitTimeSeconds=20,
+                        )
+                        for msg in resp.get("Messages", []):
+                            yield msg["Body"]
+                            await sqs.delete_message(
+                                QueueUrl=self._queue_url,
+                                ReceiptHandle=msg["ReceiptHandle"],
+                            )
+                    except Exception as exc:
+                        self._log.error("SQS receive error: %s", exc)
+                        await asyncio.sleep(5)
 
-        async def get(self, cache, key):
-            await self._ensure_cache(cache)
-            resp = await self._cache.get(cache, key)
-            match resp:
-                case CacheGet.Hit():
-                    return resp.value_string if resp.value_string is not None else resp.value_bytes
-                case CacheGet.Miss():
-                    return None
-                case CacheGet.Error():
-                    raise RuntimeError(resp.message)
-
-        async def publish(self, topic, payload, cache=_DEFAULT_CACHE):
-            await self._ensure_cache(cache)
-            resp = await self._topic.publish(cache, topic, payload)
-            if isinstance(resp, TopicPublish.Error):
-                raise RuntimeError(resp.message)
-
-        async def subscribe(self, topic, cache=_DEFAULT_CACHE):
-            await self._ensure_cache(cache)
-            resp = await self._topic.subscribe(cache, topic)
-            if isinstance(resp, TopicSubscribe.Error):
-                raise RuntimeError(resp.message)
-
-            async for item in resp:
-                match item:
-                    case TopicSubscriptionItem.Text():
-                        yield item.value
-                    case TopicSubscriptionItem.Binary():
-                        yield item.value
-                    case TopicSubscriptionItem.Error():
-                        self._log.error("Stream closed: %s", item.inner_exception)
-                        return
-
-    return MomentoCacheEvents()
+    return RedisSqsCacheEvents()

@@ -21,7 +21,7 @@ class DynamoDBUserBackend:
     def __init__(self) -> None:
         # DynamoDB settings
         self.table_name = os.getenv("USERS_TABLE_NAME", "rosettacloud-users")
-        self.region  = "me-central-1" # = os.getenv("AWS_REGION", "me-central-1")
+        self.region = os.getenv("AWS_REGION", "us-east-1")
         self.endpoint_url = os.getenv("DYNAMODB_ENDPOINT_URL", None)  # For local testing
         
         # Boto3 client

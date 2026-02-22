@@ -3,7 +3,7 @@ cache_events_service – unified async interface for cache + pub/sub.
 
 Back‑end selector
 ------------------
-    export CACHE_EVENTS_BACKEND=momento   # default
+    export CACHE_EVENTS_BACKEND=redis_sqs   # default
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class _Backend(Protocol):
     async def publish(self, topic: str, payload: str | bytes, cache: str = DEFAULT_CACHE) -> None: ...
     async def subscribe(self, topic: str, cache: str = DEFAULT_CACHE) -> AsyncGenerator[str | bytes, None]: ...
 
-_backend_name = os.getenv("CACHE_EVENTS_BACKEND", "momento").lower()
+_backend_name = os.getenv("CACHE_EVENTS_BACKEND", "redis_sqs").lower()
 
 _module = importlib.import_module("app.backends.cache_events_backends", package=__package__)
 
@@ -33,7 +33,7 @@ try:
 except AttributeError as exc:
     raise RuntimeError(
         f"Unsupported CACHE_EVENTS_BACKEND '{_backend_name}'. "
-        "Choose 'momento'."
+        "Choose 'redis_sqs'."
     ) from exc
 
 logging.getLogger(__name__).info("cache_events_service backend: %s", _backend_name)

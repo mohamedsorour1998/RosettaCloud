@@ -59,28 +59,28 @@ kubectl get pods -n openedx
 
 - **Frontend → Backend**: REST API via `https://api.dev.rosettacloud.app` (FastAPI on K8s, Nginx Ingress)
 - **Frontend → Chatbot**: WebSocket via `wss://wss.dev.rosettacloud.app` (API Gateway WebSocket → `ai_chatbot` Lambda)
-- **Frontend → Feedback**: HTTP to `https://feedback.dev.rosettacloud.app` (API Gateway → `feedback_request` Lambda)
-- **Frontend → Real-time events**: Momento Topics SDK (browser), tokens from `momento_token_vending` Lambda
+- **Frontend → Feedback**: HTTP to `https://feedback.dev.rosettacloud.app` (API Gateway → `feedback_request` Lambda → SQS)
+- **Frontend → Feedback polling**: REST `GET /feedback/{id}` on backend (reads from Redis)
 
 ### Backend Internal Pattern
 
 Each feature area follows a **service/backend** split:
 - `app/services/*.py` — thin orchestration layer (business logic)
-- `app/backends/*.py` — concrete implementations (AWS SDK calls, K8s API, Momento)
+- `app/backends/*.py` — concrete implementations (AWS SDK calls, K8s API, Redis, SQS)
 
 Service → Backend mappings:
 - `ai_service` → `ai_backends` (Amazon Bedrock/Nova via `aioboto3`)
 - `labs_service` → `labs_backends` (Kubernetes SDK: creates pods, services, ingress per-lab)
 - `users_service` → `users_backends` (DynamoDB)
-- `questions_service` → `questions_backends` (S3 shell scripts + Momento cache)
-- `cache_events_service` → `cache_events_backends` (Momento cache + topics)
-- `feedback_service` — subscribes to Momento `FeedbackRequested` topic, calls AI, publishes to `FeedbackGiven`
+- `questions_service` → `questions_backends` (S3 shell scripts + Redis cache)
+- `cache_events_service` → `cache_events_backends` (Redis cache + SQS pub/sub)
+- `feedback_service` — long-polls SQS `FeedbackRequested` queue, calls AI, stores result in Redis
 
-### Event-Driven Feedback Flow
+### Feedback Flow (SQS + Redis)
 
-1. Frontend calls `POST /feedback/request` → `feedback_request` Lambda publishes to Momento topic `FeedbackRequested`
-2. Backend `feedback_service` (subscribed to `FeedbackRequested`) calls Bedrock AI, publishes result to `FeedbackGiven`
-3. Frontend (subscribed via Momento SDK Web with a disposable token from `momento_token_vending`) receives response filtered by `feedback_id`
+1. Frontend calls `POST /feedback/request` → `feedback_request` Lambda sends message to SQS queue
+2. Backend `feedback_service` (long-polling SQS) receives message, calls Bedrock AI, stores result in Redis (`feedback:{id}`)
+3. Frontend polls `GET /feedback/{id}` on backend every 2s until result is ready (60s timeout)
 
 ### AI Chatbot (RAG Pipeline)
 
@@ -91,7 +91,7 @@ Service → Backend mappings:
 
 ### Lab Provisioning
 
-Backend dynamically creates Kubernetes Pod + Service + Ingress per lab via the Python `kubernetes` SDK. Each lab runs the `interactive-labs` image (code-server + Docker-in-Docker + Kind). Labs are accessible at `<lab-id>.labs.dev.rosettacloud.app`. Active labs tracked in Momento cache with 1-hour TTL.
+Backend dynamically creates Kubernetes Pod + Service + Ingress per lab via the Python `kubernetes` SDK. Each lab runs the `interactive-labs` image (code-server + Docker-in-Docker + Kind). Labs are accessible at `<lab-id>.labs.dev.rosettacloud.app`. Active labs tracked in Redis cache with 15-minute TTL.
 
 ### Lambda Functions (`Backend/serverless/Lambda/`)
 
@@ -99,12 +99,11 @@ Backend dynamically creates Kubernetes Pod + Service + Ingress per lab via the P
 |---|---|---|
 | `ai_chatbot` | Python (container) | WebSocket RAG chatbot |
 | `document_indexer` | Python (container) | Indexes shell scripts into LanceDB vector store |
-| `feedback_request` | Python (zip) | Publishes feedback requests to Momento topic |
-| `momento_token_vending` | Node.js | Generates short-lived Momento disposable tokens |
+| `feedback_request` | Python (zip) | Sends feedback requests to SQS queue |
 
 ## AWS Region Notes
 
-- Primary region: `me-central-1` (UAE)
+- Primary region: `us-east-1`
 - Bedrock (AI models): `us-east-1`
 - ACM for CloudFront: `us-east-1`
 
@@ -116,9 +115,11 @@ All three components have separate GitHub Actions workflows (`.github/workflows/
 
 | Variable | Used By |
 |---|---|
-| `MOMENTO_API_KEY` | Backend, feedback_request Lambda, momento_token_vending Lambda |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | Backend (via K8s ConfigMap) |
-| `AWS_REGION` | Backend + Lambdas (default: `me-central-1`) |
+| `REDIS_HOST` | Backend (default: `redis-service`) |
+| `REDIS_PORT` | Backend (default: `6379`) |
+| `SQS_QUEUE_URL` | Backend + feedback_request Lambda |
+| `CACHE_EVENTS_BACKEND` | Backend (default: `redis_sqs`) |
+| `AWS_REGION` | Backend + Lambdas (default: `us-east-1`); IRSA provides credentials |
 | `LANCEDB_S3_URI` | ai_chatbot Lambda |
 | `KNOWLEDGE_BASE_ID` | ai_chatbot Lambda (LanceDB table name) |
 | `DYNAMO_TABLE` | ai_chatbot Lambda (DynamoDB table for chat history) |
@@ -132,6 +133,6 @@ All three components have separate GitHub Actions workflows (`.github/workflows/
 
 Build environments defined in `Frontend/src/environments/`:
 - `environment.ts` (production), `environment.development.ts`, `environment.uat.ts`, `environment.stg.ts`
-- Each defines `apiUrl`, `chatbotApiUrl`, `feedbackApiUrl`, and `momentoApiKey`
+- Each defines `apiUrl`, `chatbotApiUrl`, `feedbackApiUrl`
 - Angular strict mode and strict templates are enforced in `tsconfig.json`
 - `.editorconfig`: 2-space indent, single quotes for `.ts` files

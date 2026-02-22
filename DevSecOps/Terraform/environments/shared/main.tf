@@ -1,12 +1,17 @@
 data "aws_availability_zones" "available" {}
+data "aws_caller_identity" "current" {}
 
 locals {
-  name   = "rosstacloud-shared"
-  region = "me-central-1"
+  name       = "rosettacloud-shared"
+  region     = "us-east-1"
+  account_id = data.aws_caller_identity.current.account_id
 
   vpc_cidr = "10.16.0.0/16"
 
   azs = slice(data.aws_availability_zones.available.names, 0, 3)
+
+  eks_oidc_provider_arn = module.eks.oidc_provider_arns["rosettacloud"]
+  eks_oidc_issuer       = replace(local.eks_oidc_provider_arn, "/^arn:aws[^:]*:iam::\\d+:oidc-provider\\//", "")
 
   tags = {
     Terraform   = "true"
@@ -38,7 +43,16 @@ module "vpc" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  enable_nat_gateway = false
+  enable_nat_gateway         = false
+  map_public_ip_on_launch    = true
+
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = "1"
+  }
 
   tags = local.tags
 }
@@ -50,160 +64,31 @@ module "iam" {
   source     = "../../modules/iam"
   oidc_roles = var.github_oidc_roles
 }
-################################################################################
-# Security Group Module
-################################################################################
-data "aws_security_group" "rosettacloud_ec2_sg" {
-  name = "rosettacloud-ec2-sg"
-}
-
-module "sg" {
-  source = "../../modules/sg"
-
-  security_groups = {
-    rosettacloud_ec2_sg = {
-      name        = "rosettacloud-ec2-sg"
-      description = "Security group for RosettaCloud EC2 instances"
-      vpc_id      = module.vpc.vpc_id
-
-      # https://github.com/terraform-aws-modules/terraform-aws-security-group/blob/master/rules.tf
-      ingress_with_cidr_blocks = [
-        {
-          from_port   = "30444"
-          to_port     = "30444"
-          protocol    = "tcp"
-          description = "Kubernetes Dashboard"
-          cidr_blocks = "0.0.0.0/0"
-        },
-        {
-          from_port   = "30085"
-          to_port     = "30085"
-          protocol    = "tcp"
-          description = "BE"
-          cidr_blocks = "0.0.0.0/0"
-        },
-        {
-          from_port   = "30443"
-          to_port     = "30443"
-          protocol    = "tcp"
-          description = "Nginx"
-          cidr_blocks = "0.0.0.0/0"
-        },
-        {
-          from_port   = "30088"
-          to_port     = "30088"
-          protocol    = "tcp"
-          description = "Lab"
-          cidr_blocks = "0.0.0.0/0"
-        },
-        {
-          rule        = "ssh-tcp"
-          cidr_blocks = "0.0.0.0/0"
-        },
-        {
-          rule        = "http-80-tcp"
-          cidr_blocks = "0.0.0.0/0"
-        },
-        {
-          rule        = "https-443-tcp"
-          cidr_blocks = "0.0.0.0/0"
-        }
-      ]
-
-      ingress_with_source_security_group_id = []
-      egress_rules                          = ["all-all"]
-      egress_cidr_blocks                    = ["0.0.0.0/0"]
-
-    }
-  }
-}
 
 ################################################################################
-# EC2 Module
+# EKS Module
 ################################################################################
-module "ec2" {
-  source = "../../modules/ec2"
+module "eks" {
+  source = "../../modules/eks"
 
-  ec2_instances = {
-    RosettaCloud = {
-      create = true
+  eks_clusters = {
+    rosettacloud = {
+      name               = "rosettacloud-eks"
+      kubernetes_version = "1.33"
+      vpc_id             = module.vpc.vpc_id
+      subnet_ids         = module.vpc.public_subnets
 
-      name                        = "rosettacloud-ec2"
-      ami                         = "ami-09c1ab2520ee9181a" # Ubuntu 24.04
-      instance_type               = "t3.large"
-      subnet_id                   = module.vpc.public_subnets[0]
-      associate_public_ip_address = true
-      vpc_security_group_ids      = [data.aws_security_group.rosettacloud_ec2_sg.id]
-      key_name                    = "RosettaCloud"
-      iam_instance_profile        = "EBEC2InstanceProfile"
-      root_volume_size            = 30
+      endpoint_public_access  = true
+      endpoint_private_access = true
 
-      user_data = <<-EOF
-        #!/usr/bin/env bash
-        set -ex
+      compute_config = {
+        enabled    = true
+        node_pools = ["general-purpose"]
+      }
 
-        # Install dependencies
-        sudo apt-get update -y
-        sudo apt-get install -y unzip
+      enable_cluster_creator_admin_permissions = true
 
-        # Install AWS CLI v2
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
-        unzip -q /tmp/awscliv2.zip -d /tmp
-        sudo /tmp/aws/install
-        rm -rf /tmp/awscliv2.zip /tmp/aws
-
-        # Install MicroK8s
-        sudo snap install microk8s --classic
- 
-        sudo microk8s enable dns
-        sudo microk8s enable dashboard
-        sudo microk8s enable storage
-        sudo microk8s ctr images ls -q | xargs -r sudo microk8s ctr images rm
-
-        # Install Kubectl
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-
-        # Alias
-        echo 'export PATH=$PATH:~/.local/bin' >> /home/ubuntu/.bashrc
-        echo 'alias k="kubectl"' >> /home/ubuntu/.bashrc
-         _TUTOR_COMPLETE=bash_source tutor >> /home/ubuntu/.bashrc
-        
-        # Install Tutor
-        sudo curl -L "https://github.com/overhangio/tutor/releases/download/v19.0.2/tutor-$(uname -s)_$(uname -m)" -o /usr/local/bin/tutor
-        sudo chmod 0755 /usr/local/bin/tutor
-        
-        # Make kubectl use micro k8s
-        sudo mkdir -p /home/ubuntu/.kube
-        sudo microk8s config | sudo tee /home/ubuntu/.kube/config > /dev/null
-        sudo chown -R ubuntu:ubuntu /home/ubuntu/.kube
-
-        # Dashboard
-        kubectl patch svc kubernetes-dashboard -n kube-system -p '{"spec": {"type": "NodePort", "ports": [{"port": 443, "targetPort": 8443, "nodePort": 30443}]}}'
-        kubectl create token default --duration=24h
-
-        # Tutor
-        tutor config save --set ENABLE_WEB_PROXY=false --set CADDY_HTTP_PORT=81
-        tutor config save --set ENABLE_HTTPS=true
-        # tutor k8s do createuser --staff --superuser admin admin@rosettacloud.app
-        tutor k8s do importdemocourse
-        sudo pip install tutor-indigo --break-system-packages
-        tutor plugins enable fourms
-      # tutor k8s launch
-      # active ssl/tls cert: Yes
-
-        # Caddy
-      # kubectl patch svc caddy -n openedx -p '{"spec": {"type": "NodePort", "ports": [{"port": 81, "targetPort": 81, "nodePort": 30080}]}}'
-      # caddy logs: kubectl logs -f caddy-0 -n openedx
-       #tutor config printroot
-      #  cat "$(tutor config printroot)/config.yml"
-       #cat $(tutor config printroot)/env/apps/caddy/Caddyfile
-
-      EOF
-
-      tags = merge(local.tags, {
-        Name = "rosettacloud-ec2"
-      })
+      tags = local.tags
     }
   }
 }
@@ -211,189 +96,60 @@ module "ec2" {
 ################################################################################
 # Route53 Module
 ################################################################################
-module "zones" {
-  source  = "terraform-aws-modules/route53/aws//modules/zones"
-  version = "5.0.0"
+module "route53" {
+  source  = "terraform-aws-modules/route53/aws"
+  version = "6.4.0"
 
-  zones = {
-    "rosettacloud.app" = {
-      tags = local.tags
+  name = "rosettacloud.app"
+
+  records = {
+    dev = {
+      type = "A"
+      alias = {
+        name                   = module.cloudfront.cloudfront_distribution_domain_name
+        zone_id                = module.cloudfront.cloudfront_distribution_hosted_zone_id
+        evaluate_target_health = false
+      }
     }
-
+    api_dev = {
+      name = "api.dev"
+      type = "A"
+      alias = {
+        name                   = module.cloudfront.cloudfront_distribution_domain_name
+        zone_id                = module.cloudfront.cloudfront_distribution_hosted_zone_id
+        evaluate_target_health = false
+      }
+    }
+    wildcard_labs_dev = {
+      name = "*.labs.dev"
+      type = "A"
+      alias = {
+        name                   = module.cloudfront.cloudfront_distribution_domain_name
+        zone_id                = module.cloudfront.cloudfront_distribution_hosted_zone_id
+        evaluate_target_health = false
+      }
+    }
   }
 
   tags = local.tags
-}
-
-module "records" {
-  source  = "terraform-aws-modules/route53/aws//modules/records"
-  version = "5.0.0"
-
-  zone_name = keys(module.zones.route53_zone_zone_id)[0]
-
-  records = [
-    {
-      name    = ""
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "www"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "dev"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "stg"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "uat"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "learn.dev"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "preview.learn.dev"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "apps.learn.dev"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "meilisearch.learn.dev"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "*.labs.dev"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "api.dev"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "learn.stg"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "preview.learn.stg"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "apps.learn.stg"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "meilisearch.learn.stg"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "learn.uat"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "preview.learn.uat"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "apps.learn.uat"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "meilisearch.learn.uat"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "studio.dev"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "studio.stg"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    },
-    {
-      name    = "studio.uat"
-      type    = "A"
-      ttl     = 5
-      records = [module.ec2.public_ips["RosettaCloud"]]
-    }
-  ]
-
-  depends_on = [module.zones]
 }
 
 ################################################################################
 # ACM Module
 ################################################################################
-module "acm_useast1" {
+module "acm" {
   source  = "terraform-aws-modules/acm/aws"
-  version = "5.1.1"
-
-  providers = {
-    aws = aws.useast1
-  }
+  version = "6.3.0"
 
   domain_name = "rosettacloud.app"
-  zone_id     = "Z079218314YQ78VCH6R35"
+  zone_id     = module.route53.id
 
   validation_method = "DNS"
 
   subject_alternative_names = [
     "*.rosettacloud.app",
     "*.dev.rosettacloud.app",
-    "*.learn.dev.rosettacloud.app",
-    "*.stg.rosettacloud.app",
-    "*.learn.stg.rosettacloud.app",
-    "*.uat.rosettacloud.app",
-    "*.learn.uat.rosettacloud.app",
-    "*.dev.labs.rosettacloud.app"
+    "*.labs.dev.rosettacloud.app"
   ]
 
   wait_for_validation = true
@@ -401,28 +157,53 @@ module "acm_useast1" {
   tags = local.tags
 }
 
-module "acm" {
-  source  = "terraform-aws-modules/acm/aws"
-  version = "5.1.1"
+################################################################################
+# CloudFront Module
+################################################################################
+module "cloudfront" {
+  source  = "terraform-aws-modules/cloudfront/aws"
+  version = "4.1.0"
 
-  domain_name = "rosettacloud.app"
-  zone_id     = "Z079218314YQ78VCH6R35"
-
-  validation_method = "DNS"
-
-  subject_alternative_names = [
-    "*.rosettacloud.app",
-    "*.dev.rosettacloud.app",
-    "*.learn.dev.rosettacloud.app",
-    "*.stg.rosettacloud.app",
-    "*.learn.stg.rosettacloud.app",
-    "*.uat.rosettacloud.app",
-    "*.learn.uat.rosettacloud.app",
-    "*.dev.labs.rosettacloud.app"
-
+  aliases = [
+    "dev.rosettacloud.app",
+    "api.dev.rosettacloud.app",
+    "*.labs.dev.rosettacloud.app"
   ]
 
-  wait_for_validation = true
+  enabled         = true
+  is_ipv6_enabled = true
+  price_class     = "PriceClass_100"
+  comment         = "RosettaCloud Istio ingress"
+
+  viewer_certificate = {
+    acm_certificate_arn      = module.acm.acm_certificate_arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"
+  }
+
+  origin = {
+    istio = {
+      domain_name = var.node_public_dns
+      custom_origin_config = {
+        http_port              = var.istio_http_nodeport
+        https_port             = 443
+        origin_protocol_policy = "http-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
+  default_cache_behavior = {
+    target_origin_id       = "istio"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+    use_forwarded_values   = false
+
+    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # AllViewer
+  }
 
   tags = local.tags
 }
@@ -564,6 +345,115 @@ module "ecr_4" {
         action = { type = "expire" }
       }
     ]
+  })
+
+  tags = local.tags
+}
+
+################################################################################
+# SQS – Feedback Requested Queue
+################################################################################
+module "sqs_feedback" {
+  source  = "terraform-aws-modules/sqs/aws"
+  version = "5.2.1"
+
+  name                       = "rosettacloud-feedback-requested"
+  visibility_timeout_seconds = 60
+  message_retention_seconds  = 3600
+  receive_wait_time_seconds  = 20
+
+  create_dlq = true
+  redrive_policy = {
+    maxReceiveCount = 3
+  }
+
+  tags = local.tags
+}
+
+################################################################################
+# IRSA – Backend Service Account IAM Role
+################################################################################
+data "aws_iam_policy_document" "backend_irsa_trust" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [local.eks_oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.eks_oidc_issuer}:sub"
+      values   = ["system:serviceaccount:dev:rosettacloud-backend"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.eks_oidc_issuer}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "backend_irsa" {
+  name               = "rosettacloud-backend-irsa"
+  assume_role_policy = data.aws_iam_policy_document.backend_irsa_trust.json
+  tags               = local.tags
+}
+
+resource "aws_iam_role_policy" "backend_irsa_permissions" {
+  name = "backend-permissions"
+  role = aws_iam_role.backend_irsa.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "DynamoDB"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:CreateTable", "dynamodb:DescribeTable", "dynamodb:ListTables"]
+        Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/rosettacloud-*"]
+      },
+      {
+        Sid    = "S3"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs",
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs/*"
+        ]
+      },
+      {
+        Sid      = "Bedrock"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+        Resource = ["arn:aws:bedrock:us-east-1::foundation-model/*"]
+      },
+      {
+        Sid      = "SQS"
+        Effect   = "Allow"
+        Action   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+        Resource = [module.sqs_feedback.queue_arn]
+      }
+    ]
+  })
+}
+
+################################################################################
+# Lambda SQS Send Permission (attach to feedback_request Lambda role)
+################################################################################
+resource "aws_iam_policy" "feedback_lambda_sqs" {
+  name        = "rosettacloud-feedback-lambda-sqs"
+  description = "Allow feedback_request Lambda to send messages to SQS"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["sqs:SendMessage"]
+      Resource = [module.sqs_feedback.queue_arn]
+    }]
   })
 
   tags = local.tags

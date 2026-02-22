@@ -9,9 +9,8 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from momento.responses import TopicPublish
 from app.services import ai_service as ai
 from app.services import cache_events_service as cache_events
 
@@ -20,7 +19,7 @@ FEEDBACK_REQUEST_TOPIC   = "FeedbackRequested"
 FEEDBACK_GIVEN_TOPIC     = "FeedbackGiven"
 
 # Configuration parameters
-DEFAULT_MAX_TOKENS       = 600      # Set to fit within Momento's 4096 byte limit
+DEFAULT_MAX_TOKENS       = 600
 DEFAULT_TEMPERATURE      = 0.7
 
 logger = logging.getLogger("feedback_direct")
@@ -32,13 +31,13 @@ if not logger.handlers:
     )
     logger.addHandler(h)
 
-async def _publish(topic: str, payload: str) -> Optional[TopicPublish.Error]:
-    """Publish to Momento using the correct cache, regardless of signature."""
+async def _publish(topic: str, payload: str) -> None:
+    """Publish to the cache/events backend."""
     try:
-        return await cache_events.publish(topic, payload, cache=CACHE_NAME)  # type: ignore[arg-type]
+        await cache_events.publish(topic, payload, cache=CACHE_NAME)
     except TypeError:
-        logger.debug("'cache' kw‑arg not supported; publishing to default cache")
-        return await cache_events.publish(topic, payload)                     # type: ignore[return-value]
+        logger.debug("'cache' kw-arg not supported; publishing to default cache")
+        await cache_events.publish(topic, payload)
 
 def _build_prompt(data: Dict[str, Any]) -> str:
     mod   = data.get("module_uuid", "unknown")
@@ -102,16 +101,9 @@ async def _handle(raw_msg: str) -> None:
         
         payload = json.dumps(payload_data)
         
-        # Log payload size for monitoring (helpful for adjusting token limit)
-        payload_size = len(payload.encode('utf-8'))
-        logger.info("Payload size: %d bytes (Momento limit: 4096)", payload_size)
-        
         # Publish the payload
-        pub = await _publish(FEEDBACK_GIVEN_TOPIC, payload)
-        if isinstance(pub, TopicPublish.Error):
-            logger.error("Publish failed: %s", pub.message)
-        else:
-            logger.info("Feedback %s published to %s", feedback_id, FEEDBACK_GIVEN_TOPIC)
+        await _publish(FEEDBACK_GIVEN_TOPIC, payload)
+        logger.info("Feedback %s published to %s", feedback_id, FEEDBACK_GIVEN_TOPIC)
 
     except Exception as exc:
         logger.exception("Failed to handle message: %s", exc)

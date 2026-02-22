@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, status, WebSocket, Path, Body, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr, Field
 
+import json
 import time
 
 from app.services import cache_events_service as cache_events
@@ -397,6 +398,20 @@ async def check_question(
         )
     
     return result
+
+# Feedback polling
+@app.get("/feedback/{feedback_id}", tags=["Feedback"])
+async def get_feedback(feedback_id: str):
+    result = await cache_events.get("feedback", feedback_id)
+    if result is None:
+        return {"status": "pending", "feedback_id": feedback_id}
+    data = json.loads(result)
+    return {
+        "status": "ready",
+        "feedback_id": feedback_id,
+        "content": data.get("content", ""),
+        "data": data,
+    }
 
 # Health check endpoint
 @app.get("/health-check", tags=["System"])
