@@ -133,10 +133,10 @@ class EKSLabs:
                         ),
                         readiness_probe=client.V1Probe(
                             http_get=client.V1HTTPGetAction(path="/", port=80),
-                            initial_delay_seconds=10,
-                            period_seconds=5,
-                            timeout_seconds=3,
-                            failure_threshold=6,
+                            initial_delay_seconds=120,
+                            period_seconds=10,
+                            timeout_seconds=5,
+                            failure_threshold=12,
                         ),
                     )],
                     image_pull_secrets=[
@@ -357,42 +357,51 @@ class EKSLabs:
             raise RuntimeError(f"Failed to launch lab: {str(e)}")
 
     async def stop(self, lab_id: str) -> bool:
-        """Stop a lab pod and clean up resources"""
+        """Stop a lab pod and clean up resources.
+        Always attempts K8s cleanup even if not in _active (handles backend restarts)."""
         LOG.info(f"Stopping lab: {lab_id}")
-        
-        # Check if the lab exists
-        if lab_id not in self._active:
-            LOG.warning(f"Lab {lab_id} not found, cannot stop")
-            return False
-            
-        # Remove from tracking
+
+        # Remove from in-memory tracking (no-op if not present)
         self._active.pop(lab_id, None)
         self._created.pop(lab_id, None)
-        
+
         try:
-            # Clean up all resources in parallel
+            # Delete all K8s resources in parallel; each handler ignores 404 already
             await asyncio.gather(
                 self._delete_lab_vs(lab_id),
                 self._delete_lab_svc(lab_id),
                 self._delete_lab_pod(lab_id)
             )
-            
             LOG.info(f"Lab {lab_id} stopped successfully")
             return True
-            
         except Exception as e:
             LOG.error(f"Error stopping lab {lab_id}: {e}")
             return False
 
     async def get_lab_info(self, lab_id: str) -> Optional[Dict[str, Any]]:
-        """Get information about a lab"""
+        """Get information about a lab.
+        If not in _active (e.g. after backend restart), probes K8s to recover the pod."""
         LOG.debug(f"Getting info for lab: {lab_id}")
-        
-        # Check if the lab exists
+
+        # Check in-memory tracking
         pod_id = self._active.get(lab_id)
         if pod_id is None:
-            LOG.debug(f"Lab {lab_id} not found")
-            return None
+            # Backend may have restarted — try to rediscover the pod from K8s
+            recovered_pod = pod_name(lab_id)
+            try:
+                async with self._k8s() as (core, *_):
+                    await asyncio.to_thread(core.read_namespaced_pod, recovered_pod, NAMESPACE)
+                # Pod exists — re-register it in memory
+                LOG.info(f"Recovered lab {lab_id} from K8s after backend restart")
+                self._active[lab_id] = recovered_pod
+                self._created.setdefault(lab_id, dt.datetime.now(dt.timezone.utc).timestamp())
+                pod_id = recovered_pod
+            except ApiException as e:
+                if e.status == 404:
+                    LOG.debug(f"Lab {lab_id} not found in K8s")
+                    return None
+                LOG.error(f"Error probing K8s for lab {lab_id}: {e}")
+                return None
         
         hostname = lab_host(lab_id)
         url = f"https://{hostname}"
