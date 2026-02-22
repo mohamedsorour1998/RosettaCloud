@@ -20,12 +20,10 @@ from kubernetes.client.rest import ApiException
 
 # Configuration (can be set via environment variables)
 NAMESPACE         = os.getenv("LAB_K8S_NAMESPACE", "openedx")
-INGRESS_NAMESPACE = os.getenv("LAB_INGRESS_NAMESPACE", NAMESPACE)
-INGRESS_NAME      = os.getenv("LAB_INGRESS_NAME", "rosettacloud-ingress")
 POD_IMAGE         = os.getenv("LAB_POD_IMAGE", "339712964409.dkr.ecr.us-east-1.amazonaws.com/interactive-labs:latest")
 IMAGE_PULL_SECRET = os.getenv("LAB_IMAGE_PULL_SECRET", "ecr-creds")
 WILDCARD_DOMAIN   = os.getenv("LAB_WILDCARD_DOMAIN", "labs.dev.rosettacloud.app")
-INGRESS_CLASS     = os.getenv("LAB_INGRESS_CLASS", "nginx")
+ISTIO_GATEWAY     = os.getenv("LAB_ISTIO_GATEWAY", "rosettacloud-gateway")
 POD_TTL_SECS      = int(os.getenv("LAB_POD_TTL_SECS", "3600"))
 CONCURRENCY       = int(os.getenv("LAB_CONCURRENT_TASKS_LIMIT", "5"))
 DEBUG             = os.getenv("LAB_DEBUG", "").lower() in ("1", "true", "yes")
@@ -72,7 +70,7 @@ class EKSLabs:
         LOG.debug("Initializing EKSLabs backend")
         self._core: Optional[client.CoreV1Api] = None
         self._apps: Optional[client.AppsV1Api] = None
-        self._net: Optional[client.NetworkingV1Api] = None
+        self._custom: Optional[client.CustomObjectsApi] = None
         self._sem = asyncio.Semaphore(CONCURRENCY)
 
         # Lab tracking
@@ -94,14 +92,14 @@ class EKSLabs:
         
         self._core = client.CoreV1Api()
         self._apps = client.AppsV1Api()
-        self._net = client.NetworkingV1Api()
+        self._custom = client.CustomObjectsApi()
         LOG.debug("Kubernetes clients initialized successfully")
 
     async def _get_clients(self):
         """Get or initialize Kubernetes client objects"""
-        if self._core is None or self._apps is None or self._net is None:
+        if self._core is None or self._apps is None or self._custom is None:
             await self._init_clients()
-        return self._core, self._apps, self._net
+        return self._core, self._apps, self._custom
 
     @contextlib.asynccontextmanager
     async def _k8s(self):
@@ -299,63 +297,60 @@ class EKSLabs:
                     raise
 
     @retry_async(exceptions=(ApiException,))
-    async def _patch_ingress(self, lab_id: str, add: bool):
-        """Add (or remove) an ingress rule for a lab"""
-        action = "Adding" if add else "Removing"
+    async def _create_lab_vs(self, lab_id: str):
+        """Create an Istio VirtualService for a lab"""
         host = lab_host(lab_id)
         service_id = svc_name(lab_id)
-    
-        LOG.info(f"{action} ingress rule for {host} -> {service_id}")
-    
-        async with self._k8s() as (*_, net):
+        dest_host = f"{service_id}.{NAMESPACE}.svc.cluster.local"
+
+        LOG.info(f"Creating VirtualService {lab_id}: {host} -> {dest_host}:80")
+
+        vs_body = {
+            "apiVersion": "networking.istio.io/v1",
+            "kind": "VirtualService",
+            "metadata": {"name": lab_id, "namespace": NAMESPACE},
+            "spec": {
+                "hosts": [host],
+                "gateways": [ISTIO_GATEWAY],
+                "http": [{
+                    "route": [{
+                        "destination": {
+                            "host": dest_host,
+                            "port": {"number": 80}
+                        }
+                    }]
+                }]
+            }
+        }
+
+        async with self._k8s() as (*_, custom):
             try:
-                ing = await asyncio.to_thread(
-                    net.read_namespaced_ingress,
-                    name=INGRESS_NAME,
-                    namespace=INGRESS_NAMESPACE,
-                )
-                
-                # Keep all rules except the one for this host
-                rules = ing.spec.rules or []
-                rules = [r for r in rules if r.host != host]
-                
-                # Add the rule if needed
-                if add:
-                    rules.append(
-                        client.V1IngressRule(
-                            host=host,
-                            http=client.V1HTTPIngressRuleValue(
-                                paths=[
-                                    client.V1HTTPIngressPath(
-                                        path="/",
-                                        path_type="Prefix",
-                                        backend=client.V1IngressBackend(
-                                            service=client.V1IngressServiceBackend(
-                                                name=service_id,
-                                                port=client.V1ServiceBackendPort(number=80)
-                                            )
-                                        )
-                                    )
-                                ]
-                            )
-                        )
-                    )
-                
-                # Update the ingress rules
-                ing.spec.rules = rules
-                
                 await asyncio.to_thread(
-                    net.patch_namespaced_ingress,
-                    name=INGRESS_NAME,
-                    namespace=INGRESS_NAMESPACE,
-                    body=ing,
+                    custom.create_namespaced_custom_object,
+                    "networking.istio.io", "v1", NAMESPACE, "virtualservices", vs_body
                 )
-                
-                LOG.info(f"{action} ingress rule for {host} completed successfully")
-                
+                LOG.info(f"VirtualService {lab_id} created successfully")
             except ApiException as e:
-                if e.status == 404 and not add:
-                    LOG.warning(f"Ingress {INGRESS_NAME} not found, nothing to remove")
+                if e.status == 409:
+                    LOG.warning(f"VirtualService {lab_id} already exists")
+                else:
+                    raise
+
+    @retry_async(exceptions=(ApiException,))
+    async def _delete_lab_vs(self, lab_id: str):
+        """Delete the Istio VirtualService for a lab"""
+        LOG.info(f"Deleting VirtualService {lab_id}")
+
+        async with self._k8s() as (*_, custom):
+            try:
+                await asyncio.to_thread(
+                    custom.delete_namespaced_custom_object,
+                    "networking.istio.io", "v1", NAMESPACE, "virtualservices", lab_id
+                )
+                LOG.info(f"VirtualService {lab_id} deleted successfully")
+            except ApiException as e:
+                if e.status == 404:
+                    LOG.warning(f"VirtualService {lab_id} not found, already deleted")
                 else:
                     raise
 
@@ -409,9 +404,9 @@ class EKSLabs:
             
             # Create the service
             await self._create_lab_svc(lab_id)
-            
-            # Update the ingress
-            await self._patch_ingress(lab_id, add=True)
+
+            # Create the Istio VirtualService
+            await self._create_lab_vs(lab_id)
             
             # Track the active lab
             self._active[lab_id] = pod_id
@@ -445,7 +440,7 @@ class EKSLabs:
         try:
             # Clean up all resources in parallel
             await asyncio.gather(
-                self._patch_ingress(lab_id, add=False),
+                self._delete_lab_vs(lab_id),
                 self._delete_lab_svc(lab_id),
                 self._delete_lab_pod(lab_id)
             )
