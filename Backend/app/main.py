@@ -300,9 +300,12 @@ async def new_lab(request: LaunchLabRequest):
     return LabCreationResponse(lab_id=lab_id)
 
 @app.get("/labs/{lab_id}", response_model=Union[LabInfoResponse, ErrorResponse], tags=["Labs"])
-async def lab_info(lab_id: str):
+async def lab_info(lab_id: str, user_id: Optional[str] = None):
     info = await lab.get_lab_info(lab_id)
     if not info:
+        # Pod is gone — also clear Redis so the user can create a new lab
+        if user_id:
+            await cache_events.set("active_labs", user_id, "null")
         return ErrorResponse(error="lab not found")
     
     # Convert to the response model

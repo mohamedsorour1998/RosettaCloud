@@ -304,8 +304,16 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.labSv.getLabInfo(this.labId).subscribe(
       (info) => this.handleLabInfo(info),
       (err) => {
-        this.errorMessage = 'Error retrieving lab info: ' + err.message;
-        this.isLoading = false;
+        const msg: string = err.message || '';
+        if (msg.includes('lab not found') || msg.includes('not found')) {
+          // Stale lab ID — clear and create a fresh one
+          sessionStorage.removeItem('activeLabId');
+          this.labId = null;
+          this.launchNewLab().subscribe();
+        } else {
+          this.errorMessage = 'Error retrieving lab info: ' + msg;
+          this.isLoading = false;
+        }
       }
     );
   }
@@ -327,8 +335,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const statusChanged = !currentInfo || currentInfo.status !== info.status;
     this.labInfo$.next(info);
 
-    // Handle error or terminated state
-    if (['error', 'terminated'].includes(info.status)) {
+    // Handle error or terminated state (including error-404, error-500, etc.)
+    if (info.status === 'terminated' || info.status.startsWith('error')) {
       sessionStorage.removeItem('activeLabId');
       this.labId = null;
       this.launchNewLab().subscribe();
@@ -835,12 +843,15 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   public initializeNewLab(): void {
     try {
       sessionStorage.removeItem(this.qStateKey);
+      sessionStorage.removeItem('activeLabId');
       this.questions = [];
       this.currentQuestionIndex = 0;
       this.selectedOption = null;
       this.showFeedback = false;
       this.feedbackMessage = '';
       this.isAnswerCorrect = false;
+      this.errorMessage = null;
+      this.labId = null;
     } catch (e) {
       console.error('Error clearing question state:', e);
     }

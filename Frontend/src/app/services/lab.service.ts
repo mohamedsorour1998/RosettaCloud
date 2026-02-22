@@ -166,8 +166,9 @@ export class LabService {
       return throwError(() => new Error('No lab ID provided'));
     }
 
+    const userId = this.getCurrentUserId();
     return this.http
-      .get<LabInfoResponse | ErrorResponse>(`${this.apiUrl}/labs/${labId}`, {
+      .get<LabInfoResponse | ErrorResponse>(`${this.apiUrl}/labs/${labId}?user_id=${userId}`, {
         headers: this.getHeaders(),
       })
       .pipe(

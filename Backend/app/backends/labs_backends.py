@@ -109,39 +109,34 @@ class EKSLabs:
 
     @retry_async(exceptions=(ApiException,))
     async def _create_lab_pod(self, lab_id: str) -> str:
-        """Create an individual pod for the lab"""
-        LOG.info(f"Creating pod for lab {lab_id}")
+        """Submit a pod creation request and return immediately (no readiness wait).
+        The frontend polls GET /labs/{id} for status updates."""
         pod_id = pod_name(lab_id)
-        
+        LOG.info(f"Creating pod {pod_id}")
+
         async with self._k8s() as (core, *_):
             pod = client.V1Pod(
                 metadata=client.V1ObjectMeta(
                     name=pod_id,
                     namespace=NAMESPACE,
-                    labels={
-                        "app": "interactive-labs",
-                        "lab-id": lab_id
-                    }
+                    labels={"app": "interactive-labs", "lab-id": lab_id}
                 ),
                 spec=client.V1PodSpec(
                     containers=[client.V1Container(
                         name="lab",
                         image=POD_IMAGE,
-                        image_pull_policy="IfNotPresent",
+                        image_pull_policy="Always",
                         ports=[client.V1ContainerPort(container_port=80)],
                         security_context=client.V1SecurityContext(
                             privileged=True,
                             run_as_user=0,
                         ),
                         readiness_probe=client.V1Probe(
-                            http_get=client.V1HTTPGetAction(
-                                path="/",
-                                port=80
-                            ),
-                            initial_delay_seconds=5,
+                            http_get=client.V1HTTPGetAction(path="/", port=80),
+                            initial_delay_seconds=10,
                             period_seconds=5,
                             timeout_seconds=3,
-                            failure_threshold=3,
+                            failure_threshold=6,
                         ),
                     )],
                     image_pull_secrets=[
@@ -150,76 +145,13 @@ class EKSLabs:
                     restart_policy="Always"
                 )
             )
-            
+
             try:
                 await asyncio.to_thread(core.create_namespaced_pod, NAMESPACE, pod)
-                LOG.info(f"Pod {pod_id} created successfully")
-                
-                # Wait for pod to be running or detect image pull errors
-                deadline = dt.datetime.now(dt.timezone.utc).timestamp() + 120  # Increased timeout for image pulls
-                image_pull_error = False
-                
-                while dt.datetime.now(dt.timezone.utc).timestamp() < deadline:
-                    pod_status = await asyncio.to_thread(
-                        core.read_namespaced_pod,  # Read full pod not just status
-                        pod_id,
-                        NAMESPACE
-                    )
-                    status = pod_status.status.phase
-                    LOG.debug(f"Pod {pod_id} status: {status}")
-                    
-                    # Check for image pull errors or backoff
-                    if pod_status.status.container_statuses:
-                        for container_status in pod_status.status.container_statuses:
-                            if container_status.state and container_status.state.waiting:
-                                reason = container_status.state.waiting.reason
-                                if reason in ["ImagePullBackOff", "ErrImagePull"]:
-                                    image_pull_error = True
-                                    LOG.warning(f"Image pull error for pod {pod_id}: {reason}")
-                                    # Delete the pod so we can retry with AlwaysPull
-                                    await asyncio.to_thread(core.delete_namespaced_pod, pod_id, NAMESPACE)
-                                    await asyncio.sleep(5)  # Wait for deletion
-                                    break
-                    
-                    if image_pull_error:
-                        break
-                    
-                    if status == "Running":
-                        LOG.info(f"Pod {pod_id} is running")
-                        return pod_id
-                    
-                    await asyncio.sleep(2)
-                
-                # If we had an image pull error, retry with AlwaysPull policy
-                if image_pull_error:
-                    LOG.info(f"Retrying pod {pod_id} creation with AlwaysPull policy")
-                    pod.spec.containers[0].image_pull_policy = "Always"
-                    
-                    await asyncio.to_thread(core.create_namespaced_pod, NAMESPACE, pod)
-                    
-                    # Wait again for pod to be running
-                    deadline = dt.datetime.now(dt.timezone.utc).timestamp() + 120
-                    while dt.datetime.now(dt.timezone.utc).timestamp() < deadline:
-                        pod_status = await asyncio.to_thread(
-                            core.read_namespaced_pod_status,
-                            pod_id,
-                            NAMESPACE
-                        )
-                        status = pod_status.status.phase
-                        LOG.debug(f"Pod {pod_id} status after retry: {status}")
-                        
-                        if status == "Running":
-                            LOG.info(f"Pod {pod_id} is running after image pull")
-                            return pod_id
-                        
-                        await asyncio.sleep(2)
-                
-                # If timeout, still return pod name but log a warning
-                LOG.warning(f"Timeout waiting for pod {pod_id} to be running")
+                LOG.info(f"Pod {pod_id} submitted; frontend will poll for readiness")
                 return pod_id
-                
             except ApiException as e:
-                if e.status == 409:  # Already exists
+                if e.status == 409:
                     LOG.warning(f"Pod {pod_id} already exists")
                     return pod_id
                 raise
@@ -493,6 +425,12 @@ class EKSLabs:
                             status = "starting"
                 
         except ApiException as e:
+            if e.status == 404:
+                # Pod no longer exists — evict from tracking so a new lab can be created
+                LOG.warning(f"Pod {pod_id} not found (404); evicting lab {lab_id} from active tracking")
+                self._active.pop(lab_id, None)
+                self._created.pop(lab_id, None)
+                return None
             LOG.error(f"Error getting pod status for lab {lab_id}: {e}")
             status = f"error-{e.status}"
         
