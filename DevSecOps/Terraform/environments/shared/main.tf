@@ -621,7 +621,7 @@ resource "aws_iam_role_policy" "ai_chatbot_permissions" {
       {
         Sid      = "DynamoDB"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query"]
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:DescribeTable"]
         Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/SessionTable"]
       },
       {
