@@ -410,10 +410,16 @@ resource "aws_iam_role_policy" "backend_irsa_permissions" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "DynamoDB"
+        Sid      = "DynamoDBTable"
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:CreateTable", "dynamodb:DescribeTable", "dynamodb:ListTables"]
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:CreateTable", "dynamodb:DescribeTable"]
         Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/rosettacloud-*"]
+      },
+      {
+        Sid      = "DynamoDBListTables"
+        Effect   = "Allow"
+        Action   = ["dynamodb:ListTables"]
+        Resource = ["*"]
       },
       {
         Sid    = "S3"
