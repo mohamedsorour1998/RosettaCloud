@@ -507,6 +507,195 @@ resource "aws_iam_role_policy" "backend_irsa_permissions" {
 }
 
 ################################################################################
+# DynamoDB – SessionTable (ai_chatbot chat history)
+################################################################################
+resource "aws_dynamodb_table" "session_table" {
+  name         = "SessionTable"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "session_id"
+
+  attribute {
+    name = "session_id"
+    type = "S"
+  }
+
+  tags = local.tags
+}
+
+################################################################################
+# IAM – document_indexer Lambda execution role
+################################################################################
+data "aws_iam_policy_document" "lambda_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "document_indexer" {
+  name               = "rosettacloud-document-indexer-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags               = local.tags
+}
+
+resource "aws_iam_role_policy_attachment" "document_indexer_basic" {
+  role       = aws_iam_role.document_indexer.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "document_indexer_permissions" {
+  name = "document-indexer-permissions"
+  role = aws_iam_role.document_indexer.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "S3Read"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs",
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs/*",
+        ]
+      },
+      {
+        Sid    = "S3VectorWrite"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+        Resource = [
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs-vector",
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs-vector/*",
+        ]
+      },
+      {
+        Sid      = "Bedrock"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
+        Resource = ["arn:aws:bedrock:us-east-1::foundation-model/*"]
+      },
+    ]
+  })
+}
+
+################################################################################
+# IAM – ai_chatbot Lambda execution role
+################################################################################
+resource "aws_iam_role" "ai_chatbot" {
+  name               = "rosettacloud-ai-chatbot-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags               = local.tags
+}
+
+resource "aws_iam_role_policy_attachment" "ai_chatbot_basic" {
+  role       = aws_iam_role.ai_chatbot.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "ai_chatbot_permissions" {
+  name = "ai-chatbot-permissions"
+  role = aws_iam_role.ai_chatbot.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "S3Vector"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs-vector",
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs-vector/*",
+        ]
+      },
+      {
+        Sid      = "Bedrock"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+        Resource = ["arn:aws:bedrock:us-east-1::foundation-model/*"]
+      },
+      {
+        Sid      = "DynamoDB"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query"]
+        Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/SessionTable"]
+      },
+    ]
+  })
+}
+
+################################################################################
+# IAM – feedback_request Lambda execution role
+################################################################################
+resource "aws_iam_role" "feedback_request" {
+  name               = "rosettacloud-feedback-request-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
+  tags               = local.tags
+}
+
+resource "aws_iam_role_policy_attachment" "feedback_request_basic" {
+  role       = aws_iam_role.feedback_request.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "feedback_request_sqs" {
+  role       = aws_iam_role.feedback_request.name
+  policy_arn = aws_iam_policy.feedback_lambda_sqs.arn
+}
+
+################################################################################
+# Lambda – feedback_request (zip deployment)
+################################################################################
+module "lambda_feedback_request" {
+  source  = "terraform-aws-modules/lambda/aws"
+  version = "8.7.0"
+
+  function_name = "feedback_request"
+  description   = "Sends feedback requests to SQS"
+  handler       = "feedback_request.lambda_handler"
+  runtime       = "python3.12"
+
+  source_path = "../../../../Backend/serverless/Lambda/feedback_request"
+
+  create_role = false
+  lambda_role = aws_iam_role.feedback_request.arn
+
+  timeout     = 30
+  memory_size = 128
+
+  environment_variables = {
+    SQS_QUEUE_URL = module.sqs_feedback.queue_url
+  }
+
+  tags = local.tags
+}
+
+################################################################################
+# EventBridge – trigger document_indexer on S3 .sh uploads
+################################################################################
+resource "aws_cloudwatch_event_rule" "s3_sh_upload" {
+  name        = "rosettacloud-s3-sh-upload"
+  description = "Fires when a .sh file is uploaded to the interactive-labs bucket"
+
+  event_pattern = jsonencode({
+    source      = ["aws.s3"]
+    detail-type = ["Object Created"]
+    detail = {
+      bucket = { name = ["rosettacloud-shared-interactive-labs"] }
+      object = { key = [{ suffix = ".sh" }] }
+    }
+  })
+
+  tags = local.tags
+}
+
+# NOTE: aws_cloudwatch_event_target and aws_lambda_permission for document_indexer
+# are added after the Lambda is created by the CI/CD pipeline (second apply).
+
+################################################################################
 # Lambda SQS Send Permission (attach to feedback_request Lambda role)
 ################################################################################
 resource "aws_iam_policy" "feedback_lambda_sqs" {

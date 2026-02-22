@@ -1,4 +1,4 @@
-name: Build & publish images + create/update Lambda
+name: Build & publish Lambda images + create/update Lambda
 on:
   workflow_dispatch:
     inputs:
@@ -6,18 +6,14 @@ on:
         description: Docker tag
         default: latest
         type: string
-      github_iam_role:
-        description: IAM role for GitHub Actions
-        default: github-actions-role
-        type: string
-      aws_account_id:
-        description: AWS Account ID
-        default: "339712964409"
-        type: string
       aws_region:
         description: AWS Region
         default: us-east-1
         type: string
+
+env:
+  AWS_ACCOUNT_ID: "339712964409"
+  IAM_ROLE: github-actions-role
 
 jobs:
   build-and-update:
@@ -31,14 +27,14 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ inputs.aws_account_id }}:role/${{ inputs.github_iam_role }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
           aws-region: ${{ inputs.aws_region }}
 
       - name: Login to ECR
         id: login
         uses: aws-actions/amazon-ecr-login@v2
         with:
-          registries: ${{ inputs.aws_account_id }}
+          registries: ${{ env.AWS_ACCOUNT_ID }}
 
       # ── document_indexer ──────────────────────────────────────────────────
       - name: Build & push document_indexer image
@@ -48,8 +44,8 @@ jobs:
         run: |
           IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
           docker build --platform linux/amd64 \
-            -f serverless/Lambda/document_indexer/Dockerfile \
-            serverless/Lambda/document_indexer \
+            -f Backend/serverless/Lambda/document_indexer/Dockerfile \
+            Backend/serverless/Lambda/document_indexer \
             -t "$IMAGE_URI"
           docker push "$IMAGE_URI"
           echo "document_indexer_image=$IMAGE_URI" >> $GITHUB_ENV
@@ -57,10 +53,9 @@ jobs:
 
       - name: Create or update document_indexer Lambda
         run: |
-          ROLE="arn:aws:iam::${{ inputs.aws_account_id }}:role/rosettacloud-document-indexer-role"
+          ROLE="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/rosettacloud-document-indexer-role"
           IMAGE="${{ env.document_indexer_image }}"
           REGION="${{ inputs.aws_region }}"
-
           ENV_VARS="Variables={LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base}"
 
           if aws lambda get-function --function-name document_indexer --region $REGION &>/dev/null; then
@@ -103,8 +98,8 @@ jobs:
         run: |
           IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
           docker build --platform linux/amd64 \
-            -f serverless/Lambda/ai_chatbot/Dockerfile \
-            serverless/Lambda/ai_chatbot \
+            -f Backend/serverless/Lambda/ai_chatbot/Dockerfile \
+            Backend/serverless/Lambda/ai_chatbot \
             -t "$IMAGE_URI"
           docker push "$IMAGE_URI"
           echo "ai_chatbot_image=$IMAGE_URI" >> $GITHUB_ENV
@@ -112,10 +107,9 @@ jobs:
 
       - name: Create or update ai_chatbot Lambda
         run: |
-          ROLE="arn:aws:iam::${{ inputs.aws_account_id }}:role/rosettacloud-ai-chatbot-role"
+          ROLE="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/rosettacloud-ai-chatbot-role"
           IMAGE="${{ env.ai_chatbot_image }}"
           REGION="${{ inputs.aws_region }}"
-
           ENV_VARS="Variables={LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base,DYNAMO_TABLE=SessionTable}"
 
           if aws lambda get-function --function-name ai_chatbot --region $REGION &>/dev/null; then
@@ -149,17 +143,3 @@ jobs:
               --region $REGION
           fi
           echo "ai_chatbot is live."
-
-      # ── backend image (K8s deployment, no Lambda update) ─────────────────
-      - name: Build & push backend image
-        env:
-          REGISTRY: ${{ steps.login.outputs.registry }}
-          ECR_REPOSITORY: rosettacloud-backend
-        run: |
-          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
-          docker build --platform linux/amd64 \
-            -f Dockerfile \
-            . \
-            -t "$IMAGE_URI"
-          docker push "$IMAGE_URI"
-          echo "Pushed backend image: $IMAGE_URI"

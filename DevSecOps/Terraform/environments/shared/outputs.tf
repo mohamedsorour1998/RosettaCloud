@@ -86,3 +86,24 @@ output "feedback_lambda_sqs_policy_arn" {
   value       = aws_iam_policy.feedback_lambda_sqs.arn
   description = "IAM policy ARN to attach to feedback_request Lambda role for SQS access"
 }
+
+################################################################################
+# Lambda
+################################################################################
+output "feedback_request_lambda_arn" {
+  value       = module.lambda_feedback_request.lambda_function_arn
+  description = "ARN of the feedback_request Lambda function"
+}
+
+output "feedback_request_lambda_invoke_arn" {
+  value       = module.lambda_feedback_request.lambda_function_invoke_arn
+  description = "Invoke ARN of the feedback_request Lambda function"
+}
+
+################################################################################
+# DynamoDB
+################################################################################
+output "session_table_name" {
+  value       = aws_dynamodb_table.session_table.name
+  description = "DynamoDB table name for ai_chatbot session history"
+}
