@@ -96,10 +96,11 @@ Service → Backend mappings:
 
 ### AI Chatbot (RAG Pipeline)
 
-- WebSocket API Gateway → `ai_chatbot` Lambda
+- WebSocket API: `wss://wss.dev.rosettacloud.app` → API Gateway v2 WebSocket → `ai_chatbot` Lambda
 - LangChain orchestrates: retriever (LanceDB on S3) → Amazon Nova Lite LLM (Bedrock) → streaming response
 - Embeddings: Amazon Titan (`amazon.titan-embed-text-v2:0`)
-- Chat history: DynamoDB `SessionTable`
+- Chat history: DynamoDB `SessionTable` (hash key: `SessionId` — matches LangChain `DynamoDBChatMessageHistory` default)
+- Lambda sends streaming chunks back via `apigatewaymanagementapi.post_to_connection` using the custom domain endpoint
 
 ### Questions / Shell Script Pipeline
 
@@ -130,6 +131,13 @@ Backend dynamically creates Kubernetes Pod + Service + Ingress per lab via the P
   - `rosettacloud-shared-interactive-labs` — shell scripts (questions source)
   - `rosettacloud-shared-interactive-labs-vector` — LanceDB vector store (RAG source)
   - `rosettacloud-shared-terraform-backend` — Terraform remote state
+
+## API Gateway Endpoints
+
+| Name | URL | Purpose |
+|---|---|---|
+| WebSocket (chatbot) | `wss://wss.dev.rosettacloud.app` | `ai_chatbot` Lambda — RAG chat |
+| HTTP (feedback) | `https://feedback.dev.rosettacloud.app/feedback/request` | `feedback_request` Lambda → SQS |
 
 ## CI/CD
 

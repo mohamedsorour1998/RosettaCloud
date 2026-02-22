@@ -107,3 +107,29 @@ output "session_table_name" {
   value       = aws_dynamodb_table.session_table.name
   description = "DynamoDB table name for ai_chatbot session history"
 }
+
+################################################################################
+# API Gateway – WebSocket (ai_chatbot)
+################################################################################
+output "chatbot_ws_api_endpoint" {
+  value       = "${aws_apigatewayv2_api.chatbot_ws.api_endpoint}/production"
+  description = "WebSocket API Gateway default endpoint (wss://...)"
+}
+
+output "chatbot_ws_custom_domain" {
+  value       = "wss://wss.dev.rosettacloud.app"
+  description = "Custom WebSocket domain for ai_chatbot"
+}
+
+################################################################################
+# API Gateway – HTTP (feedback_request)
+################################################################################
+output "feedback_api_endpoint" {
+  value       = aws_apigatewayv2_api.feedback.api_endpoint
+  description = "Feedback HTTP API Gateway endpoint"
+}
+
+output "feedback_custom_domain" {
+  value       = "https://feedback.dev.rosettacloud.app"
+  description = "Custom domain for feedback_request Lambda"
+}

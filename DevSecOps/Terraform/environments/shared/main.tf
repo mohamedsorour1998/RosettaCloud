@@ -508,14 +508,15 @@ resource "aws_iam_role_policy" "backend_irsa_permissions" {
 
 ################################################################################
 # DynamoDB – SessionTable (ai_chatbot chat history)
+# Key must be "SessionId" to match LangChain's DynamoDBChatMessageHistory default
 ################################################################################
 resource "aws_dynamodb_table" "session_table" {
   name         = "SessionTable"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "session_id"
+  hash_key     = "SessionId"
 
   attribute {
-    name = "session_id"
+    name = "SessionId"
     type = "S"
   }
 
@@ -623,6 +624,12 @@ resource "aws_iam_role_policy" "ai_chatbot_permissions" {
         Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query"]
         Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/SessionTable"]
       },
+      {
+        Sid      = "ApiGatewayManageConnections"
+        Effect   = "Allow"
+        Action   = ["execute-api:ManageConnections"]
+        Resource = ["${aws_apigatewayv2_api.chatbot_ws.execution_arn}/*/*"]
+      },
     ]
   })
 }
@@ -723,4 +730,159 @@ resource "aws_iam_policy" "feedback_lambda_sqs" {
   })
 
   tags = local.tags
+}
+
+################################################################################
+# API Gateway v2 – WebSocket (ai_chatbot)
+################################################################################
+resource "aws_apigatewayv2_api" "chatbot_ws" {
+  name                       = "rosettacloud-chatbot-ws"
+  protocol_type              = "WEBSOCKET"
+  route_selection_expression = "$request.body.action"
+  tags                       = local.tags
+}
+
+resource "aws_apigatewayv2_integration" "chatbot_ws" {
+  api_id                    = aws_apigatewayv2_api.chatbot_ws.id
+  integration_type          = "AWS_PROXY"
+  integration_uri           = "arn:aws:lambda:us-east-1:${local.account_id}:function:ai_chatbot"
+  content_handling_strategy = "CONVERT_TO_TEXT"
+}
+
+resource "aws_apigatewayv2_route" "ws_connect" {
+  api_id    = aws_apigatewayv2_api.chatbot_ws.id
+  route_key = "$connect"
+  target    = "integrations/${aws_apigatewayv2_integration.chatbot_ws.id}"
+}
+
+resource "aws_apigatewayv2_route" "ws_disconnect" {
+  api_id    = aws_apigatewayv2_api.chatbot_ws.id
+  route_key = "$disconnect"
+  target    = "integrations/${aws_apigatewayv2_integration.chatbot_ws.id}"
+}
+
+resource "aws_apigatewayv2_route" "ws_default" {
+  api_id    = aws_apigatewayv2_api.chatbot_ws.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.chatbot_ws.id}"
+}
+
+resource "aws_apigatewayv2_stage" "chatbot_ws" {
+  api_id      = aws_apigatewayv2_api.chatbot_ws.id
+  name        = "production"
+  auto_deploy = true
+  tags        = local.tags
+}
+
+resource "aws_lambda_permission" "apigw_chatbot" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = "ai_chatbot"
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.chatbot_ws.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_domain_name" "wss" {
+  domain_name = "wss.dev.rosettacloud.app"
+
+  domain_name_configuration {
+    certificate_arn = module.acm.acm_certificate_arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+
+  tags = local.tags
+}
+
+resource "aws_apigatewayv2_api_mapping" "wss" {
+  api_id      = aws_apigatewayv2_api.chatbot_ws.id
+  domain_name = aws_apigatewayv2_domain_name.wss.id
+  stage       = aws_apigatewayv2_stage.chatbot_ws.id
+}
+
+resource "aws_route53_record" "wss_dev" {
+  zone_id = module.route53.id
+  name    = "wss.dev.rosettacloud.app"
+  type    = "A"
+
+  alias {
+    name                   = aws_apigatewayv2_domain_name.wss.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.wss.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+################################################################################
+# API Gateway v2 – HTTP (feedback_request Lambda)
+################################################################################
+resource "aws_apigatewayv2_api" "feedback" {
+  name          = "rosettacloud-feedback"
+  protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_origins = ["https://dev.rosettacloud.app"]
+    allow_methods = ["POST", "OPTIONS"]
+    allow_headers = ["Content-Type", "Authorization"]
+    max_age       = 300
+  }
+
+  tags = local.tags
+}
+
+resource "aws_apigatewayv2_integration" "feedback" {
+  api_id             = aws_apigatewayv2_api.feedback.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = module.lambda_feedback_request.lambda_function_invoke_arn
+  integration_method = "POST"
+}
+
+resource "aws_apigatewayv2_route" "feedback_post" {
+  api_id    = aws_apigatewayv2_api.feedback.id
+  route_key = "POST /feedback/request"
+  target    = "integrations/${aws_apigatewayv2_integration.feedback.id}"
+}
+
+resource "aws_apigatewayv2_stage" "feedback" {
+  api_id      = aws_apigatewayv2_api.feedback.id
+  name        = "$default"
+  auto_deploy = true
+  tags        = local.tags
+}
+
+resource "aws_lambda_permission" "apigw_feedback" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = module.lambda_feedback_request.lambda_function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.feedback.execution_arn}/*"
+}
+
+resource "aws_apigatewayv2_domain_name" "feedback" {
+  domain_name = "feedback.dev.rosettacloud.app"
+
+  domain_name_configuration {
+    certificate_arn = module.acm.acm_certificate_arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+
+  tags = local.tags
+}
+
+resource "aws_apigatewayv2_api_mapping" "feedback" {
+  api_id      = aws_apigatewayv2_api.feedback.id
+  domain_name = aws_apigatewayv2_domain_name.feedback.id
+  stage       = aws_apigatewayv2_stage.feedback.id
+}
+
+resource "aws_route53_record" "feedback_dev" {
+  zone_id = module.route53.id
+  name    = "feedback.dev.rosettacloud.app"
+  type    = "A"
+
+  alias {
+    name                   = aws_apigatewayv2_domain_name.feedback.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.feedback.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }
 }
