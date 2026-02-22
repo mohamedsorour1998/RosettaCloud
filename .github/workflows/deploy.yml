@@ -75,6 +75,7 @@ jobs:
           ENV_VARS="Variables={LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base}"
 
           if aws lambda get-function --function-name document_indexer --region $REGION &>/dev/null; then
+            aws lambda wait function-updated --function-name document_indexer --region $REGION 2>/dev/null || true
             aws lambda update-function-code \
               --function-name document_indexer --image-uri "$IMAGE" --region $REGION
             aws lambda wait function-updated --function-name document_indexer --region $REGION
@@ -113,6 +114,7 @@ jobs:
           ENV_VARS="Variables={LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base,DYNAMO_TABLE=SessionTable}"
 
           if aws lambda get-function --function-name ai_chatbot --region $REGION &>/dev/null; then
+            aws lambda wait function-updated --function-name ai_chatbot --region $REGION 2>/dev/null || true
             aws lambda update-function-code \
               --function-name ai_chatbot --image-uri "$IMAGE" --region $REGION
             aws lambda wait function-updated --function-name ai_chatbot --region $REGION
