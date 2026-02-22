@@ -322,7 +322,7 @@ export class UserService {
   }
 
   // Generic error handler
-  private handleError(error: HttpErrorResponse) {
+  private handleError = (error: HttpErrorResponse) => {
     let errorMessage = 'Something went wrong';
 
     if (error.error instanceof ErrorEvent) {
