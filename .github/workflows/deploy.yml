@@ -1,4 +1,4 @@
-name: Deploy – sync questions to S3 + build/update Lambdas
+name: Deploy – sync questions to S3 + build/update Lambdas + interactive-labs image
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +15,7 @@ on:
     paths:
       - "Backend/questions/**"
       - "Backend/serverless/Lambda/**"
+      - "DevSecOps/interactive-labs/**"
 
 env:
   AWS_ACCOUNT_ID: "339712964409"
@@ -129,3 +130,17 @@ jobs:
             aws lambda wait function-active --function-name ai_chatbot --region $REGION
           fi
           echo "ai_chatbot is live."
+
+      # ── Build & push interactive-labs image ───────────────────────────────
+      - name: Build & push interactive-labs image
+        env:
+          REGISTRY: ${{ steps.login.outputs.registry }}
+          ECR_REPOSITORY: interactive-labs
+        run: |
+          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag || 'latest' }}
+          docker build --platform linux/amd64 \
+            -f DevSecOps/interactive-labs/Dockerfile \
+            DevSecOps/interactive-labs \
+            -t "$IMAGE_URI"
+          docker push "$IMAGE_URI"
+          echo "Pushed $IMAGE_URI"

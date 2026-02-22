@@ -733,6 +733,40 @@ resource "aws_iam_policy" "feedback_lambda_sqs" {
 }
 
 ################################################################################
+# EKS Access Entry – github-actions-role (for kubectl rollout restart in CI)
+################################################################################
+resource "aws_iam_role_policy" "github_actions_eks" {
+  name = "github-actions-eks-access"
+  role = "github-actions-role"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["eks:DescribeCluster", "eks:ListClusters"]
+      Resource = ["arn:aws:eks:us-east-1:${local.account_id}:cluster/rosettacloud-eks"]
+    }]
+  })
+}
+
+resource "aws_eks_access_entry" "github_actions" {
+  cluster_name  = module.eks.cluster_names["rosettacloud"]
+  principal_arn = module.iam.role_arns["github-actions-role"]
+  type          = "STANDARD"
+  tags          = local.tags
+}
+
+resource "aws_eks_access_policy_association" "github_actions_admin" {
+  cluster_name  = module.eks.cluster_names["rosettacloud"]
+  principal_arn = module.iam.role_arns["github-actions-role"]
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+}
+
+################################################################################
 # API Gateway v2 – WebSocket (ai_chatbot)
 ################################################################################
 resource "aws_apigatewayv2_api" "chatbot_ws" {

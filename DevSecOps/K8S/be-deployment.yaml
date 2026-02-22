@@ -5,6 +5,8 @@ metadata:
   namespace: dev
 data:
   LAB_IMAGE_PULL_SECRET: "ecr-creds"
+  LAB_K8S_NAMESPACE: "dev"
+  LAB_POD_IMAGE: "339712964409.dkr.ecr.us-east-1.amazonaws.com/interactive-labs:latest"
   AWS_REGION: "us-east-1"
   INGRESS_NAME: "rosettacloud-ingress"
   REDIS_HOST: "redis-service"
@@ -32,6 +34,7 @@ spec:
       containers:
         - name: rosettacloud-backend
           image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
           env:
@@ -40,6 +43,16 @@ spec:
                 configMapKeyRef:
                   name: rosettacloud-backend-config
                   key: LAB_IMAGE_PULL_SECRET
+            - name: LAB_K8S_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: LAB_K8S_NAMESPACE
+            - name: LAB_POD_IMAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: LAB_POD_IMAGE
             - name: AWS_REGION
               valueFrom:
                 configMapKeyRef:

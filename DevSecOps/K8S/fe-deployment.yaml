@@ -16,6 +16,7 @@ spec:
       containers:
         - name: rosettacloud-frontend
           image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-frontend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 4200
 
