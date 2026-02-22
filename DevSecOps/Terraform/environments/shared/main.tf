@@ -692,8 +692,19 @@ resource "aws_cloudwatch_event_rule" "s3_sh_upload" {
   tags = local.tags
 }
 
-# NOTE: aws_cloudwatch_event_target and aws_lambda_permission for document_indexer
-# are added after the Lambda is created by the CI/CD pipeline (second apply).
+resource "aws_cloudwatch_event_target" "document_indexer" {
+  rule      = aws_cloudwatch_event_rule.s3_sh_upload.name
+  target_id = "document_indexer"
+  arn       = "arn:aws:lambda:us-east-1:${local.account_id}:function:document_indexer"
+}
+
+resource "aws_lambda_permission" "eventbridge_document_indexer" {
+  statement_id  = "AllowEventBridgeInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = "document_indexer"
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.s3_sh_upload.arn
+}
 
 ################################################################################
 # Lambda SQS Send Permission (attach to feedback_request Lambda role)

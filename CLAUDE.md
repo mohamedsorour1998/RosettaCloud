@@ -135,18 +135,24 @@ Backend dynamically creates Kubernetes Pod + Service + Ingress per lab via the P
 
 ### Workflows
 
-There are two sets of workflows — **root-level** (preferred, up to date) and **per-directory** (legacy):
-
 | Workflow | File | Trigger | What it does |
 |---|---|---|---|
-| Backend build | `.github/workflows/backend-build.yml` | `workflow_dispatch` | Builds Backend Docker image → pushes to ECR `rosettacloud-backend` |
-| Frontend build | `.github/workflows/frontend-build.yml` | `workflow_dispatch` | Builds Frontend Docker image → pushes to ECR `rosettacloud-frontend` |
-| Lambda + Backend | `Backend/.github/workflows/actions.yml` | `workflow_dispatch` | Builds & pushes `document_indexer`, `ai_chatbot`, and `rosettacloud-backend` images; updates Lambda function code |
+| **Deploy** | `.github/workflows/deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/questions/**` or `Backend/serverless/Lambda/**` | **Syncs questions to S3** + builds/pushes `document_indexer` & `ai_chatbot` Lambda images + creates/updates Lambda functions |
+| Backend image | `.github/workflows/backend-build.yml` | `workflow_dispatch` | Builds Backend Docker image → pushes to ECR `rosettacloud-backend` |
+| Frontend image | `.github/workflows/frontend-build.yml` | `workflow_dispatch` | Builds Frontend Docker image → pushes to ECR `rosettacloud-frontend` |
 | DevSecOps | `DevSecOps/.github/workflows/actions.yml` | `workflow_dispatch` | Builds & pushes `interactive-labs` image to ECR |
 
 All workflows use **GitHub OIDC** (no static AWS credentials). IAM role: `github-actions-role`.
 
 **K8s deployment is not automated** — apply manually with `kubectl apply -f DevSecOps/K8S/`.
+
+### Questions / S3 Sync
+
+Shell script questions live in `Backend/questions/{module_uuid}/{lesson_uuid}/q{N}.sh`.
+The deploy pipeline syncs this directory to `s3://rosettacloud-shared-interactive-labs/` (with `--delete`), which triggers EventBridge → `document_indexer` Lambda → LanceDB indexing.
+
+Current modules:
+- `linux-docker-k8s-101/intro-lesson-01/` — q1–q6 (Linux basics, Docker, Kubernetes)
 
 ## Key Environment Variables
 

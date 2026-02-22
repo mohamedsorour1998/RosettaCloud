@@ -1,22 +1,28 @@
-name: Build & publish Lambda images + create/update Lambda
+name: Deploy – sync questions to S3 + build/update Lambdas
 on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: Docker tag
+        description: Docker tag for Lambda images
         default: latest
         type: string
       aws_region:
         description: AWS Region
         default: us-east-1
         type: string
+  push:
+    branches: [main]
+    paths:
+      - "Backend/questions/**"
+      - "Backend/serverless/Lambda/**"
 
 env:
   AWS_ACCOUNT_ID: "339712964409"
   IAM_ROLE: github-actions-role
+  S3_QUESTIONS_BUCKET: rosettacloud-shared-interactive-labs
 
 jobs:
-  build-and-update:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -28,21 +34,31 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
-          aws-region: ${{ inputs.aws_region }}
+          aws-region: ${{ inputs.aws_region || 'us-east-1' }}
 
+      # ── Sync questions to S3 ──────────────────────────────────────────────
+      - name: Sync questions to S3
+        run: |
+          aws s3 sync Backend/questions/ s3://${{ env.S3_QUESTIONS_BUCKET }}/ \
+            --delete \
+            --region ${{ inputs.aws_region || 'us-east-1' }}
+          echo "Questions synced to s3://${{ env.S3_QUESTIONS_BUCKET }}/"
+          aws s3 ls s3://${{ env.S3_QUESTIONS_BUCKET }}/ --recursive --region ${{ inputs.aws_region || 'us-east-1' }}
+
+      # ── Build & deploy Lambda images ──────────────────────────────────────
       - name: Login to ECR
         id: login
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registries: ${{ env.AWS_ACCOUNT_ID }}
 
-      # ── document_indexer ──────────────────────────────────────────────────
+      # document_indexer
       - name: Build & push document_indexer image
         env:
           REGISTRY: ${{ steps.login.outputs.registry }}
           ECR_REPOSITORY: rosettacloud-document_indexer-lambda
         run: |
-          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
+          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag || 'latest' }}
           docker build --platform linux/amd64 \
             -f Backend/serverless/Lambda/document_indexer/Dockerfile \
             Backend/serverless/Lambda/document_indexer \
@@ -55,48 +71,32 @@ jobs:
         run: |
           ROLE="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/rosettacloud-document-indexer-role"
           IMAGE="${{ env.document_indexer_image }}"
-          REGION="${{ inputs.aws_region }}"
+          REGION="${{ inputs.aws_region || 'us-east-1' }}"
           ENV_VARS="Variables={LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base}"
 
           if aws lambda get-function --function-name document_indexer --region $REGION &>/dev/null; then
-            echo "Updating document_indexer image..."
             aws lambda update-function-code \
-              --function-name document_indexer \
-              --image-uri "$IMAGE" \
-              --region $REGION
-            aws lambda wait function-updated \
-              --function-name document_indexer \
-              --region $REGION
+              --function-name document_indexer --image-uri "$IMAGE" --region $REGION
+            aws lambda wait function-updated --function-name document_indexer --region $REGION
             aws lambda update-function-configuration \
               --function-name document_indexer \
-              --timeout 300 \
-              --memory-size 512 \
-              --environment "$ENV_VARS" \
-              --region $REGION
+              --timeout 300 --memory-size 512 --environment "$ENV_VARS" --region $REGION
           else
-            echo "Creating document_indexer Lambda..."
             aws lambda create-function \
-              --function-name document_indexer \
-              --package-type Image \
-              --code ImageUri="$IMAGE" \
-              --role "$ROLE" \
-              --timeout 300 \
-              --memory-size 512 \
-              --environment "$ENV_VARS" \
-              --region $REGION
-            aws lambda wait function-active \
-              --function-name document_indexer \
-              --region $REGION
+              --function-name document_indexer --package-type Image \
+              --code ImageUri="$IMAGE" --role "$ROLE" \
+              --timeout 300 --memory-size 512 --environment "$ENV_VARS" --region $REGION
+            aws lambda wait function-active --function-name document_indexer --region $REGION
           fi
           echo "document_indexer is live."
 
-      # ── ai_chatbot ────────────────────────────────────────────────────────
+      # ai_chatbot
       - name: Build & push ai_chatbot image
         env:
           REGISTRY: ${{ steps.login.outputs.registry }}
           ECR_REPOSITORY: rosettacloud-ai_chatbot-lambda
         run: |
-          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag }}
+          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag || 'latest' }}
           docker build --platform linux/amd64 \
             -f Backend/serverless/Lambda/ai_chatbot/Dockerfile \
             Backend/serverless/Lambda/ai_chatbot \
@@ -109,37 +109,21 @@ jobs:
         run: |
           ROLE="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/rosettacloud-ai-chatbot-role"
           IMAGE="${{ env.ai_chatbot_image }}"
-          REGION="${{ inputs.aws_region }}"
+          REGION="${{ inputs.aws_region || 'us-east-1' }}"
           ENV_VARS="Variables={LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base,DYNAMO_TABLE=SessionTable}"
 
           if aws lambda get-function --function-name ai_chatbot --region $REGION &>/dev/null; then
-            echo "Updating ai_chatbot image..."
             aws lambda update-function-code \
-              --function-name ai_chatbot \
-              --image-uri "$IMAGE" \
-              --region $REGION
-            aws lambda wait function-updated \
-              --function-name ai_chatbot \
-              --region $REGION
+              --function-name ai_chatbot --image-uri "$IMAGE" --region $REGION
+            aws lambda wait function-updated --function-name ai_chatbot --region $REGION
             aws lambda update-function-configuration \
               --function-name ai_chatbot \
-              --timeout 300 \
-              --memory-size 1024 \
-              --environment "$ENV_VARS" \
-              --region $REGION
+              --timeout 300 --memory-size 1024 --environment "$ENV_VARS" --region $REGION
           else
-            echo "Creating ai_chatbot Lambda..."
             aws lambda create-function \
-              --function-name ai_chatbot \
-              --package-type Image \
-              --code ImageUri="$IMAGE" \
-              --role "$ROLE" \
-              --timeout 300 \
-              --memory-size 1024 \
-              --environment "$ENV_VARS" \
-              --region $REGION
-            aws lambda wait function-active \
-              --function-name ai_chatbot \
-              --region $REGION
+              --function-name ai_chatbot --package-type Image \
+              --code ImageUri="$IMAGE" --role "$ROLE" \
+              --timeout 300 --memory-size 1024 --environment "$ENV_VARS" --region $REGION
+            aws lambda wait function-active --function-name ai_chatbot --region $REGION
           fi
           echo "ai_chatbot is live."
