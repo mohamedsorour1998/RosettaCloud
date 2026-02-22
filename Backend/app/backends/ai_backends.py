@@ -113,7 +113,6 @@ def get_nova_backend():
                         messages=messages,
                         system=system_block,
                         inferenceConfig=inference_cfg,
-                        schemaVersion=_SCHEMA_VERSION,
                     )
 
                     async def _chunks() -> AsyncGenerator[str, None]:

@@ -54,6 +54,19 @@ output "cloudfront_distribution_id" {
 }
 
 ################################################################################
+# S3
+################################################################################
+output "interactive_labs_bucket_name" {
+  value       = aws_s3_bucket.interactive_labs.bucket
+  description = "S3 bucket for interactive labs shell scripts"
+}
+
+output "interactive_labs_vector_bucket_name" {
+  value       = aws_s3_bucket.interactive_labs_vector.bucket
+  description = "S3 bucket for LanceDB vector store (document_indexer output)"
+}
+
+################################################################################
 # SQS
 ################################################################################
 output "feedback_requested_queue_url" {

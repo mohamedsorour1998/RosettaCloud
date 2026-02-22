@@ -351,6 +351,66 @@ module "ecr_4" {
 }
 
 ################################################################################
+# S3 – Interactive Labs Shell Scripts
+################################################################################
+resource "aws_s3_bucket" "interactive_labs" {
+  bucket = "rosettacloud-shared-interactive-labs"
+  tags   = local.tags
+}
+
+resource "aws_s3_bucket_public_access_block" "interactive_labs" {
+  bucket = aws_s3_bucket.interactive_labs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "interactive_labs" {
+  bucket = aws_s3_bucket.interactive_labs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# Enable EventBridge notifications so the document_indexer Lambda is triggered on upload
+resource "aws_s3_bucket_notification" "interactive_labs_eventbridge" {
+  bucket      = aws_s3_bucket.interactive_labs.id
+  eventbridge = true
+}
+
+################################################################################
+# S3 – Interactive Labs Vector Store (LanceDB)
+################################################################################
+resource "aws_s3_bucket" "interactive_labs_vector" {
+  bucket = "rosettacloud-shared-interactive-labs-vector"
+  tags   = local.tags
+}
+
+resource "aws_s3_bucket_public_access_block" "interactive_labs_vector" {
+  bucket = aws_s3_bucket.interactive_labs_vector.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "interactive_labs_vector" {
+  bucket = aws_s3_bucket.interactive_labs_vector.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+################################################################################
 # SQS – Feedback Requested Queue
 ################################################################################
 module "sqs_feedback" {

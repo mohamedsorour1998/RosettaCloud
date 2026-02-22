@@ -76,7 +76,9 @@ def get_redis_sqs_backend():
         async def subscribe(self, topic: str, cache: str = _DEFAULT_CACHE) -> AsyncGenerator[str, None]:
             """Long-poll SQS for messages on the given topic."""
             if not self._queue_url:
-                self._log.warning("SQS_QUEUE_URL not set, subscribe is a no-op")
+                self._log.warning("SQS_QUEUE_URL not set, subscribe is disabled")
+                while True:
+                    await asyncio.sleep(3600)
                 return
 
             async with self._session.client("sqs", region_name=os.getenv("AWS_REGION", "us-east-1")) as sqs:
