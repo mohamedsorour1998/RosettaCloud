@@ -141,13 +141,24 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl operations w
 
 ### Lab Provisioning
 
-Backend dynamically creates Kubernetes Pod + Service + Istio VirtualService per lab via the Python `kubernetes` SDK. Each lab runs the `interactive-labs` image (code-server + Docker-in-Docker + Kind). Labs are accessible at `<lab-id>.labs.dev.rosettacloud.app`. Active labs tracked in Redis cache with 15-minute TTL.
+Backend creates Pod + Service + Istio VirtualService **in parallel** via `asyncio.gather`. Each lab runs the `interactive-labs` image (1.86 GB; code-server + Docker-in-Docker + Kind). Labs are accessible at `<lab-id>.labs.dev.rosettacloud.app`. Active labs tracked in Redis cache with 1-hour TTL.
 
-Lab pods are annotated with `sidecar.istio.io/inject: "false"` because Docker-in-Docker + Kind startup starves CPU, causing Istio sidecar health checks to fail.
+**Container startup sequence** (in `/usr/local/bin/start.sh`):
+1. code-server starts in background (port 8080) — ~2s
+2. Caddy starts in background (port 80, reverse proxy to 8080) — ~1s
+3. dockerd starts, script waits for `docker info` — ~5-15s
+4. `docker load -i /kind-node.tar` (650MB+ Kind node image) — ~10-30s
+5. `kind create cluster` — ~30-60s (CPU-intensive)
 
-Readiness probe: HTTP GET `/` on port 80, `initial_delay_seconds=5`, `period_seconds=10`, `timeout_seconds=10`, `failure_threshold=30`. The long failure threshold accommodates Kind cluster creation (~2-3 min CPU-intensive).
+Pod becomes Ready when Caddy responds on port 80 (step 2), before Kind finishes (step 5).
 
-**Resource warning:** Each lab pod runs a full Kind cluster. A single t3.xlarge (4 CPU) can support platform services + 1 lab pod. Two concurrent Kind clusters will starve the entire node.
+**Image pull policy: `IfNotPresent`** — the 1.86 GB image is cached after first pull (~200ms subsequent). No `imagePullSecrets` needed; EKS node IAM role handles ECR auth.
+
+Lab pods annotated with `sidecar.istio.io/inject: "false"` (DinD + Kind startup starves CPU, killing Istio sidecar health checks).
+
+Readiness probe: HTTP GET `/` port 80, `initial_delay=3s`, `period=3s`, `timeout=5s`, `failure_threshold=40`.
+
+**Resource warning:** Each lab runs a full Kind cluster. A t3.xlarge (4 CPU) supports platform services + 1 lab. Two concurrent Kind clusters starve the entire node.
 
 ### Supplementary Services
 
