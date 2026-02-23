@@ -99,71 +99,102 @@ Service → Backend mappings:
 
 **Note:** Architecture diagrams reference "Momento Cache" and "Momento Pub/Sub" but the actual implementation uses Redis + SQS.
 
-### Feedback Flow (SQS + Redis)
+### Create Lab Flow
 
-1. Frontend calls `POST /feedback/request` → `feedback_request` Lambda sends message to SQS queue
-2. Backend `feedback_service` (long-polling SQS via `asyncio.to_thread`) receives message, calls Bedrock AI, stores result in Redis (`feedback:{id}`)
-3. Frontend polls `GET /feedback/{id}` on backend every 2s until result is ready (60s timeout)
+1. Frontend `POST /labs` with `{user_id}`
+2. Backend verifies user in DynamoDB, checks Redis `active_labs:{user_id}` → 400 if lab already exists
+3. `lab.launch()` generates `lab_id` (`lab-{uuid8}`), creates **in parallel** (`asyncio.gather`):
+   - **Pod** `lab-{lab_id}`: privileged, `interactive-labs:latest` (`IfNotPresent`), no Istio sidecar
+   - **Service** `{lab_id}-svc`: ClusterIP targeting pod by `lab-id` label
+   - **VirtualService** `{lab_id}`: routes `{lab_id}.labs.dev.rosettacloud.app` → service via Istio gateway
+4. Stores lab_id in Redis (`active_labs:{user_id}`) + links lab to user in DynamoDB
+5. Returns `{lab_id}` → frontend polls `GET /labs/{lab_id}` for status
+6. Backend reads pod status from K8s: `Running + Ready = "running"`, `Running + !Ready = "starting"`
 
-### AI Chatbot (RAG Pipeline)
+**Container startup** (`/usr/local/bin/start.sh`):
+1. code-server (port 8080) + Caddy (port 80, reverse proxy) start in background — ~2-3s
+2. Readiness probe succeeds once Caddy responds → pod Ready in **~6-10s**
+3. dockerd starts, waits for `docker info` — ~5-15s (background to user)
+4. `docker load -i /kind-node.tar` (650MB+) — ~10-30s (background to user)
+5. `kind create cluster` — ~30-60s CPU-intensive (background to user)
 
-1. Angular Frontend → user inputs question about shell scripts
-2. WebSocket API Gateway routes request with `connectionId`
-3. `ai_chatbot` Lambda initiates RAG workflow
-4. Fetches chat history from DynamoDB `SessionTable` (`SessionId` as key) + vector search in LanceDB (`shell-scripts-knowledge-base`)
-5. Amazon Bedrock (Nova Lite) processes query + retrieved context
-6. Lambda streams response chunks back via `apigatewaymanagementapi.post_to_connection`
-7. Frontend renders response and source references
-
-- LangChain orchestrates the full pipeline
-- Embeddings: Amazon Titan (`amazon.titan-embed-text-v2:0`)
-
-### Document Indexing Flow
-
-1. Shell scripts uploaded to S3 bucket
-2. EventBridge trigger invokes `document_indexer` Lambda
-3. Lambda processes scripts and extracts metadata
-4. Amazon Bedrock creates Titan embeddings
-5. Vectors stored in LanceDB (S3-backed at `s3://rosettacloud-shared-interactive-labs-vector`)
-
-### Questions / Shell Script Pipeline
-
-1. Upload `.sh` scripts to `s3://rosettacloud-shared-interactive-labs/{module_uuid}/{lesson_uuid}/`
-2. S3 EventBridge notification triggers `document_indexer` Lambda (see Document Indexing Flow)
-3. Backend `questions_backends` reads `.sh` files directly from S3 (not the vector store)
-4. Questions are parsed, cached in Redis, and served to frontend
-
-**Question Types:**
-- **MCQ (Multiple Choice)**: Frontend validates answer client-side against correct option loaded from cache → User Service updates progress in DynamoDB → UI updates
-- **Practical Check**: Frontend loads question → Question Service extracts `-q` script and copies to lab pod → pod executes setup script → user works in lab → user clicks "Check Solution" → Question Service extracts `-c` script → copies to pod → pod executes verification → if exit code 0 → progress updated in DynamoDB → frontend shows success
-
-Questions backend uses `asyncio.create_subprocess_exec` for kubectl operations with per-pod `asyncio.Lock` to prevent concurrent `kubectl cp` tar stream corruption. 30-second timeout on all kubectl operations.
-
-### Lab Provisioning
-
-Backend creates Pod + Service + Istio VirtualService **in parallel** via `asyncio.gather`. Each lab runs the `interactive-labs` image (1.86 GB; code-server + Docker-in-Docker + Kind). Labs are accessible at `<lab-id>.labs.dev.rosettacloud.app`. Active labs tracked in Redis cache with 1-hour TTL.
-
-**Container startup sequence** (in `/usr/local/bin/start.sh`):
-1. code-server starts in background (port 8080) — ~2s
-2. Caddy starts in background (port 80, reverse proxy to 8080) — ~1s
-3. dockerd starts, script waits for `docker info` — ~5-15s
-4. `docker load -i /kind-node.tar` (650MB+ Kind node image) — ~10-30s
-5. `kind create cluster` — ~30-60s (CPU-intensive)
-
-Pod becomes Ready when Caddy responds on port 80 (step 2), before Kind finishes (step 5).
-
-**Image pull policy: `IfNotPresent`** — the 1.86 GB image is cached after first pull (~200ms subsequent). No `imagePullSecrets` needed; EKS node IAM role handles ECR auth.
-
-Lab pods annotated with `sidecar.istio.io/inject: "false"` (DinD + Kind startup starves CPU, killing Istio sidecar health checks).
+**Image**: 1.86 GB, `IfNotPresent` policy (200ms cached pull). No `imagePullSecrets`; EKS node IAM role handles ECR auth. Lab pods annotated `sidecar.istio.io/inject: "false"`.
 
 Readiness probe: HTTP GET `/` port 80, `initial_delay=3s`, `period=3s`, `timeout=5s`, `failure_threshold=40`.
 
 **Resource warning:** Each lab runs a full Kind cluster. A t3.xlarge (4 CPU) supports platform services + 1 lab. Two concurrent Kind clusters starve the entire node.
 
+### Feedback Flow
+
+1. Frontend `POST https://feedback.dev.rosettacloud.app/feedback/request` with `{user_id, module_uuid, lesson_uuid, feedback_id, questions, progress}`
+2. HTTP API Gateway → `feedback_request` Lambda validates params, sends JSON to SQS queue (`rosettacloud-feedback-requested`)
+3. Returns `{feedback_id, status: "pending"}` to frontend immediately
+4. Backend `feedback_service._subscribe_loop()` long-polls SQS via `cache_events.subscribe()` (sync `boto3` + `asyncio.to_thread`, 20s long-poll)
+5. Message received → `_handle()` spawned as `asyncio.create_task`
+6. Builds educational prompt from student's question progress (completed/not completed per question)
+7. Calls `ai.chat()` — Amazon Bedrock Nova Lite, non-streaming, `max_tokens=600`, `temperature=0.7`, system role: educational assistant
+8. Constructs `{type: "feedback", feedback_id, content, timestamp}` payload
+9. `cache_events.publish("FeedbackGiven", payload)` → detects `feedback_id` → stores in Redis as `cache:feedback:{feedback_id}` (600s TTL)
+10. Frontend polls `GET /feedback/{feedback_id}` every 2s (60s timeout)
+11. Backend reads Redis `cache:feedback:{feedback_id}` → returns `{status: "ready", content: "..."}` when found
+
+### AI Chatbot Flow (RAG Pipeline)
+
+1. Frontend connects via WebSocket to `wss://wss.dev.rosettacloud.app`
+2. API Gateway WebSocket → `$connect` route → `handle_connect()` → 200
+3. User sends `{session_id, prompt, bedrock_model_id, model_kwargs, file_filter?, knowledge_base_id?, response_style?}`
+4. `$default` route → `handle_message()` validates required fields
+5. Creates `BedrockStreamer(connectionId, session_id, api_endpoint)` with Bedrock client in `us-east-1`
+6. Starts **heartbeat thread** (sends `{type: "heartbeat"}` every 5s to keep WebSocket alive during RAG processing)
+7. **RAG chain setup** (`create_rag_chain`):
+   a. Prompt templates: contextualize question (reformulate with chat history) + QA (DevOps system prompt, hints-first approach)
+   b. Connects to LanceDB at `s3://rosettacloud-shared-interactive-labs-vector`
+   c. Opens table `shell-scripts-knowledge-base`, detects vector dimensions
+   d. Creates Titan embeddings (`amazon.titan-embed-text-v2:0`) and LanceDB vector store
+   e. Creates retriever (max 2 docs, filtered by `file_type='shell_script'` or `file_name` if specified)
+   f. Wraps retriever with history-awareness (reformulates question using chat history from DynamoDB)
+   g. Builds chain: history-aware retriever → stuff documents → Bedrock LLM (streaming=true) → parser
+   h. Wraps with `RunnableWithMessageHistory` using DynamoDB `SessionTable` (`SessionId` hash key)
+8. **Response streaming** (`stream_response`):
+   a. Sends `{type: "status", content: "Processing your question..."}`
+   b. Invokes RAG chain → gets response with answer + source documents
+   c. Sends `{type: "chunk", content: "..."}` via `post_to_connection`
+   d. Sends `{type: "source", content: {filename, path, bucket, question_type?}}` for each source doc
+   e. Sends `{type: "complete"}` to signal end
+9. Stops heartbeat, frontend renders response with source references
+
+**Key details:**
+- LangChain orchestrates the full RAG pipeline
+- Embeddings: Amazon Titan (`amazon.titan-embed-text-v2:0`, 1536 dimensions)
+- LLM: configurable via `bedrock_model_id` (frontend sends model choice)
+- Chat history persisted in DynamoDB `SessionTable` per `session_id`
+- System prompt: DevOps specialist, hints first (only answers directly on second ask), rejects non-DevOps questions
+
+### Document Indexing Flow
+
+1. Shell scripts uploaded to `s3://rosettacloud-shared-interactive-labs/{module_uuid}/{lesson_uuid}/`
+2. S3 EventBridge notification triggers `document_indexer` Lambda
+3. Lambda processes scripts and extracts metadata (question text, type, difficulty, answers)
+4. Amazon Bedrock creates Titan embeddings (`amazon.titan-embed-text-v2:0`)
+5. Vectors stored in LanceDB at `s3://rosettacloud-shared-interactive-labs-vector` (table: `shell-scripts-knowledge-base`)
+
+### Questions / Shell Script Pipeline
+
+1. Frontend calls `GET /questions/{module_uuid}/{lesson_uuid}` → backend fetches `.sh` files from S3
+2. Parses shell script headers (question number, text, type, difficulty, choices, correct answer)
+3. Caches parsed questions + raw shell content in Redis (1-hour TTL)
+4. Returns question metadata to frontend
+
+**Question Types:**
+- **MCQ (Multiple Choice)**: Frontend validates answer client-side against correct option from cache → `POST /users/{id}/progress/...` updates DynamoDB → UI updates
+- **Practical Check**: Frontend triggers setup → Question Service extracts `-q` script from shell, `kubectl cp` + `kubectl exec` in pod → user works → "Check Solution" → extracts `-c` script → `kubectl cp` + `kubectl exec` → exit code 0 = correct → DynamoDB progress updated
+
+Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod `asyncio.Lock` (prevents concurrent `kubectl cp` tar corruption). 30-second timeout on all kubectl operations.
+
 ### Supplementary Services
 
-- **Serverless Components**: Lambda functions for auxiliary functionality (chatbot, document indexing, feedback)
-- **Event-Driven Architecture**: SQS messaging for async feedback processing
+- **Serverless Components**: Lambda functions for chatbot, document indexing, feedback request
+- **Event-Driven Architecture**: SQS for async feedback processing, Redis for caching and result storage
 - **Integration Points**: OpenEdX LMS integration for seamless learning experiences
 
 ### Lambda Functions (`Backend/serverless/Lambda/`)
