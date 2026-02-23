@@ -126,7 +126,7 @@ class EKSLabs:
                     containers=[client.V1Container(
                         name="lab",
                         image=POD_IMAGE,
-                        image_pull_policy="Always",
+                        image_pull_policy="IfNotPresent",
                         ports=[client.V1ContainerPort(container_port=80)],
                         security_context=client.V1SecurityContext(
                             privileged=True,
@@ -134,15 +134,12 @@ class EKSLabs:
                         ),
                         readiness_probe=client.V1Probe(
                             http_get=client.V1HTTPGetAction(path="/", port=80),
-                            initial_delay_seconds=5,
-                            period_seconds=10,
-                            timeout_seconds=10,
-                            failure_threshold=30,
+                            initial_delay_seconds=3,
+                            period_seconds=3,
+                            timeout_seconds=5,
+                            failure_threshold=40,
                         ),
                     )],
-                    image_pull_secrets=[
-                        client.V1LocalObjectReference(name=IMAGE_PULL_SECRET)
-                    ] if IMAGE_PULL_SECRET else None,
                     restart_policy="Always"
                 )
             )
@@ -332,14 +329,12 @@ class EKSLabs:
         lab_id = tag or f"lab-{uuid.uuid4().hex[:8]}"
         
         try:
-            # Create the pod
-            pod_id = await self._create_lab_pod(lab_id)
-            
-            # Create the service
-            await self._create_lab_svc(lab_id)
-
-            # Create the Istio VirtualService
-            await self._create_lab_vs(lab_id)
+            # Create pod, service, and VirtualService in parallel
+            pod_id, *_ = await asyncio.gather(
+                self._create_lab_pod(lab_id),
+                self._create_lab_svc(lab_id),
+                self._create_lab_vs(lab_id),
+            )
             
             # Track the active lab
             self._active[lab_id] = pod_id
