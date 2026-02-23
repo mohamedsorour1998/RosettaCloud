@@ -119,7 +119,8 @@ class EKSLabs:
                 metadata=client.V1ObjectMeta(
                     name=pod_id,
                     namespace=NAMESPACE,
-                    labels={"app": "interactive-labs", "lab-id": lab_id}
+                    labels={"app": "interactive-labs", "lab-id": lab_id},
+                    annotations={"sidecar.istio.io/inject": "false"},
                 ),
                 spec=client.V1PodSpec(
                     containers=[client.V1Container(

@@ -12,7 +12,7 @@ import logging
 import os
 from typing import AsyncGenerator, Optional
 
-import aioboto3
+import boto3
 import redis.asyncio as aioredis
 
 _DEFAULT_CACHE = os.getenv("CACHE_EVENTS_DEFAULT_CACHE", "interactive-labs")
@@ -26,7 +26,6 @@ def get_redis_sqs_backend():
 
         _redis: Optional[aioredis.Redis] = None
         _sqs_client = None
-        _session = None
         _queue_url: str = ""
 
         async def init(self) -> None:
@@ -41,7 +40,16 @@ def get_redis_sqs_backend():
             await self._redis.ping()
 
             self._queue_url = os.getenv("SQS_QUEUE_URL", "")
-            self._session = aioboto3.Session()
+            if self._queue_url:
+                self._sqs_client = boto3.client(
+                    "sqs",
+                    region_name=os.getenv("AWS_REGION", "us-east-1"),
+                    config=boto3.session.Config(
+                        connect_timeout=5,
+                        read_timeout=25,
+                        retries={"max_attempts": 0},
+                    ),
+                )
 
             self._log.info(
                 "Redis+SQS backend ready (redis=%s:%s, queue=%s)",
@@ -81,22 +89,23 @@ def get_redis_sqs_backend():
                     await asyncio.sleep(3600)
                 return
 
-            async with self._session.client("sqs", region_name=os.getenv("AWS_REGION", "us-east-1")) as sqs:
-                while True:
-                    try:
-                        resp = await sqs.receive_message(
+            while True:
+                try:
+                    resp = await asyncio.to_thread(
+                        self._sqs_client.receive_message,
+                        QueueUrl=self._queue_url,
+                        MaxNumberOfMessages=10,
+                        WaitTimeSeconds=20,
+                    )
+                    for msg in resp.get("Messages", []):
+                        yield msg["Body"]
+                        await asyncio.to_thread(
+                            self._sqs_client.delete_message,
                             QueueUrl=self._queue_url,
-                            MaxNumberOfMessages=10,
-                            WaitTimeSeconds=20,
+                            ReceiptHandle=msg["ReceiptHandle"],
                         )
-                        for msg in resp.get("Messages", []):
-                            yield msg["Body"]
-                            await sqs.delete_message(
-                                QueueUrl=self._queue_url,
-                                ReceiptHandle=msg["ReceiptHandle"],
-                            )
-                    except Exception as exc:
-                        self._log.error("SQS receive error: %s", exc)
-                        await asyncio.sleep(5)
+                except Exception as exc:
+                    self._log.error("SQS receive error: %s", exc)
+                    await asyncio.sleep(5)
 
     return RedisSqsCacheEvents()
