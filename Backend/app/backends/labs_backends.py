@@ -134,10 +134,10 @@ class EKSLabs:
                         ),
                         readiness_probe=client.V1Probe(
                             http_get=client.V1HTTPGetAction(path="/", port=80),
-                            initial_delay_seconds=120,
+                            initial_delay_seconds=5,
                             period_seconds=10,
-                            timeout_seconds=5,
-                            failure_threshold=12,
+                            timeout_seconds=10,
+                            failure_threshold=30,
                         ),
                     )],
                     image_pull_secrets=[
