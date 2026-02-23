@@ -19,6 +19,8 @@ EOT
         node_pools = list(string)
       }), { enabled = true, node_pools = ["general-purpose"] })
 
+      eks_managed_node_groups = optional(map(any), {})
+
       enable_cluster_creator_admin_permissions = optional(bool, true)
 
       tags = optional(map(string), {})

@@ -86,6 +86,21 @@ module "eks" {
         node_pools = ["general-purpose"]
       }
 
+      eks_managed_node_groups = {
+        general = {
+          instance_types = ["t3.xlarge"]
+          capacity_type  = "SPOT"
+
+          min_size     = 1
+          max_size     = 1
+          desired_size = 1
+
+          labels = {
+            role = "general"
+          }
+        }
+      }
+
       enable_cluster_creator_admin_permissions = true
 
       tags = local.tags

@@ -14,6 +14,8 @@ module "eks_clusters" {
 
   compute_config = each.value.compute_config
 
+  eks_managed_node_groups = each.value.eks_managed_node_groups
+
   enable_cluster_creator_admin_permissions = each.value.enable_cluster_creator_admin_permissions
 
   tags = each.value.tags
