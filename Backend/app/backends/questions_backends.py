@@ -9,13 +9,15 @@ import json
 import logging
 import os
 import re
-import subprocess
 import tempfile
 from typing import Any, Dict, List, Tuple
 
 import aioboto3
 
-from app.services import cache_events_service as cache  
+from app.services import cache_events_service as cache
+
+# Timeout (seconds) for kubectl cp and kubectl exec subprocesses.
+_KUBECTL_TIMEOUT = 30
 
 class QuestionBackend:
     def __init__(self) -> None:
@@ -25,9 +27,18 @@ class QuestionBackend:
         self._shell_files: Dict[Tuple[str, str], List[str]]        = {}
         self._shell_files_by_number: Dict[Tuple[str, str], Dict[int, str]] = {}
 
+        # Per-pod locks to serialise kubectl cp/exec and avoid "unexpected EOF"
+        self._pod_locks: Dict[str, asyncio.Lock] = {}
+
         # Cache settings
         self.cache_name = "question_backend"
         self.ttl_secs   = 3600
+
+    def _pod_lock(self, pod: str) -> asyncio.Lock:
+        """Return (or create) a per-pod asyncio.Lock."""
+        if pod not in self._pod_locks:
+            self._pod_locks[pod] = asyncio.Lock()
+        return self._pod_locks[pod]
 
     async def get_questions(self, module_uuid: str,
                              lesson_uuid: str) -> Dict[str, Any]:
@@ -163,7 +174,12 @@ class QuestionBackend:
 
     async def _exec_script_in_pod(self, pod: str, shell: str,
                                   part: str, question_number: int) -> bool:
-        """Extract -q or -c, copy to pod, execute, return success."""
+        """Extract -q or -c, copy to pod, execute, return success.
+
+        Uses async subprocesses so the event loop is never blocked, and a
+        per-pod lock to prevent concurrent ``kubectl cp`` calls from
+        corrupting the tar stream ("unexpected EOF").
+        """
         extractor = self._extract_question_script if part == "q" \
                     else self._extract_check_script
         script_body = extractor(shell)
@@ -178,30 +194,68 @@ class QuestionBackend:
             tf.write("\nexit $?\n")
             path = tf.name
         os.chmod(path, 0o755)
-        try:
-            # kubectl cp
-            dst = f"{pod}:/tmp/{question_number}_{part}_script.sh"
-            cp  = subprocess.run(
-                ["kubectl", "cp", path, dst, "-n", self.namespace],
-                capture_output=True, text=True
-            )
-            if cp.returncode:
-                logging.error("kubectl cp failed: %s", cp.stderr)
-                return False
 
-            # kubectl exec
-            exec_cmd = (
-                "chmod +x /tmp/{f} && /tmp/{f}".format(f=f"{question_number}_{part}_script.sh")
-            )
-            ex = subprocess.run(
-                ["kubectl", "exec", pod, "-n", self.namespace,
-                 "--", "bash", "-c", exec_cmd],
-                capture_output=True, text=True
-            )
-            return ex.returncode == 0
+        try:
+            # Serialise per-pod to avoid concurrent kubectl cp/exec conflicts
+            async with self._pod_lock(pod):
+                # kubectl cp  (async, with timeout)
+                dst = f"{pod}:/tmp/{question_number}_{part}_script.sh"
+                try:
+                    cp = await asyncio.wait_for(
+                        self._run_cmd(
+                            "kubectl", "cp", path, dst, "-n", self.namespace
+                        ),
+                        timeout=_KUBECTL_TIMEOUT,
+                    )
+                except asyncio.TimeoutError:
+                    logging.error("kubectl cp timed out after %ss for pod %s",
+                                  _KUBECTL_TIMEOUT, pod)
+                    return False
+
+                if cp.returncode != 0:
+                    logging.error("kubectl cp failed (rc=%s): %s",
+                                  cp.returncode, cp.stderr)
+                    return False
+
+                # kubectl exec  (async, with timeout)
+                remote_script = f"/tmp/{question_number}_{part}_script.sh"
+                exec_cmd = f"chmod +x {remote_script} && {remote_script}"
+                try:
+                    ex = await asyncio.wait_for(
+                        self._run_cmd(
+                            "kubectl", "exec", pod, "-n", self.namespace,
+                            "--", "bash", "-c", exec_cmd,
+                        ),
+                        timeout=_KUBECTL_TIMEOUT,
+                    )
+                except asyncio.TimeoutError:
+                    logging.error("kubectl exec timed out after %ss for pod %s",
+                                  _KUBECTL_TIMEOUT, pod)
+                    return False
+
+                return ex.returncode == 0
 
         finally:
             os.unlink(path)
+
+    @staticmethod
+    async def _run_cmd(*args: str):
+        """Run a command asynchronously and return a result object with
+        ``returncode``, ``stdout``, and ``stderr``."""
+        proc = await asyncio.create_subprocess_exec(
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+
+        class _Result:
+            pass
+        r = _Result()
+        r.returncode = proc.returncode
+        r.stdout = stdout.decode() if stdout else ""
+        r.stderr = stderr.decode() if stderr else ""
+        return r
 
 # This is a helper class to extract question data from the shell script
 # It uses regular expressions to find the relevant information
