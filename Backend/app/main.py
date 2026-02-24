@@ -1,48 +1,33 @@
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated, Any, Optional, Dict, Union, List
-from fastapi import FastAPI, HTTPException, status, WebSocket, Path, Body, Query, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, status, Path, Depends
 from pydantic import BaseModel, EmailStr, Field
 
-import json
 import time
 
-from app.services import cache_events_service as cache_events
-from app.services import ai_service as ai
 from app.services import labs_service as lab
 from app.services import users_service as users
-# Import the feedback service, but don't initialize it separately
-# as it will hook into the AI service initialization
-from app.services import feedback_service
 
 from app.services.questions_service import QuestionService
 from app.backends.questions_backends import QuestionBackend
 
 question_backend = QuestionBackend()
-questions_service = QuestionService(ai, question_backend)
+questions_service = QuestionService(question_backend)
 
 # Startup / shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize services
-    await cache_events.init()
-    await ai.init()  # This will also initialize the feedback service
     await lab.init()
     await users.init()
-    
     yield
-    
-    # Cleanup
     await users.close()
     await lab.close()
-    await ai.close()  # This will also clean up the feedback service
-    await cache_events.close()
 
 app = FastAPI(
     title="RosettaCloud API",
     version="1.0.0",
-    description="User management, caching, events, AI, and interactive labs",
+    description="User management, interactive labs, and questions API",
     lifespan=lifespan,
 )
 
@@ -53,56 +38,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Cache / Events
-class CacheItem(BaseModel):
-    value: str
-    ttl: Optional[int] = Query(None, ge=1)
-
-@app.post("/cache/{cache}/{key}", tags=["Cache"])
-async def cache_put(cache: Annotated[str,Path()], key: Annotated[str,Path()], item: CacheItem):
-    await cache_events.set(cache, key, item.value, item.ttl)
-    return {"stored":key,"cache":cache,"ttl":item.ttl or cache_events.DEFAULT_TTL}
-
-@app.get("/cache/{cache}/{key}", tags=["Cache"])
-async def cache_get(cache: Annotated[str,Path()], key: Annotated[str,Path()]):
-    val = await cache_events.get(cache, key)
-    return {"value":val,"hit":val is not None}
-
-@app.post("/events/{topic}", tags=["Events"])
-async def publish_event(topic: Annotated[str,Path()], payload: Annotated[str,Body(embed=True)]):
-    await cache_events.publish(topic, payload)
-    return {"published":topic}
-
-@app.websocket("/ws/events/{topic}")
-async def event_stream(ws: WebSocket, topic: str):
-    await ws.accept()
-    async for msg in cache_events.subscribe(topic):
-        await ws.send_text(msg)
-
-# AI streaming
-class Prompt(BaseModel):
-    prompt: str
-    model_id: Optional[str] = None
-    system_role: Optional[str] = None
-    max_tokens: Optional[int] = 512
-    temperature: Optional[float] = 0.5
-    top_p: Optional[float] = 0.9
-
-@app.post("/ai/chat", tags=["AI"])
-async def chat_endpoint(body: Prompt):
-    async def gen():
-        async for chunk in await ai.chat(
-            body.prompt,
-            stream=True,
-            model_id=body.model_id,
-            system_role=body.system_role,
-            max_tokens=body.max_tokens,
-            temperature=body.temperature,
-            top_p=body.top_p,
-        ):
-            yield chunk
-    return StreamingResponse(gen(), media_type="text/plain")
 
 # User Management
 class UserCreate(BaseModel):
@@ -269,20 +204,17 @@ class LabInfoResponse(BaseModel):
     status: str
     pod_name: Optional[str] = None
 
-class ErrorResponse(BaseModel):
-    error: str
-
 # FastAPI routes
 @app.post("/labs", status_code=201, response_model=LabCreationResponse, tags=["Labs"])
 async def new_lab(request: LaunchLabRequest):
     user_id = request.user_id
-    
+
     # Verify user exists
     await verify_user(user_id)
-    
-    # Check if the user already has an active lab in the cache
-    active_lab = await cache_events.get("active_labs", user_id)
-    if active_lab and active_lab != "null":
+
+    # Check if the user already has an active lab
+    active_lab = await users.get_active_lab(user_id)
+    if active_lab:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You already have an active lab. Please terminate the existing lab first."
@@ -290,22 +222,22 @@ async def new_lab(request: LaunchLabRequest):
 
     # Launch lab
     lab_id = await lab.launch()
-    
-    # Store active lab in cache
-    await cache_events.set("active_labs", user_id, lab_id)
-    
+
+    # Store active lab in DynamoDB
+    await users.set_active_lab(user_id, lab_id)
+
     # Link lab to user
     await users.link_lab_to_user(user_id, lab_id)
-    
+
     return LabCreationResponse(lab_id=lab_id)
 
 @app.get("/labs/{lab_id}", response_model=Union[LabInfoResponse, ErrorResponse], tags=["Labs"])
 async def lab_info(lab_id: str, user_id: Optional[str] = None):
     info = await lab.get_lab_info(lab_id)
     if not info:
-        # Pod is gone — also clear Redis so the user can create a new lab
+        # Pod is gone — clear active lab so the user can create a new one
         if user_id:
-            await cache_events.set("active_labs", user_id, "null")
+            await users.clear_active_lab(user_id)
         return ErrorResponse(error="lab not found")
     
     # Convert to the response model
@@ -330,9 +262,9 @@ async def terminate_lab(lab_id: str, user_id: str):
     deleted = await lab.stop(lab_id)
     
     if deleted:
-        # Update cache
-        await cache_events.set("active_labs", user_id, "null")
-        
+        # Clear active lab
+        await users.clear_active_lab(user_id)
+
         # Unlink lab from user
         await users.unlink_lab_from_user(user_id, lab_id)
         
@@ -401,20 +333,6 @@ async def check_question(
         )
     
     return result
-
-# Feedback polling
-@app.get("/feedback/{feedback_id}", tags=["Feedback"])
-async def get_feedback(feedback_id: str):
-    result = await cache_events.get("feedback", feedback_id)
-    if result is None:
-        return {"status": "pending", "feedback_id": feedback_id}
-    data = json.loads(result)
-    return {
-        "status": "ready",
-        "feedback_id": feedback_id,
-        "content": data.get("content", ""),
-        "data": data,
-    }
 
 # Health check endpoint
 @app.get("/health-check", tags=["System"])

@@ -393,20 +393,37 @@ class DynamoDBUserBackend:
         if not user:
             self.logger.warning(f"User {user_id} not found when getting progress")
             return {}
-            
+
         progress = user.get('progress', {})
-        
+
         # Filter by module if specified
         if module_uuid:
             module_progress = progress.get(module_uuid, {})
-            
+
             # Filter by lesson if specified
             if lesson_uuid:
                 return module_progress.get(lesson_uuid, {})
-                
+
             return {module_uuid: module_progress}
-            
+
         return progress
+
+    async def get_active_lab(self, user_id: str) -> Optional[str]:
+        """Get the user's active lab ID, or None."""
+        user = await self.get_user(user_id)
+        if user:
+            lab = user.get("active_lab")
+            if lab and lab != "null":
+                return lab
+        return None
+
+    async def set_active_lab(self, user_id: str, lab_id: str) -> None:
+        """Set the user's active lab."""
+        await self.update_user(user_id, {"active_lab": lab_id})
+
+    async def clear_active_lab(self, user_id: str) -> None:
+        """Clear the user's active lab."""
+        await self.update_user(user_id, {"active_lab": None})
 
 #
 class LmsUserBackend:
@@ -1013,18 +1030,36 @@ class LmsUserBackend:
             return {}
             
         progress = user.get("progress", {})
-        
+
         # Filter by module if specified
         if module_uuid:
             module_progress = progress.get(module_uuid, {})
-            
+
             # Filter by lesson if specified
             if lesson_uuid:
                 return module_progress.get(lesson_uuid, {})
-                
+
             return {module_uuid: module_progress}
-            
+
         return progress
+
+    async def get_active_lab(self, user_id: str) -> Optional[str]:
+        """Get the user's active lab ID, or None."""
+        user = await self.get_user(user_id)
+        if user:
+            lab = user.get("active_lab")
+            if lab and lab != "null":
+                return lab
+        return None
+
+    async def set_active_lab(self, user_id: str, lab_id: str) -> None:
+        """Set the user's active lab."""
+        await self.update_user(user_id, {"active_lab": lab_id})
+
+    async def clear_active_lab(self, user_id: str) -> None:
+        """Clear the user's active lab."""
+        await self.update_user(user_id, {"active_lab": None})
+
 # Factory functions
 def get_dynamodb_backend():
     """Create and return a DynamoDB user backend instance"""

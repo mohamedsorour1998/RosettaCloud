@@ -1,10 +1,8 @@
 from app.backends.questions_backends import QuestionBackend
-from app.services import ai_service
 import logging
 
 class QuestionService:
-    def __init__(self, ai_service, backend: QuestionBackend):
-        self.ai_service = ai_service
+    def __init__(self, backend: QuestionBackend):
         self.backend = backend
     
     async def get_questions(self, module_uuid: str, lesson_uuid: str, user_id: str):

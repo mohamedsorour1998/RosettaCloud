@@ -1,7 +1,7 @@
 """
-Concrete back‑end factories for questions_service.
+Concrete back‑end for questions_service.
 
-• Momento  – fully implemented.
+Uses in-memory TTL cache (no external cache dependency).
 """
 
 import asyncio
@@ -10,11 +10,27 @@ import logging
 import os
 import re
 import tempfile
+import time
 from typing import Any, Dict, List, Tuple
 
 import aioboto3
 
-from app.services import cache_events_service as cache
+# ── In-memory TTL cache ──
+_cache: dict[str, tuple[float, Any]] = {}
+_CACHE_TTL = 3600  # 1 hour
+
+
+def _cache_get(key: str) -> Any | None:
+    entry = _cache.get(key)
+    if entry and time.time() - entry[0] < _CACHE_TTL:
+        return entry[1]
+    _cache.pop(key, None)
+    return None
+
+
+def _cache_set(key: str, value: Any) -> None:
+    _cache[key] = (time.time(), value)
+
 
 # Timeout (seconds) for kubectl cp and kubectl exec subprocesses.
 _KUBECTL_TIMEOUT = 30
@@ -29,10 +45,6 @@ class QuestionBackend:
 
         # Per-pod locks to serialise kubectl cp/exec and avoid "unexpected EOF"
         self._pod_locks: Dict[str, asyncio.Lock] = {}
-
-        # Cache settings
-        self.cache_name = "question_backend"
-        self.ttl_secs   = 3600
 
     def _pod_lock(self, pod: str) -> asyncio.Lock:
         """Return (or create) a per-pod asyncio.Lock."""
@@ -51,15 +63,8 @@ class QuestionBackend:
         self._shell_files[key]            = shell_files
         self._shell_files_by_number[key]  = shell_by_num
 
-        await asyncio.gather(*[
-            cache.set(
-                self.cache_name,
-                f"shell:{module_uuid}:{lesson_uuid}:{q_no}",
-                content,
-                self.ttl_secs,
-            )
-            for q_no, content in shell_by_num.items()
-        ])
+        for q_no, content in shell_by_num.items():
+            _cache_set(f"shell:{module_uuid}:{lesson_uuid}:{q_no}", content)
 
         return {"questions": questions, "total_count": len(questions)}
 
@@ -95,14 +100,11 @@ class QuestionBackend:
 
     async def _fetch_shells(self, module_uuid: str,
                             lesson_uuid: str) -> List[str]:
-        """S3 → Momento cached list of shell files (raw text)."""
+        """S3 → in-memory cached list of shell files (raw text)."""
         cache_key = f"shells:{module_uuid}:{lesson_uuid}"
-        cached    = await cache.get(self.cache_name, cache_key)
+        cached = _cache_get(cache_key)
         if cached is not None:
-            try:
-                return json.loads(cached)
-            except Exception:
-                logging.warning("Corrupt cache entry %s – refetching", cache_key)
+            return cached
 
         try:
             async with aioboto3.Session().client("s3") as s3:
@@ -121,8 +123,7 @@ class QuestionBackend:
                     body = await obj["Body"].read()
                     shells.append(body.decode())
 
-            await cache.set(self.cache_name, cache_key,
-                            json.dumps(shells), self.ttl_secs)
+            _cache_set(cache_key, shells)
             return shells
 
         except Exception as exc:
@@ -158,11 +159,11 @@ class QuestionBackend:
 
     async def _get_shell_by_number(self, module_uuid: str, lesson_uuid: str,
                                    q_no: int) -> str | None:
-        """Try Momento → local cache → S3."""
+        """Try in-memory cache → S3."""
         cache_key = f"shell:{module_uuid}:{lesson_uuid}:{q_no}"
-        cached    = await cache.get(self.cache_name, cache_key)
+        cached = _cache_get(cache_key)
         if cached:
-            return cached.decode() if isinstance(cached, bytes) else cached
+            return cached
 
         # fall back to local memory / S3
         key = (module_uuid, lesson_uuid)
