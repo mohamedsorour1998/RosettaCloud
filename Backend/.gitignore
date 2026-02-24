@@ -1,6 +1,8 @@
+__pycache__/
 app/__pycache__
 app/backends/__pycache__
 app/services/__pycache__
+agents/__pycache__
 serverless/Lambda/feedback_request/deploy.zip
 serverless/Lambda/feedback_request/build
 serverless/Lambda/document_indexer/deploy.zip

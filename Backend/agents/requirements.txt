@@ -1,0 +1,7 @@
+bedrock-agentcore
+strands-agents
+strands-agents-builder
+boto3
+lancedb
+pyarrow
+aws-opentelemetry-distro>=0.10.1
