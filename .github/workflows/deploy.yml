@@ -92,45 +92,6 @@ jobs:
           fi
           echo "document_indexer is live."
 
-      # ai_chatbot
-      - name: Build & push ai_chatbot image
-        env:
-          REGISTRY: ${{ steps.login.outputs.registry }}
-          ECR_REPOSITORY: rosettacloud-ai_chatbot-lambda
-        run: |
-          IMAGE_URI=$REGISTRY/$ECR_REPOSITORY:${{ inputs.image_tag || 'latest' }}
-          docker build --platform linux/amd64 \
-            -f Backend/serverless/Lambda/ai_chatbot/Dockerfile \
-            Backend/serverless/Lambda/ai_chatbot \
-            -t "$IMAGE_URI"
-          docker push "$IMAGE_URI"
-          echo "ai_chatbot_image=$IMAGE_URI" >> $GITHUB_ENV
-          echo "Pushed $IMAGE_URI"
-
-      - name: Create or update ai_chatbot Lambda
-        run: |
-          ROLE="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/rosettacloud-ai-chatbot-role"
-          IMAGE="${{ env.ai_chatbot_image }}"
-          REGION="${{ inputs.aws_region || 'us-east-1' }}"
-          ENV_VARS="Variables={LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base,DYNAMO_TABLE=SessionTable}"
-
-          if aws lambda get-function --function-name ai_chatbot --region $REGION &>/dev/null; then
-            aws lambda wait function-updated --function-name ai_chatbot --region $REGION 2>/dev/null || true
-            aws lambda update-function-code \
-              --function-name ai_chatbot --image-uri "$IMAGE" --region $REGION
-            aws lambda wait function-updated --function-name ai_chatbot --region $REGION
-            aws lambda update-function-configuration \
-              --function-name ai_chatbot \
-              --timeout 300 --memory-size 1024 --environment "$ENV_VARS" --region $REGION
-          else
-            aws lambda create-function \
-              --function-name ai_chatbot --package-type Image \
-              --code ImageUri="$IMAGE" --role "$ROLE" \
-              --timeout 300 --memory-size 1024 --environment "$ENV_VARS" --region $REGION
-            aws lambda wait function-active --function-name ai_chatbot --region $REGION
-          fi
-          echo "ai_chatbot is live."
-
       # ── Build & push interactive-labs image ───────────────────────────────
       - name: Build & push interactive-labs image
         env:
