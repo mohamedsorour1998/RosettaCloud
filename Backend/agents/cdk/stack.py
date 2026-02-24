@@ -1,5 +1,8 @@
 """CDK stack for RosettaCloud AgentCore Runtime."""
 import os
+import shutil
+import subprocess
+import zipfile
 from aws_cdk import (
     Stack,
     CfnResource,
@@ -8,8 +11,73 @@ from aws_cdk import (
     aws_s3_assets as s3_assets,
     BundlingOptions,
     DockerImage,
+    ILocalBundling,
 )
 from constructs import Construct
+import jsii
+
+
+@jsii.implements(ILocalBundling)
+class LocalBundler:
+    """Bundles the agent code locally when Docker is unavailable."""
+
+    def __init__(self, agent_dir: str):
+        self._agent_dir = agent_dir
+
+    def try_bundle(self, output_dir: str, options) -> bool:
+        """Bundle agent code + pip dependencies into a zip file locally.
+
+        Args:
+            output_dir: CDK-provided output directory for bundled assets.
+            options: BundlingOptions passed by CDK (unused for local bundling).
+        """
+        try:
+            bundle_dir = os.path.join(output_dir, "_bundle")
+            os.makedirs(bundle_dir, exist_ok=True)
+
+            # Copy agent source files
+            for src_file in ("agent.py", "tools.py", "prompts.py"):
+                src = os.path.join(self._agent_dir, src_file)
+                if os.path.exists(src):
+                    shutil.copy2(src, bundle_dir)
+
+            # Install dependencies for arm64 target
+            req_file = os.path.join(self._agent_dir, "requirements.txt")
+            if os.path.exists(req_file):
+                subprocess.check_call(
+                    [
+                        "pip", "install",
+                        "--target", bundle_dir,
+                        "--platform", "manylinux2014_aarch64",
+                        "--only-binary=:all:",
+                        "--python-version", "312",
+                        "--implementation", "cp",
+                        "-r", req_file,
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+
+            # Create zip
+            zip_path = os.path.join(output_dir, "agent-code.zip")
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, dirs, files in os.walk(bundle_dir):
+                    dirs[:] = [d for d in dirs if d != "__pycache__"]
+                    for f in files:
+                        if f.endswith(".pyc"):
+                            continue
+                        full = os.path.join(root, f)
+                        arcname = os.path.relpath(full, bundle_dir)
+                        zf.write(full, arcname)
+
+            # Clean up temp bundle dir
+            shutil.rmtree(bundle_dir, ignore_errors=True)
+            print(f"Local bundler: created {zip_path}")
+            return True
+
+        except Exception as exc:
+            print(f"Local bundler failed: {exc}")
+            return False
 
 
 class RosettaCloudAgentRuntimeStack(Stack):
@@ -131,6 +199,7 @@ class RosettaCloudAgentRuntimeStack(Stack):
                     "zf.close(); "
                     "print('Zipped agent bundle')\""
                 ],
+                local=LocalBundler(os.path.abspath(agent_dir)),
             ),
         )
 
@@ -139,7 +208,7 @@ class RosettaCloudAgentRuntimeStack(Stack):
             self, "AgentCoreRuntime",
             type="AWS::BedrockAgentCore::Runtime",
             properties={
-                "AgentRuntimeName": "rosettacloud-education-agent",
+                "AgentRuntimeName": "rosettacloud_education_agent",
                 "Description": "Multi-agent education platform — Tutor, Grader, Planner",
                 "RoleArn": runtime_role.role_arn,
                 "NetworkConfiguration": {
