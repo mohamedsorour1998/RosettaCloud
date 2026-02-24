@@ -34,6 +34,7 @@ import {
 } from 'rxjs/operators';
 import { LabService } from '../services/lab.service';
 import { UserService } from '../services/user.service';
+import { ChatbotService } from '../services/chatbot.service';
 import { FeedbackComponent } from '../feedback/feedback.component';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
 import { ThemeService } from '../services/theme.service';
@@ -132,6 +133,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     private router: Router,
     private labSv: LabService,
     private userSv: UserService,
+    private chatbotSv: ChatbotService,
     private themeService: ThemeService,
     private sanitizer: DomSanitizer,
     private el: ElementRef
@@ -178,6 +180,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.isLoading = false;
       return;
     }
+
+    // Set user ID on chatbot service for agent context
+    this.chatbotSv.setUserId(this.labSv.getCurrentUserId());
 
     // Initialize lab environment
     this.initLab();
@@ -625,6 +630,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       }
 
       this.markCompleted(q.id);
+
+      // Auto-grade via chatbot agent
+      if (this.moduleUuid && this.lessonUuid) {
+        this.chatbotSv.sendGradeMessage(
+          this.moduleUuid, this.lessonUuid, q.id, 'correct'
+        );
+      }
     } else {
       this.isAnswerCorrect = false;
       this.feedbackMessage = 'Incorrect. Try again or skip.';
@@ -738,6 +750,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             q.completed = true;
             q.wrongAttempt = false;
             this.markCompleted(questionNumber);
+
+            // Auto-grade via chatbot agent
+            if (this.moduleUuid && this.lessonUuid) {
+              this.chatbotSv.sendGradeMessage(
+                this.moduleUuid, this.lessonUuid, questionNumber, 'correct'
+              );
+            }
           } else {
             this.isAnswerCorrect = false;
             this.feedbackMessage =

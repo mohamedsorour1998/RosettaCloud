@@ -3,11 +3,14 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, Subject, BehaviorSubject } from 'rxjs';
 import { environment } from '../../environments/environment';
 
+export type AgentType = 'tutor' | 'grader' | 'planner' | null;
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'error';
   content: string;
   timestamp: Date;
   id?: string;
+  agent?: AgentType;
 }
 
 export interface Source {
@@ -102,7 +105,7 @@ export class ChatbotService {
         break;
 
       case 'chunk':
-        this.updateOrAddAssistantMessage(response.content);
+        this.updateOrAddAssistantMessage(response.content, response.agent || null);
         break;
 
       case 'source':
@@ -137,7 +140,7 @@ export class ChatbotService {
     }
   }
 
-  private updateOrAddAssistantMessage(content: string): void {
+  private updateOrAddAssistantMessage(content: string, agent: AgentType = null): void {
     const currentMessages = this.messagesSubject.getValue();
     const lastMessage = currentMessages[currentMessages.length - 1];
 
@@ -146,6 +149,7 @@ export class ChatbotService {
       updatedMessages[updatedMessages.length - 1] = {
         ...lastMessage,
         content: content,
+        agent: agent || lastMessage.agent,
       };
       this.messagesSubject.next(updatedMessages);
     } else {
@@ -153,6 +157,7 @@ export class ChatbotService {
         role: 'assistant',
         content: content,
         timestamp: new Date(),
+        agent: agent,
       });
     }
   }
@@ -170,6 +175,12 @@ export class ChatbotService {
     }
 
     this.sendActualMessage(message);
+  }
+
+  private userId = '';
+
+  public setUserId(userId: string): void {
+    this.userId = userId;
   }
 
   private sendActualMessage(message: string): void {
@@ -191,13 +202,8 @@ export class ChatbotService {
     const request = {
       session_id: this.sessionId,
       prompt: message,
-      bedrock_model_id: 'amazon.nova-lite-v1:0',
-      model_kwargs: {
-        temperature: 0.7,
-        maxTokenCount: 1024,
-        timeoutInMillis: 15000,
-      },
-      response_style: 'concise',
+      user_id: this.userId,
+      type: 'chat',
     };
 
     try {
@@ -209,6 +215,33 @@ export class ChatbotService {
         content: 'Failed to send message. Please try again.',
         timestamp: new Date(),
       });
+      this.loadingSubject.next(false);
+    }
+  }
+
+  public sendGradeMessage(
+    moduleUuid: string,
+    lessonUuid: string,
+    questionNumber: number,
+    result: string
+  ): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    this.loadingSubject.next(true);
+    const request = {
+      session_id: this.sessionId,
+      user_id: this.userId,
+      type: 'grade',
+      module_uuid: moduleUuid,
+      lesson_uuid: lessonUuid,
+      question_number: questionNumber,
+      result: result,
+    };
+    try {
+      this.socket.send(JSON.stringify(request));
+    } catch (error) {
+      console.error('Error sending grade message:', error);
       this.loadingSubject.next(false);
     }
   }

@@ -121,12 +121,22 @@
             "
           >
             <i *ngIf="message.role === 'user'" class="bi bi-person"></i>
-            <i *ngIf="message.role === 'assistant'" class="bi bi-robot"></i>
+            <i *ngIf="message.role === 'assistant' && !message.agent" class="bi bi-robot"></i>
+            <i *ngIf="message.role === 'assistant' && message.agent" class="bi" [ngClass]="getAgentIcon(message.agent)"></i>
           </div>
 
           <!-- Message Content -->
           <div class="message-content">
-            <div class="message-bubble">
+            <!-- Agent Card Header -->
+            <div
+              *ngIf="message.role === 'assistant' && message.agent"
+              class="agent-card-header"
+              [ngClass]="getAgentClass(message.agent)"
+            >
+              <i class="bi" [ngClass]="getAgentIcon(message.agent)"></i>
+              <span>{{ getAgentName(message.agent) }}</span>
+            </div>
+            <div class="message-bubble" [ngClass]="message.agent ? getAgentClass(message.agent) + '-bubble' : ''">
               <div
                 class="message-text"
                 [innerHTML]="formatMessage(message.content)"

@@ -14,6 +14,7 @@ import {
   ChatbotService,
   ChatMessage,
   Source,
+  AgentType,
 } from '../services/chatbot.service';
 import { Subscription } from 'rxjs';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -24,7 +25,6 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
   styleUrls: ['./chatbot.component.scss'],
   standalone: true,
   imports: [CommonModule, FormsModule, HttpClientModule],
-  providers: [ChatbotService],
 })
 export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('chatContainer') chatContainer!: ElementRef;
@@ -387,6 +387,45 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
         return 'system-message';
       case 'error':
         return 'error-message';
+      default:
+        return '';
+    }
+  }
+
+  getAgentIcon(agent: AgentType): string {
+    switch (agent) {
+      case 'tutor':
+        return 'bi-mortarboard-fill';
+      case 'grader':
+        return 'bi-check-circle-fill';
+      case 'planner':
+        return 'bi-map-fill';
+      default:
+        return 'bi-robot';
+    }
+  }
+
+  getAgentName(agent: AgentType): string {
+    switch (agent) {
+      case 'tutor':
+        return 'Tutor Agent';
+      case 'grader':
+        return 'Grader Agent';
+      case 'planner':
+        return 'Curriculum Planner';
+      default:
+        return 'Assistant';
+    }
+  }
+
+  getAgentClass(agent: AgentType): string {
+    switch (agent) {
+      case 'tutor':
+        return 'agent-tutor';
+      case 'grader':
+        return 'agent-grader';
+      case 'planner':
+        return 'agent-planner';
       default:
         return '';
     }
