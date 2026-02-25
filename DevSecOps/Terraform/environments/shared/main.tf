@@ -779,7 +779,7 @@ resource "aws_apigatewayv2_api" "chatbot_ws" {
 resource "aws_apigatewayv2_integration" "chatbot_ws" {
   api_id                    = aws_apigatewayv2_api.chatbot_ws.id
   integration_type          = "AWS_PROXY"
-  integration_uri           = "arn:aws:lambda:us-east-1:${local.account_id}:function:ai_chatbot"
+  integration_uri           = "arn:aws:lambda:us-east-1:${local.account_id}:function:ws_agent_handler"
   content_handling_strategy = "CONVERT_TO_TEXT"
 }
 
@@ -811,7 +811,7 @@ resource "aws_apigatewayv2_stage" "chatbot_ws" {
 resource "aws_lambda_permission" "apigw_chatbot" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = "ai_chatbot"
+  function_name = "ws_agent_handler"
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.chatbot_ws.execution_arn}/*/*"
 }
