@@ -16,11 +16,11 @@ agentcore = boto3.client("bedrock-agentcore", region_name="us-east-1")
 def handler(event, context):
     route = event["requestContext"]["routeKey"]
     conn_id = event["requestContext"]["connectionId"]
-    domain = event["requestContext"]["domainName"]
+    api_id = event["requestContext"]["apiId"]
     stage = event["requestContext"]["stage"]
     apigw = boto3.client(
         "apigatewaymanagementapi",
-        endpoint_url=f"https://{domain}/{stage}",
+        endpoint_url=f"https://{api_id}.execute-api.us-east-1.amazonaws.com/{stage}",
     )
 
     if route == "$connect":
