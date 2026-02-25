@@ -101,7 +101,7 @@ class RosettaCloudAgentRuntimeStack(Stack):
         # Bedrock InvokeModel
         runtime_role.add_to_policy(iam.PolicyStatement(
             sid="BedrockInvokeModel",
-            actions=["bedrock:InvokeModel"],
+            actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
             resources=[
                 f"arn:aws:bedrock:{self.region}::foundation-model/amazon.nova-lite-v1:0",
                 f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v2:0",
