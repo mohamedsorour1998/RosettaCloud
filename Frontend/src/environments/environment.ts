@@ -2,7 +2,7 @@ export const environment = {
   production: true,
   apiUrl: 'https://api.dev.rosettacloud.app',
   feedbackApiUrl: 'https://feedback.dev.rosettacloud.app',
-  chatbotApiUrl: 'wss://wss.dev.rosettacloud.app',
+  chatbotApiUrl: 'https://api.dev.rosettacloud.app/chat',
   labDefaultTimeout: {
     hours: 1,
     minutes: 30,
