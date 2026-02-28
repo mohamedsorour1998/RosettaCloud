@@ -67,14 +67,6 @@ output "interactive_labs_vector_bucket_name" {
 }
 
 ################################################################################
-# SQS
-################################################################################
-output "feedback_requested_queue_url" {
-  value       = module.sqs_feedback.queue_url
-  description = "SQS queue URL for feedback requests"
-}
-
-################################################################################
 # IRSA
 ################################################################################
 output "backend_irsa_role_arn" {

@@ -11,8 +11,6 @@ data:
   INGRESS_NAME: "rosettacloud-ingress"
   REDIS_HOST: "redis-service"
   REDIS_PORT: "6379"
-  SQS_QUEUE_URL: "https://sqs.us-east-1.amazonaws.com/339712964409/rosettacloud-feedback-requested"
-  CACHE_EVENTS_BACKEND: "redis_sqs"
 
 ---
 apiVersion: apps/v1
@@ -73,16 +71,6 @@ spec:
                 configMapKeyRef:
                   name: rosettacloud-backend-config
                   key: REDIS_PORT
-            - name: SQS_QUEUE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: rosettacloud-backend-config
-                  key: SQS_QUEUE_URL
-            - name: CACHE_EVENTS_BACKEND
-              valueFrom:
-                configMapKeyRef:
-                  name: rosettacloud-backend-config
-                  key: CACHE_EVENTS_BACKEND
 
 ---
 apiVersion: v1

@@ -411,26 +411,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "interactive_labs_
 }
 
 ################################################################################
-# SQS – Feedback Requested Queue
-################################################################################
-module "sqs_feedback" {
-  source  = "terraform-aws-modules/sqs/aws"
-  version = "5.2.1"
-
-  name                       = "rosettacloud-feedback-requested"
-  visibility_timeout_seconds = 60
-  message_retention_seconds  = 3600
-  receive_wait_time_seconds  = 20
-
-  create_dlq = true
-  redrive_policy = {
-    maxReceiveCount = 3
-  }
-
-  tags = local.tags
-}
-
-################################################################################
 # IRSA – Backend Service Account IAM Role
 ################################################################################
 data "aws_iam_policy_document" "backend_irsa_trust" {
@@ -495,12 +475,6 @@ resource "aws_iam_role_policy" "backend_irsa_permissions" {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
         Resource = ["arn:aws:bedrock:us-east-1::foundation-model/*"]
-      },
-      {
-        Sid      = "SQS"
-        Effect   = "Allow"
-        Action   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
-        Resource = [module.sqs_feedback.queue_arn]
       }
     ]
   })

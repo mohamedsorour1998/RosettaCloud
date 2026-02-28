@@ -32,7 +32,6 @@ pip install -r requirements.txt --break-system-packages
 
 # Requires local Redis (sudo apt install redis-server && sudo service redis start)
 REDIS_HOST=localhost \
-SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/339712964409/rosettacloud-feedback-requested \
 LAB_K8S_NAMESPACE=dev \
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
@@ -41,7 +40,6 @@ uvicorn app.main:app --host 0.0.0.0 --port 80   # production (inside container)
 
 **Local dev notes:**
 - `REDIS_HOST=localhost` — K8s service name `redis-service` doesn't resolve locally
-- `SQS_QUEUE_URL` — must be set; queue is `rosettacloud-feedback-requested` in `us-east-1`
 - `LAB_K8S_NAMESPACE=dev` — default is `openedx`, cluster uses `dev`; backend falls back to `~/.kube/config` automatically (current context: `rosettacloud-eks`)
 - Kill stale port: `fuser -k 8000/tcp`
 
@@ -58,7 +56,7 @@ terraform apply -var-file="terraform.tfvars"
 
 Remote state: S3 bucket `rosettacloud-shared-terraform-backend` in `us-east-1`.
 
-**Terraform manages infrastructure only** (VPC, EKS, ECR repos, IAM roles, API Gateways, S3, SQS, Route 53, CloudFront). Lambda functions are **not** managed by Terraform — they're deployed via CI/CD pipelines (`lambda-deploy.yml`, `agent-deploy.yml`).
+**Terraform manages infrastructure only** (VPC, EKS, ECR repos, IAM roles, API Gateway, S3, Route 53, CloudFront). Lambda functions are **not** managed by Terraform — they're deployed via CI/CD pipelines (`lambda-deploy.yml`, `agent-deploy.yml`).
 
 ### Kubernetes
 
@@ -75,7 +73,6 @@ Architecture diagrams are in `Arch/` directory.
 
 - **Frontend → Backend**: REST API via `https://api.dev.rosettacloud.app` (FastAPI on K8s, Istio VirtualService)
 - **Frontend → Chatbot**: WebSocket via `wss://wss.dev.rosettacloud.app` (API Gateway WebSocket → `ws_agent_handler` Lambda → AgentCore Runtime)
-- **Frontend → Feedback polling**: REST `GET /feedback/{id}` on backend (reads from Redis)
 
 ### Infrastructure
 
@@ -88,17 +85,12 @@ Architecture diagrams are in `Arch/` directory.
 
 Each feature area follows a **service/backend** split:
 - `app/services/*.py` — thin orchestration layer (business logic)
-- `app/backends/*.py` — concrete implementations (AWS SDK calls, K8s API, Redis, SQS)
+- `app/backends/*.py` — concrete implementations (AWS SDK calls, K8s API, Redis)
 
 Service → Backend mappings:
-- `ai_service` → `ai_backends` (Amazon Bedrock/Nova via `aioboto3`, uses `converse_stream` for streaming — no `schemaVersion` param)
 - `labs_service` → `labs_backends` (Kubernetes SDK: creates pods, services, Istio VirtualService per-lab; namespace `dev`)
 - `users_service` → `users_backends` (DynamoDB)
-- `questions_service` → `questions_backends` (S3 shell scripts + Redis cache; uses async subprocess for kubectl)
-- `cache_events_service` → `cache_events_backends` (Redis cache + SQS pub/sub via sync `boto3` + `asyncio.to_thread`; subscribe blocks forever when `SQS_QUEUE_URL` unset)
-- `feedback_service` — long-polls SQS `FeedbackRequested` queue, calls AI, stores result in Redis
-
-**Note:** Architecture diagrams reference "Momento Cache" and "Momento Pub/Sub" but the actual implementation uses Redis + SQS.
+- `questions_service` → `questions_backends` (S3 shell scripts + in-memory TTL cache; uses async subprocess for kubectl)
 
 ### Create Lab Flow
 
@@ -124,19 +116,6 @@ Service → Backend mappings:
 Readiness probe: HTTP GET `/` port 80, `initial_delay=3s`, `period=3s`, `timeout=5s`, `failure_threshold=40`.
 
 **Resource warning:** Each lab runs a full Kind cluster. A t3.xlarge (4 CPU) supports platform services + 1 lab. Two concurrent Kind clusters starve the entire node.
-
-### Feedback Flow
-
-1. Backend `feedback_service._subscribe_loop()` long-polls SQS via `cache_events.subscribe()` (sync `boto3` + `asyncio.to_thread`, 20s long-poll)
-2. Message received → `_handle()` spawned as `asyncio.create_task`
-3. Builds educational prompt from student's question progress (completed/not completed per question)
-4. Calls `ai.chat()` — Amazon Bedrock Nova Lite, non-streaming, `max_tokens=600`, `temperature=0.7`, system role: educational assistant
-5. Constructs `{type: "feedback", feedback_id, content, timestamp}` payload
-6. `cache_events.publish("FeedbackGiven", payload)` → detects `feedback_id` → stores in Redis as `cache:feedback:{feedback_id}` (600s TTL)
-7. Frontend polls `GET /feedback/{feedback_id}` every 2s (60s timeout)
-8. Backend reads Redis `cache:feedback:{feedback_id}` → returns `{status: "ready", content: "..."}` when found
-
-**Note:** The `feedback_request` Lambda (HTTP API Gateway → SQS) has been deleted. Feedback ingestion needs a replacement path if re-enabled.
 
 ### AI Chatbot Flow (AgentCore Multi-Agent)
 
@@ -173,7 +152,7 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 
 - **Serverless Components**: Lambda functions for document indexing and WebSocket agent bridge
 - **AgentCore Runtime**: Multi-agent platform (tutor/grader/planner) deployed via `agentcore` CLI
-- **Event-Driven Architecture**: SQS for async feedback processing, Redis for caching and result storage
+- **Redis**: In-cluster caching for questions and lab state
 
 ### Lambda Functions (`Backend/serverless/Lambda/`)
 
@@ -229,8 +208,6 @@ Current modules:
 |---|---|---|---|
 | `REDIS_HOST` | Backend | `redis-service` | `redis-service` (K8s) / `localhost` (local dev) |
 | `REDIS_PORT` | Backend | `6379` | `6379` |
-| `SQS_QUEUE_URL` | Backend | — | `https://sqs.us-east-1.amazonaws.com/339712964409/rosettacloud-feedback-requested` |
-| `CACHE_EVENTS_BACKEND` | Backend | `redis_sqs` | `redis_sqs` |
 | `AWS_REGION` | Backend + Lambdas | `us-east-1` | `us-east-1`; IRSA provides credentials in-cluster |
 | `LAB_K8S_NAMESPACE` | Backend | `openedx` | `dev` |
 | `LANCEDB_S3_URI` | document_indexer Lambda | `s3://rosettacloud-shared-interactive-labs-vector` | same |
