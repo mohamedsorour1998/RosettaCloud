@@ -291,6 +291,6 @@ Note: `AgentCoreMemoryConfig` requires `session_id` and `actor_id` at creation t
 
 Build environments defined in `Frontend/src/environments/`:
 - `environment.ts` (production), `environment.development.ts`, `environment.uat.ts`, `environment.stg.ts`
-- Each defines `apiUrl`, `chatbotApiUrl`, `feedbackApiUrl`
+- Each defines `apiUrl`, `chatbotApiUrl` (+ legacy `feedbackApiUrl`, unused)
 - Angular strict mode and strict templates are enforced in `tsconfig.json`
 - `.editorconfig`: 2-space indent, single quotes for `.ts` files
