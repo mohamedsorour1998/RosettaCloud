@@ -475,6 +475,12 @@ resource "aws_iam_role_policy" "backend_irsa_permissions" {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
         Resource = ["arn:aws:bedrock:us-east-1::foundation-model/*"]
+      },
+      {
+        Sid      = "AgentCoreInvoke"
+        Effect   = "Allow"
+        Action   = ["bedrock-agentcore:InvokeAgentRuntime"]
+        Resource = ["arn:aws:bedrock-agentcore:us-east-1:${local.account_id}:runtime/*"]
       }
     ]
   })
