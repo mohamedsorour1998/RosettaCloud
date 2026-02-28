@@ -189,13 +189,22 @@ def invoke(payload, context=None):
 
     agent_name = _classify(message, msg_type)
 
-    # Load in-process history for this session
-    history = _session_histories.get(session_id, []) if session_id else []
+    # Build Strands message history from payload (sent by ws_agent_handler, reliable).
+    # Falls back to in-process dict for direct invocations (agentcore invoke CLI, tests).
+    raw_history = payload.get("conversation_history", [])
+    if raw_history:
+        history = [
+            {"role": m["role"], "content": [{"text": m["text"]}]}
+            for m in raw_history
+            if m.get("text")
+        ]
+    else:
+        history = _session_histories.get(session_id, []) if session_id else []
 
     agent = _create_agent(agent_name, user_id=user_id, session_id=session_id, messages=history)
 
     logger.info("Routing to %s: user=%s session=...%s history_turns=%d",
-                agent_name, user_id, session_id[-12:] if session_id else "none", len(history) // 2)
+                agent_name, user_id, session_id[-12:] if session_id else "none", len(raw_history) // 2)
 
     try:
         context_parts = [f"user_id: {user_id}"]

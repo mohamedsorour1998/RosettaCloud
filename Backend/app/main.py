@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Annotated, Any, Optional, Dict, Union, List
+from typing import Annotated, Any, Optional, Dict, Union, List, Literal
 from fastapi import FastAPI, HTTPException, status, Path, Depends
 from pydantic import BaseModel, EmailStr, Field
 
@@ -10,6 +10,7 @@ import logging
 import asyncio
 import secrets
 import os
+import boto3
 
 from app.services import labs_service as lab
 from app.services import users_service as users
@@ -50,11 +51,20 @@ logger = logging.getLogger(__name__)
 _AGENT_RUNTIME_ARN = os.environ.get("AGENT_RUNTIME_ARN", "")
 _AGENT_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
+_agentcore_client = None
+
+def _get_agentcore_client():
+    global _agentcore_client
+    if _agentcore_client is None:
+        _agentcore_client = boto3.client("bedrock-agentcore", region_name=_AGENT_REGION)
+    return _agentcore_client
+
 # In-process chat history — same pattern as questions_backends.py _cache dict.
 # Single-replica pod → fully reliable for session continuity.
 _chat_histories: dict = {}
 _CHAT_HISTORY_TTL = 14400   # 4 hours
 _CHAT_MAX_MESSAGES = 40     # 20 turns
+_CHAT_MAX_SESSIONS = 500    # evict oldest when dict exceeds this limit
 
 def _chat_history_get(session_id: str) -> list:
     entry = _chat_histories.get(session_id)

@@ -21,7 +21,7 @@ agents:
     bedrock_agentcore:
       agent_id: rosettacloud_education_agent-yebWcC9Yqy
       agent_arn: arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy
-      agent_session_id: 6ad1fe3a-ac4b-4f4e-85c6-ccfffecc94d2
+      agent_session_id: b22b5462-bb05-4cf6-841f-6b953847ebb4
     codebuild:
       project_name: bedrock-agentcore-rosettacloud_education_agent-builder
       execution_role: arn:aws:iam::339712964409:role/AmazonBedrockAgentCoreSDKCodeBuild-us-east-1-a71fe030a3
