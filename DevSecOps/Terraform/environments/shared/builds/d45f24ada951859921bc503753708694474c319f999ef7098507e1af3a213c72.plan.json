@@ -1,1 +1,0 @@
-{"filename": "builds/d45f24ada951859921bc503753708694474c319f999ef7098507e1af3a213c72.zip", "runtime": "python3.12", "artifacts_dir": "builds", "build_plan": [[["zip", "../../../../Backend/serverless/Lambda/feedback_request", null]]], "quiet": "true"}
