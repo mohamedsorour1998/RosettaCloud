@@ -1044,6 +1044,16 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
+   * Open chat panel (used by feedback component to show grader response)
+   */
+  openChatPanel(): void {
+    if (this.isMobile) {
+      this.showChatbot = true;
+      this.showSidebar = false;
+    }
+  }
+
+  /**
    * Refresh lab
    */
   refreshLab(): void {

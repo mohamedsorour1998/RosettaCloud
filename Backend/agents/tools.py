@@ -4,7 +4,6 @@ import os
 import re
 import json
 import boto3
-import lancedb
 import logging
 
 from strands import tool
@@ -49,6 +48,7 @@ def _get_bedrock():
 def _get_lance_table():
     global _lance_table
     if _lance_table is None:
+        import lancedb
         db = lancedb.connect(LANCEDB_S3_URI)
         _lance_table = db.open_table(TABLE_NAME)
     return _lance_table

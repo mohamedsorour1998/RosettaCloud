@@ -1,0 +1,31 @@
+default_agent: rosettacloud_education_agent
+agents:
+  rosettacloud_education_agent:
+    name: rosettacloud_education_agent
+    entrypoint: agent.py
+    platform: linux/arm64
+    container_runtime: podman
+    aws:
+      execution_role: arn:aws:iam::339712964409:role/rosettacloud-agentcore-runtime-role
+      execution_role_auto_create: true
+      account: '339712964409'
+      region: us-east-1
+      ecr_repository: 339712964409.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-rosettacloud_education_agent
+      ecr_auto_create: false
+      network_configuration:
+        network_mode: PUBLIC
+      protocol_configuration:
+        server_protocol: HTTP
+      observability:
+        enabled: true
+    bedrock_agentcore:
+      agent_id: rosettacloud_education_agent-yebWcC9Yqy
+      agent_arn: arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy
+      agent_session_id: 0fb6bee1-bb31-40d4-ba26-3de96c750d45
+    codebuild:
+      project_name: bedrock-agentcore-rosettacloud_education_agent-builder
+      execution_role: arn:aws:iam::339712964409:role/AmazonBedrockAgentCoreSDKCodeBuild-us-east-1-a71fe030a3
+      source_bucket: bedrock-agentcore-codebuild-sources-339712964409-us-east-1
+    authorizer_configuration: null
+    request_header_configuration: null
+    oauth_configuration: null

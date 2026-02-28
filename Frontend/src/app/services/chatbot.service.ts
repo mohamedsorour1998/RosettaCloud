@@ -246,6 +246,69 @@ export class ChatbotService {
     }
   }
 
+  public sendFeedbackRequest(
+    moduleUuid: string,
+    lessonUuid: string,
+    questions: any[],
+    userProgress: any
+  ): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      this.connect();
+      setTimeout(
+        () =>
+          this.sendFeedbackRequest(
+            moduleUuid,
+            lessonUuid,
+            questions,
+            userProgress
+          ),
+        1000
+      );
+      return;
+    }
+
+    // Build a summary of question progress for the grader
+    const questionSummary = questions
+      .map((q: any) => {
+        const qNum = q.question_number || q.id;
+        const completed = userProgress?.[qNum?.toString()] === true;
+        return `Q${qNum}: ${q.question || q.question_text} — ${completed ? 'Completed' : 'Not completed'}`;
+      })
+      .join('\n');
+
+    const feedbackPrompt =
+      `Please provide comprehensive feedback for this lab session.\n` +
+      `Module: ${moduleUuid}\nLesson: ${lessonUuid}\n` +
+      `Progress summary:\n${questionSummary}\n\n` +
+      `Provide: overall performance assessment, strengths, areas for improvement, and next steps.`;
+
+    this.addMessage({
+      role: 'user',
+      content: 'Generate my lab feedback report',
+      timestamp: new Date(),
+    });
+    this.sourcesSubject.next([]);
+    this.loadingSubject.next(true);
+
+    const request = {
+      session_id: this.sessionId,
+      user_id: this.userId,
+      type: 'grade',
+      message: feedbackPrompt,
+      module_uuid: moduleUuid,
+      lesson_uuid: lessonUuid,
+      question_number: 0,
+      result: `Lab feedback request. ${questions.length} total questions.`,
+    };
+
+    try {
+      this.socket.send(JSON.stringify(request));
+    } catch (error) {
+      console.error('Error sending feedback request:', error);
+      this.loadingSubject.next(false);
+    }
+  }
+
   public clearChat(): void {
     this.messagesSubject.next([
       {

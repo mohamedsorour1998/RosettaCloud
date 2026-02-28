@@ -1,3 +1,5 @@
-Backend/agents/cdk/cdk.out/
 demo-repo/
 image.png
+Backend/agents/__pycache__/
+Backend/agents/Dockerfile
+Backend/agents/.dockerignore

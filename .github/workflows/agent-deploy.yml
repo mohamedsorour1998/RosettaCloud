@@ -1,0 +1,66 @@
+name: Deploy AgentCore Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: AWS Region
+        default: us-east-1
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - "Backend/agents/**"
+      - "!Backend/agents/cdk/**"
+      - "!Backend/agents/invoke_agent.py"
+
+env:
+  AWS_ACCOUNT_ID: "339712964409"
+  IAM_ROLE: github-actions-role
+  MEMORY_ID: rosettacloud_education_memory-evO1o3F0jN
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: Backend/agents
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
+          aws-region: ${{ inputs.aws_region || 'us-east-1' }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install agentcore CLI
+        run: pip install bedrock-agentcore-starter-toolkit
+
+      - name: Deploy agent
+        run: |
+          agentcore launch \
+            --auto-update-on-conflict \
+            --env BEDROCK_AGENTCORE_MEMORY_ID=${{ env.MEMORY_ID }}
+
+      - name: Get new ARN and update Lambda
+        run: |
+          NEW_ARN=$(agentcore status 2>&1 | grep -oP 'arn:aws:bedrock-agentcore:\S+runtime/\S+' | head -1)
+          echo "New ARN: $NEW_ARN"
+          if [ -n "$NEW_ARN" ]; then
+            aws lambda update-function-configuration \
+              --function-name ws_agent_handler \
+              --environment "Variables={AGENT_RUNTIME_ARN=$NEW_ARN}" \
+              --region ${{ inputs.aws_region || 'us-east-1' }}
+            echo "Lambda updated with new ARN"
+          else
+            echo "Could not extract ARN, skipping Lambda update"
+          fi
