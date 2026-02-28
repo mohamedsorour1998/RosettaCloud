@@ -52,7 +52,16 @@ jobs:
 
       - name: Get new ARN and update Lambda
         run: |
-          NEW_ARN=$(agentcore status 2>&1 | grep -oP 'arn:aws:bedrock-agentcore:\S+runtime/\S+' | head -1)
+          NEW_ARN=$(python3 -c "
+          import yaml
+          with open('.bedrock_agentcore.yaml') as f:
+              config = yaml.safe_load(f)
+          for agent in config.get('agents', {}).values():
+              arn = agent.get('bedrock_agentcore', {}).get('agent_arn', '')
+              if arn:
+                  print(arn)
+                  break
+          ")
           echo "New ARN: $NEW_ARN"
           if [ -n "$NEW_ARN" ]; then
             aws lambda update-function-configuration \
