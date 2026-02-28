@@ -72,7 +72,7 @@ Architecture diagrams are in `Arch/` directory.
 ### Request Flow
 
 - **Frontend → Backend**: REST API via `https://api.dev.rosettacloud.app` (FastAPI on K8s, Istio VirtualService)
-- **Frontend → Chatbot**: WebSocket via `wss://wss.dev.rosettacloud.app` (API Gateway WebSocket → `ws_agent_handler` Lambda → AgentCore Runtime)
+- **Frontend → Chatbot**: HTTP POST to `https://api.dev.rosettacloud.app/chat` (FastAPI backend → AgentCore Runtime via boto3)
 
 ### Infrastructure
 
@@ -117,19 +117,20 @@ Readiness probe: HTTP GET `/` port 80, `initial_delay=3s`, `period=3s`, `timeout
 
 **Resource warning:** Each lab runs a full Kind cluster. A t3.xlarge (4 CPU) supports platform services + 1 lab. Two concurrent Kind clusters starve the entire node.
 
-### AI Chatbot Flow (AgentCore Multi-Agent)
+### AI Chatbot Flow (HTTP POST → AgentCore Multi-Agent)
 
-1. Frontend connects via WebSocket to `wss://wss.dev.rosettacloud.app`
-2. API Gateway WebSocket → `$connect` route → `handle_connect()` → 200
-3. User sends `{session_id, prompt, user_id, module_uuid, lesson_uuid}` (session_id must be 33+ chars; module/lesson are set via `ChatbotService.setLabContext()` by `LabComponent.ngOnInit`)
-4. `$default` route → `ws_agent_handler` Lambda bridges to AgentCore Runtime (sync `invoke_agent_runtime`)
+1. Frontend sends `POST https://api.dev.rosettacloud.app/chat` with `{session_id, message, user_id, module_uuid, lesson_uuid}`
+2. `session_id` generated once per page load by `ChatbotService` constructor (stable for the whole chat session); module/lesson set via `ChatbotService.setLabContext()` by `LabComponent.ngOnInit`
+3. FastAPI `/chat` endpoint loads in-process history from `_chat_histories` dict (keyed by `session_id`), includes it as `conversation_history` in the AgentCore payload
+4. FastAPI calls `invoke_agent_runtime` synchronously via boto3 (`bedrock-agentcore` service)
 5. AgentCore classifies message → routes to tutor, grader, or planner agent
 6. **Tutor**: `search_knowledge_base` (LanceDB vector search) + `get_question_details` + `get_question_metadata`; calls `get_question_details(module_uuid, lesson_uuid, N)` for "question N" asks
 7. **Grader**: `get_question_details`, `get_user_progress`, `get_attempt_result`
 8. **Planner**: `get_user_progress`, `list_available_modules`, `get_question_metadata`
-9. In-process session history: `_session_histories` dict in AgentCore Runtime container (keyed by `session_id`, max 500 sessions × 40 messages); persists between requests as long as same container instance is used (same `runtimeSessionId` from `ws_agent_handler`)
-10. AgentCore Memory (`rosettacloud_education_memory-evO1o3F0jN`): long-term cross-session persistence via `AgentCoreMemorySessionManager`
-11. Response returned as single blob → `{type: "chunk"}`, `{type: "complete"}` via WebSocket (no streaming — AgentCore is sync-only)
+9. In-process session history (FastAPI): `_chat_histories` dict in FastAPI backend pod (keyed by `session_id`, max 40 messages, 4-hour TTL, max 500 sessions); single-replica pod makes this fully reliable
+10. In-process session history (AgentCore): `_session_histories` dict in AgentCore Runtime container; reads from `conversation_history` payload (sent by FastAPI), used as fallback for CLI invocations
+11. AgentCore Memory (`rosettacloud_education_memory-evO1o3F0jN`): long-term cross-session persistence via `AgentCoreMemorySessionManager`
+12. Response returned as JSON `{response, agent, session_id}` — FastAPI saves updated history, returns response to frontend
 
 ### Document Indexing Flow
 
@@ -154,7 +155,7 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 
 ### Supplementary Services
 
-- **Serverless Components**: Lambda functions for document indexing and WebSocket agent bridge
+- **Serverless Components**: Lambda function for document indexing (`document_indexer`)
 - **AgentCore Runtime**: Multi-agent platform (tutor/grader/planner) deployed via `agentcore` CLI
 - **Redis**: In-cluster caching for questions and lab state
 
@@ -163,7 +164,6 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 | Function | Runtime | Purpose |
 |---|---|---|
 | `document_indexer` | Python (container) | Indexes shell scripts into LanceDB vector store |
-| `ws_agent_handler` | Python (container) | WebSocket bridge — API Gateway → AgentCore Runtime |
 
 ## AWS Region Notes
 
@@ -175,11 +175,11 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
   - `rosettacloud-shared-interactive-labs-vector` — LanceDB vector store (RAG source)
   - `rosettacloud-shared-terraform-backend` — Terraform remote state
 
-## API Gateway Endpoints
+## API Endpoints
 
 | Name | URL | Purpose |
 |---|---|---|
-| WebSocket (chatbot) | `wss://wss.dev.rosettacloud.app` | `ws_agent_handler` Lambda → AgentCore Runtime |
+| Chatbot | `https://api.dev.rosettacloud.app/chat` | `POST /chat` on FastAPI backend → AgentCore Runtime |
 
 ## CI/CD
 
@@ -187,8 +187,8 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 
 | Workflow | File | Trigger | What it does |
 |---|---|---|---|
-| **Agent Deploy** | `.github/workflows/agent-deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/agents/**` | Deploys AgentCore agent via `agentcore launch` (CodeBuild ARM64) + updates `ws_agent_handler` Lambda ARN |
-| **Lambda Deploy** | `.github/workflows/lambda-deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/serverless/Lambda/**` | Builds & deploys `document_indexer` and `ws_agent_handler` Lambdas (container images) |
+| **Agent Deploy** | `.github/workflows/agent-deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/agents/**` | Deploys AgentCore agent via `agentcore launch` (CodeBuild ARM64) + updates backend K8s ConfigMap with new ARN |
+| **Lambda Deploy** | `.github/workflows/lambda-deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/serverless/Lambda/**` | Builds & deploys `document_indexer` Lambda (container image) |
 | **Questions Sync** | `.github/workflows/questions-sync.yml` | `workflow_dispatch` or push to `main` touching `Backend/questions/**` | Syncs shell script questions to S3 (triggers EventBridge → document_indexer) |
 | **Backend Build** | `.github/workflows/backend-build.yml` | `workflow_dispatch` or push to `main` touching `Backend/app/**` | Builds Backend Docker image → pushes to ECR → rollout restart on EKS |
 | **Frontend Build** | `.github/workflows/frontend-build.yml` | `workflow_dispatch` or push to `main` touching `Frontend/src/**` | Builds Frontend Docker image → pushes to ECR → rollout restart on EKS |
@@ -216,7 +216,7 @@ Current modules:
 | `LAB_K8S_NAMESPACE` | Backend | `openedx` | `dev` |
 | `LANCEDB_S3_URI` | document_indexer Lambda | `s3://rosettacloud-shared-interactive-labs-vector` | same |
 | `KNOWLEDGE_BASE_ID` | document_indexer Lambda | `shell-scripts-knowledge-base` | LanceDB table name |
-| `AGENT_RUNTIME_ARN` | ws_agent_handler Lambda | — | AgentCore Runtime ARN (set by agent-deploy workflow) |
+| `AGENT_RUNTIME_ARN` | Backend (`/chat` endpoint) | — | AgentCore Runtime ARN (set in K8s ConfigMap; updated by agent-deploy workflow) |
 | `USERS_TABLE_NAME` | Backend | `rosettacloud-users` | `rosettacloud-users` |
 | `S3_BUCKET_NAME` | Backend | `rosettacloud-shared-interactive-labs` | same |
 | `NOVA_MODEL_ID` | Backend | `amazon.nova-lite-v1:0` | same |
@@ -243,7 +243,7 @@ Current modules:
 - **ECR**: `339712964409.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-rosettacloud_education_agent`
 - **Memory ID**: `rosettacloud_education_memory-evO1o3F0jN` (env var `BEDROCK_AGENTCORE_MEMORY_ID`)
 - **IAM Role**: `rosettacloud-agentcore-runtime-role` (Bedrock, DynamoDB, S3, ECR, CloudWatch, X-Ray, AgentCore Memory)
-- **Lambda bridge**: `ws_agent_handler` Lambda reads `AGENT_RUNTIME_ARN` env var to invoke the runtime
+- **HTTP bridge**: FastAPI `/chat` endpoint reads `AGENT_RUNTIME_ARN` env var (from K8s ConfigMap) to invoke the runtime
 
 ### Deploy Commands (manual)
 ```bash
@@ -295,6 +295,6 @@ Note: `AgentCoreMemoryConfig` requires `session_id` and `actor_id` at creation t
 
 Build environments defined in `Frontend/src/environments/`:
 - `environment.ts` (production), `environment.development.ts`, `environment.uat.ts`, `environment.stg.ts`
-- Each defines `apiUrl`, `chatbotApiUrl` (+ legacy `feedbackApiUrl`, unused)
+- Each defines `apiUrl`, `chatbotApiUrl` (HTTP POST URL: `https://api.dev.rosettacloud.app/chat`)
 - Angular strict mode and strict templates are enforced in `tsconfig.json`
 - `.editorconfig`: 2-space indent, single quotes for `.ts` files

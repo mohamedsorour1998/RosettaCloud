@@ -50,7 +50,7 @@ jobs:
             --auto-update-on-conflict \
             --env BEDROCK_AGENTCORE_MEMORY_ID=${{ env.MEMORY_ID }}
 
-      - name: Get new ARN and update Lambda
+      - name: Update backend K8s ConfigMap with new ARN
         run: |
           NEW_ARN=$(python3 -c "
           import yaml
@@ -64,11 +64,11 @@ jobs:
           ")
           echo "New ARN: $NEW_ARN"
           if [ -n "$NEW_ARN" ]; then
-            aws lambda update-function-configuration \
-              --function-name ws_agent_handler \
-              --environment "Variables={AGENT_RUNTIME_ARN=$NEW_ARN}" \
-              --region ${{ inputs.aws_region || 'us-east-1' }}
-            echo "Lambda updated with new ARN"
+            aws eks update-kubeconfig --name rosettacloud-eks --region ${{ inputs.aws_region || 'us-east-1' }}
+            kubectl patch configmap rosettacloud-backend-config -n dev \
+              --patch "{\"data\":{\"AGENT_RUNTIME_ARN\":\"$NEW_ARN\"}}"
+            kubectl rollout restart deployment/rosettacloud-backend -n dev
+            echo "Backend ConfigMap updated with new ARN and pod restarted"
           else
-            echo "Could not extract ARN, skipping Lambda update"
+            echo "Could not extract ARN, skipping ConfigMap update"
           fi
