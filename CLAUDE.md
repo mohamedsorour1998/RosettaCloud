@@ -181,6 +181,36 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 |---|---|---|
 | Chatbot | `https://api.dev.rosettacloud.app/chat` | `POST /chat` on FastAPI backend → AgentCore Runtime |
 
+### POST /chat — Request / Response
+
+**Request body:**
+```json
+{
+  "message": "What is Docker?",
+  "user_id": "user-123",
+  "session_id": "session-<uuid>-<timestamp>",
+  "module_uuid": "linux-docker-k8s-101",
+  "lesson_uuid": "intro-lesson-01",
+  "type": "chat"
+}
+```
+For grading: `"type": "grade"`, add `"question_number": 2, "result": "correct"`, `"message": ""`.
+
+**Response:**
+```json
+{
+  "response": "Docker is a platform for containerizing applications...",
+  "agent": "tutor",
+  "session_id": "session-<uuid>-<timestamp>"
+}
+```
+`agent` is one of `"tutor"`, `"grader"`, `"planner"`.
+
+**Notes:**
+- `session_id` must be 33+ chars (AgentCore requirement); `ChatbotService` generates `"session-<uuid>-<timestamp>"` which always satisfies this
+- `module_uuid` / `lesson_uuid` are optional but required for question-specific tool calls (`get_question_details`)
+- History is maintained server-side keyed by `session_id`; no need to send prior messages in each request
+
 ## CI/CD
 
 ### Workflows
@@ -190,8 +220,8 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 | **Agent Deploy** | `.github/workflows/agent-deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/agents/**` | Deploys AgentCore agent via `agentcore launch` (CodeBuild ARM64) + updates backend K8s ConfigMap with new ARN |
 | **Lambda Deploy** | `.github/workflows/lambda-deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/serverless/Lambda/**` | Builds & deploys `document_indexer` Lambda (container image) |
 | **Questions Sync** | `.github/workflows/questions-sync.yml` | `workflow_dispatch` or push to `main` touching `Backend/questions/**` | Syncs shell script questions to S3 (triggers EventBridge → document_indexer) |
-| **Backend Build** | `.github/workflows/backend-build.yml` | `workflow_dispatch` or push to `main` touching `Backend/app/**` | Builds Backend Docker image → pushes to ECR → rollout restart on EKS |
-| **Frontend Build** | `.github/workflows/frontend-build.yml` | `workflow_dispatch` or push to `main` touching `Frontend/src/**` | Builds Frontend Docker image → pushes to ECR → rollout restart on EKS |
+| **Backend Build** | `.github/workflows/backend-build.yml` | `workflow_dispatch` or push to `main` touching `Backend/app/**`, `Backend/Dockerfile`, `Backend/requirements.txt` | Builds Backend Docker image → pushes to ECR → rollout restart on EKS |
+| **Frontend Build** | `.github/workflows/frontend-build.yml` | `workflow_dispatch` or push to `main` touching `Frontend/src/**`, `Frontend/Dockerfile`, `Frontend/package.json` | Builds Frontend Docker image → pushes to ECR → rollout restart on EKS |
 | **Interactive Labs** | `.github/workflows/interactive-labs-build.yml` | `workflow_dispatch` or push to `main` touching `DevSecOps/interactive-labs/**` | Builds & pushes `interactive-labs` image to ECR |
 
 All workflows use **GitHub OIDC** (no static AWS credentials). IAM role: `github-actions-role`.
@@ -295,6 +325,23 @@ Note: `AgentCoreMemoryConfig` requires `session_id` and `actor_id` at creation t
 
 Build environments defined in `Frontend/src/environments/`:
 - `environment.ts` (production), `environment.development.ts`, `environment.uat.ts`, `environment.stg.ts`
-- Each defines `apiUrl`, `chatbotApiUrl` (HTTP POST URL: `https://api.dev.rosettacloud.app/chat`)
+- Each defines `apiUrl`, `chatbotApiUrl` (HTTP POST URL: `https://api.dev.rosettacloud.app/chat`), `feedbackApiUrl`
 - Angular strict mode and strict templates are enforced in `tsconfig.json`
 - `.editorconfig`: 2-space indent, single quotes for `.ts` files
+
+### ChatbotService (`Frontend/src/app/services/chatbot.service.ts`)
+
+Key public API used by components:
+```typescript
+setUserId(userId: string): void          // called on login
+setLabContext(moduleUuid: string, lessonUuid: string): void  // called by LabComponent.ngOnInit
+sendMessage(message: string): void       // chat messages
+sendGradeMessage(moduleUuid, lessonUuid, questionNumber, result): void  // auto-grade on answer
+sendFeedbackRequest(moduleUuid, lessonUuid, questions, userProgress): void  // end-of-lab feedback
+clearChat(): void
+
+messages$: Observable<ChatMessage[]>
+loading$: Observable<boolean>
+connected$: Observable<boolean>   // always true (HTTP)
+sources$: Observable<Source[]>    // always empty (AgentCore doesn't return sources)
+```
