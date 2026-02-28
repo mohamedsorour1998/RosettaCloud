@@ -121,11 +121,15 @@ Readiness probe: HTTP GET `/` port 80, `initial_delay=3s`, `period=3s`, `timeout
 
 1. Frontend connects via WebSocket to `wss://wss.dev.rosettacloud.app`
 2. API Gateway WebSocket → `$connect` route → `handle_connect()` → 200
-3. User sends `{session_id, prompt}` (session_id must be 33+ chars)
-4. `$default` route → `ws_agent_handler` Lambda bridges to AgentCore Runtime
+3. User sends `{session_id, prompt, user_id, module_uuid, lesson_uuid}` (session_id must be 33+ chars; module/lesson are set via `ChatbotService.setLabContext()` by `LabComponent.ngOnInit`)
+4. `$default` route → `ws_agent_handler` Lambda bridges to AgentCore Runtime (sync `invoke_agent_runtime`)
 5. AgentCore classifies message → routes to tutor, grader, or planner agent
-6. Agent uses tools (knowledge base search, user progress, question details) and AgentCore Memory for conversation persistence
-7. Response streamed back via WebSocket chunks: `{type: "chunk"}`, `{type: "complete"}`
+6. **Tutor**: `search_knowledge_base` (LanceDB vector search) + `get_question_details` + `get_question_metadata`; calls `get_question_details(module_uuid, lesson_uuid, N)` for "question N" asks
+7. **Grader**: `get_question_details`, `get_user_progress`, `get_attempt_result`
+8. **Planner**: `get_user_progress`, `list_available_modules`, `get_question_metadata`
+9. In-process session history: `_session_histories` dict in AgentCore Runtime container (keyed by `session_id`, max 500 sessions × 40 messages); persists between requests as long as same container instance is used (same `runtimeSessionId` from `ws_agent_handler`)
+10. AgentCore Memory (`rosettacloud_education_memory-evO1o3F0jN`): long-term cross-session persistence via `AgentCoreMemorySessionManager`
+11. Response returned as single blob → `{type: "chunk"}`, `{type: "complete"}` via WebSocket (no streaming — AgentCore is sync-only)
 
 ### Document Indexing Flow
 
