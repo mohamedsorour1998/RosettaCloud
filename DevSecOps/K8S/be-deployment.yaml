@@ -11,6 +11,7 @@ data:
   INGRESS_NAME: "rosettacloud-ingress"
   REDIS_HOST: "redis-service"
   REDIS_PORT: "6379"
+  AGENT_RUNTIME_ARN: "arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy"
 
 ---
 apiVersion: apps/v1
@@ -71,6 +72,11 @@ spec:
                 configMapKeyRef:
                   name: rosettacloud-backend-config
                   key: REDIS_PORT
+            - name: AGENT_RUNTIME_ARN
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: AGENT_RUNTIME_ARN
 
 ---
 apiVersion: v1

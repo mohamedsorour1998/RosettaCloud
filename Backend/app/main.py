@@ -5,6 +5,11 @@ from fastapi import FastAPI, HTTPException, status, Path, Depends
 from pydantic import BaseModel, EmailStr, Field
 
 import time
+import json
+import logging
+import asyncio
+import secrets
+import os
 
 from app.services import labs_service as lab
 from app.services import users_service as users
@@ -38,6 +43,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+logger = logging.getLogger(__name__)
+
+# ── AgentCore chat ──
+_AGENT_RUNTIME_ARN = os.environ.get("AGENT_RUNTIME_ARN", "")
+_AGENT_REGION = os.environ.get("AWS_REGION", "us-east-1")
+
+# In-process chat history — same pattern as questions_backends.py _cache dict.
+# Single-replica pod → fully reliable for session continuity.
+_chat_histories: dict = {}
+_CHAT_HISTORY_TTL = 14400   # 4 hours
+_CHAT_MAX_MESSAGES = 40     # 20 turns
+
+def _chat_history_get(session_id: str) -> list:
+    entry = _chat_histories.get(session_id)
+    if entry and time.time() - entry[0] < _CHAT_HISTORY_TTL:
+        return entry[1]
+    _chat_histories.pop(session_id, None)
+    return []
+
+def _chat_history_set(session_id: str, history: list) -> None:
+    _chat_histories[session_id] = (time.time(), history)
 
 # User Management
 class UserCreate(BaseModel):
@@ -272,6 +299,22 @@ async def terminate_lab(lab_id: str, user_id: str):
     else:
         raise HTTPException(status_code=404, detail="Lab not found.")
     
+# Chat
+class ChatRequest(BaseModel):
+    message: str = ""
+    user_id: str = ""
+    session_id: str = ""
+    module_uuid: str = ""
+    lesson_uuid: str = ""
+    type: str = "chat"
+    question_number: int = 0
+    result: str = ""
+
+class ChatResponse(BaseModel):
+    response: str
+    agent: str
+    session_id: str
+
 # Questions
 class QuestionRequest(BaseModel):
     pod_name: str
@@ -333,6 +376,62 @@ async def check_question(
         )
     
     return result
+
+@app.post("/chat", response_model=ChatResponse, tags=["Chat"])
+async def chat(request: ChatRequest):
+    if not _AGENT_RUNTIME_ARN:
+        raise HTTPException(status_code=503, detail="AGENT_RUNTIME_ARN not configured")
+
+    session_id = request.session_id
+    history = _chat_history_get(session_id) if session_id else []
+
+    runtime_session_id = session_id
+    if len(runtime_session_id) < 33:
+        runtime_session_id = session_id + "-" + secrets.token_hex(8)
+
+    payload = {
+        "message": request.message,
+        "user_id": request.user_id,
+        "session_id": session_id,
+        "type": request.type,
+        "module_uuid": request.module_uuid,
+        "lesson_uuid": request.lesson_uuid,
+        "conversation_history": history,
+    }
+    if request.type == "grade":
+        payload["question_number"] = request.question_number
+        payload["result"] = request.result
+
+    def _invoke():
+        import boto3
+        client = boto3.client("bedrock-agentcore", region_name=_AGENT_REGION)
+        resp = client.invoke_agent_runtime(
+            agentRuntimeArn=_AGENT_RUNTIME_ARN,
+            runtimeSessionId=runtime_session_id,
+            payload=json.dumps(payload),
+            qualifier="DEFAULT",
+        )
+        return json.loads(resp["response"].read())
+
+    try:
+        result = await asyncio.get_event_loop().run_in_executor(None, _invoke)
+    except Exception as e:
+        logger.error("AgentCore invocation failed: %s", e)
+        raise HTTPException(status_code=502, detail=f"Agent error: {e}")
+
+    agent_response = result.get("response", "")
+    agent_name = result.get("agent", "tutor")
+
+    if session_id:
+        updated = history + [
+            {"role": "user", "text": request.message},
+            {"role": "assistant", "text": agent_response},
+        ]
+        if len(updated) > _CHAT_MAX_MESSAGES:
+            updated = updated[-_CHAT_MAX_MESSAGES:]
+        _chat_history_set(session_id, updated)
+
+    return ChatResponse(response=agent_response, agent=agent_name, session_id=session_id)
 
 # Health check endpoint
 @app.get("/health-check", tags=["System"])
