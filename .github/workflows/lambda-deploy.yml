@@ -1,0 +1,141 @@
+name: Build & deploy Lambda functions
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Backend/serverless/Lambda/**"
+
+env:
+  AWS_ACCOUNT_ID: "339712964409"
+  IAM_ROLE: github-actions-role
+  AWS_REGION: us-east-1
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      document_indexer: ${{ steps.filter.outputs.document_indexer }}
+      ws_agent_handler: ${{ steps.filter.outputs.ws_agent_handler }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            document_indexer:
+              - 'Backend/serverless/Lambda/document_indexer/**'
+            ws_agent_handler:
+              - 'Backend/serverless/Lambda/ws_agent_handler/**'
+
+  document-indexer:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.document_indexer == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push document_indexer
+        env:
+          IMAGE: ${{ steps.login.outputs.registry }}/rosettacloud-document_indexer-lambda:latest
+        run: |
+          docker build --platform linux/amd64 \
+            -f Backend/serverless/Lambda/document_indexer/Dockerfile \
+            Backend/serverless/Lambda/document_indexer \
+            -t "$IMAGE"
+          docker push "$IMAGE"
+
+      - name: Deploy document_indexer Lambda
+        env:
+          IMAGE: ${{ steps.login.outputs.registry }}/rosettacloud-document_indexer-lambda:latest
+        run: |
+          ROLE="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/rosettacloud-document-indexer-role"
+          ENV_VARS="Variables={LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base}"
+
+          if aws lambda get-function --function-name document_indexer --region ${{ env.AWS_REGION }} &>/dev/null; then
+            aws lambda wait function-updated --function-name document_indexer --region ${{ env.AWS_REGION }} 2>/dev/null || true
+            aws lambda update-function-code \
+              --function-name document_indexer --image-uri "$IMAGE" --region ${{ env.AWS_REGION }}
+            aws lambda wait function-updated --function-name document_indexer --region ${{ env.AWS_REGION }}
+            aws lambda update-function-configuration \
+              --function-name document_indexer \
+              --timeout 300 --memory-size 512 --environment "$ENV_VARS" --region ${{ env.AWS_REGION }}
+          else
+            aws lambda create-function \
+              --function-name document_indexer --package-type Image \
+              --code ImageUri="$IMAGE" --role "$ROLE" \
+              --timeout 300 --memory-size 512 --environment "$ENV_VARS" --region ${{ env.AWS_REGION }}
+            aws lambda wait function-active --function-name document_indexer --region ${{ env.AWS_REGION }}
+          fi
+          echo "document_indexer deployed"
+
+  ws-agent-handler:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ws_agent_handler == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push ws_agent_handler
+        env:
+          IMAGE: ${{ steps.login.outputs.registry }}/rosettacloud-ws_agent_handler-lambda:latest
+        run: |
+          docker build --platform linux/amd64 \
+            -f Backend/serverless/Lambda/ws_agent_handler/Dockerfile \
+            Backend/serverless/Lambda/ws_agent_handler \
+            -t "$IMAGE"
+          docker push "$IMAGE"
+
+      - name: Deploy ws_agent_handler Lambda
+        env:
+          IMAGE: ${{ steps.login.outputs.registry }}/rosettacloud-ws_agent_handler-lambda:latest
+        run: |
+          ROLE="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/rosettacloud-ws-agent-handler-role"
+          CURRENT_ARN=$(aws lambda get-function-configuration \
+            --function-name ws_agent_handler --region ${{ env.AWS_REGION }} \
+            --query 'Environment.Variables.AGENT_RUNTIME_ARN' --output text 2>/dev/null || echo "")
+          ENV_VARS="Variables={AGENT_RUNTIME_ARN=${CURRENT_ARN}}"
+
+          if aws lambda get-function --function-name ws_agent_handler --region ${{ env.AWS_REGION }} &>/dev/null; then
+            aws lambda wait function-updated --function-name ws_agent_handler --region ${{ env.AWS_REGION }} 2>/dev/null || true
+            aws lambda update-function-code \
+              --function-name ws_agent_handler --image-uri "$IMAGE" --region ${{ env.AWS_REGION }}
+            aws lambda wait function-updated --function-name ws_agent_handler --region ${{ env.AWS_REGION }}
+            aws lambda update-function-configuration \
+              --function-name ws_agent_handler \
+              --timeout 60 --memory-size 256 --environment "$ENV_VARS" --region ${{ env.AWS_REGION }}
+          else
+            aws lambda create-function \
+              --function-name ws_agent_handler --package-type Image \
+              --code ImageUri="$IMAGE" --role "$ROLE" \
+              --timeout 60 --memory-size 256 --environment "$ENV_VARS" --region ${{ env.AWS_REGION }}
+            aws lambda wait function-active --function-name ws_agent_handler --region ${{ env.AWS_REGION }}
+          fi
+          echo "ws_agent_handler deployed"

@@ -36,7 +36,7 @@ export class ChatbotService {
   public connected$ = this.connectedSubject.asObservable();
 
   constructor(private http: HttpClient) {
-    this.sessionId = 'session-' + Math.random().toString(36).substring(2, 15);
+    this.sessionId = 'session-' + crypto.randomUUID() + '-' + Date.now();
     this.connect();
   }
 

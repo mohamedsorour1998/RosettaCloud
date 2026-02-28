@@ -1,0 +1,43 @@
+name: Build & push interactive-labs image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "DevSecOps/interactive-labs/Dockerfile"
+      - "DevSecOps/interactive-labs/**"
+
+env:
+  AWS_ACCOUNT_ID: "339712964409"
+  IAM_ROLE: github-actions-role
+  ECR_REPOSITORY: interactive-labs
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push
+        run: |
+          IMAGE=${{ steps.login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          docker build --platform linux/amd64 \
+            -f DevSecOps/interactive-labs/Dockerfile \
+            DevSecOps/interactive-labs \
+            -t "$IMAGE"
+          docker push "$IMAGE"
+          echo "Pushed $IMAGE"

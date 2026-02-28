@@ -10,6 +10,12 @@ on:
         description: AWS Region
         default: us-east-1
         type: string
+  push:
+    branches: [main]
+    paths:
+      - "Frontend/src/**"
+      - "Frontend/Dockerfile"
+      - "Frontend/package.json"
 
 env:
   AWS_ACCOUNT_ID: "339712964409"
@@ -29,7 +35,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
-          aws-region: ${{ inputs.aws_region }}
+          aws-region: ${{ inputs.aws_region || 'us-east-1' }}
 
       - name: Login to ECR
         id: login
@@ -39,7 +45,7 @@ jobs:
 
       - name: Build & push
         run: |
-          IMAGE=${{ steps.login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ inputs.image_tag }}
+          IMAGE=${{ steps.login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ inputs.image_tag || 'latest' }}
           docker build --platform linux/amd64 -f Frontend/Dockerfile Frontend -t "$IMAGE"
           docker push "$IMAGE"
           echo "Pushed $IMAGE"

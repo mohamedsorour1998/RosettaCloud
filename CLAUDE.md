@@ -72,8 +72,7 @@ Architecture diagrams are in `Arch/` directory.
 ### Request Flow
 
 - **Frontend → Backend**: REST API via `https://api.dev.rosettacloud.app` (FastAPI on K8s, Istio VirtualService)
-- **Frontend → Chatbot**: WebSocket via `wss://wss.dev.rosettacloud.app` (API Gateway WebSocket → `ai_chatbot` Lambda)
-- **Frontend → Feedback**: HTTP to `https://feedback.dev.rosettacloud.app` (API Gateway → `feedback_request` Lambda → SQS)
+- **Frontend → Chatbot**: WebSocket via `wss://wss.dev.rosettacloud.app` (API Gateway WebSocket → `ws_agent_handler` Lambda → AgentCore Runtime)
 - **Frontend → Feedback polling**: REST `GET /feedback/{id}` on backend (reads from Redis)
 
 ### Infrastructure
@@ -126,49 +125,26 @@ Readiness probe: HTTP GET `/` port 80, `initial_delay=3s`, `period=3s`, `timeout
 
 ### Feedback Flow
 
-1. Frontend `POST https://feedback.dev.rosettacloud.app/feedback/request` with `{user_id, module_uuid, lesson_uuid, feedback_id, questions, progress}`
-2. HTTP API Gateway → `feedback_request` Lambda validates params, sends JSON to SQS queue (`rosettacloud-feedback-requested`)
-3. Returns `{feedback_id, status: "pending"}` to frontend immediately
-4. Backend `feedback_service._subscribe_loop()` long-polls SQS via `cache_events.subscribe()` (sync `boto3` + `asyncio.to_thread`, 20s long-poll)
-5. Message received → `_handle()` spawned as `asyncio.create_task`
-6. Builds educational prompt from student's question progress (completed/not completed per question)
-7. Calls `ai.chat()` — Amazon Bedrock Nova Lite, non-streaming, `max_tokens=600`, `temperature=0.7`, system role: educational assistant
-8. Constructs `{type: "feedback", feedback_id, content, timestamp}` payload
-9. `cache_events.publish("FeedbackGiven", payload)` → detects `feedback_id` → stores in Redis as `cache:feedback:{feedback_id}` (600s TTL)
-10. Frontend polls `GET /feedback/{feedback_id}` every 2s (60s timeout)
-11. Backend reads Redis `cache:feedback:{feedback_id}` → returns `{status: "ready", content: "..."}` when found
+1. Backend `feedback_service._subscribe_loop()` long-polls SQS via `cache_events.subscribe()` (sync `boto3` + `asyncio.to_thread`, 20s long-poll)
+2. Message received → `_handle()` spawned as `asyncio.create_task`
+3. Builds educational prompt from student's question progress (completed/not completed per question)
+4. Calls `ai.chat()` — Amazon Bedrock Nova Lite, non-streaming, `max_tokens=600`, `temperature=0.7`, system role: educational assistant
+5. Constructs `{type: "feedback", feedback_id, content, timestamp}` payload
+6. `cache_events.publish("FeedbackGiven", payload)` → detects `feedback_id` → stores in Redis as `cache:feedback:{feedback_id}` (600s TTL)
+7. Frontend polls `GET /feedback/{feedback_id}` every 2s (60s timeout)
+8. Backend reads Redis `cache:feedback:{feedback_id}` → returns `{status: "ready", content: "..."}` when found
 
-### AI Chatbot Flow (RAG Pipeline)
+**Note:** The `feedback_request` Lambda (HTTP API Gateway → SQS) has been deleted. Feedback ingestion needs a replacement path if re-enabled.
+
+### AI Chatbot Flow (AgentCore Multi-Agent)
 
 1. Frontend connects via WebSocket to `wss://wss.dev.rosettacloud.app`
 2. API Gateway WebSocket → `$connect` route → `handle_connect()` → 200
-3. User sends `{session_id, prompt, bedrock_model_id, model_kwargs, file_filter?, knowledge_base_id?, response_style?}`
-4. `$default` route → `handle_message()` validates required fields
-5. Creates `BedrockStreamer(connectionId, session_id, api_endpoint)` with Bedrock client in `us-east-1`
-6. Starts **heartbeat thread** (sends `{type: "heartbeat"}` every 5s to keep WebSocket alive during RAG processing)
-7. **RAG chain setup** (`create_rag_chain`):
-   a. Prompt templates: contextualize question (reformulate with chat history) + QA (DevOps system prompt, hints-first approach)
-   b. Connects to LanceDB at `s3://rosettacloud-shared-interactive-labs-vector`
-   c. Opens table `shell-scripts-knowledge-base`, detects vector dimensions
-   d. Creates Titan embeddings (`amazon.titan-embed-text-v2:0`) and LanceDB vector store
-   e. Creates retriever (max 2 docs, filtered by `file_type='shell_script'` or `file_name` if specified)
-   f. Wraps retriever with history-awareness (reformulates question using chat history from DynamoDB)
-   g. Builds chain: history-aware retriever → stuff documents → Bedrock LLM (streaming=true) → parser
-   h. Wraps with `RunnableWithMessageHistory` using DynamoDB `SessionTable` (`SessionId` hash key)
-8. **Response streaming** (`stream_response`):
-   a. Sends `{type: "status", content: "Processing your question..."}`
-   b. Invokes RAG chain → gets response with answer + source documents
-   c. Sends `{type: "chunk", content: "..."}` via `post_to_connection`
-   d. Sends `{type: "source", content: {filename, path, bucket, question_type?}}` for each source doc
-   e. Sends `{type: "complete"}` to signal end
-9. Stops heartbeat, frontend renders response with source references
-
-**Key details:**
-- LangChain orchestrates the full RAG pipeline
-- Embeddings: Amazon Titan (`amazon.titan-embed-text-v2:0`, 1536 dimensions)
-- LLM: configurable via `bedrock_model_id` (frontend sends model choice)
-- Chat history persisted in DynamoDB `SessionTable` per `session_id`
-- System prompt: DevOps specialist, hints first (only answers directly on second ask), rejects non-DevOps questions
+3. User sends `{session_id, prompt}` (session_id must be 33+ chars)
+4. `$default` route → `ws_agent_handler` Lambda bridges to AgentCore Runtime
+5. AgentCore classifies message → routes to tutor, grader, or planner agent
+6. Agent uses tools (knowledge base search, user progress, question details) and AgentCore Memory for conversation persistence
+7. Response streamed back via WebSocket chunks: `{type: "chunk"}`, `{type: "complete"}`
 
 ### Document Indexing Flow
 
@@ -193,17 +169,16 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 
 ### Supplementary Services
 
-- **Serverless Components**: Lambda functions for chatbot, document indexing, feedback request
+- **Serverless Components**: Lambda functions for document indexing and WebSocket agent bridge
+- **AgentCore Runtime**: Multi-agent platform (tutor/grader/planner) deployed via `agentcore` CLI
 - **Event-Driven Architecture**: SQS for async feedback processing, Redis for caching and result storage
-- **Integration Points**: OpenEdX LMS integration for seamless learning experiences
 
 ### Lambda Functions (`Backend/serverless/Lambda/`)
 
 | Function | Runtime | Purpose |
 |---|---|---|
-| `ai_chatbot` | Python (container) | WebSocket RAG chatbot |
 | `document_indexer` | Python (container) | Indexes shell scripts into LanceDB vector store |
-| `feedback_request` | Python (zip) | Sends feedback requests to SQS queue |
+| `ws_agent_handler` | Python (container) | WebSocket bridge — API Gateway → AgentCore Runtime |
 
 ## AWS Region Notes
 
@@ -219,8 +194,7 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 
 | Name | URL | Purpose |
 |---|---|---|
-| WebSocket (chatbot) | `wss://wss.dev.rosettacloud.app` | `ai_chatbot` Lambda — RAG chat |
-| HTTP (feedback) | `https://feedback.dev.rosettacloud.app/feedback/request` | `feedback_request` Lambda → SQS |
+| WebSocket (chatbot) | `wss://wss.dev.rosettacloud.app` | `ws_agent_handler` Lambda → AgentCore Runtime |
 
 ## CI/CD
 
@@ -228,11 +202,12 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 
 | Workflow | File | Trigger | What it does |
 |---|---|---|---|
-| **Deploy** | `.github/workflows/deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/questions/**` or `Backend/serverless/Lambda/**` | **Syncs questions to S3** + builds/pushes `document_indexer` & `ai_chatbot` Lambda images + creates/updates Lambda functions |
 | **Agent Deploy** | `.github/workflows/agent-deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/agents/**` | Deploys AgentCore agent via `agentcore launch` (CodeBuild ARM64) + updates `ws_agent_handler` Lambda ARN |
-| Backend image | `.github/workflows/backend-build.yml` | `workflow_dispatch` | Builds Backend Docker image → pushes to ECR `rosettacloud-backend` |
-| Frontend image | `.github/workflows/frontend-build.yml` | `workflow_dispatch` | Builds Frontend Docker image → pushes to ECR `rosettacloud-frontend` |
-| DevSecOps | `DevSecOps/.github/workflows/actions.yml` | `workflow_dispatch` | Builds & pushes `interactive-labs` image to ECR |
+| **Lambda Deploy** | `.github/workflows/lambda-deploy.yml` | `workflow_dispatch` or push to `main` touching `Backend/serverless/Lambda/**` | Builds & deploys `document_indexer` and `ws_agent_handler` Lambdas (container images) |
+| **Questions Sync** | `.github/workflows/questions-sync.yml` | `workflow_dispatch` or push to `main` touching `Backend/questions/**` | Syncs shell script questions to S3 (triggers EventBridge → document_indexer) |
+| **Backend Build** | `.github/workflows/backend-build.yml` | `workflow_dispatch` or push to `main` touching `Backend/app/**` | Builds Backend Docker image → pushes to ECR → rollout restart on EKS |
+| **Frontend Build** | `.github/workflows/frontend-build.yml` | `workflow_dispatch` or push to `main` touching `Frontend/src/**` | Builds Frontend Docker image → pushes to ECR → rollout restart on EKS |
+| **Interactive Labs** | `.github/workflows/interactive-labs-build.yml` | `workflow_dispatch` or push to `main` touching `DevSecOps/interactive-labs/**` | Builds & pushes `interactive-labs` image to ECR |
 
 All workflows use **GitHub OIDC** (no static AWS credentials). IAM role: `github-actions-role`.
 
@@ -252,13 +227,13 @@ Current modules:
 |---|---|---|---|
 | `REDIS_HOST` | Backend | `redis-service` | `redis-service` (K8s) / `localhost` (local dev) |
 | `REDIS_PORT` | Backend | `6379` | `6379` |
-| `SQS_QUEUE_URL` | Backend + feedback_request Lambda | — | `https://sqs.us-east-1.amazonaws.com/339712964409/rosettacloud-feedback-requested` |
+| `SQS_QUEUE_URL` | Backend | — | `https://sqs.us-east-1.amazonaws.com/339712964409/rosettacloud-feedback-requested` |
 | `CACHE_EVENTS_BACKEND` | Backend | `redis_sqs` | `redis_sqs` |
 | `AWS_REGION` | Backend + Lambdas | `us-east-1` | `us-east-1`; IRSA provides credentials in-cluster |
 | `LAB_K8S_NAMESPACE` | Backend | `openedx` | `dev` |
-| `LANCEDB_S3_URI` | ai_chatbot Lambda | `s3://rosettacloud-shared-interactive-labs-vector` | same |
-| `KNOWLEDGE_BASE_ID` | ai_chatbot Lambda | `shell-scripts-knowledge-base` | LanceDB table name |
-| `DYNAMO_TABLE` | ai_chatbot Lambda | — | DynamoDB table for chat history |
+| `LANCEDB_S3_URI` | document_indexer Lambda | `s3://rosettacloud-shared-interactive-labs-vector` | same |
+| `KNOWLEDGE_BASE_ID` | document_indexer Lambda | `shell-scripts-knowledge-base` | LanceDB table name |
+| `AGENT_RUNTIME_ARN` | ws_agent_handler Lambda | — | AgentCore Runtime ARN (set by agent-deploy workflow) |
 | `USERS_TABLE_NAME` | Backend | `rosettacloud-users` | `rosettacloud-users` |
 | `S3_BUCKET_NAME` | Backend | `rosettacloud-shared-interactive-labs` | same |
 | `NOVA_MODEL_ID` | Backend | `amazon.nova-lite-v1:0` | same |
