@@ -52,8 +52,12 @@ _bedrock = None
 _init_error = None
 
 # ── In-process session history (survives across requests within same container) ──
+# Note: concurrent requests for the same session_id can race on the save step.
+# This is low probability (frontend is sequential) and acceptable — AgentCore Memory
+# is the durable store; in-process dict is a best-effort short-term cache.
 _session_histories: dict = {}  # session_id -> list of Strands message dicts
 MAX_HISTORY_TURNS = 20  # keep last 20 message pairs to avoid unbounded context growth
+MAX_SESSIONS = 500  # evict oldest when dict exceeds this limit
 
 
 CLASSIFIER_PROMPT = """\
@@ -114,6 +118,10 @@ def _create_agent(agent_name: str, user_id: str = "", session_id: str = "", mess
             )
             kwargs["session_manager"] = AgentCoreMemorySessionManager(config, region=REGION)
             kwargs["session_id"] = session_id
+            # Verified: passing both `messages` and `session_manager` to Agent() is safe.
+            # Agent.__init__ sets self.messages = messages directly (line: `self.messages = messages if messages is not None else []`),
+            # then adds session_manager as a hook — the two are independent. messages provides
+            # the initial in-process history; session_manager handles long-term persistence.
         except Exception as e:
             logger.warning("Memory session setup failed, continuing without memory: %s", e)
     return Agent(**kwargs)
@@ -186,8 +194,8 @@ def invoke(payload, context=None):
 
     agent = _create_agent(agent_name, user_id=user_id, session_id=session_id, messages=history)
 
-    logger.info("Routing to %s: user=%s session=%s history_turns=%d",
-                agent_name, user_id, session_id[:8] if session_id else "none", len(history) // 2)
+    logger.info("Routing to %s: user=%s session=...%s history_turns=%d",
+                agent_name, user_id, session_id[-12:] if session_id else "none", len(history) // 2)
 
     try:
         result = agent(f"Student (user_id: {user_id}): {message}")
@@ -196,13 +204,19 @@ def invoke(payload, context=None):
         # Save updated conversation history back to in-process cache
         if session_id:
             try:
-                updated_messages = getattr(agent, 'messages', [])
-                # Trim to avoid unbounded growth
-                if len(updated_messages) > MAX_HISTORY_TURNS * 2:
-                    updated_messages = updated_messages[-(MAX_HISTORY_TURNS * 2):]
-                _session_histories[session_id] = updated_messages
+                updated_messages = getattr(agent, 'messages', None)
+                if updated_messages:
+                    # Trim to avoid unbounded growth
+                    if len(updated_messages) > MAX_HISTORY_TURNS * 2:
+                        updated_messages = updated_messages[-(MAX_HISTORY_TURNS * 2):]
+                    # Evict oldest session if dict grows too large
+                    if len(_session_histories) >= MAX_SESSIONS:
+                        oldest_key = next(iter(_session_histories))
+                        del _session_histories[oldest_key]
+                    _session_histories[session_id] = updated_messages
+                # If updated_messages is empty/None, don't overwrite existing history
             except Exception as hist_err:
-                logger.warning("Failed to save session history: %s", hist_err)
+                logger.warning("Failed to save session history", exc_info=True)
     except Exception as e:
         logger.error("Agent error: %s", e)
         response_text = f"Agent error: {e}"
