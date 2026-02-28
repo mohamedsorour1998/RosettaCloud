@@ -73,7 +73,7 @@ Reply with one word: tutor, grader, or planner."""
 
 # Agent configurations: (system_prompt, tools)
 AGENT_CONFIGS = {
-    "tutor": (TUTOR_PROMPT, [search_knowledge_base]),
+    "tutor": (TUTOR_PROMPT, [search_knowledge_base, get_question_details, get_question_metadata]),
     "grader": (GRADER_PROMPT, [get_question_details, get_user_progress, get_attempt_result]),
     "planner": (PLANNER_PROMPT, [get_user_progress, list_available_modules, get_question_metadata]),
 }
@@ -175,6 +175,8 @@ def invoke(payload, context=None):
     user_id = payload.get("user_id", "")
     session_id = payload.get("session_id", "")
     msg_type = payload.get("type", "chat")
+    module_uuid = payload.get("module_uuid", "")
+    lesson_uuid = payload.get("lesson_uuid", "")
 
     if msg_type == "grade":
         module = payload.get("module_uuid", "")
@@ -198,7 +200,13 @@ def invoke(payload, context=None):
                 agent_name, user_id, session_id[-12:] if session_id else "none", len(history) // 2)
 
     try:
-        result = agent(f"Student (user_id: {user_id}): {message}")
+        context_parts = [f"user_id: {user_id}"]
+        if module_uuid:
+            context_parts.append(f"module: {module_uuid}")
+        if lesson_uuid:
+            context_parts.append(f"lesson: {lesson_uuid}")
+        context_str = ", ".join(context_parts)
+        result = agent(f"Student ({context_str}): {message}")
         response_text = _extract_text(result)
 
         # Save updated conversation history back to in-process cache
