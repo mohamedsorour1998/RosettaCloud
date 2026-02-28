@@ -179,13 +179,11 @@ def invoke(payload, context=None):
     lesson_uuid = payload.get("lesson_uuid", "")
 
     if msg_type == "grade":
-        module = payload.get("module_uuid", "")
-        lesson = payload.get("lesson_uuid", "")
         q_num = payload.get("question_number", 0)
         result_text = payload.get("result", "")
         message = (
             f"Auto-grade: Student answered question {q_num} "
-            f"in {module}/{lesson}. Result: {result_text}. "
+            f"in {module_uuid}/{lesson_uuid}. Result: {result_text}. "
             f"Please provide detailed feedback."
         )
 
@@ -202,9 +200,9 @@ def invoke(payload, context=None):
     try:
         context_parts = [f"user_id: {user_id}"]
         if module_uuid:
-            context_parts.append(f"module: {module_uuid}")
+            context_parts.append(f"module_uuid: {module_uuid}")
         if lesson_uuid:
-            context_parts.append(f"lesson: {lesson_uuid}")
+            context_parts.append(f"lesson_uuid: {lesson_uuid}")
         context_str = ", ".join(context_parts)
         result = agent(f"Student ({context_str}): {message}")
         response_text = _extract_text(result)
