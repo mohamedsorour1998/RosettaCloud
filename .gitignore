@@ -1,3 +1,4 @@
 demo-repo/
 image.png
 Backend/agents/__pycache__/
+.claude/
