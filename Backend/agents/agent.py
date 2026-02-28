@@ -51,6 +51,10 @@ _model = None
 _bedrock = None
 _init_error = None
 
+# ── In-process session history (survives across requests within same container) ──
+_session_histories: dict = {}  # session_id -> list of Strands message dicts
+MAX_HISTORY_TURNS = 20  # keep last 20 message pairs to avoid unbounded context growth
+
 
 CLASSIFIER_PROMPT = """\
 Classify the student's intent into exactly one category. Reply with ONLY the category name.
@@ -89,7 +93,7 @@ def _init():
         logger.error("Init failed: %s", _init_error)
 
 
-def _create_agent(agent_name: str, user_id: str = "", session_id: str = "") -> Agent:
+def _create_agent(agent_name: str, user_id: str = "", session_id: str = "", messages: list = None) -> Agent:
     """Create a fresh Agent instance for this request."""
     prompt, tools = AGENT_CONFIGS[agent_name]
     kwargs = {
@@ -98,6 +102,8 @@ def _create_agent(agent_name: str, user_id: str = "", session_id: str = "") -> A
         "tools": tools,
         "callback_handler": None,
     }
+    if messages:
+        kwargs["messages"] = messages
     if MEMORY_ID and AgentCoreMemorySessionManager and session_id:
         try:
             config = AgentCoreMemoryConfig(
@@ -174,13 +180,29 @@ def invoke(payload, context=None):
         )
 
     agent_name = _classify(message, msg_type)
-    agent = _create_agent(agent_name, user_id=user_id, session_id=session_id)
 
-    logger.info("Routing to %s: user=%s", agent_name, user_id)
+    # Load in-process history for this session
+    history = _session_histories.get(session_id, []) if session_id else []
+
+    agent = _create_agent(agent_name, user_id=user_id, session_id=session_id, messages=history)
+
+    logger.info("Routing to %s: user=%s session=%s history_turns=%d",
+                agent_name, user_id, session_id[:8] if session_id else "none", len(history) // 2)
 
     try:
         result = agent(f"Student (user_id: {user_id}): {message}")
         response_text = _extract_text(result)
+
+        # Save updated conversation history back to in-process cache
+        if session_id:
+            try:
+                updated_messages = getattr(agent, 'messages', [])
+                # Trim to avoid unbounded growth
+                if len(updated_messages) > MAX_HISTORY_TURNS * 2:
+                    updated_messages = updated_messages[-(MAX_HISTORY_TURNS * 2):]
+                _session_histories[session_id] = updated_messages
+            except Exception as hist_err:
+                logger.warning("Failed to save session history: %s", hist_err)
     except Exception as e:
         logger.error("Agent error: %s", e)
         response_text = f"Agent error: {e}"
