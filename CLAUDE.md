@@ -58,6 +58,8 @@ terraform apply -var-file="terraform.tfvars"
 
 Remote state: S3 bucket `rosettacloud-shared-terraform-backend` in `us-east-1`.
 
+**Terraform manages infrastructure only** (VPC, EKS, ECR repos, IAM roles, API Gateways, S3, SQS, Route 53, CloudFront). Lambda functions are **not** managed by Terraform — they're deployed via CI/CD pipelines (`lambda-deploy.yml`, `agent-deploy.yml`).
+
 ### Kubernetes
 
 ```bash

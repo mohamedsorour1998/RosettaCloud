@@ -82,34 +82,16 @@ output "backend_irsa_role_arn" {
   description = "IAM role ARN for backend service account (IRSA)"
 }
 
-output "feedback_lambda_sqs_policy_arn" {
-  value       = aws_iam_policy.feedback_lambda_sqs.arn
-  description = "IAM policy ARN to attach to feedback_request Lambda role for SQS access"
-}
-
-################################################################################
-# Lambda
-################################################################################
-output "feedback_request_lambda_arn" {
-  value       = module.lambda_feedback_request.lambda_function_arn
-  description = "ARN of the feedback_request Lambda function"
-}
-
-output "feedback_request_lambda_invoke_arn" {
-  value       = module.lambda_feedback_request.lambda_function_invoke_arn
-  description = "Invoke ARN of the feedback_request Lambda function"
-}
-
 ################################################################################
 # DynamoDB
 ################################################################################
 output "session_table_name" {
   value       = aws_dynamodb_table.session_table.name
-  description = "DynamoDB table name for ai_chatbot session history"
+  description = "DynamoDB SessionTable (legacy, kept for data)"
 }
 
 ################################################################################
-# API Gateway – WebSocket (ai_chatbot)
+# API Gateway – WebSocket (ws_agent_handler → AgentCore)
 ################################################################################
 output "chatbot_ws_api_endpoint" {
   value       = "${aws_apigatewayv2_api.chatbot_ws.api_endpoint}/production"
@@ -118,18 +100,5 @@ output "chatbot_ws_api_endpoint" {
 
 output "chatbot_ws_custom_domain" {
   value       = "wss://wss.dev.rosettacloud.app"
-  description = "Custom WebSocket domain for ai_chatbot"
-}
-
-################################################################################
-# API Gateway – HTTP (feedback_request)
-################################################################################
-output "feedback_api_endpoint" {
-  value       = aws_apigatewayv2_api.feedback.api_endpoint
-  description = "Feedback HTTP API Gateway endpoint"
-}
-
-output "feedback_custom_domain" {
-  value       = "https://feedback.dev.rosettacloud.app"
-  description = "Custom domain for feedback_request Lambda"
+  description = "Custom WebSocket domain for ws_agent_handler"
 }

@@ -322,11 +322,11 @@ module "ecr_3" {
 
   tags = local.tags
 }
-module "ecr_4" {
+module "ecr_5" {
   source  = "terraform-aws-modules/ecr/aws"
   version = "2.4.0"
 
-  repository_name                 = "rosettacloud-ai_chatbot-lambda"
+  repository_name                 = "rosettacloud-ws_agent_handler-lambda"
   repository_image_tag_mutability = "MUTABLE"
   repository_read_write_access_arns = [
     "arn:aws:iam::339712964409:root"
@@ -507,8 +507,7 @@ resource "aws_iam_role_policy" "backend_irsa_permissions" {
 }
 
 ################################################################################
-# DynamoDB – SessionTable (ai_chatbot chat history)
-# Key must be "SessionId" to match LangChain's DynamoDBChatMessageHistory default
+# DynamoDB – SessionTable (legacy ai_chatbot chat history, kept for data)
 ################################################################################
 resource "aws_dynamodb_table" "session_table" {
   name         = "SessionTable"
@@ -583,46 +582,31 @@ resource "aws_iam_role_policy" "document_indexer_permissions" {
 }
 
 ################################################################################
-# IAM – ai_chatbot Lambda execution role
+# IAM – ws_agent_handler Lambda execution role
 ################################################################################
-resource "aws_iam_role" "ai_chatbot" {
-  name               = "rosettacloud-ai-chatbot-role"
+resource "aws_iam_role" "ws_agent_handler" {
+  name               = "rosettacloud-ws-agent-handler-role"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
   tags               = local.tags
 }
 
-resource "aws_iam_role_policy_attachment" "ai_chatbot_basic" {
-  role       = aws_iam_role.ai_chatbot.name
+resource "aws_iam_role_policy_attachment" "ws_agent_handler_basic" {
+  role       = aws_iam_role.ws_agent_handler.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_role_policy" "ai_chatbot_permissions" {
-  name = "ai-chatbot-permissions"
-  role = aws_iam_role.ai_chatbot.id
+resource "aws_iam_role_policy" "ws_agent_handler_permissions" {
+  name = "ws-agent-handler-permissions"
+  role = aws_iam_role.ws_agent_handler.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "S3Vector"
-        Effect = "Allow"
-        Action = ["s3:GetObject", "s3:ListBucket"]
-        Resource = [
-          "arn:aws:s3:::rosettacloud-shared-interactive-labs-vector",
-          "arn:aws:s3:::rosettacloud-shared-interactive-labs-vector/*",
-        ]
-      },
-      {
-        Sid      = "Bedrock"
+        Sid      = "AgentCoreInvoke"
         Effect   = "Allow"
-        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
-        Resource = ["arn:aws:bedrock:us-east-1::foundation-model/*"]
-      },
-      {
-        Sid      = "DynamoDB"
-        Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:DescribeTable"]
-        Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/SessionTable"]
+        Action   = ["bedrock-agentcore:InvokeAgentRuntime"]
+        Resource = ["arn:aws:bedrock-agentcore:us-east-1:${local.account_id}:runtime/*"]
       },
       {
         Sid      = "ApiGatewayManageConnections"
@@ -632,52 +616,6 @@ resource "aws_iam_role_policy" "ai_chatbot_permissions" {
       },
     ]
   })
-}
-
-################################################################################
-# IAM – feedback_request Lambda execution role
-################################################################################
-resource "aws_iam_role" "feedback_request" {
-  name               = "rosettacloud-feedback-request-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  tags               = local.tags
-}
-
-resource "aws_iam_role_policy_attachment" "feedback_request_basic" {
-  role       = aws_iam_role.feedback_request.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_iam_role_policy_attachment" "feedback_request_sqs" {
-  role       = aws_iam_role.feedback_request.name
-  policy_arn = aws_iam_policy.feedback_lambda_sqs.arn
-}
-
-################################################################################
-# Lambda – feedback_request (zip deployment)
-################################################################################
-module "lambda_feedback_request" {
-  source  = "terraform-aws-modules/lambda/aws"
-  version = "8.7.0"
-
-  function_name = "feedback_request"
-  description   = "Sends feedback requests to SQS"
-  handler       = "feedback_request.lambda_handler"
-  runtime       = "python3.12"
-
-  source_path = "../../../../Backend/serverless/Lambda/feedback_request"
-
-  create_role = false
-  lambda_role = aws_iam_role.feedback_request.arn
-
-  timeout     = 30
-  memory_size = 128
-
-  environment_variables = {
-    SQS_QUEUE_URL = module.sqs_feedback.queue_url
-  }
-
-  tags = local.tags
 }
 
 ################################################################################
@@ -711,25 +649,6 @@ resource "aws_lambda_permission" "eventbridge_document_indexer" {
   function_name = "document_indexer"
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.s3_sh_upload.arn
-}
-
-################################################################################
-# Lambda SQS Send Permission (attach to feedback_request Lambda role)
-################################################################################
-resource "aws_iam_policy" "feedback_lambda_sqs" {
-  name        = "rosettacloud-feedback-lambda-sqs"
-  description = "Allow feedback_request Lambda to send messages to SQS"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["sqs:SendMessage"]
-      Resource = [module.sqs_feedback.queue_arn]
-    }]
-  })
-
-  tags = local.tags
 }
 
 ################################################################################
@@ -767,7 +686,7 @@ resource "aws_eks_access_policy_association" "github_actions_admin" {
 }
 
 ################################################################################
-# API Gateway v2 – WebSocket (ai_chatbot)
+# API Gateway v2 – WebSocket (ws_agent_handler → AgentCore)
 ################################################################################
 resource "aws_apigatewayv2_api" "chatbot_ws" {
   name                       = "rosettacloud-chatbot-ws"
@@ -846,77 +765,3 @@ resource "aws_route53_record" "wss_dev" {
   }
 }
 
-################################################################################
-# API Gateway v2 – HTTP (feedback_request Lambda)
-################################################################################
-resource "aws_apigatewayv2_api" "feedback" {
-  name          = "rosettacloud-feedback"
-  protocol_type = "HTTP"
-
-  cors_configuration {
-    allow_origins = ["https://dev.rosettacloud.app"]
-    allow_methods = ["POST", "OPTIONS"]
-    allow_headers = ["Content-Type", "Authorization"]
-    max_age       = 300
-  }
-
-  tags = local.tags
-}
-
-resource "aws_apigatewayv2_integration" "feedback" {
-  api_id             = aws_apigatewayv2_api.feedback.id
-  integration_type   = "AWS_PROXY"
-  integration_uri    = module.lambda_feedback_request.lambda_function_invoke_arn
-  integration_method = "POST"
-}
-
-resource "aws_apigatewayv2_route" "feedback_post" {
-  api_id    = aws_apigatewayv2_api.feedback.id
-  route_key = "POST /feedback/request"
-  target    = "integrations/${aws_apigatewayv2_integration.feedback.id}"
-}
-
-resource "aws_apigatewayv2_stage" "feedback" {
-  api_id      = aws_apigatewayv2_api.feedback.id
-  name        = "$default"
-  auto_deploy = true
-  tags        = local.tags
-}
-
-resource "aws_lambda_permission" "apigw_feedback" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = module.lambda_feedback_request.lambda_function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.feedback.execution_arn}/*"
-}
-
-resource "aws_apigatewayv2_domain_name" "feedback" {
-  domain_name = "feedback.dev.rosettacloud.app"
-
-  domain_name_configuration {
-    certificate_arn = module.acm.acm_certificate_arn
-    endpoint_type   = "REGIONAL"
-    security_policy = "TLS_1_2"
-  }
-
-  tags = local.tags
-}
-
-resource "aws_apigatewayv2_api_mapping" "feedback" {
-  api_id      = aws_apigatewayv2_api.feedback.id
-  domain_name = aws_apigatewayv2_domain_name.feedback.id
-  stage       = aws_apigatewayv2_stage.feedback.id
-}
-
-resource "aws_route53_record" "feedback_dev" {
-  zone_id = module.route53.id
-  name    = "feedback.dev.rosettacloud.app"
-  type    = "A"
-
-  alias {
-    name                   = aws_apigatewayv2_domain_name.feedback.domain_name_configuration[0].target_domain_name
-    zone_id                = aws_apigatewayv2_domain_name.feedback.domain_name_configuration[0].hosted_zone_id
-    evaluate_target_health = false
-  }
-}

@@ -1,48 +1,55 @@
 # Post-Migration Hardening Plan
 
 ## Context
-AgentCore CLI migration is complete (commit 1b20b03). Agent is deployed and responding.
-This plan covers: fixing CI/CD, adding auto-build pipelines, E2E verification, and reliability hardening.
+AgentCore CLI migration is complete (commit 1b20b03). This plan covered CI/CD refactoring,
+Lambda containerization, Terraform cleanup, and E2E verification.
 
-## Step 1: Fix agent-deploy workflow (IAM permissions)
-**Problem**: `github-actions-role` lacks CodeBuild permissions. The `agentcore launch` CLI needs to create/manage CodeBuild projects.
-**Fix**: Add CodeBuild + related permissions to `github-actions-role` inline policy.
-**Permissions needed**:
-- `codebuild:CreateProject`, `codebuild:UpdateProject`, `codebuild:StartBuild`, `codebuild:BatchGetBuilds`
-- `s3:PutObject` (for uploading source zip to CodeBuild bucket)
-- `iam:PassRole` (to pass CodeBuild execution role)
-- `bedrock-agentcore:*AgentRuntime*` (create/update runtime)
-- `lambda:UpdateFunctionConfiguration` (update ws_agent_handler ARN)
-- `logs:*` for CodeBuild logs
+## Status: COMPLETE
 
-## Step 2: Add auto-trigger to backend-build workflow
-**File**: `.github/workflows/backend-build.yml`
-**Change**: Add `push` trigger on `Backend/**` excluding `Backend/agents/**` and `Backend/questions/**` (those have their own workflows).
-**Keep**: `workflow_dispatch` for manual runs.
+All steps have been implemented and verified.
 
-## Step 3: Add auto-trigger to frontend-build workflow
-**File**: `.github/workflows/frontend-build.yml`
-**Change**: Add `push` trigger on `Frontend/src/**`.
-**Keep**: `workflow_dispatch` for manual runs.
+## Completed Steps
 
-## Step 4: Fix session ID generation (Frontend)
-**Problem**: `session-` + 13 random chars = ~21 chars. AgentCore requires 33+. Lambda pads it with random UUID which breaks session continuity.
-**Fix**: Generate 33+ char session IDs in `ChatbotService`.
+### Step 1: Fix agent-deploy workflow (IAM permissions)
+- Added CodeBuild + AgentCore + IAM PassRole permissions to `github-actions-role`
+- Un-gitignored `Backend/agents/Dockerfile` and `.dockerignore` (needed by CodeBuild in CI)
+- Workflow passing (run #22520738412)
 
-## Step 5: E2E WebSocket verification
-**Test**: Send message via `wscat` to `wss://wss.dev.rosettacloud.app` and verify full chain:
-Frontend WebSocket -> API Gateway -> ws_agent_handler Lambda -> AgentCore Runtime -> response back.
+### Step 2: Add auto-triggers to backend-build + frontend-build workflows
+- `backend-build.yml`: push trigger on `Backend/app/**`, `Backend/Dockerfile`, `Backend/requirements.txt`
+- `frontend-build.yml`: push trigger on `Frontend/src/**`, `Frontend/Dockerfile`, `Frontend/package.json`
 
-## Step 6: Commit, push, verify pipelines
-- Commit all changes
-- Push to main
-- Verify all 3 workflows trigger and pass (agent-deploy, backend-build, frontend-build)
+### Step 3: Fix frontend session ID generation
+- `ChatbotService`: `'session-' + crypto.randomUUID() + '-' + Date.now()` (~58 chars, well over 33-char minimum)
 
-## Files Modified
-| File | Action |
-|------|--------|
-| `.github/workflows/agent-deploy.yml` | No code changes needed (IAM fix is AWS-side) |
-| `.github/workflows/backend-build.yml` | Add push trigger on `Backend/**` |
-| `.github/workflows/frontend-build.yml` | Add push trigger on `Frontend/src/**` |
-| `Frontend/src/app/services/chatbot.service.ts` | Fix session ID length (33+ chars) |
-| `github-actions-role` (IAM) | Add CodeBuild + AgentCore permissions |
+### Step 4: Delete unused Lambda functions
+- Deleted `ai_chatbot` and `feedback_request` from AWS
+- Chatbot now uses AgentCore multi-agent system via `ws_agent_handler`
+
+### Step 5: Containerize ws_agent_handler Lambda
+- Added `Backend/serverless/Lambda/ws_agent_handler/Dockerfile`
+- Deleted zip-based Lambda, recreated as Image-based
+- Re-added API Gateway invoke permission
+
+### Step 6: Split monolith CI/CD into focused pipelines
+- Deleted `deploy.yml` monolith
+- Created: `questions-sync.yml`, `lambda-deploy.yml`, `interactive-labs-build.yml`
+- All auto-trigger on push to main when respective directories change
+
+### Step 7: Delete old subdirectory workflows
+- Deleted: `Backend/.github/`, `Frontend/.github/`, `DevSecOps/.github/` workflow files
+
+### Step 8: Terraform cleanup
+- Removed: `ai_chatbot` ECR/IAM, `feedback_request` Lambda/IAM/SQS policy, feedback API Gateway
+- Added: `ws_agent_handler` IAM role + ECR repo, kept `document_indexer` resources
+- Updated comments and outputs
+
+### Step 9: E2E verification
+- AgentCore direct invoke: tutor agent responding with hints-first pedagogy
+- Lambda container: operational (Image-based, 256MB, 60s timeout)
+- lambda-deploy pipeline: all 3 jobs passed (detect-changes, ws-agent-handler, document-indexer)
+- agent-deploy pipeline: passing (CodeBuild ARM64 container build + Lambda ARN update)
+
+## Note
+`terraform apply` needs to be run to reconcile state with the removed resources
+(ai_chatbot ECR, feedback API Gateway, feedback IAM roles, etc.).
