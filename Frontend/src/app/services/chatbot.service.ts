@@ -26,6 +26,9 @@ export class ChatbotService {
   private apiUrl = environment.chatbotApiUrl;
   private socket: WebSocket | null = null;
   private sessionId: string = '';
+  private userId = '';
+  private moduleUuid = '';
+  private lessonUuid = '';
   private messagesSubject = new BehaviorSubject<ChatMessage[]>([]);
   private sourcesSubject = new BehaviorSubject<Source[]>([]);
   private loadingSubject = new BehaviorSubject<boolean>(false);
@@ -177,10 +180,13 @@ export class ChatbotService {
     this.sendActualMessage(message);
   }
 
-  private userId = '';
-
   public setUserId(userId: string): void {
     this.userId = userId;
+  }
+
+  public setLabContext(moduleUuid: string, lessonUuid: string): void {
+    this.moduleUuid = moduleUuid;
+    this.lessonUuid = lessonUuid;
   }
 
   private sendActualMessage(message: string): void {
@@ -204,6 +210,8 @@ export class ChatbotService {
       prompt: message,
       user_id: this.userId,
       type: 'chat',
+      module_uuid: this.moduleUuid,
+      lesson_uuid: this.lessonUuid,
     };
 
     try {

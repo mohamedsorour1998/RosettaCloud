@@ -181,8 +181,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    // Set user ID on chatbot service for agent context
+    // Set user ID and lab context on chatbot service for agent context
     this.chatbotSv.setUserId(this.labSv.getCurrentUserId());
+    this.chatbotSv.setLabContext(this.moduleUuid as string, this.lessonUuid as string);
 
     // Initialize lab environment
     this.initLab();
@@ -199,6 +200,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    // Reset lab context on the chatbot service when navigating away
+    this.chatbotSv.setLabContext('', '');
+
     // Clean up subscriptions to prevent memory leaks
     this.timerSub?.unsubscribe();
     this.pollSub?.unsubscribe();
