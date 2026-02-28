@@ -82,15 +82,3 @@ output "session_table_name" {
   description = "DynamoDB SessionTable (legacy, kept for data)"
 }
 
-################################################################################
-# API Gateway – WebSocket (ws_agent_handler → AgentCore)
-################################################################################
-output "chatbot_ws_api_endpoint" {
-  value       = "${aws_apigatewayv2_api.chatbot_ws.api_endpoint}/production"
-  description = "WebSocket API Gateway default endpoint (wss://...)"
-}
-
-output "chatbot_ws_custom_domain" {
-  value       = "wss://wss.dev.rosettacloud.app"
-  description = "Custom WebSocket domain for ws_agent_handler"
-}

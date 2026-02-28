@@ -562,43 +562,6 @@ resource "aws_iam_role_policy" "document_indexer_permissions" {
 }
 
 ################################################################################
-# IAM – ws_agent_handler Lambda execution role
-################################################################################
-resource "aws_iam_role" "ws_agent_handler" {
-  name               = "rosettacloud-ws-agent-handler-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
-  tags               = local.tags
-}
-
-resource "aws_iam_role_policy_attachment" "ws_agent_handler_basic" {
-  role       = aws_iam_role.ws_agent_handler.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_iam_role_policy" "ws_agent_handler_permissions" {
-  name = "ws-agent-handler-permissions"
-  role = aws_iam_role.ws_agent_handler.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid      = "AgentCoreInvoke"
-        Effect   = "Allow"
-        Action   = ["bedrock-agentcore:InvokeAgentRuntime"]
-        Resource = ["arn:aws:bedrock-agentcore:us-east-1:${local.account_id}:runtime/*"]
-      },
-      {
-        Sid      = "ApiGatewayManageConnections"
-        Effect   = "Allow"
-        Action   = ["execute-api:ManageConnections"]
-        Resource = ["${aws_apigatewayv2_api.chatbot_ws.execution_arn}/*/*"]
-      },
-    ]
-  })
-}
-
-################################################################################
 # EventBridge – trigger document_indexer on S3 .sh uploads
 ################################################################################
 resource "aws_cloudwatch_event_rule" "s3_sh_upload" {
@@ -662,86 +625,6 @@ resource "aws_eks_access_policy_association" "github_actions_admin" {
 
   access_scope {
     type = "cluster"
-  }
-}
-
-################################################################################
-# API Gateway v2 – WebSocket (ws_agent_handler → AgentCore)
-################################################################################
-resource "aws_apigatewayv2_api" "chatbot_ws" {
-  name                       = "rosettacloud-chatbot-ws"
-  protocol_type              = "WEBSOCKET"
-  route_selection_expression = "$request.body.action"
-  tags                       = local.tags
-}
-
-resource "aws_apigatewayv2_integration" "chatbot_ws" {
-  api_id                    = aws_apigatewayv2_api.chatbot_ws.id
-  integration_type          = "AWS_PROXY"
-  integration_uri           = "arn:aws:lambda:us-east-1:${local.account_id}:function:ws_agent_handler"
-  content_handling_strategy = "CONVERT_TO_TEXT"
-}
-
-resource "aws_apigatewayv2_route" "ws_connect" {
-  api_id    = aws_apigatewayv2_api.chatbot_ws.id
-  route_key = "$connect"
-  target    = "integrations/${aws_apigatewayv2_integration.chatbot_ws.id}"
-}
-
-resource "aws_apigatewayv2_route" "ws_disconnect" {
-  api_id    = aws_apigatewayv2_api.chatbot_ws.id
-  route_key = "$disconnect"
-  target    = "integrations/${aws_apigatewayv2_integration.chatbot_ws.id}"
-}
-
-resource "aws_apigatewayv2_route" "ws_default" {
-  api_id    = aws_apigatewayv2_api.chatbot_ws.id
-  route_key = "$default"
-  target    = "integrations/${aws_apigatewayv2_integration.chatbot_ws.id}"
-}
-
-resource "aws_apigatewayv2_stage" "chatbot_ws" {
-  api_id      = aws_apigatewayv2_api.chatbot_ws.id
-  name        = "production"
-  auto_deploy = true
-  tags        = local.tags
-}
-
-resource "aws_lambda_permission" "apigw_chatbot" {
-  statement_id  = "AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = "ws_agent_handler"
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.chatbot_ws.execution_arn}/*/*"
-}
-
-resource "aws_apigatewayv2_domain_name" "wss" {
-  domain_name = "wss.dev.rosettacloud.app"
-
-  domain_name_configuration {
-    certificate_arn = module.acm.acm_certificate_arn
-    endpoint_type   = "REGIONAL"
-    security_policy = "TLS_1_2"
-  }
-
-  tags = local.tags
-}
-
-resource "aws_apigatewayv2_api_mapping" "wss" {
-  api_id      = aws_apigatewayv2_api.chatbot_ws.id
-  domain_name = aws_apigatewayv2_domain_name.wss.id
-  stage       = aws_apigatewayv2_stage.chatbot_ws.id
-}
-
-resource "aws_route53_record" "wss_dev" {
-  zone_id = module.route53.id
-  name    = "wss.dev.rosettacloud.app"
-  type    = "A"
-
-  alias {
-    name                   = aws_apigatewayv2_domain_name.wss.domain_name_configuration[0].target_domain_name
-    zone_id                = aws_apigatewayv2_domain_name.wss.domain_name_configuration[0].hosted_zone_id
-    evaluate_target_health = false
   }
 }
 
