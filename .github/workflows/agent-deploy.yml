@@ -50,7 +50,7 @@ jobs:
             --auto-update-on-conflict \
             --env BEDROCK_AGENTCORE_MEMORY_ID=${{ env.MEMORY_ID }}
 
-      - name: Update backend K8s ConfigMap with new ARN
+      - name: Update backend K8s ConfigMap if ARN changed
         run: |
           NEW_ARN=$(python3 -c "
           import yaml
@@ -63,12 +63,20 @@ jobs:
                   break
           ")
           echo "New ARN: $NEW_ARN"
-          if [ -n "$NEW_ARN" ]; then
-            aws eks update-kubeconfig --name rosettacloud-eks --region ${{ inputs.aws_region || 'us-east-1' }}
+          if [ -z "$NEW_ARN" ]; then
+            echo "Could not extract ARN, skipping"
+            exit 0
+          fi
+          aws eks update-kubeconfig --name rosettacloud-eks --region ${{ inputs.aws_region || 'us-east-1' }}
+          CURRENT_ARN=$(kubectl get configmap rosettacloud-backend-config -n dev \
+            -o jsonpath='{.data.AGENT_RUNTIME_ARN}' 2>/dev/null || echo "")
+          if [ "$NEW_ARN" = "$CURRENT_ARN" ]; then
+            echo "ARN unchanged, no restart needed"
+          else
+            echo "ARN changed: $CURRENT_ARN -> $NEW_ARN"
             kubectl patch configmap rosettacloud-backend-config -n dev \
               --patch "{\"data\":{\"AGENT_RUNTIME_ARN\":\"$NEW_ARN\"}}"
             kubectl rollout restart deployment/rosettacloud-backend -n dev
-            echo "Backend ConfigMap updated with new ARN and pod restarted"
-          else
-            echo "Could not extract ARN, skipping ConfigMap update"
+            kubectl rollout status deployment/rosettacloud-backend -n dev --timeout=120s
+            echo "Backend updated and healthy"
           fi
