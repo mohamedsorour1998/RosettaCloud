@@ -322,33 +322,6 @@ module "ecr_3" {
 
   tags = local.tags
 }
-module "ecr_5" {
-  source  = "terraform-aws-modules/ecr/aws"
-  version = "2.4.0"
-
-  repository_name                 = "rosettacloud-ws_agent_handler-lambda"
-  repository_image_tag_mutability = "MUTABLE"
-  repository_read_write_access_arns = [
-    "arn:aws:iam::339712964409:root"
-  ]
-
-  repository_lifecycle_policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Expire images, keep last 5"
-        selection = {
-          tagStatus   = "any"
-          countType   = "imageCountMoreThan"
-          countNumber = 5
-        }
-        action = { type = "expire" }
-      }
-    ]
-  })
-
-  tags = local.tags
-}
 
 ################################################################################
 # S3 – Interactive Labs Shell Scripts
