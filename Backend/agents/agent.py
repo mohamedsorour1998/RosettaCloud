@@ -142,10 +142,10 @@ def _classify(message: str, msg_type: str) -> str:
         return "grader"
     if msg_type == "hint":
         return "tutor"
-    if msg_type == "explain":
-        return "tutor"
     if msg_type == "session_start":
         return "planner"
+    if msg_type == "explain":
+        return "tutor"
 
     lower = message.lower()
     if any(k in lower for k in ["what should i learn", "what next", "learning path", "recommend"]):
