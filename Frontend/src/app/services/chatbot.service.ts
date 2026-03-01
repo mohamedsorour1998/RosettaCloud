@@ -11,6 +11,7 @@ export interface ChatMessage {
   timestamp: Date;
   id?: string;
   agent?: AgentType;
+  imageData?: string;  // base64 JPEG for screenshot messages
 }
 
 export interface Source {

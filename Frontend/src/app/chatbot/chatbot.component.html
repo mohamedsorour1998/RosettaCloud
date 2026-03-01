@@ -137,6 +137,12 @@
               <span>{{ getAgentName(message.agent) }}</span>
             </div>
             <div class="message-bubble" [ngClass]="message.agent ? getAgentClass(message.agent) + '-bubble' : ''">
+              <img
+                *ngIf="message.imageData"
+                [src]="message.imageData"
+                alt="Terminal screenshot"
+                class="screenshot-thumb"
+              />
               <div
                 class="message-text"
                 [innerHTML]="formatMessage(message.content)"
