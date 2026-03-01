@@ -61,7 +61,7 @@
     <div class="chat-container" #chatContainer
          (scroll)="onScroll($event)"
          (mouseover)="onCodeHover($event)"
-         (mouseout)="onCodeHoverOut($event)">
+         (mouseout)="onCodeHoverOut()">
       <!-- Welcome Message - Only show when no messages or hasUserSentMessage is false -->
       <div
         *ngIf="messages.length === 0 || !hasUserSentMessage"

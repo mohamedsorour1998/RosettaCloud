@@ -496,18 +496,18 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.tooltipText = 'Loading…';
       this.tooltipVisible = true;
 
-      this.chatbotService.explainCommand(command).subscribe((text) => {
+      const sub = this.chatbotService.explainCommand(command).subscribe((text) => {
         this.tooltipText = text;
         this.cdr.detectChanges();
       });
+      this.subscriptions.push(sub);
     }, 450);
   }
 
-  onCodeHoverOut(event: MouseEvent): void {
+  onCodeHoverOut(): void {
+    // pointer-events: none on .code-tooltip means the tooltip never becomes
+    // relatedTarget, so we always dismiss immediately on mouse-out.
     clearTimeout(this.tooltipTimer ?? undefined);
-    const related = event.relatedTarget as HTMLElement | null;
-    if (!related?.closest('.code-tooltip')) {
-      this.tooltipVisible = false;
-    }
+    this.tooltipVisible = false;
   }
 }
