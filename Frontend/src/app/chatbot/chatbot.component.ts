@@ -156,54 +156,93 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
-   * Formats a raw message content with proper HTML
-   * @param content The raw message content
-   * @returns SafeHtml formatted message
+   * Formats raw message content with markdown → HTML.
+   * Uses a placeholder technique to protect code blocks, then
+   * processes headers, bold/italic, lists, inline code, and line breaks.
    */
   formatMessage(content: string): SafeHtml {
     try {
-      let formattedContent = content
-        // Handle shell scripts with shebang lines
-        .replace(
-          /```([a-zA-Z]*)([\s\S]*?)(#!\/bin\/[a-z]*[\s\S]*?)```/g,
-          (match, language, beforeShebang, fromShebangOn) => {
-            return `<div class="shell-script-container" data-language="shell"><pre class="shell-script">${this.escapeHtml(
-              beforeShebang + fromShebangOn
-            )}</pre></div>`;
+      // Step 1: Extract and replace code blocks with null-char placeholders
+      const codeBlocks: string[] = [];
+      let processed = content.replace(
+        /```([a-zA-Z]*)([\s\S]*?)```/g,
+        (match, lang, code) => {
+          const isShell = code.includes('#!/bin/');
+          const cls = isShell ? 'shell-script-container' : 'code-container';
+          const preCls = isShell ? 'shell-script' : 'code-content';
+          const placeholder = `\x00CODE${codeBlocks.length}\x00`;
+          codeBlocks.push(
+            `<div class="${cls}" data-language="${lang || 'code'}">` +
+            `<pre class="${preCls}">${this.escapeHtml(code)}</pre></div>`
+          );
+          return placeholder;
+        }
+      );
+
+      // Step 2: Headers (must run before bold/italic; ^ needs real \n chars)
+      processed = processed
+        .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (?!#)(.+)$/gm, '<h1>$1</h1>');
+
+      // Step 3: Bold and italic (order matters: *** before ** before *)
+      processed = processed
+        .replace(/\*\*\*([^*\n]+)\*\*\*/g, '<strong><em>$1</em></strong>')
+        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+
+      // Step 4: Lists — split into lines, group consecutive list items
+      const lines = processed.split('\n');
+      const htmlLines: string[] = [];
+      let inUl = false;
+
+      for (const line of lines) {
+        const ulMatch = line.match(/^[-*] (.+)/);
+        const olMatch = line.match(/^\d+\. (.+)/);
+
+        if (ulMatch || olMatch) {
+          if (!inUl) {
+            htmlLines.push('<ul>');
+            inUl = true;
           }
-        )
-        // Handle code blocks with improved overflow handling
-        .replace(/```([a-zA-Z]*)([\s\S]*?)```/g, (match, language, code) => {
-          if (!match.includes('#!/bin/')) {
-            const langDisplay = language ? language : 'code';
-            return `<div class="code-container" data-language="${langDisplay}"><pre class="code-content">${this.escapeHtml(
-              code
-            )}</pre></div>`;
+          htmlLines.push(`<li>${(ulMatch ? ulMatch[1] : olMatch![1])}</li>`);
+        } else {
+          if (inUl) {
+            htmlLines.push('</ul>');
+            inUl = false;
           }
-          return match;
-        })
-        // Handle inline code
-        .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-        // Convert newlines to <br> tags
+          htmlLines.push(line);
+        }
+      }
+      if (inUl) htmlLines.push('</ul>');
+      processed = htmlLines.join('\n');
+
+      // Step 5: Inline code
+      processed = processed.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+      // Step 6: Newlines → <br>, double <br> → paragraph break
+      processed = processed
         .replace(/\n/g, '<br>')
-        // Convert double line breaks to paragraphs
         .replace(/<br><br>/g, '</p><p>');
 
-      // Wrap content in paragraphs if not already
-      if (!formattedContent.startsWith('<p>')) {
-        formattedContent = '<p>' + formattedContent + '</p>';
+      // Step 7: Wrap in <p> if not already block-level
+      if (!processed.match(/^<(h[1-4]|ul|ol|p|div)/)) {
+        processed = '<p>' + processed + '</p>';
       }
 
-      // Add classes to tables and images for responsiveness
-      formattedContent = formattedContent
+      // Step 8: Restore code block placeholders
+      codeBlocks.forEach((block, i) => {
+        processed = processed.replace(`\x00CODE${i}\x00`, block);
+      });
+
+      // Step 9: Inject responsive classes on tables/imgs/links
+      processed = processed
         .replace(/<table/g, '<table class="responsive-table"')
         .replace(/<img/g, '<img class="responsive-img"')
-        .replace(
-          /<a /g,
-          '<a target="_blank" rel="noopener" class="break-word" '
-        );
+        .replace(/<a /g, '<a target="_blank" rel="noopener" class="break-word" ');
 
-      return this.sanitizer.bypassSecurityTrustHtml(formattedContent);
+      return this.sanitizer.bypassSecurityTrustHtml(processed);
     } catch (error) {
       console.error('Error formatting message:', error);
       return this.sanitizer.bypassSecurityTrustHtml(`<p>${content}</p>`);
