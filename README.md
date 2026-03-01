@@ -52,7 +52,7 @@ Advanced conversational AI system that provides context-aware assistance using R
 - **Vector Database**: LanceDB with S3 backend storing document embeddings
 - **Document Processing**: Automated indexing of shell scripts and course materials
 - **Embeddings**: Amazon Titan embeddings for semantic similarity search
-- **Conversational Memory**: DynamoDB chat history for contextual understanding
+- **Conversational Memory**: In-process session dict (within-session) + AgentCore Memory (cross-session)
 
 **Technical Implementation:**
 ```python
@@ -94,24 +94,24 @@ Intelligent feedback generation that scales with user activity while maintaining
 **Feedback Flow:**
 ```mermaid
 graph LR
-    A[User Requests Feedback] --> B[POST /chat with type=feedback]
+    A[User Requests Feedback] --> B[POST /chat with type=grade]
     B --> C[FastAPI routes to AgentCore]
-    C --> D[Planner Agent generates feedback]
+    C --> D[Grader Agent generates feedback]
     D --> E[Response returned to user]
 ```
 
 **Implementation Details:**
 ```python
-# Feedback request via HTTP POST to /chat
+# Feedback request via HTTP POST to /chat (uses type=grade)
 async def handle_feedback_request(data):
-    feedback_id = data["feedback_id"]
+    session_id = data["session_id"]
 
-    # Build educational prompt from user progress
-    prompt = build_educational_prompt(data)
+    # Build progress summary prompt
+    prompt = build_feedback_prompt(data)
 
     # Invoke AgentCore multi-agent runtime via boto3
     response = invoke_agent_runtime(
-        payload={"message": prompt, "type": "feedback", "session_id": feedback_id}
+        payload={"message": prompt, "type": "grade", "session_id": session_id}
     )
     return response
 ```
@@ -168,7 +168,7 @@ graph TB
     Tutor & Grader & Planner --> Nova
     Tutor --> S3V
     Grader & Planner --> DDB
-    Planner <--> Memory
+    Tutor & Grader & Planner <--> Memory
     UI -->|iframe| Lab
 ```
 
@@ -210,7 +210,7 @@ sequenceDiagram
 
     Student->>Browser: Click "Snap & Ask"
     Browser->>Browser: getDisplayMedia() — screen capture
-    Browser->>Browser: Canvas → JPEG base64 (≤1.5MB)
+    Browser->>Browser: Canvas → JPEG base64 (max 1280px, q=0.75)
     Browser->>FastAPI: POST /chat {image: base64, type: chat}
     FastAPI->>FastAPI: Validate JPEG magic bytes (ff d8 ff)
     FastAPI->>AgentCore: payload + image bytes
@@ -276,7 +276,7 @@ sequenceDiagram
 - **Strands Agents** for multi-agent AI orchestration (AWS open-source)
 
 ### AI/ML Services
-- **Amazon Bedrock** with Nova and Claude models for language processing
+- **Amazon Bedrock** with Nova Lite v1 for all agent reasoning and classification
 - **Amazon Titan** embeddings for document vectorization
 - **Amazon Bedrock AgentCore**: Multi-agent runtime (tutor/grader/planner) with memory
 - **Retrieval-Augmented Generation** for context-aware responses
@@ -308,7 +308,7 @@ sequenceDiagram
 | Metric | Target | Achieved | Scaling Method |
 |--------|--------|----------|----------------|
 | **Lab Provisioning** | < 5 seconds | 1-2 seconds | Container pre-warming + K8s scheduling |
-| **AI Response Time** | < 1 second | 150ms first chunk | Streaming responses + edge caching |
+| **AI Response Time** | < 3 seconds | ~1-2s typical | Synchronous HTTP POST + in-process session cache |
 | **Chatbot Latency** | < 500ms | 200ms average | Synchronous HTTP POST + in-process session cache |
 | **Feedback Generation** | < 5 seconds | 2-3 seconds | Asynchronous processing + AI caching |
 | **Concurrent Users** | 500+ | Tested 1000+ | Horizontal pod autoscaling |
@@ -378,8 +378,8 @@ export KNOWLEDGE_BASE_ID="shell-scripts-knowledge-base"
 kubectl apply -f DevSecOps/K8S/
 
 # Verify deployment
-kubectl get pods -n openedx
-kubectl get services -n openedx
+kubectl get pods -n dev
+kubectl get services -n dev
 ```
 
 **AI Services Setup:**
@@ -633,8 +633,8 @@ pip install -r requirements.txt
 **Production Deployment:**
 ```bash
 # Kubernetes pod issues
-kubectl describe pod <pod-name> -n openedx
-kubectl logs -f deployment/rosettacloud-backend -n openedx
+kubectl describe pod <pod-name> -n dev
+kubectl logs -f deployment/rosettacloud-backend -n dev
 
 # AWS service connectivity
 aws sts get-caller-identity  # Verify AWS credentials
