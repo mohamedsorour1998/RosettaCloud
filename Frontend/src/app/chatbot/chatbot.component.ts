@@ -172,7 +172,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
           const preCls = isShell ? 'shell-script' : 'code-content';
           const placeholder = `\x00CODE${codeBlocks.length}\x00`;
           codeBlocks.push(
-            `<div class="${cls}" data-language="${lang || 'code'}">` +
+            `<div class="${cls}" data-language="${this.escapeHtml(lang || 'code')}">` +
             `<pre class="${preCls}">${this.escapeHtml(code)}</pre></div>`
           );
           return placeholder;
@@ -192,39 +192,44 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
         .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
         .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
 
-      // Step 4: Lists — split into lines, group consecutive list items
+      // Step 4: Lists — split into lines, group consecutive list items into ul/ol
       const lines = processed.split('\n');
       const htmlLines: string[] = [];
-      let inUl = false;
+      let listState: 'none' | 'ul' | 'ol' = 'none';
 
       for (const line of lines) {
         const ulMatch = line.match(/^[-*] (.+)/);
         const olMatch = line.match(/^\d+\. (.+)/);
+        const neededState = ulMatch ? 'ul' : olMatch ? 'ol' : 'none';
 
-        if (ulMatch || olMatch) {
-          if (!inUl) {
-            htmlLines.push('<ul>');
-            inUl = true;
+        if (neededState !== 'none') {
+          if (listState !== neededState) {
+            if (listState !== 'none') htmlLines.push(`</${listState}>`);
+            htmlLines.push(`<${neededState}>`);
+            listState = neededState;
           }
           htmlLines.push(`<li>${(ulMatch ? ulMatch[1] : olMatch![1])}</li>`);
         } else {
-          if (inUl) {
-            htmlLines.push('</ul>');
-            inUl = false;
+          if (listState !== 'none') {
+            htmlLines.push(`</${listState}>`);
+            listState = 'none';
           }
           htmlLines.push(line);
         }
       }
-      if (inUl) htmlLines.push('</ul>');
+      if (listState !== 'none') htmlLines.push(`</${listState}>`);
       processed = htmlLines.join('\n');
 
       // Step 5: Inline code
       processed = processed.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
 
-      // Step 6: Newlines → <br>, double <br> → paragraph break
+      // Step 6: Newlines → <br>, double <br> → paragraph break;
+      // strip spurious <br> that appears adjacent to block-level tags
       processed = processed
         .replace(/\n/g, '<br>')
-        .replace(/<br><br>/g, '</p><p>');
+        .replace(/<br><br>/g, '</p><p>')
+        .replace(/<\/(h[1-4]|ul|ol|li)><br>/g, '</$1>')
+        .replace(/<br><(ul|ol|li)/g, '<$1');
 
       // Step 7: Wrap in <p> if not already block-level
       if (!processed.match(/^<(h[1-4]|ul|ol|p|div)/)) {
@@ -245,7 +250,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
       return this.sanitizer.bypassSecurityTrustHtml(processed);
     } catch (error) {
       console.error('Error formatting message:', error);
-      return this.sanitizer.bypassSecurityTrustHtml(`<p>${content}</p>`);
+      return this.sanitizer.bypassSecurityTrustHtml(`<p>${this.escapeHtml(content)}</p>`);
     }
   }
 
