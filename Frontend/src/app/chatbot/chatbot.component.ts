@@ -37,7 +37,10 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   currentMessage = '';
   showSources = false;
   showClearConfirmation = false;
-  hasUserSentMessage = false;
+
+  get hasUserSentMessage(): boolean {
+    return this.messages.some(m => m.role === 'user' || m.role === 'assistant');
+  }
 
   public shouldAutoScroll = true;
   private lastScrollHeight = 0;
@@ -114,8 +117,6 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   doClearChat(): void {
     this.chatbotService.clearChat();
     this.showClearConfirmation = false;
-    // Reset the user sent message flag when clearing chat
-    this.hasUserSentMessage = false;
   }
 
   /**
@@ -125,9 +126,6 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     const message = this.currentMessage.trim();
     if (!message) return;
     this.shouldAutoScroll = true;
-
-    // Set that user has sent a message
-    this.hasUserSentMessage = true;
 
     this.chatbotService.sendMessage(message);
     this.currentMessage = '';
