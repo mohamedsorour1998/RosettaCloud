@@ -394,8 +394,11 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=503, detail="AGENT_RUNTIME_ARN not configured")
 
     session_id = request.session_id
-    # Tooltip explain requests must not pollute or read session history
-    history = [] if request.type == "explain" else (
+    # session_start and explain must not read or write session history:
+    # session_start response is assistant-only (no preceding user turn) which
+    # would cause Bedrock ValidationException on the next real user message.
+    _skip_history = request.type in ("explain", "session_start")
+    history = [] if _skip_history else (
         _chat_history_get(session_id) if session_id else []
     )
 
@@ -446,7 +449,7 @@ async def chat(request: ChatRequest):
     agent_response = result.get("response", "")
     agent_name = result.get("agent", "tutor")
 
-    if session_id and request.type != "explain":
+    if session_id and not _skip_history:
         updated = history + [
             {"role": "user", "text": request.message},
             {"role": "assistant", "text": agent_response},
