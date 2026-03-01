@@ -87,42 +87,33 @@ def invoke(payload, context=None):
 Intelligent feedback generation that scales with user activity while maintaining security and performance.
 
 **Architecture Highlights:**
-- **Pub/Sub Messaging**: Momento Topics for real-time event communication
-- **Secure Tokens**: Short-lived, scoped access tokens for user authentication
-- **Asynchronous Processing**: Non-blocking feedback generation via serverless functions
+- **Asynchronous Processing**: Non-blocking feedback generation via AgentCore multi-agent runtime
 - **Pattern Analysis**: AI-powered assessment across multiple exercises
+- **Session History**: In-process conversation history keyed by session_id for contextual responses
 
 **Feedback Flow:**
 ```mermaid
 graph LR
-    A[User Requests Feedback] --> B[Publish to FeedbackRequested]
-    B --> C[AI Service Processes Request]
-    C --> D[Generate Contextual Feedback]
-    D --> E[Publish to FeedbackGiven]
-    E --> F[Real-time Delivery to User]
+    A[User Requests Feedback] --> B[POST /chat with type=feedback]
+    B --> C[FastAPI routes to AgentCore]
+    C --> D[Planner Agent generates feedback]
+    D --> E[Response returned to user]
 ```
 
 **Implementation Details:**
 ```python
-# Feedback service with AI integration
+# Feedback request via HTTP POST to /chat
 async def handle_feedback_request(data):
     feedback_id = data["feedback_id"]
-    
+
     # Build educational prompt from user progress
     prompt = build_educational_prompt(data)
-    
-    # Generate AI response with educational context
-    ai_response = await ai_service.chat(
-        prompt=prompt,
-        system_role="Educational assistant providing constructive feedback",
-        max_tokens=1024
+
+    # Invoke AgentCore multi-agent runtime via boto3
+    response = invoke_agent_runtime(
+        payload={"message": prompt, "type": "feedback", "session_id": feedback_id}
     )
-    
-    # Publish feedback to real-time topic
-    await momento_client.publish(
-        topic="FeedbackGiven",
-        payload={"feedback_id": feedback_id, "content": ai_response}
-    )
+    return response
 ```
 
 ## 🏗️ Platform Architecture
@@ -275,7 +266,6 @@ sequenceDiagram
 ### Frontend Development
 - **Angular 19** with standalone components for modern development
 - **Bootstrap 5** and **TypeScript** for maintainable, responsive UIs
-- **Momento SDK Web** for real-time event handling
 - **xterm.js** for browser-based terminal emulation
 ![dev rosettacloud app_register(High Res)](https://github.com/user-attachments/assets/4d46db80-687d-4e4f-a1eb-0a9fcddc070a)
 
@@ -283,13 +273,12 @@ sequenceDiagram
 - **FastAPI** for high-performance, auto-documented APIs
 - **Python 3.9+** with async/await patterns for concurrency
 - **LanceDB** vector database for AI/ML workloads
-- **LangChain** for AI orchestration and prompt management
-  ![Momento](https://github.com/user-attachments/assets/77274e87-2fd5-4173-bcb9-59356d40ab88)
+- **Strands Agents** for multi-agent AI orchestration (AWS open-source)
 
 ### AI/ML Services
 - **Amazon Bedrock** with Nova and Claude models for language processing
 - **Amazon Titan** embeddings for document vectorization
-- **LangChain** framework for RAG pipeline orchestration
+- **Amazon Bedrock AgentCore**: Multi-agent runtime (tutor/grader/planner) with memory
 - **Retrieval-Augmented Generation** for context-aware responses
 - 
 ![Bedrock](https://github.com/user-attachments/assets/6a62f842-420d-499d-9b99-6348255d312f)
@@ -297,7 +286,7 @@ sequenceDiagram
 ### Cloud Infrastructure (AWS)
 - **Amazon EKS** for container orchestration and scaling
 - **AWS Lambda** for serverless AI processing
-- **API Gateway** for HTTP/WebSocket endpoint management
+- **API Gateway**: HTTP endpoint management
 - **DynamoDB** for fast, scalable NoSQL data storage
 - **Amazon S3** for vector database backend and file storage
 - **ECR** for secure container image management
@@ -320,7 +309,7 @@ sequenceDiagram
 |--------|--------|----------|----------------|
 | **Lab Provisioning** | < 5 seconds | 1-2 seconds | Container pre-warming + K8s scheduling |
 | **AI Response Time** | < 1 second | 150ms first chunk | Streaming responses + edge caching |
-| **Chatbot Latency** | < 500ms | 200ms average | WebSocket connections + RAG optimization |
+| **Chatbot Latency** | < 500ms | 200ms average | Synchronous HTTP POST + in-process session cache |
 | **Feedback Generation** | < 5 seconds | 2-3 seconds | Asynchronous processing + AI caching |
 | **Concurrent Users** | 500+ | Tested 1000+ | Horizontal pod autoscaling |
 | **System Uptime** | 99.5% | 99.9% | Multi-AZ deployment + health checks |
@@ -345,7 +334,6 @@ sequenceDiagram
 
 **Cloud Services:**
 - AWS account with EKS, Lambda, DynamoDB, and Bedrock access
-- Momento account for caching and pub/sub services
 - GitHub repository for CI/CD automation
 
 ### Quick Setup
@@ -375,7 +363,6 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 cp frontend/src/environments/environment.example.ts frontend/src/environments/environment.ts
 
 # Set required environment variables
-export MOMENTO_API_KEY="your_momento_api_key"
 export AWS_ACCESS_KEY_ID="your_aws_access_key"
 export AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
 export AWS_REGION="us-east-1"
@@ -423,7 +410,6 @@ The platform includes automated GitHub Actions workflows that handle:
 
 | Variable | Description | Required | Example |
 |----------|-------------|----------|---------|
-| `MOMENTO_API_KEY` | Momento service authentication | ✅ | `eyJhbG...` |
 | `AWS_ACCESS_KEY_ID` | AWS programmatic access | ✅ | `AKIA...` |
 | `AWS_SECRET_ACCESS_KEY` | AWS secret key | ✅ | `wJalrX...` |
 | `AWS_REGION` | AWS deployment region | ✅ | `us-east-1` |
@@ -432,12 +418,6 @@ The platform includes automated GitHub Actions workflows that handle:
 | `DYNAMO_TABLE` | Chat history table name | ✅ | `SessionTable` |
 
 ### Service Configuration
-
-**Momento Setup:**
-1. Create account at [console.gomomento.com](https://console.gomomento.com)
-2. Generate API key with cache and topics permissions
-3. Create cache: `interactive-labs`
-4. Configure topics: `FeedbackRequested`, `FeedbackGiven`
 
 **AWS Infrastructure:**
 1. **EKS Cluster**: Multi-AZ setup with managed node groups
@@ -451,16 +431,10 @@ The platform includes automated GitHub Actions workflows that handle:
 ```python
 # Initialize LanceDB with embeddings
 import lancedb
-from langchain_aws import BedrockEmbeddings
+# Uses boto3 Bedrock directly for Titan embeddings
 
 # Connect to S3-backed vector database
 db = lancedb.connect("s3://your-vector-db-bucket")
-
-# Create embeddings model
-embeddings = BedrockEmbeddings(
-    model_id="amazon.titan-embed-text-v2:0",
-    model_kwargs={"dimensions": 1536}
-)
 
 # Create or connect to knowledge base table
 table = db.create_table("shell-scripts-knowledge-base", data=documents)
@@ -536,11 +510,6 @@ GET    /api/v1/analytics/usage
 POST   /api/v1/feedback/request
 GET    /api/v1/feedback/{id}
 ```
-
-**Real-time WebSocket APIs:**
-- **Chatbot Service**: `wss://api.rosettacloud.com/v1/chatbot`
-- **Feedback System**: `wss://api.rosettacloud.com/v1/feedback`
-- **Lab Terminal Access**: `wss://labs.rosettacloud.com/terminal/{lab_id}`
 
 ## 🧪 Testing & Quality Assurance
 
@@ -689,7 +658,7 @@ aws bedrock list-foundation-models --region us-east-1
 - **Backend**: Implement connection pooling and async database operations  
 - **Infrastructure**: Configure appropriate resource requests and limits
 - **AI Services**: Optimize embedding dimensions and retrieval parameters
-- **Caching**: Optimize Momento cache strategies and TTL configurations
+- **Caching**: Optimize Redis cache strategies and TTL configurations
 
 ## 📄 License & Legal
 
@@ -724,9 +693,8 @@ Currently serving as an AWS Community Builder, contributing to technical discuss
 ## 🙏 Acknowledgments & Community
 
 **Technology Partners:**
-- **Momento** for providing exceptional real-time caching and pub/sub infrastructure
 - **AWS** for comprehensive cloud services including Bedrock AI and reliable infrastructure
-- **LangChain** community for outstanding AI orchestration framework
+- **Strands Agents** open-source community for the multi-agent orchestration framework
 - **Angular & FastAPI** communities for robust development frameworks
 
 **Open Source Community:**
