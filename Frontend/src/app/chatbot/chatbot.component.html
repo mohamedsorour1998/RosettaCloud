@@ -195,11 +195,11 @@
       </div>
 
       <!-- Typing Indicator -->
-      <div class="typing-indicator" *ngIf="isLoading">
-        <div class="message-avatar assistant-avatar">
+      <div class="typing-indicator" *ngIf="isLoading" role="status" aria-label="Assistant is typing">
+        <div class="message-avatar assistant-avatar" aria-hidden="true">
           <i class="bi bi-robot"></i>
         </div>
-        <div class="typing-bubble">
+        <div class="typing-bubble" aria-hidden="true">
           <span class="typing-dot"></span>
           <span class="typing-dot"></span>
           <span class="typing-dot"></span>
