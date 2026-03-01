@@ -394,7 +394,10 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=503, detail="AGENT_RUNTIME_ARN not configured")
 
     session_id = request.session_id
-    history = _chat_history_get(session_id) if session_id else []
+    # Tooltip explain requests must not pollute or read session history
+    history = [] if request.type == "explain" else (
+        _chat_history_get(session_id) if session_id else []
+    )
 
     runtime_session_id = session_id
     if len(runtime_session_id) < 33:
@@ -443,7 +446,7 @@ async def chat(request: ChatRequest):
     agent_response = result.get("response", "")
     agent_name = result.get("agent", "tutor")
 
-    if session_id:
+    if session_id and request.type != "explain":
         updated = history + [
             {"role": "user", "text": request.message},
             {"role": "assistant", "text": agent_response},

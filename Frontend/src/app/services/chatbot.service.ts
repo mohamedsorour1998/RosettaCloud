@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export type AgentType = 'tutor' | 'grader' | 'planner' | null;
@@ -204,6 +205,22 @@ export class ChatbotService {
           this.loadingSubject.next(false);
         },
       });
+  }
+
+  public explainCommand(command: string): Observable<string> {
+    return this.http
+      .post<ChatApiResponse>(this.apiUrl, {
+        session_id: this.sessionId,
+        message: command,
+        user_id: this.userId,
+        module_uuid: this.moduleUuid,
+        lesson_uuid: this.lessonUuid,
+        type: 'explain',
+      })
+      .pipe(
+        map((res) => res.response),
+        catchError(() => of('A command used in Linux/Kubernetes environments.'))
+      );
   }
 
   public sendGradeMessage(

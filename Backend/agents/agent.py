@@ -142,6 +142,8 @@ def _classify(message: str, msg_type: str) -> str:
         return "grader"
     if msg_type == "hint":
         return "tutor"
+    if msg_type == "explain":
+        return "tutor"
     if msg_type == "session_start":
         return "planner"
 
@@ -200,6 +202,12 @@ def invoke(payload, context=None):
             f"Check AgentCore Memory for any past session context. "
             f"Be specific: mention what they did before (if anything) and suggest one concrete focus for today. "
             f"Be encouraging. Start with 'Welcome back!' or 'Great to see you!' Keep it short."
+        )
+
+    if msg_type == "explain":
+        message = (
+            f"In exactly one sentence (15 words max), plain English, no markdown formatting: "
+            f"what does `{message}` do in a Linux/Kubernetes environment?"
         )
 
     agent_name = _classify(message, msg_type)

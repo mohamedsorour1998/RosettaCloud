@@ -46,6 +46,11 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   private lastScrollHeight = 0;
   private pendingMessages = false;
   copiedMessageId: string | null = null;
+  tooltipText = '';
+  tooltipVisible = false;
+  tooltipX = 0;
+  tooltipY = 0;
+  private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
   messageRatings: Map<string, 'up' | 'down'> = new Map();
 
   private subscriptions: Subscription[] = [];
@@ -95,6 +100,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnDestroy(): void {
     this.subscriptions.forEach((sub) => sub.unsubscribe());
+    clearTimeout(this.tooltipTimer ?? undefined);
   }
 
   /**
@@ -470,6 +476,38 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
         return 'agent-planner';
       default:
         return '';
+    }
+  }
+
+  onCodeHover(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (!target.classList.contains('inline-code')) return;
+    const command = target.textContent?.trim() || '';
+    if (!command || command.length > 120) return;
+
+    clearTimeout(this.tooltipTimer ?? undefined);
+    this.tooltipTimer = setTimeout(() => {
+      const containerEl = this.chatContainer.nativeElement as HTMLElement;
+      const containerRect = containerEl.getBoundingClientRect();
+      const targetRect = (target as HTMLElement).getBoundingClientRect();
+
+      this.tooltipX = targetRect.left - containerRect.left;
+      this.tooltipY = targetRect.bottom - containerRect.top + containerEl.scrollTop + 6;
+      this.tooltipText = 'Loading…';
+      this.tooltipVisible = true;
+
+      this.chatbotService.explainCommand(command).subscribe((text) => {
+        this.tooltipText = text;
+        this.cdr.detectChanges();
+      });
+    }, 450);
+  }
+
+  onCodeHoverOut(event: MouseEvent): void {
+    clearTimeout(this.tooltipTimer ?? undefined);
+    const related = event.relatedTarget as HTMLElement | null;
+    if (!related?.closest('.code-tooltip')) {
+      this.tooltipVisible = false;
     }
   }
 }

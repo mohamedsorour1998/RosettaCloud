@@ -58,7 +58,10 @@
     </div>
 
     <!-- Main Chat Area -->
-    <div class="chat-container" #chatContainer (scroll)="onScroll($event)">
+    <div class="chat-container" #chatContainer
+         (scroll)="onScroll($event)"
+         (mouseover)="onCodeHover($event)"
+         (mouseout)="onCodeHoverOut($event)">
       <!-- Welcome Message - Only show when no messages or hasUserSentMessage is false -->
       <div
         *ngIf="messages.length === 0 || !hasUserSentMessage"
@@ -204,6 +207,16 @@
           <span class="typing-dot"></span>
           <span class="typing-dot"></span>
         </div>
+      </div>
+
+      <!-- Inline code tooltip -->
+      <div
+        class="code-tooltip"
+        *ngIf="tooltipVisible"
+        [style.left.px]="tooltipX"
+        [style.top.px]="tooltipY"
+      >
+        <i class="bi bi-cpu-fill"></i> {{ tooltipText }}
       </div>
 
       <!-- Scroll to Bottom Button -->
