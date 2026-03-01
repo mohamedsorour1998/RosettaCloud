@@ -52,6 +52,7 @@ interface Question {
   visited: boolean;
   disabledOptions: number[];
   wrongAttempt: boolean;
+  attemptCount: number;
 }
 
 /**
@@ -464,6 +465,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             visited: false,
             disabledOptions: [],
             wrongAttempt: false,
+            attemptCount: 0,
           })
         );
 
@@ -649,6 +651,11 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       }
 
       q.wrongAttempt = true;
+      q.attemptCount = (q.attemptCount || 0) + 1;
+      if (q.attemptCount === 2) {
+        this.openChatPanel();
+        this.chatbotSv.sendProactiveHint(q.id, q.question);
+      }
       this.selectedOption = null;
     }
   }
@@ -766,6 +773,11 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             this.feedbackMessage =
               'Your solution is not working yet. Try again.';
             q.wrongAttempt = true;
+            q.attemptCount = (q.attemptCount || 0) + 1;
+            if (q.attemptCount === 2) {
+              this.openChatPanel();
+              this.chatbotSv.sendProactiveHint(questionNumber, q.question);
+            }
           }
           this.checkInProgress = false;
         },
@@ -827,6 +839,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             visited: q.visited,
             disabledOptions: q.disabledOptions,
             wrongAttempt: q.wrongAttempt,
+            attemptCount: q.attemptCount,
           })),
         })
       );
@@ -852,6 +865,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
             this.questions[i].visited = s.visited;
             this.questions[i].disabledOptions = s.disabledOptions || [];
             this.questions[i].wrongAttempt = s.wrongAttempt || false;
+            this.questions[i].attemptCount = s.attemptCount || 0;
           }
         });
       }
@@ -1025,6 +1039,42 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   toggleInstructions(): void {
     this.showInstructions = !this.showInstructions;
+  }
+
+  /**
+   * Capture a screenshot of the current tab and send to the AI chatbot for analysis
+   */
+  async analyzeTerminal(): Promise<void> {
+    try {
+      const stream = await (navigator.mediaDevices as any).getDisplayMedia({
+        video: true,
+        preferCurrentTab: true,
+      });
+
+      const video = document.createElement('video');
+      video.srcObject = stream;
+
+      await new Promise<void>((resolve) => {
+        video.onloadedmetadata = () => resolve();
+        video.play();
+      });
+
+      const canvas = document.createElement('canvas');
+      const maxW = 1280;
+      const scale = video.videoWidth > maxW ? maxW / video.videoWidth : 1;
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      canvas.getContext('2d')!.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+      video.srcObject = null;
+
+      const base64 = canvas.toDataURL('image/jpeg', 0.75);
+      this.openChatPanel();
+      this.chatbotSv.sendImageMessage(base64, 'Help me understand what I see in my terminal');
+    } catch {
+      // User cancelled or browser unsupported — fail silently
+    }
   }
 
   /**
