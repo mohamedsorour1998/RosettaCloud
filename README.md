@@ -56,30 +56,28 @@ Advanced conversational AI system that provides context-aware assistance using R
 
 **Technical Implementation:**
 ```python
-# Core RAG pipeline using LangChain
-def create_rag_chain(self):
-    # Initialize LLM with streaming support
-    llm = BedrockChat(
-        model_id="amazon.nova-lite-v1:0",
-        streaming=True,
-        client=bedrock_client
+# Multi-agent routing in AgentCore Runtime (Strands Agents SDK)
+# agent.py — simplified
+def _classify(message: str, msg_type: str) -> str:
+    if msg_type == "grade":   return "grader"
+    if msg_type == "hint":    return "tutor"
+    if msg_type == "session_start": return "planner"
+    # Falls back to Nova Lite classifier for free-form chat
+    return nova_lite_classify(message)
+
+def invoke(payload, context=None):
+    agent_name = _classify(payload["message"], payload["type"])
+    agent = Agent(
+        model=BedrockModel("amazon.nova-lite-v1:0"),
+        system_prompt=AGENT_CONFIGS[agent_name].prompt,
+        tools=AGENT_CONFIGS[agent_name].tools,
+        session_manager=AgentCoreMemorySessionManager(config),  # long-term memory
     )
-    
-    # Create retrieval chain with context
-    retriever = vector_store.as_retriever(
-        search_kwargs={"k": 2, "filter": {"file_type": "shell_script"}}
-    )
-    
-    return ConversationalRetrievalChain(
-        retriever=retriever,
-        llm=llm,
-        memory=chat_history,
-        return_source_documents=True
-    )
+    return agent(f"Student: {payload['message']}")
 ```
 
 **Chatbot Features:**
-- **Streaming Responses**: Real-time answer delivery via WebSockets
+- **HTTP/REST**: Synchronous POST to `/chat` — no WebSocket complexity
 - **Educational Prompting**: "Hint-first" approach encouraging critical thinking
 - **Source Attribution**: Transparent references to retrieved documentation
 - **Session Management**: Persistent conversation history across sessions
@@ -129,35 +127,130 @@ async def handle_feedback_request(data):
 
 ## 🏗️ Platform Architecture
 
-### High-Level System Design
+### System Overview
 
+```mermaid
+graph TB
+    subgraph Client["Browser"]
+        UI[Angular 19 SPA]
+    end
+
+    subgraph CDN["AWS Edge"]
+        CF[CloudFront]
+        R53[Route 53]
+    end
+
+    subgraph K8S["EKS Cluster — dev namespace"]
+        Istio[Istio Ingress]
+        FE[Frontend Pod]
+        BE[Backend Pod<br/>FastAPI]
+        Redis[Redis Pod]
+        Lab[Lab Pod<br/>code-server + Kind K8s]
+    end
+
+    subgraph AI["Amazon Bedrock AgentCore"]
+        Router{Agent Router}
+        Tutor[Tutor Agent]
+        Grader[Grader Agent]
+        Planner[Planner Agent]
+        Memory[AgentCore Memory]
+        Nova[Nova Lite v1]
+    end
+
+    subgraph Data["Data Layer"]
+        DDB[(DynamoDB<br/>Users + Progress)]
+        S3Q[(S3<br/>Questions)]
+        S3V[(S3<br/>LanceDB Vectors)]
+    end
+
+    UI -->|HTTPS| CF
+    CF --> Istio
+    Istio --> FE
+    Istio --> BE
+    BE -->|boto3| Router
+    BE <--> Redis
+    BE <--> DDB
+    BE <--> S3Q
+    Router --> Tutor
+    Router --> Grader
+    Router --> Planner
+    Tutor & Grader & Planner --> Nova
+    Tutor --> S3V
+    Grader & Planner --> DDB
+    Planner <--> Memory
+    UI -->|iframe| Lab
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Load Balancer  │    │   Backend API   │
-│   (Angular 19)  │◄──►│   (AWS ALB)      │◄──►│   (FastAPI)     │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                        │                        │
-         │              ┌──────────────────┐              │
-         └─────────────►│  Event Bus       │◄─────────────┘
-                        │  (Momento)       │
-                        └──────────────────┘
-                                 │
-         ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   AI Services   │    │   Lab Engine    │    │  Vector DB      │
-│   (Lambda)      │    │  (Kubernetes)   │    │  (LanceDB)      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+
+### AI Multi-Agent Flow
+
+```mermaid
+sequenceDiagram
+    participant Student
+    participant FastAPI
+    participant AgentCore
+    participant Nova as Nova Lite
+    participant Memory as AgentCore Memory
+
+    Student->>FastAPI: POST /chat {message, type, session_id}
+    FastAPI->>FastAPI: Load session history (in-process dict)
+    FastAPI->>AgentCore: invoke_agent_runtime(payload + history)
+
+    AgentCore->>AgentCore: _classify(message, type)
+    Note over AgentCore: type=grade→Grader<br/>type=hint→Tutor<br/>type=session_start→Planner<br/>else→Nova Lite classifier
+
+    AgentCore->>Memory: Read past sessions (actor_id=user_id)
+    AgentCore->>Nova: Agent reasoning + tool calls
+    Nova-->>AgentCore: Response text
+    AgentCore-->>FastAPI: {response, agent, session_id}
+
+    FastAPI->>FastAPI: Update session history
+    FastAPI-->>Student: {response, agent}
 ```
 
-### Event-Driven Architecture with Momento
+### Multimodal Screenshot Flow (Snap & Ask)
 
-The platform leverages **Momento Cache** and **Topics** to create a truly scalable, decoupled system:
+```mermaid
+sequenceDiagram
+    participant Student
+    participant Browser
+    participant FastAPI
+    participant AgentCore
+    participant Nova as Nova Lite (Vision)
 
-- ⚡ **Real-time Communication**: Instant feedback delivery through pub/sub messaging
-- 🔄 **System Decoupling**: Services communicate through events, enabling independent scaling
-- 📈 **Auto-scaling**: Components scale based on actual demand, not preset limits
-- 🛡️ **Fault Tolerance**: Async communication patterns provide resilience against failures
+    Student->>Browser: Click "Snap & Ask"
+    Browser->>Browser: getDisplayMedia() — screen capture
+    Browser->>Browser: Canvas → JPEG base64 (≤1.5MB)
+    Browser->>FastAPI: POST /chat {image: base64, type: chat}
+    FastAPI->>FastAPI: Validate JPEG magic bytes (ff d8 ff)
+    FastAPI->>AgentCore: payload + image bytes
+    AgentCore->>Nova: [{text: message}, {image: {format:jpeg, bytes}}]
+    Nova-->>AgentCore: Visual analysis response
+    AgentCore-->>FastAPI: response
+    FastAPI-->>Browser: Display in chat panel
+```
+
+### Lab Provisioning Flow
+
+```mermaid
+sequenceDiagram
+    participant Student
+    participant FastAPI
+    participant K8s as Kubernetes API
+    participant Lab as Lab Pod
+
+    Student->>FastAPI: POST /labs {user_id}
+    FastAPI->>FastAPI: Check Redis active_labs:{user_id}
+    FastAPI->>K8s: Create Pod + Service + VirtualService (parallel)
+    K8s->>Lab: Start code-server + Caddy (~6-10s ready)
+    Lab-->>K8s: Readiness probe passes
+    FastAPI-->>Student: {lab_id}
+
+    Student->>FastAPI: GET /labs/{lab_id} (poll)
+    FastAPI->>K8s: Get pod status
+    K8s-->>FastAPI: Running + Ready
+    FastAPI-->>Student: {status: running, url: lab-id.labs.dev.rosettacloud.app}
+    Note over Lab: Background: dockerd (~10-15s)<br/>docker load kind-node.tar (~20-30s)<br/>kind create cluster (~30-60s)
+```
 
 ### AI/ML Infrastructure
 
@@ -170,12 +263,12 @@ The platform leverages **Momento Cache** and **Topics** to create a truly scalab
 ![Document Indexing Flow](https://github.com/user-attachments/assets/ecacc27a-451d-4739-a245-e9c8e923358a)
 
 **Conversational AI Stack:**
-- **WebSocket Gateway**: Real-time bidirectional communication
-- **LangChain Integration**: Orchestrates RAG pipeline and memory management
-- **Amazon Bedrock**: Powers language model inference (Nova/Claude models)
-- **DynamoDB**: Stores conversation history for contextual understanding
-  
-![Chatbot Architecture](https://github.com/user-attachments/assets/3fc83850-887a-48d3-a094-13c0d8049938)
+- **AgentCore Runtime**: Multi-agent platform (tutor/grader/planner) deployed via `agentcore` CLI, ARM64 container on CodeBuild
+- **Strands Agents**: AWS open-source framework for tool-using agents
+- **Amazon Nova Lite**: Primary reasoning model for all agents (fast, cost-effective)
+- **AgentCore Memory**: Long-term cross-session memory (student progress, learning history)
+- **LanceDB on S3**: Vector store for RAG — course material and shell script embeddings
+- **Amazon Titan Embed v2**: Embedding model for document indexing
 
 ## 🛠️ Technology Stack & DevOps Practices
 
