@@ -319,6 +319,7 @@ class ChatRequest(BaseModel):
     type: str = "chat"
     question_number: int = 0
     result: str = ""
+    image: str = ""  # base64 JPEG for multimodal terminal analysis
 
 class ChatResponse(BaseModel):
     response: str
@@ -411,6 +412,8 @@ async def chat(request: ChatRequest):
     if request.type == "grade":
         payload["question_number"] = request.question_number
         payload["result"] = request.result
+    if request.image:
+        payload["image"] = request.image
 
     def _invoke():
         import boto3
