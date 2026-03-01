@@ -140,6 +140,8 @@ def _extract_text(result) -> str:
 def _classify(message: str, msg_type: str) -> str:
     if msg_type == "grade":
         return "grader"
+    if msg_type == "hint":
+        return "tutor"
 
     lower = message.lower()
     if any(k in lower for k in ["what should i learn", "what next", "learning path", "recommend"]):
@@ -177,6 +179,7 @@ def invoke(payload, context=None):
     msg_type = payload.get("type", "chat")
     module_uuid = payload.get("module_uuid", "")
     lesson_uuid = payload.get("lesson_uuid", "")
+    image_b64 = payload.get("image", "")
 
     if msg_type == "grade" and not message:
         q_num = payload.get("question_number", 0)
@@ -213,7 +216,28 @@ def invoke(payload, context=None):
         if lesson_uuid:
             context_parts.append(f"lesson_uuid: {lesson_uuid}")
         context_str = ", ".join(context_parts)
-        result = agent(f"Student ({context_str}): {message}")
+        if image_b64:
+            import base64 as _base64
+            # Strip data:image/...;base64, prefix if present
+            raw = image_b64.split(",")[-1] if "," in image_b64 else image_b64
+            image_bytes = _base64.b64decode(raw)
+            user_msg = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"text": f"Student ({context_str}): {message}"},
+                        {
+                            "image": {
+                                "format": "jpeg",
+                                "source": {"bytes": image_bytes},
+                            }
+                        },
+                    ],
+                }
+            ]
+            result = agent(user_msg)
+        else:
+            result = agent(f"Student ({context_str}): {message}")
         response_text = _extract_text(result)
 
         # Save updated conversation history back to in-process cache
