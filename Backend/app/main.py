@@ -319,7 +319,7 @@ class ChatRequest(BaseModel):
     type: str = "chat"
     question_number: int = 0
     result: str = ""
-    image: str = ""  # base64 JPEG for multimodal terminal analysis
+    image: str = Field(default="", max_length=2_000_000)  # base64 JPEG for multimodal terminal analysis (~1.5MB cap)
 
 class ChatResponse(BaseModel):
     response: str
@@ -413,6 +413,14 @@ async def chat(request: ChatRequest):
         payload["question_number"] = request.question_number
         payload["result"] = request.result
     if request.image:
+        try:
+            import base64 as _b64
+            raw = request.image.split(",")[-1] if "," in request.image else request.image
+            decoded = _b64.b64decode(raw, validate=True)
+            if not decoded[:3] == b'\xff\xd8\xff':
+                raise HTTPException(status_code=400, detail="image must be a JPEG")
+        except Exception:
+            raise HTTPException(status_code=400, detail="image must be valid base64 JPEG")
         payload["image"] = request.image
 
     def _invoke():
