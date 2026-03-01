@@ -178,7 +178,7 @@ def invoke(payload, context=None):
     module_uuid = payload.get("module_uuid", "")
     lesson_uuid = payload.get("lesson_uuid", "")
 
-    if msg_type == "grade":
+    if msg_type == "grade" and not message:
         q_num = payload.get("question_number", 0)
         result_text = payload.get("result", "")
         message = (
