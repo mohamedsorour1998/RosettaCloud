@@ -182,6 +182,8 @@ export class ChatbotService {
     this.http
       .post<ChatApiResponse>(this.apiUrl, {
         session_id: this.sessionId,
+        // message is empty string — agent.py overrides it with the welcome
+        // prompt inside the session_start block before any LLM call.
         message: '',
         user_id: this.userId,
         module_uuid: moduleUuid,

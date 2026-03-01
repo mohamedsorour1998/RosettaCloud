@@ -182,7 +182,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    // Set user ID and lab context on chatbot service for agent context
+    // Set user ID and lab context on chatbot service for agent context.
+    // IMPORTANT: setUserId must be called synchronously here so that userId
+    // is set before sendSessionStart fires (which fires only after async
+    // loadQuestions resolves — but this ordering must remain consistent).
     this.chatbotSv.setUserId(this.labSv.getCurrentUserId());
     this.chatbotSv.setLabContext(this.moduleUuid as string, this.lessonUuid as string);
 
@@ -271,6 +274,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   private launchNewLab(): Observable<unknown> {
     this.isInitializing = true;
+    // Reset isLabActive so the handleLabInfo transition guard fires again
+    // for the new pod (required for setupQuestion + sendSessionStart to re-trigger).
+    this.isLabActive = false;
     return this.labSv.launchLab(this.labSv.getCurrentUserId()).pipe(
       tap((res) => {
         this.labId = res.lab_id;
