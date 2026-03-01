@@ -785,9 +785,7 @@
   }
 }
 
-// Ensure feedback component stays above all other elements
 :host {
-  z-index: 9990; // Higher than any other component
   position: relative;
 }
 

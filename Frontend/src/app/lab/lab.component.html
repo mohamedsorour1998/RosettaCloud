@@ -83,18 +83,23 @@
         <div class="instructions-content">
           <h6>Welcome to the Lab Environment</h6>
           <p>
-            This lab allows you to practice coding skills in a real development
-            environment. Follow the questions on the left panel to complete the
-            lab exercises.
+            A live Linux + Docker + Kubernetes environment running in your
+            browser. Complete the questions in this panel to finish the lab.
           </p>
 
           <div class="instruction-section">
-            <h6>Getting Started</h6>
+            <h6>Answering Questions</h6>
             <ul>
-              <li>The code editor is loaded in the main panel</li>
-              <li>Navigate through questions using the question navigator</li>
-              <li>Submit your answers to check if they're correct</li>
-              <li>Use the AI assistant for help if you get stuck</li>
+              <li>
+                <strong>Multiple Choice:</strong> Select an option and click
+                <em>Submit Answer</em>
+              </li>
+              <li>
+                <strong>Practical:</strong> Run the required command in the
+                terminal, then click <em>Check Solution</em>
+              </li>
+              <li>Click the numbered circles above to jump between questions</li>
+              <li>Your progress saves automatically on each correct answer</li>
             </ul>
           </div>
 
@@ -102,18 +107,41 @@
             <h6>Interface Guide</h6>
             <ul>
               <li>
-                <strong>Question Panel:</strong> Navigate through lab questions
+                <strong>Questions (left):</strong> Browse questions and track
+                progress
               </li>
-              <li><strong>Editor Panel:</strong> Write and test your code</li>
-              <li><strong>AI Assistant:</strong> Get help and guidance</li>
+              <li>
+                <strong>Terminal / Editor (center):</strong> Real Linux shell —
+                type commands here
+              </li>
+              <li>
+                <strong>AI Assistant (right):</strong> Ask for hints or
+                explanations — it guides without giving away answers
+              </li>
             </ul>
           </div>
 
           <div class="instruction-section">
-            <h6>Time Limit</h6>
+            <h6>Environment Notes</h6>
+            <ul>
+              <li>
+                A Kind Kubernetes cluster loads in the background (~1–2 min
+                after the lab starts)
+              </li>
+              <li>
+                Run <code>kubectl get nodes</code> to confirm the cluster is
+                ready
+              </li>
+              <li>Tab completion and command history work in the terminal</li>
+            </ul>
+          </div>
+
+          <div class="instruction-section">
+            <h6>Finishing Up</h6>
             <p>
-              This lab has a limited time duration. Your progress is saved
-              automatically as you complete questions.
+              When you're done, click <strong>Complete Lab &amp; Get
+              Feedback</strong> at the bottom of this panel for a full
+              performance report from the AI grader.
             </p>
           </div>
         </div>
