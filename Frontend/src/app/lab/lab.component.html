@@ -20,6 +20,16 @@
     </div>
 
     <div class="lab-actions">
+      <!-- Analyze Terminal -->
+      <button
+        class="btn-analyze"
+        (click)="analyzeTerminal()"
+        [disabled]="!isLabActive"
+        title="Analyze Terminal with AI"
+      >
+        <i class="bi bi-camera-video"></i>
+        <span class="action-text">Analyze</span>
+      </button>
       <!-- Lab controls -->
       <button
         class="btn-info"
