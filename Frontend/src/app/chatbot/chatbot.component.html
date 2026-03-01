@@ -194,14 +194,16 @@
         </div>
       </div>
 
-      <!-- Loading Indicator -->
-      <div class="loading-indicator" *ngIf="isLoading">
-        <div class="loading-animation">
-          <div class="dot dot-1"></div>
-          <div class="dot dot-2"></div>
-          <div class="dot dot-3"></div>
+      <!-- Typing Indicator -->
+      <div class="typing-indicator" *ngIf="isLoading">
+        <div class="message-avatar assistant-avatar">
+          <i class="bi bi-robot"></i>
         </div>
-        <div class="loading-text">Processing your request...</div>
+        <div class="typing-bubble">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
       </div>
 
       <!-- Scroll to Bottom Button -->
