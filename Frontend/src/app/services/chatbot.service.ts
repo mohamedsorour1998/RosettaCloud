@@ -98,6 +98,82 @@ export class ChatbotService {
       });
   }
 
+  public sendImageMessage(base64: string, text: string = 'Help me understand what I see in my terminal'): void {
+    this.addMessage({
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+      imageData: base64,
+    });
+    this.loadingSubject.next(true);
+
+    this.http
+      .post<ChatApiResponse>(this.apiUrl, {
+        session_id: this.sessionId,
+        message: text,
+        user_id: this.userId,
+        module_uuid: this.moduleUuid,
+        lesson_uuid: this.lessonUuid,
+        type: 'chat',
+        image: base64,
+      })
+      .subscribe({
+        next: (res) => {
+          this.addMessage({
+            role: 'assistant',
+            content: res.response,
+            timestamp: new Date(),
+            agent: res.agent as AgentType,
+          });
+          this.loadingSubject.next(false);
+        },
+        error: (err) => {
+          this.addMessage({
+            role: 'error',
+            content: `Analysis error: ${err.message ?? 'Unknown error'}`,
+            timestamp: new Date(),
+          });
+          this.loadingSubject.next(false);
+        },
+      });
+  }
+
+  public sendProactiveHint(questionNumber: number, questionText: string): void {
+    const message = `I'm stuck on Question ${questionNumber} — can you give me a hint?`;
+    this.addMessage({ role: 'user', content: message, timestamp: new Date() });
+    this.loadingSubject.next(true);
+
+    this.http
+      .post<ChatApiResponse>(this.apiUrl, {
+        session_id: this.sessionId,
+        message,
+        user_id: this.userId,
+        module_uuid: this.moduleUuid,
+        lesson_uuid: this.lessonUuid,
+        type: 'hint',
+        question_number: questionNumber,
+      })
+      .subscribe({
+        next: (res) => {
+          this.addMessage({
+            role: 'assistant',
+            content: res.response,
+            timestamp: new Date(),
+            agent: res.agent as AgentType,
+          });
+          this.loadingSubject.next(false);
+        },
+        error: (err) => {
+          this.addMessage({
+            role: 'error',
+            content: `Hint error: ${err.message ?? 'Unknown error'}`,
+            timestamp: new Date(),
+          });
+          this.loadingSubject.next(false);
+        },
+      });
+  }
+
   public sendGradeMessage(
     moduleUuid: string,
     lessonUuid: string,
