@@ -388,6 +388,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         console.log('Lab became active, setting up question 1 automatically');
         this.setupQuestion(1);
         this.loadUserProgress();
+        this.chatbotSv.sendSessionStart(this.moduleUuid!, this.lessonUuid!);
       }
     } else if (info.status === 'pending') {
       this.isInitializing = true;

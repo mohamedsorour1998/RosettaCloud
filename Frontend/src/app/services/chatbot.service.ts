@@ -174,6 +174,36 @@ export class ChatbotService {
       });
   }
 
+  public sendSessionStart(moduleUuid: string, lessonUuid: string): void {
+    // Do NOT add a user bubble — this is a silent system-initiated call.
+    // The agent response will appear as a Planner message in the chat.
+    this.loadingSubject.next(true);
+
+    this.http
+      .post<ChatApiResponse>(this.apiUrl, {
+        session_id: this.sessionId,
+        message: '',
+        user_id: this.userId,
+        module_uuid: moduleUuid,
+        lesson_uuid: lessonUuid,
+        type: 'session_start',
+      })
+      .subscribe({
+        next: (res) => {
+          this.addMessage({
+            role: 'assistant',
+            content: res.response,
+            timestamp: new Date(),
+            agent: res.agent as AgentType,
+          });
+          this.loadingSubject.next(false);
+        },
+        error: () => {
+          this.loadingSubject.next(false);
+        },
+      });
+  }
+
   public sendGradeMessage(
     moduleUuid: string,
     lessonUuid: string,

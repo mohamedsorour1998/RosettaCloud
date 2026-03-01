@@ -142,6 +142,8 @@ def _classify(message: str, msg_type: str) -> str:
         return "grader"
     if msg_type == "hint":
         return "tutor"
+    if msg_type == "session_start":
+        return "planner"
 
     lower = message.lower()
     if any(k in lower for k in ["what should i learn", "what next", "learning path", "recommend"]):
@@ -188,6 +190,16 @@ def invoke(payload, context=None):
             f"Auto-grade: Student answered question {q_num} "
             f"in {module_uuid}/{lesson_uuid}. Result: {result_text}. "
             f"Please provide detailed feedback."
+        )
+
+    if msg_type == "session_start":
+        message = (
+            f"Generate a warm, personalised 2–3 sentence welcome card for the student "
+            f"starting a lab session in module '{module_uuid}', lesson '{lesson_uuid}'. "
+            f"Call get_user_progress to see what they have completed. "
+            f"Check AgentCore Memory for any past session context. "
+            f"Be specific: mention what they did before (if anything) and suggest one concrete focus for today. "
+            f"Be encouraging. Start with 'Welcome back!' or 'Great to see you!' Keep it short."
         )
 
     agent_name = _classify(message, msg_type)
