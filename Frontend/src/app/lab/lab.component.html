@@ -216,7 +216,16 @@
 
       <!-- Question Details -->
       <div class="question-details" *ngIf="currentQuestion as cq">
-        <h5 class="question-title">{{ cq.question }}</h5>
+        <div class="question-title-row">
+          <h5 class="question-title">{{ cq.question }}</h5>
+          <button
+            class="btn-ask-ai"
+            (click)="askAboutQuestion()"
+            title="Ask AI to explain this question"
+          >
+            <i class="bi bi-question-circle"></i>
+          </button>
+        </div>
 
         <!-- Multiple Choice Questions -->
         <div

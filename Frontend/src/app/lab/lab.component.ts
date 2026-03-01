@@ -1108,6 +1108,21 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
+   * Ask the AI to explain the current question
+   */
+  askAboutQuestion(): void {
+    const q = this.currentQuestion;
+    if (!q) return;
+    if (this.isMobile) {
+      this.showChatbot = true;
+      this.showSidebar = false;
+    }
+    this.chatbotSv.sendMessage(
+      `Can you explain Question ${q.id} to me? The question is: "${q.question}"`
+    );
+  }
+
+  /**
    * Refresh lab
    */
   refreshLab(): void {
