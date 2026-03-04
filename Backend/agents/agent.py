@@ -29,7 +29,7 @@ import urllib.request
 import urllib.parse
 
 from strands.tools.mcp import MCPClient
-from mcp import streamablehttp_client
+from mcp.client.streamable_http import streamablehttp_client
 from prompts import (
     TUTOR_PROMPT,
     GRADER_PROMPT,
@@ -108,17 +108,17 @@ Reply with one word: tutor, grader, or planner."""
 
 
 # Tool names each agent is allowed to use via the Gateway MCP server.
-# Names include the target prefix: "education_tools___<tool_name>"
+# Names include the target prefix: "education-tools___<tool-name>" (hyphens — Gateway naming constraint)
 _AGENT_TOOL_NAMES = {
-    "tutor":   {"education_tools___search_knowledge_base",
-                "education_tools___get_question_details",
-                "education_tools___get_question_metadata"},
-    "grader":  {"education_tools___get_question_details",
-                "education_tools___get_user_progress",
-                "education_tools___get_attempt_result"},
-    "planner": {"education_tools___get_user_progress",
-                "education_tools___list_available_modules",
-                "education_tools___get_question_metadata"},
+    "tutor":   {"education-tools___search-knowledge-base",
+                "education-tools___get-question-details",
+                "education-tools___get-question-metadata"},
+    "grader":  {"education-tools___get-question-details",
+                "education-tools___get-user-progress",
+                "education-tools___get-attempt-result"},
+    "planner": {"education-tools___get-user-progress",
+                "education-tools___list-available-modules",
+                "education-tools___get-question-metadata"},
 }
 
 AGENT_CONFIGS = {
