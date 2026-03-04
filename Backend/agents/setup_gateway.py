@@ -23,7 +23,7 @@ GATEWAY_ROLE_ARN = "arn:aws:iam::339712964409:role/rosettacloud-agentcore-gatewa
 
 TOOL_SCHEMA = [
     {
-        "name": "search_knowledge_base",
+        "name": "search-knowledge-base",
         "description": (
             "Search the DevOps knowledge base for relevant content about Linux, Docker, "
             "and Kubernetes. Use when you need to look up technical information to answer "
@@ -38,7 +38,7 @@ TOOL_SCHEMA = [
         },
     },
     {
-        "name": "get_user_progress",
+        "name": "get-user-progress",
         "description": "Get a student's learning progress across all modules and lessons.",
         "inputSchema": {
             "type": "object",
@@ -49,7 +49,7 @@ TOOL_SCHEMA = [
         },
     },
     {
-        "name": "get_attempt_result",
+        "name": "get-attempt-result",
         "description": "Check if a student completed a specific question.",
         "inputSchema": {
             "type": "object",
@@ -63,7 +63,7 @@ TOOL_SCHEMA = [
         },
     },
     {
-        "name": "get_question_details",
+        "name": "get-question-details",
         "description": "Get details about a specific question: text, type, difficulty, correct answer.",
         "inputSchema": {
             "type": "object",
@@ -76,7 +76,7 @@ TOOL_SCHEMA = [
         },
     },
     {
-        "name": "list_available_modules",
+        "name": "list-available-modules",
         "description": "List all available course modules and their lessons.",
         "inputSchema": {
             "type": "object",
@@ -85,7 +85,7 @@ TOOL_SCHEMA = [
         },
     },
     {
-        "name": "get_question_metadata",
+        "name": "get-question-metadata",
         "description": "Get metadata for ALL questions in a lesson (difficulty, topics, types).",
         "inputSchema": {
             "type": "object",
@@ -118,13 +118,13 @@ def main():
     gateway_url = gw_resp.get("gatewayUrl", "")
     print(f"   Gateway ID : {gateway_id}")
 
-    # Poll until ACTIVE
-    print("⏳ Waiting for Gateway to reach ACTIVE state...")
+    # Poll until READY
+    print("⏳ Waiting for Gateway to reach READY state...")
     while True:
         status_resp = client.get_gateway(gatewayIdentifier=gateway_id)
         status = status_resp.get("status", "UNKNOWN")
         print(f"   Status: {status}")
-        if status == "ACTIVE":
+        if status == "READY":
             gateway_url = status_resp.get("gatewayUrl", gateway_url)
             break
         if status in ("FAILED", "DELETING", "DELETE_FAILED"):
@@ -133,13 +133,16 @@ def main():
             return
         time.sleep(10)
 
-    print(f"✅ Gateway ACTIVE: {gateway_url}")
+    print(f"✅ Gateway READY: {gateway_url}")
 
     # ── Step 2: Register the Lambda target ────────────────────────────────────
-    print(f"\nRegistering Lambda target 'education_tools'...")
+    # Note: target name must match ([0-9a-zA-Z][-]?){1,100} — hyphens only, no underscores.
+    # Tool names will be prefixed as "education-tools___<tool-name>" by the Gateway.
+    # agent.py normalizes names back to underscore for Bedrock compatibility.
+    print(f"\nRegistering Lambda target 'education-tools'...")
     target_resp = client.create_gateway_target(
         gatewayIdentifier=gateway_id,
-        name="education_tools",
+        name="education-tools",
         description="agent_tools Lambda — DynamoDB, S3, LanceDB tools",
         targetConfiguration={
             "mcp": {
@@ -151,10 +154,10 @@ def main():
                 }
             }
         },
-        credentialProviderConfigurations=[],
+        credentialProviderConfigurations=[{"credentialProviderType": "GATEWAY_IAM_ROLE"}],
     )
 
-    target_id = target_resp.get("targetId", target_resp.get("name", "education_tools"))
+    target_id = target_resp.get("targetId", "education-tools")
     print(f"✅ Target registered: {target_id}")
 
     # ── Step 3: Print output ───────────────────────────────────────────────────
