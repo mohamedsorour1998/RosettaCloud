@@ -2,6 +2,5 @@ bedrock-agentcore
 strands-agents[otel]
 strands-agents-builder
 boto3
-lancedb
-pyarrow
+mcp
 aws-opentelemetry-distro>=0.10.1
