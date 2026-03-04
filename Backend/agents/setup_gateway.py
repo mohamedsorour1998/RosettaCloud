@@ -133,7 +133,6 @@ def main():
     print(f"Creating AgentCore Gateway '{GATEWAY_NAME}'...")
 
     resp = client.create_agent_runtime_endpoint(
-        agentRuntimeId=GATEWAY_NAME,
         name=GATEWAY_NAME,
         description=(
             "MCP server exposing education tools for the RosettaCloud tutor/grader/planner agents"
@@ -163,7 +162,22 @@ def main():
     )
 
     gateway_id = resp["agentRuntimeEndpointId"]
-    gateway_url = resp["liveVersion"]["endpointUrl"]
+    print(f"\n⏳ Waiting for gateway to reach READY state (this may take 30-60 seconds)...")
+
+    import time
+    while True:
+        status_resp = client.get_agent_runtime_endpoint(
+            agentRuntimeEndpointId=gateway_id
+        )
+        status = status_resp.get("status", "UNKNOWN")
+        print(f"   Status: {status}")
+        if status == "READY":
+            gateway_url = status_resp["liveVersion"]["endpointUrl"]
+            break
+        elif status in ("FAILED", "DELETING"):
+            print(f"❌ Gateway creation failed with status: {status}")
+            return
+        time.sleep(10)
 
     print(f"\n✅ Gateway created!")
     print(f"   Gateway ID  : {gateway_id}")
