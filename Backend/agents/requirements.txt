@@ -1,5 +1,5 @@
 bedrock-agentcore
-strands-agents
+strands-agents[otel]
 strands-agents-builder
 boto3
 lancedb
