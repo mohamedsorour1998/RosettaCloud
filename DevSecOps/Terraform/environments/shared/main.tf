@@ -323,6 +323,15 @@ module "ecr_3" {
   tags = local.tags
 }
 
+resource "aws_ecr_repository" "agent_tools_lambda" {
+  name                 = "rosettacloud-agent_tools-lambda"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
 ################################################################################
 # S3 – Interactive Labs Shell Scripts
 ################################################################################
@@ -531,6 +540,84 @@ resource "aws_iam_role_policy" "document_indexer_permissions" {
         Resource = ["arn:aws:bedrock:us-east-1::foundation-model/*"]
       },
     ]
+  })
+}
+
+# ── agent_tools Lambda execution role ──────────────────────────────────────
+resource "aws_iam_role" "agent_tools_lambda_role" {
+  name = "rosettacloud-agent-tools-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "agent_tools_lambda_policy" {
+  name = "agent-tools-lambda-policy"
+  role = aws_iam_role.agent_tools_lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem"]
+        Resource = "arn:aws:dynamodb:us-east-1:339712964409:table/rosettacloud-users"
+      },
+      {
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs",
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs/*",
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs-vector",
+          "arn:aws:s3:::rosettacloud-shared-interactive-labs-vector/*",
+        ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel"]
+        Resource = "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Resource = "arn:aws:logs:us-east-1:339712964409:log-group:/aws/lambda/agent_tools:*"
+      }
+    ]
+  })
+}
+
+# ── AgentCore Gateway invocation role ──────────────────────────────────────
+resource "aws_iam_role" "agentcore_gateway_role" {
+  name = "rosettacloud-agentcore-gateway-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "bedrock-agentcore.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "agentcore_gateway_policy" {
+  name = "agentcore-gateway-policy"
+  role = aws_iam_role.agentcore_gateway_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["lambda:InvokeFunction"]
+      Resource = "arn:aws:lambda:us-east-1:339712964409:function:agent_tools"
+    }]
   })
 }
 
