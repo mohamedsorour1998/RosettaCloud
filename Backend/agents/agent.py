@@ -24,14 +24,12 @@ except ImportError:
 from strands import Agent
 from strands.models.bedrock import BedrockModel
 
-from tools import (
-    search_knowledge_base,
-    get_user_progress,
-    get_attempt_result,
-    get_question_details,
-    list_available_modules,
-    get_question_metadata,
-)
+import time
+import urllib.request
+import urllib.parse
+
+from strands.tools.mcp import MCPClient
+from mcp import streamablehttp_client
 from prompts import (
     TUTOR_PROMPT,
     GRADER_PROMPT,
@@ -45,6 +43,39 @@ app = BedrockAgentCoreApp()
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 MEMORY_ID = os.environ.get("BEDROCK_AGENTCORE_MEMORY_ID")
+
+GATEWAY_URL           = os.environ.get("GATEWAY_URL", "")
+COGNITO_TOKEN_URL     = os.environ.get("COGNITO_TOKEN_URL", "")
+COGNITO_CLIENT_ID     = os.environ.get("COGNITO_CLIENT_ID", "")
+COGNITO_CLIENT_SECRET = os.environ.get("COGNITO_CLIENT_SECRET", "")
+
+# Token cache: (access_token, expiry_timestamp)
+_token_cache: tuple = ("", 0.0)
+
+
+def _get_bearer_token() -> str:
+    """Fetch a Cognito client-credentials token, cached until 60s before expiry."""
+    global _token_cache
+    token, expiry = _token_cache
+    if token and time.time() < expiry - 60:
+        return token
+
+    data = urllib.parse.urlencode({
+        "grant_type":    "client_credentials",
+        "client_id":     COGNITO_CLIENT_ID,
+        "client_secret": COGNITO_CLIENT_SECRET,
+        "scope":         "rosettacloud-agents/invoke",
+    }).encode()
+    req = urllib.request.Request(COGNITO_TOKEN_URL, data=data, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        body = json.loads(resp.read())
+    token  = body["access_token"]
+    expiry = time.time() + body.get("expires_in", 3600)
+    _token_cache = (token, expiry)
+    logger.info("Cognito token refreshed, expires in %ds", int(expiry - time.time()))
+    return token
+
 
 # ── Lazy-initialized globals ──
 _model = None
@@ -71,11 +102,24 @@ Categories:
 Reply with one word: tutor, grader, or planner."""
 
 
-# Agent configurations: (system_prompt, tools)
+# Tool names each agent is allowed to use via the Gateway MCP server.
+# Names include the target prefix: "education_tools___<tool_name>"
+_AGENT_TOOL_NAMES = {
+    "tutor":   {"education_tools___search_knowledge_base",
+                "education_tools___get_question_details",
+                "education_tools___get_question_metadata"},
+    "grader":  {"education_tools___get_question_details",
+                "education_tools___get_user_progress",
+                "education_tools___get_attempt_result"},
+    "planner": {"education_tools___get_user_progress",
+                "education_tools___list_available_modules",
+                "education_tools___get_question_metadata"},
+}
+
 AGENT_CONFIGS = {
-    "tutor": (TUTOR_PROMPT, [search_knowledge_base, get_question_details, get_question_metadata]),
-    "grader": (GRADER_PROMPT, [get_question_details, get_user_progress, get_attempt_result]),
-    "planner": (PLANNER_PROMPT, [get_user_progress, list_available_modules, get_question_metadata]),
+    "tutor":   (TUTOR_PROMPT,   None),   # tools injected at runtime via MCPClient
+    "grader":  (GRADER_PROMPT,  None),
+    "planner": (PLANNER_PROMPT, None),
 }
 
 
@@ -97,13 +141,14 @@ def _init():
         logger.error("Init failed: %s", _init_error)
 
 
-def _create_agent(agent_name: str, user_id: str = "", session_id: str = "", messages: list = None) -> Agent:
+def _create_agent(agent_name: str, user_id: str = "", session_id: str = "",
+                  messages: list = None, tools: list = None) -> Agent:
     """Create a fresh Agent instance for this request."""
-    prompt, tools = AGENT_CONFIGS[agent_name]
+    prompt, _ = AGENT_CONFIGS[agent_name]
     kwargs = {
         "model": _model,
         "system_prompt": prompt,
-        "tools": tools,
+        "tools": tools or [],
         "callback_handler": None,
     }
     if messages:
@@ -224,61 +269,75 @@ def invoke(payload, context=None):
     else:
         history = _session_histories.get(session_id, []) if session_id else []
 
-    agent = _create_agent(agent_name, user_id=user_id, session_id=session_id, messages=history)
+    allowed_tools = _AGENT_TOOL_NAMES.get(agent_name, set())
 
-    logger.info("Routing to %s: user=%s session=...%s history_turns=%d",
-                agent_name, user_id, session_id[-12:] if session_id else "none", len(raw_history) // 2)
+    if GATEWAY_URL and COGNITO_CLIENT_ID:
+        try:
+            bearer = _get_bearer_token()
+            mcp_client = MCPClient(
+                lambda: streamablehttp_client(
+                    GATEWAY_URL,
+                    headers={"Authorization": f"Bearer {bearer}"},
+                )
+            )
+        except Exception as e:
+            logger.error("Failed to create MCPClient: %s", e)
+            return {"agent": "error", "response": f"Gateway connection error: {e}", "session_id": session_id}
 
-    try:
-        context_parts = [f"user_id: {user_id}"]
-        if module_uuid:
-            context_parts.append(f"module_uuid: {module_uuid}")
-        if lesson_uuid:
-            context_parts.append(f"lesson_uuid: {lesson_uuid}")
-        context_str = ", ".join(context_parts)
-        if image_b64:
-            import base64 as _base64
-            # Strip data:image/...;base64, prefix if present
-            raw = image_b64.split(",")[-1] if "," in image_b64 else image_b64
-            image_bytes = _base64.b64decode(raw)
-            user_msg = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"text": f"Student ({context_str}): {message}"},
-                        {
-                            "image": {
-                                "format": "jpeg",
-                                "source": {"bytes": image_bytes},
-                            }
-                        },
-                    ],
-                }
-            ]
-            result = agent(user_msg)
-        else:
-            result = agent(f"Student ({context_str}): {message}")
-        response_text = _extract_text(result)
-
-        # Save updated conversation history back to in-process cache
-        if session_id:
+        with mcp_client:
+            all_mcp_tools = mcp_client.list_tools_sync()
+            agent_tools = [t for t in all_mcp_tools if t.tool_name in allowed_tools]
+            logger.info("Routing to %s via Gateway: user=%s session=...%s tools=%s history_turns=%d",
+                        agent_name, user_id, session_id[-12:] if session_id else "none",
+                        [t.tool_name for t in agent_tools], len(raw_history) // 2)
+            agent = _create_agent(agent_name, user_id=user_id, session_id=session_id,
+                                  messages=history, tools=agent_tools)
             try:
-                updated_messages = getattr(agent, 'messages', None)
-                if updated_messages:
-                    # Trim to avoid unbounded growth
-                    if len(updated_messages) > MAX_HISTORY_TURNS * 2:
-                        updated_messages = updated_messages[-(MAX_HISTORY_TURNS * 2):]
-                    # Evict oldest session if dict grows too large
-                    if len(_session_histories) >= MAX_SESSIONS:
-                        oldest_key = next(iter(_session_histories))
-                        del _session_histories[oldest_key]
-                    _session_histories[session_id] = updated_messages
-                # If updated_messages is empty/None, don't overwrite existing history
-            except Exception as hist_err:
-                logger.warning("Failed to save session history", exc_info=True)
-    except Exception as e:
-        logger.error("Agent error: %s", e)
-        response_text = f"Agent error: {e}"
+                context_parts = [f"user_id: {user_id}"]
+                if module_uuid:
+                    context_parts.append(f"module_uuid: {module_uuid}")
+                if lesson_uuid:
+                    context_parts.append(f"lesson_uuid: {lesson_uuid}")
+                context_str = ", ".join(context_parts)
+                if image_b64:
+                    import base64 as _base64
+                    raw = image_b64.split(",")[-1] if "," in image_b64 else image_b64
+                    image_bytes = _base64.b64decode(raw)
+                    user_msg = [{"role": "user", "content": [
+                        {"text": f"Student ({context_str}): {message}"},
+                        {"image": {"format": "jpeg", "source": {"bytes": image_bytes}}},
+                    ]}]
+                    result = agent(user_msg)
+                else:
+                    result = agent(f"Student ({context_str}): {message}")
+                response_text = _extract_text(result)
+            except Exception as e:
+                logger.error("Agent error: %s", e)
+                response_text = f"Agent error: {e}"
+
+            if session_id:
+                try:
+                    updated_messages = getattr(agent, 'messages', None)
+                    if updated_messages:
+                        if len(updated_messages) > MAX_HISTORY_TURNS * 2:
+                            updated_messages = updated_messages[-(MAX_HISTORY_TURNS * 2):]
+                        if len(_session_histories) >= MAX_SESSIONS:
+                            oldest_key = next(iter(_session_histories))
+                            del _session_histories[oldest_key]
+                        _session_histories[session_id] = updated_messages
+                except Exception:
+                    logger.warning("Failed to save session history", exc_info=True)
+    else:
+        # Fallback: no Gateway configured — useful for local dev / agentcore invoke CLI
+        logger.warning("GATEWAY_URL not set — running without tools")
+        agent = _create_agent(agent_name, user_id=user_id, session_id=session_id,
+                              messages=history, tools=[])
+        try:
+            result = agent(f"Student (user_id: {user_id}): {message}")
+            response_text = _extract_text(result)
+        except Exception as e:
+            logger.error("Agent error: %s", e)
+            response_text = f"Agent error: {e}"
 
     return {
         "agent": agent_name,
