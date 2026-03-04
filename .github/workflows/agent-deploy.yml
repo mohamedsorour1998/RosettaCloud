@@ -47,15 +47,9 @@ jobs:
       - name: Deploy agent
         env:
           GATEWAY_URL: ${{ vars.GATEWAY_URL }}
-          COGNITO_TOKEN_URL: ${{ vars.COGNITO_TOKEN_URL }}
-          COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
-          COGNITO_CLIENT_SECRET: ${{ secrets.COGNITO_CLIENT_SECRET }}
         run: |
           agentcore launch \
             --auto-update-on-conflict \
             --env BEDROCK_AGENTCORE_MEMORY_ID=${{ env.MEMORY_ID }} \
-            --env GATEWAY_URL=${{ env.GATEWAY_URL }} \
-            --env COGNITO_TOKEN_URL=${{ env.COGNITO_TOKEN_URL }} \
-            --env COGNITO_CLIENT_ID=${{ env.COGNITO_CLIENT_ID }} \
-            --env COGNITO_CLIENT_SECRET=${{ env.COGNITO_CLIENT_SECRET }}
+            --env GATEWAY_URL=${{ env.GATEWAY_URL }}
 
