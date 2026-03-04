@@ -56,6 +56,11 @@ _token_cache: tuple = ("", 0.0)
 def _get_bearer_token() -> str:
     """Fetch a Cognito client-credentials token, cached until 60s before expiry."""
     global _token_cache
+    if not COGNITO_TOKEN_URL or not COGNITO_CLIENT_ID or not COGNITO_CLIENT_SECRET:
+        raise RuntimeError(
+            "Gateway auth not configured: COGNITO_TOKEN_URL, COGNITO_CLIENT_ID, "
+            "and COGNITO_CLIENT_SECRET must all be set"
+        )
     token, expiry = _token_cache
     if token and time.time() < expiry - 60:
         return token
