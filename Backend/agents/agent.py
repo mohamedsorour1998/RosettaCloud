@@ -108,18 +108,23 @@ Reply with one word: tutor, grader, or planner."""
 
 
 # Tool names each agent is allowed to use via the Gateway MCP server.
-# Names include the target prefix: "education-tools___<tool-name>" (hyphens — Gateway naming constraint)
+# Use simple underscore names (no prefix) — these are the normalized display names
+# presented to the Bedrock model. MCP tools are renamed on-the-fly in invoke().
 _AGENT_TOOL_NAMES = {
-    "tutor":   {"education-tools___search-knowledge-base",
-                "education-tools___get-question-details",
-                "education-tools___get-question-metadata"},
-    "grader":  {"education-tools___get-question-details",
-                "education-tools___get-user-progress",
-                "education-tools___get-attempt-result"},
-    "planner": {"education-tools___get-user-progress",
-                "education-tools___list-available-modules",
-                "education-tools___get-question-metadata"},
+    "tutor":   {"search_knowledge_base", "get_question_details", "get_question_metadata"},
+    "grader":  {"get_question_details", "get_user_progress", "get_attempt_result"},
+    "planner": {"get_user_progress", "list_available_modules", "get_question_metadata"},
 }
+
+
+def _normalize_tool_name(mcp_name: str) -> str:
+    """Convert MCP gateway tool name to a Bedrock-compatible identifier.
+
+    'education-tools___search-knowledge-base' → 'search_knowledge_base'
+    """
+    # Strip target prefix (everything up to and including '___')
+    bare = mcp_name.split("___", 1)[-1] if "___" in mcp_name else mcp_name
+    return bare.replace("-", "_")
 
 AGENT_CONFIGS = {
     "tutor":   (TUTOR_PROMPT,   None),   # tools injected at runtime via MCPClient
@@ -291,6 +296,10 @@ def invoke(payload, context=None):
 
         with mcp_client:
             all_mcp_tools = mcp_client.list_tools_sync()
+            # Rename MCP tools: hyphens/prefix cause modelStreamErrorException on Nova Lite.
+            # Set tool_name to a plain underscore identifier before passing to the agent.
+            for t in all_mcp_tools:
+                t.tool_name = _normalize_tool_name(t.tool_name)
             agent_tools = [t for t in all_mcp_tools if t.tool_name in allowed_tools]
             logger.info("Routing to %s via Gateway: user=%s session=...%s tools=%s history_turns=%d",
                         agent_name, user_id, session_id[-12:] if session_id else "none",
