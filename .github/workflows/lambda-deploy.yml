@@ -64,3 +64,55 @@ jobs:
             aws lambda wait function-active --function-name document_indexer --region ${{ env.AWS_REGION }}
           fi
           echo "document_indexer deployed"
+
+  agent-tools:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push agent_tools
+        env:
+          IMAGE: ${{ steps.login.outputs.registry }}/rosettacloud-agent_tools-lambda:latest
+        run: |
+          docker build --platform linux/amd64 \
+            -f Backend/serverless/Lambda/agent_tools/Dockerfile \
+            Backend/serverless/Lambda/agent_tools \
+            -t "$IMAGE"
+          docker push "$IMAGE"
+
+      - name: Deploy agent_tools Lambda
+        env:
+          IMAGE: ${{ steps.login.outputs.registry }}/rosettacloud-agent_tools-lambda:latest
+        run: |
+          ROLE="arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/rosettacloud-agent-tools-role"
+          ENV_VARS="Variables={USERS_TABLE_NAME=rosettacloud-users,S3_BUCKET_NAME=rosettacloud-shared-interactive-labs,LANCEDB_S3_URI=s3://rosettacloud-shared-interactive-labs-vector,KNOWLEDGE_BASE_ID=shell-scripts-knowledge-base}"
+
+          if aws lambda get-function --function-name agent_tools --region ${{ env.AWS_REGION }} &>/dev/null; then
+            aws lambda wait function-updated --function-name agent_tools --region ${{ env.AWS_REGION }} 2>/dev/null || true
+            aws lambda update-function-code \
+              --function-name agent_tools --image-uri "$IMAGE" --region ${{ env.AWS_REGION }}
+            aws lambda wait function-updated --function-name agent_tools --region ${{ env.AWS_REGION }}
+            aws lambda update-function-configuration \
+              --function-name agent_tools \
+              --timeout 60 --memory-size 1024 --environment "$ENV_VARS" --region ${{ env.AWS_REGION }}
+          else
+            aws lambda create-function \
+              --function-name agent_tools --package-type Image \
+              --code ImageUri="$IMAGE" --role "$ROLE" \
+              --timeout 60 --memory-size 1024 --environment "$ENV_VARS" --region ${{ env.AWS_REGION }}
+            aws lambda wait function-active --function-name agent_tools --region ${{ env.AWS_REGION }}
+          fi
+          echo "agent_tools deployed"
