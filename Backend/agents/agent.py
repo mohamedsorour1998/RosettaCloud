@@ -297,9 +297,10 @@ def invoke(payload, context=None):
         with mcp_client:
             all_mcp_tools = mcp_client.list_tools_sync()
             # Rename MCP tools: hyphens/prefix cause modelStreamErrorException on Nova Lite.
-            # Set tool_name to a plain underscore identifier before passing to the agent.
+            # _agent_tool_name is the model-facing name; mcp_tool.name (unchanged) is used
+            # for the actual MCP call — so renaming here is safe.
             for t in all_mcp_tools:
-                t.tool_name = _normalize_tool_name(t.tool_name)
+                t._agent_tool_name = _normalize_tool_name(t.tool_name)
             agent_tools = [t for t in all_mcp_tools if t.tool_name in allowed_tools]
             logger.info("Routing to %s via Gateway: user=%s session=...%s tools=%s history_turns=%d",
                         agent_name, user_id, session_id[-12:] if session_id else "none",
