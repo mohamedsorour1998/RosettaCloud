@@ -276,14 +276,14 @@ def invoke(payload, context=None):
 
     allowed_tools = _AGENT_TOOL_NAMES.get(agent_name, set())
 
-    if GATEWAY_URL and COGNITO_CLIENT_ID:
+    if GATEWAY_URL:
         try:
-            bearer = _get_bearer_token()
+            # Build headers: add Bearer token only when Cognito creds are configured
+            headers = {}
+            if COGNITO_CLIENT_ID:
+                headers["Authorization"] = f"Bearer {_get_bearer_token()}"
             mcp_client = MCPClient(
-                lambda: streamablehttp_client(
-                    GATEWAY_URL,
-                    headers={"Authorization": f"Bearer {bearer}"},
-                )
+                lambda: streamablehttp_client(GATEWAY_URL, headers=headers or None)
             )
         except Exception as e:
             logger.error("Failed to create MCPClient: %s", e)
