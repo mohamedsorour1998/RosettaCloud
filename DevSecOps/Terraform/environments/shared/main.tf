@@ -330,6 +330,27 @@ resource "aws_ecr_repository" "agent_tools_lambda" {
   image_scanning_configuration {
     scan_on_push = true
   }
+
+  tags = local.tags
+}
+
+resource "aws_ecr_lifecycle_policy" "agent_tools_lambda" {
+  repository = aws_ecr_repository.agent_tools_lambda.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Expire images, keep last 5"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 5
+        }
+        action = { type = "expire" }
+      }
+    ]
+  })
 }
 
 ################################################################################
@@ -555,6 +576,8 @@ resource "aws_iam_role" "agent_tools_lambda_role" {
       Action    = "sts:AssumeRole"
     }]
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy" "agent_tools_lambda_policy" {
@@ -565,11 +588,13 @@ resource "aws_iam_role_policy" "agent_tools_lambda_policy" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "DynamoDB"
         Effect   = "Allow"
         Action   = ["dynamodb:GetItem"]
         Resource = "arn:aws:dynamodb:us-east-1:339712964409:table/rosettacloud-users"
       },
       {
+        Sid    = "S3"
         Effect = "Allow"
         Action = ["s3:GetObject", "s3:ListBucket"]
         Resource = [
@@ -580,13 +605,16 @@ resource "aws_iam_role_policy" "agent_tools_lambda_policy" {
         ]
       },
       {
+        Sid      = "Bedrock"
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
         Resource = "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
       },
       {
-        Effect   = "Allow"
-        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+        # Scoped to the function name 'agent_tools' — update if function is renamed
         Resource = "arn:aws:logs:us-east-1:339712964409:log-group:/aws/lambda/agent_tools:*"
       }
     ]
@@ -605,6 +633,8 @@ resource "aws_iam_role" "agentcore_gateway_role" {
       Action    = "sts:AssumeRole"
     }]
   })
+
+  tags = local.tags
 }
 
 resource "aws_iam_role_policy" "agentcore_gateway_policy" {
@@ -614,6 +644,7 @@ resource "aws_iam_role_policy" "agentcore_gateway_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
+      Sid      = "LambdaInvoke"
       Effect   = "Allow"
       Action   = ["lambda:InvokeFunction"]
       Resource = "arn:aws:lambda:us-east-1:339712964409:function:agent_tools"
