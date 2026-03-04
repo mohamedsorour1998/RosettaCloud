@@ -299,9 +299,14 @@ _TOOLS = {
 
 def lambda_handler(event, context):
     logger.info("Tool event: %s", json.dumps({k: v for k, v in event.items() if k != "toolInput"}))
-    raw_name   = event.get("toolName", "")
-    tool_name  = raw_name.split("___", 1)[-1] if "___" in raw_name else raw_name
-    tool_input = event.get("toolInput", {})
+    raw_name  = event.get("toolName", "")
+    # Strip target prefix (e.g. "education-tools___search-knowledge-base" → "search-knowledge-base")
+    tool_name = raw_name.split("___", 1)[-1] if "___" in raw_name else raw_name
+    # Gateway uses hyphenated names; normalize to underscore for dispatch
+    tool_name = tool_name.replace("-", "_")
+    # Normalize hyphenated parameter keys to underscore (e.g. "user-id" → "user_id")
+    raw_input  = event.get("toolInput", {})
+    tool_input = {k.replace("-", "_"): v for k, v in raw_input.items()}
     handler_fn = _TOOLS.get(tool_name)
     if handler_fn is None:
         logger.error("Unknown tool: %s", tool_name)
