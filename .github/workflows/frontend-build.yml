@@ -16,6 +16,8 @@ on:
       - "Frontend/src/**"
       - "Frontend/Dockerfile"
       - "Frontend/package.json"
+      - "Frontend/angular.json"
+      - "Frontend/nginx.conf"
 
 env:
   AWS_ACCOUNT_ID: "339712964409"
