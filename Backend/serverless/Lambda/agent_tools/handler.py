@@ -298,18 +298,33 @@ _TOOLS = {
 
 
 def lambda_handler(event, context):
-    logger.info("Tool event: %s", json.dumps({k: v for k, v in event.items() if k != "toolInput"}))
-    raw_name  = event.get("toolName", "")
-    # Strip target prefix (e.g. "education-tools___search-knowledge-base" → "search-knowledge-base")
-    tool_name = raw_name.split("___", 1)[-1] if "___" in raw_name else raw_name
-    # Gateway uses hyphenated names; normalize to underscore for dispatch
-    tool_name = tool_name.replace("-", "_")
-    # Normalize hyphenated parameter keys to underscore (e.g. "user-id" → "user_id")
-    raw_input  = event.get("toolInput", {})
-    tool_input = {k.replace("-", "_"): v for k, v in raw_input.items()}
+    # Tool name is in context.client_context.custom (NOT in the event).
+    # Format: "${target_name}___${tool_name}" e.g. "education-tools___get-question-details"
+    # Event IS the tool input parameters directly (flat key/value map).
+    full_tool_name = ""
+    try:
+        full_tool_name = context.client_context.custom.get("bedrockAgentCoreToolName", "")
+    except Exception:
+        pass
+
+    # Strip target prefix: "education-tools___get-question-details" → "get-question-details"
+    delimiter = "___"
+    if delimiter in full_tool_name:
+        raw_name = full_tool_name[full_tool_name.index(delimiter) + len(delimiter):]
+    else:
+        raw_name = full_tool_name
+
+    # Normalize hyphens to underscores for dispatch table lookup
+    tool_name = raw_name.replace("-", "_")
+
+    # Event IS the input (flat parameters); normalize hyphenated keys
+    tool_input = {k.replace("-", "_"): v for k, v in event.items()}
+
+    logger.warning("tool=%s (full=%s) input_keys=%s", tool_name, full_tool_name, list(tool_input.keys()))
+
     handler_fn = _TOOLS.get(tool_name)
     if handler_fn is None:
-        logger.error("Unknown tool: %s", tool_name)
+        logger.error("Unknown tool: %s (full: %s)", tool_name, full_tool_name)
         return json.dumps({"error": f"Unknown tool: {tool_name}"})
     try:
         return handler_fn(tool_input)
