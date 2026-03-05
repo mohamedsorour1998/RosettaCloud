@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, of } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of, throwError, timer } from 'rxjs';
+import { map, catchError, retry } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export type AgentType = 'tutor' | 'grader' | 'planner' | null;
@@ -56,6 +56,16 @@ export class ChatbotService {
     });
   }
 
+  /** POST to the chat API, retrying once after 1.5 s on HTTP-0 (connection-refused / cold-start). */
+  private post<T>(body: object): Observable<T> {
+    return this.http.post<T>(this.apiUrl, body).pipe(
+      retry({
+        count: 1,
+        delay: (err) => err.status === 0 ? timer(1500) : throwError(() => err),
+      })
+    );
+  }
+
   public setUserId(userId: string): void {
     this.userId = userId;
   }
@@ -69,8 +79,7 @@ export class ChatbotService {
     this.addMessage({ role: 'user', content: message, timestamp: new Date() });
     this.loadingSubject.next(true);
 
-    this.http
-      .post<ChatApiResponse>(this.apiUrl, {
+    this.post<ChatApiResponse>({
         session_id: this.sessionId,
         message,
         user_id: this.userId,
@@ -108,8 +117,7 @@ export class ChatbotService {
     });
     this.loadingSubject.next(true);
 
-    this.http
-      .post<ChatApiResponse>(this.apiUrl, {
+    this.post<ChatApiResponse>({
         session_id: this.sessionId,
         message: text,
         user_id: this.userId,
@@ -144,8 +152,7 @@ export class ChatbotService {
     this.addMessage({ role: 'user', content: message, timestamp: new Date() });
     this.loadingSubject.next(true);
 
-    this.http
-      .post<ChatApiResponse>(this.apiUrl, {
+    this.post<ChatApiResponse>({
         session_id: this.sessionId,
         message,
         user_id: this.userId,
@@ -180,8 +187,7 @@ export class ChatbotService {
     // The agent response will appear as a Planner message in the chat.
     this.loadingSubject.next(true);
 
-    this.http
-      .post<ChatApiResponse>(this.apiUrl, {
+    this.post<ChatApiResponse>({
         session_id: this.sessionId,
         // message is empty string — agent.py overrides it with the welcome
         // prompt inside the session_start block before any LLM call.
@@ -208,8 +214,7 @@ export class ChatbotService {
   }
 
   public explainCommand(command: string): Observable<string> {
-    return this.http
-      .post<ChatApiResponse>(this.apiUrl, {
+    return this.post<ChatApiResponse>({
         session_id: this.sessionId,
         message: command,
         user_id: this.userId,
@@ -231,8 +236,7 @@ export class ChatbotService {
   ): void {
     this.loadingSubject.next(true);
 
-    this.http
-      .post<ChatApiResponse>(this.apiUrl, {
+    this.post<ChatApiResponse>({
         session_id: this.sessionId,
         user_id: this.userId,
         type: 'grade',
@@ -290,8 +294,7 @@ export class ChatbotService {
     });
     this.loadingSubject.next(true);
 
-    this.http
-      .post<ChatApiResponse>(this.apiUrl, {
+    this.post<ChatApiResponse>({
         session_id: this.sessionId,
         user_id: this.userId,
         type: 'grade',
