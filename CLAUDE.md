@@ -293,9 +293,16 @@ Current modules:
 
 MCP tool name flow: Gateway exposes `education-tools___get-question-details` → agent normalizes to `get_question_details` for model → MCP call uses original name → Gateway strips prefix → Lambda receives `get-question-details` in context → Lambda normalizes to `get_question_details` for dispatch.
 
+### Agent Prompt Conventions (`Backend/agents/prompts.py`)
+
+- **All three prompts** receive the student context string `Student (user_id: ..., module_uuid: ..., lesson_uuid: ...): <message>` — tools that need `module_uuid`/`lesson_uuid` must be explicitly told to extract them from this string.
+- **Grader prompt**: must instruct the model to pass `module_uuid` and `lesson_uuid` from the student context when calling `get_question_details`. Without this, the model omits the required parameters → "missing required parameters" error.
+- Pattern: follow the tutor prompt's explicit `"using the module_uuid and lesson_uuid from the student context"` phrasing for any agent that calls location-scoped tools.
+
 ### Deploy Commands (manual)
 ```bash
 cd Backend/agents
+# Note: agentcore CLI is at ~/.local/bin/agentcore (not in PATH by default — use full path or add to PATH)
 agentcore configure -e agent.py -n rosettacloud_education_agent \
   -er arn:aws:iam::339712964409:role/rosettacloud-agentcore-runtime-role \
   -rf requirements.txt -r us-east-1 -ni
@@ -366,3 +373,9 @@ loading$: Observable<boolean>
 connected$: Observable<boolean>   // always true (HTTP)
 sources$: Observable<Source[]>    // always empty (AgentCore doesn't return sources)
 ```
+
+**Implementation notes:**
+- All HTTP calls go through a private `post<T>(body)` helper that retries **once after 1.5 s on HTTP status 0** (connection refused / cold backend pod). Other error codes propagate immediately without retry.
+- The chat textarea is **never** disabled by `isLoading` — only the send button is gated. This prevents the `sendSessionStart` welcome-message fetch (~15-30 s) from blocking user input.
+- `sendSessionStart` is called by `LabComponent` only when lab status transitions to `running` (not on `pending`). It fires silently (no user bubble) and the response appears as a Planner message.
+- Markdown ordered lists use `<ol start="N">` so lists interrupted by blank lines continue at the correct number instead of resetting to 1.
