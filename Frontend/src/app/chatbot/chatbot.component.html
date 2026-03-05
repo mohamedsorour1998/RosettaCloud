@@ -238,7 +238,7 @@
         [(ngModel)]="currentMessage"
         (keydown)="onKeyDown($event)"
         (input)="adjustTextareaHeight()"
-        [disabled]="!isConnected || isLoading"
+        [disabled]="!isConnected"
         rows="1"
       ></textarea>
 

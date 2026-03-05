@@ -202,19 +202,29 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
       const lines = processed.split('\n');
       const htmlLines: string[] = [];
       let listState: 'none' | 'ul' | 'ol' = 'none';
+      let olCounter = 1;
 
       for (const line of lines) {
         const ulMatch = line.match(/^[-*] (.+)/);
-        const olMatch = line.match(/^\d+\. (.+)/);
+        const olMatch = line.match(/^(\d+)\. (.+)/);
         const neededState = ulMatch ? 'ul' : olMatch ? 'ol' : 'none';
 
         if (neededState !== 'none') {
           if (listState !== neededState) {
             if (listState !== 'none') htmlLines.push(`</${listState}>`);
-            htmlLines.push(`<${neededState}>`);
+            if (neededState === 'ol') {
+              olCounter = olMatch ? parseInt(olMatch[1], 10) : 1;
+              htmlLines.push(`<ol start="${olCounter}">`);
+            } else {
+              htmlLines.push(`<ul>`);
+            }
             listState = neededState;
           }
-          htmlLines.push(`<li>${(ulMatch ? ulMatch[1] : olMatch![1])}</li>`);
+          if (olMatch) {
+            htmlLines.push(`<li>${olMatch[2]}</li>`);
+          } else {
+            htmlLines.push(`<li>${ulMatch![1]}</li>`);
+          }
         } else {
           if (listState !== 'none') {
             htmlLines.push(`</${listState}>`);
