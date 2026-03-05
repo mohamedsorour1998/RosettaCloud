@@ -37,7 +37,7 @@ Built with enterprise-grade container orchestration to provide isolated, scalabl
 - **Containerized Tools**: Code-Server with Docker-in-Docker for realistic development environments
 - **Resource Isolation**: Each lab runs in separate Kubernetes namespaces with resource limits
 - **Real-time Verification**: Automated shell scripts validate student progress instantly
-- **Auto-provisioning**: On-demand creation from predefined templates in 1-2 seconds
+- **Auto-provisioning**: On-demand creation — pod ready in ~6-10s (code-server + Caddy); full Kind K8s cluster available in ~60-90s in the background
 
 **DevOps Implementation:**
 - Kubernetes HPA for automatic scaling based on demand
@@ -307,7 +307,7 @@ sequenceDiagram
 
 | Metric | Target | Achieved | Scaling Method |
 |--------|--------|----------|----------------|
-| **Lab Provisioning** | < 5 seconds | 1-2 seconds | Container pre-warming + K8s scheduling |
+| **Lab Provisioning** | < 30 seconds | ~6-10s (pod ready); Kind cluster ~60-90s background | Readiness probe on Caddy; Kind starts in background |
 | **AI Response Time** | < 3 seconds | ~1-2s typical | Synchronous HTTP POST + in-process session cache |
 | **Chatbot Latency** | < 500ms | 200ms average | Synchronous HTTP POST + in-process session cache |
 | **Feedback Generation** | < 5 seconds | 2-3 seconds | Asynchronous processing + AI caching |
@@ -347,26 +347,27 @@ cd rosettacloud
 **2. Local Development**
 ```bash
 # Frontend development server
-cd frontend
+cd Frontend
 npm install
-ng serve --host 0.0.0.0 --port 4200
+ng serve
 
 # Backend API server (separate terminal)
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+cd Backend
+pip install -r requirements.txt --break-system-packages
+REDIS_HOST=localhost LAB_K8S_NAMESPACE=dev \
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **3. Environment Configuration**
 ```bash
-# Create environment file
-cp frontend/src/environments/environment.example.ts frontend/src/environments/environment.ts
+# AWS credentials — use AWS CLI profile (local dev) or IRSA (in-cluster)
+aws configure   # sets ~/.aws/credentials
 
-# Set required environment variables
-export AWS_ACCESS_KEY_ID="your_aws_access_key"
-export AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
+# Key environment variables for local dev
 export AWS_REGION="us-east-1"
-export LANCEDB_S3_URI="s3://your-vector-database-bucket"
+export REDIS_HOST="localhost"
+export LAB_K8S_NAMESPACE="dev"
+export LANCEDB_S3_URI="s3://rosettacloud-shared-interactive-labs-vector"
 export KNOWLEDGE_BASE_ID="shell-scripts-knowledge-base"
 ```
 
@@ -384,25 +385,32 @@ kubectl get services -n dev
 
 **AI Services Setup:**
 ```bash
-# Deploy Lambda functions for AI services
-cd backend/serverless/Lambda
+# Deploy AgentCore multi-agent runtime (tutor / grader / planner)
+cd Backend/agents
+agentcore configure -e agent.py -n rosettacloud_education_agent \
+  -er arn:aws:iam::ACCOUNT_ID:role/rosettacloud-agentcore-runtime-role \
+  -rf requirements.txt -r us-east-1 -ni
+agentcore launch --auto-update-on-conflict \
+  --env BEDROCK_AGENTCORE_MEMORY_ID=<memory-id>
+agentcore status   # wait for READY
 
-# Build and deploy chatbot service
-docker build -t rosettacloud-ai-chatbot ai_chatbot/
-aws lambda update-function-code --function-name ai_chatbot --image-uri <ecr-uri>
-
-# Build and deploy document indexer
-docker build -t rosettacloud-document-indexer document_indexer/
-aws lambda update-function-code --function-name document_indexer --image-uri <ecr-uri>
+# document_indexer Lambda is deployed automatically via CI/CD
+# (triggered by pushing changes to Backend/serverless/Lambda/**)
 ```
 
 **CI/CD Pipeline:**
-The platform includes automated GitHub Actions workflows that handle:
-- Docker image building and ECR push
-- Kubernetes deployment updates
-- Lambda function deployments
-- Vector database updates
-- Automated testing and security scanning
+Six GitHub Actions workflows handle all automated deployments:
+
+| Workflow | Trigger | Action |
+|----------|---------|--------|
+| **Agent Deploy** | push → `Backend/agents/**` | `agentcore launch` via CodeBuild (ARM64) + update K8s ConfigMap with new ARN |
+| **Lambda Deploy** | push → `Backend/serverless/Lambda/**` | Build & push `document_indexer` container → update Lambda |
+| **Questions Sync** | push → `Backend/questions/**` | Sync shell scripts to S3 → triggers EventBridge → document indexing |
+| **Backend Build** | push → `Backend/app/**` | Build image → ECR push → EKS rolling restart |
+| **Frontend Build** | push → `Frontend/src/**` | Build image → ECR push → EKS rolling restart |
+| **Interactive Labs** | push → `DevSecOps/interactive-labs/**` | Build & push lab container image to ECR |
+
+All workflows use **GitHub OIDC** — no static AWS credentials stored in secrets.
 
 ## 🔧 Configuration & Customization
 
@@ -410,12 +418,15 @@ The platform includes automated GitHub Actions workflows that handle:
 
 | Variable | Description | Required | Example |
 |----------|-------------|----------|---------|
-| `AWS_ACCESS_KEY_ID` | AWS programmatic access | ✅ | `AKIA...` |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key | ✅ | `wJalrX...` |
 | `AWS_REGION` | AWS deployment region | ✅ | `us-east-1` |
-| `LANCEDB_S3_URI` | Vector database S3 location | ✅ | `s3://vector-db-bucket` |
-| `KNOWLEDGE_BASE_ID` | Vector database table name | ✅ | `shell-scripts-kb` |
-| `DYNAMO_TABLE` | Chat history table name | ✅ | `SessionTable` |
+| `REDIS_HOST` | Redis hostname | No | `redis-service` (K8s) / `localhost` (local) |
+| `LAB_K8S_NAMESPACE` | Kubernetes namespace for lab pods | No | `dev` |
+| `AGENT_RUNTIME_ARN` | AgentCore Runtime ARN (K8s ConfigMap) | ✅ (prod) | `arn:aws:bedrock-agentcore:us-east-1:...` |
+| `BEDROCK_AGENTCORE_MEMORY_ID` | AgentCore Memory ID for cross-session persistence | No | `rosettacloud_education_memory-...` |
+| `LANCEDB_S3_URI` | Vector database S3 location | ✅ | `s3://rosettacloud-shared-interactive-labs-vector` |
+| `KNOWLEDGE_BASE_ID` | LanceDB table name | ✅ | `shell-scripts-knowledge-base` |
+
+> **AWS credentials**: in-cluster pods use IRSA (IAM Roles for Service Accounts); local dev uses `~/.aws/credentials` via AWS CLI profile.
 
 ### Service Configuration
 
@@ -459,11 +470,10 @@ graph LR
 ```
 
 **Automated Quality Gates:**
-- **Code Quality**: ESLint, Prettier, and pytest with coverage reports
-- **Security**: Snyk vulnerability scanning and container image analysis
-- **Performance**: Automated load testing on staging environments
-- **Integration**: End-to-end testing with real AWS services
-- **AI Model Testing**: Validation of RAG responses and feedback quality
+- **Build validation**: Docker multi-stage builds fail-fast on errors
+- **Container security**: ECR image scanning on push
+- **Agent deployment**: `agentcore launch` validates container + CodeBuild ARM64 build before promoting
+- **K8s health**: Rolling restart only proceeds when new pods pass readiness probes
 
 ### Deployment Strategies
 - **Rolling Updates**: Zero-downtime deployments with readiness probes
@@ -517,21 +527,21 @@ GET    /api/v1/feedback/{id}
 
 **Frontend Testing:**
 ```bash
-cd frontend
-npm test                # Jest unit tests with Angular Testing Library
-npm run e2e            # Cypress end-to-end testing
-npm run lint           # ESLint + Prettier code quality
-npm run audit          # Security vulnerability scanning
+cd Frontend
+ng test                # Karma + Jasmine unit tests
+ng lint                # ESLint code quality
+npm audit              # Security vulnerability scanning
 ```
 
 **Backend Testing:**
 ```bash
-cd backend
-pytest --cov=app --cov-report=html    # Unit tests with coverage
-pytest tests/integration/             # Integration tests
-pytest tests/performance/             # Load testing with locust
-pytest tests/ai/                      # AI model response validation
-black . && isort .                     # Code formatting
+cd Backend
+# Note: automated test suite not yet implemented
+# Manual API testing via agentcore invoke:
+agentcore invoke '{"message": "What is Docker?", "user_id": "test", "session_id": "test-session-1234567890abcdef1234"}'
+
+# Health check
+curl http://localhost:8000/health-check
 ```
 
 **Infrastructure Testing:**
@@ -643,11 +653,20 @@ curl -f http://localhost:8000/health-check  # API health check
 
 **AI Services Troubleshooting:**
 ```bash
-# Vector database connectivity
-aws s3 ls s3://your-vector-db-bucket/
+# AgentCore Runtime status
+agentcore status
 
-# Lambda function logs
-aws logs tail /aws/lambda/ai_chatbot --follow
+# Invoke agent directly (bypasses FastAPI)
+agentcore invoke '{"message": "What is Docker?", "user_id": "test", "session_id": "test-session-1234567890abcdef1234"}'
+
+# AgentCore Runtime logs
+aws logs tail /aws/bedrock-agentcore/runtimes/rosettacloud_education_agent-yebWcC9Yqy --follow
+
+# document_indexer Lambda logs
+aws logs tail /aws/lambda/document_indexer --follow --region us-east-1
+
+# Verify vector store
+aws s3 ls s3://rosettacloud-shared-interactive-labs-vector/
 
 # Bedrock model access
 aws bedrock list-foundation-models --region us-east-1
