@@ -18,7 +18,7 @@ spec:
           image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-frontend:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 4200
+            - containerPort: 80
 
 ---
 apiVersion: v1
@@ -32,5 +32,5 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 4200
+      targetPort: 80
   type: ClusterIP
