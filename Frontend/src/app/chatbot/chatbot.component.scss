@@ -293,7 +293,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.75rem; // Increased from 1.5rem for more vertical space between messages
-  scroll-behavior: smooth;
   position: relative;
 
   .message-wrapper {
@@ -1534,9 +1533,10 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-// Inline code hover tooltip
+// Inline code hover tooltip — fixed so it is always viewport-relative
+// and never contributes to the scroll container's scrollHeight.
 .code-tooltip {
-  position: absolute;
+  position: fixed;
   z-index: 20;
   background: rgba(15, 23, 42, 0.92);
   color: #e2e8f0;

@@ -43,7 +43,6 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   public shouldAutoScroll = true;
-  private lastScrollHeight = 0;
   private pendingMessages = false;
   copiedMessageId: string | null = null;
   tooltipText = '';
@@ -93,8 +92,8 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngAfterViewChecked(): void {
     if (this.pendingMessages) {
-      this.scrollToBottom();
       this.pendingMessages = false;
+      this.scrollToBottom();
     }
   }
 
@@ -284,29 +283,31 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
       .replace(/'/g, '&#039;');
   }
 
-  /**
-   * Scrolls the chat container to the bottom
-   */
-  private scrollToBottom(): void {
-    try {
-      if (this.chatContainer && this.shouldAutoScroll) {
-        const container = this.chatContainer.nativeElement;
-        setTimeout(() => {
-          container.scrollTop = container.scrollHeight;
-          this.lastScrollHeight = container.scrollHeight;
-        }, 0);
-      }
-    } catch (err) {
-      console.error('Error scrolling to bottom:', err);
-    }
+  /** True when the scroll container is within 80px of the bottom. */
+  private isNearBottom(): boolean {
+    const el = this.chatContainer?.nativeElement;
+    if (!el) return true;
+    return (el.scrollHeight - el.clientHeight - el.scrollTop) < 80;
   }
 
   /**
-   * Manually scrolls to the bottom when the button is clicked
+   * Scroll to the bottom if auto-scroll is active.
+   * Direct assignment (no smooth scroll) to avoid spurious onScroll events
+   * during animation that would flip shouldAutoScroll back to false.
    */
+  private scrollToBottom(): void {
+    if (!this.shouldAutoScroll) return;
+    const el = this.chatContainer?.nativeElement;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  /** Called when the user clicks the scroll-to-bottom button. */
   scrollToBottomManually(): void {
+    const el = this.chatContainer?.nativeElement;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
     this.shouldAutoScroll = true;
-    this.scrollToBottom();
   }
 
   /**
@@ -320,21 +321,9 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  /**
-   * Tracks scroll position and determines if auto-scroll should be enabled
-   * @param event Scroll event
-   */
-  onScroll(event: Event): void {
-    if (this.chatContainer) {
-      const element = this.chatContainer.nativeElement;
-      const atBottom =
-        Math.abs(
-          element.scrollHeight - element.clientHeight - element.scrollTop
-        ) < 50;
-
-      this.shouldAutoScroll = atBottom;
-      this.lastScrollHeight = element.scrollHeight;
-    }
+  /** Fired on every scroll event — update auto-scroll state. */
+  onScroll(): void {
+    this.shouldAutoScroll = this.isNearBottom();
   }
 
   /**
@@ -497,12 +486,10 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     clearTimeout(this.tooltipTimer ?? undefined);
     this.tooltipTimer = setTimeout(() => {
-      const containerEl = this.chatContainer.nativeElement as HTMLElement;
-      const containerRect = containerEl.getBoundingClientRect();
+      // Tooltip is position:fixed — use viewport-relative coordinates directly.
       const targetRect = (target as HTMLElement).getBoundingClientRect();
-
-      this.tooltipX = targetRect.left - containerRect.left;
-      this.tooltipY = targetRect.bottom - containerRect.top + containerEl.scrollTop + 6;
+      this.tooltipX = targetRect.left;
+      this.tooltipY = targetRect.bottom + 6;
       this.tooltipText = 'Loading…';
       this.tooltipVisible = true;
 

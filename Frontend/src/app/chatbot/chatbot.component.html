@@ -59,7 +59,7 @@
 
     <!-- Main Chat Area -->
     <div class="chat-container" #chatContainer
-         (scroll)="onScroll($event)"
+         (scroll)="onScroll()"
          (mouseover)="onCodeHover($event)"
          (mouseout)="onCodeHoverOut()">
       <!-- Welcome Message - Only show when no messages or hasUserSentMessage is false -->
@@ -209,24 +209,28 @@
         </div>
       </div>
 
-      <!-- Inline code tooltip -->
-      <div
-        class="code-tooltip"
-        *ngIf="tooltipVisible"
-        [style.left.px]="tooltipX"
-        [style.top.px]="tooltipY"
-      >
-        <i class="bi bi-cpu-fill"></i> {{ tooltipText }}
-      </div>
+    </div>
 
-      <!-- Scroll to Bottom Button -->
-      <button
-        class="scroll-bottom-btn"
-        *ngIf="!shouldAutoScroll && messages.length > 0"
-        (click)="scrollToBottomManually()"
-      >
-        <i class="bi bi-chevron-down"></i>
-      </button>
+    <!-- Scroll to Bottom Button — lives in chatbot-body (position:relative),
+         NOT inside the scrollable chat-container, so it stays visible
+         regardless of scroll position. -->
+    <button
+      class="scroll-bottom-btn"
+      *ngIf="!shouldAutoScroll && messages.length > 0"
+      (click)="scrollToBottomManually()"
+    >
+      <i class="bi bi-chevron-down"></i>
+    </button>
+
+    <!-- Inline code tooltip — position:fixed so it is viewport-relative
+         and never inside the scroll container (avoids scrollHeight pollution). -->
+    <div
+      class="code-tooltip"
+      *ngIf="tooltipVisible"
+      [style.left.px]="tooltipX"
+      [style.top.px]="tooltipY"
+    >
+      <i class="bi bi-cpu-fill"></i> {{ tooltipText }}
     </div>
 
     <!-- Input Area -->
