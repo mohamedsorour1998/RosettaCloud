@@ -24,9 +24,9 @@ Traditional learning platforms struggle with three key challenges:
 - **Delayed feedback loops** that slow down learning progress
 
 RosettaCloud addresses these with a cloud-native, event-driven architecture that delivers:
-- **60% cost reduction** through serverless and auto-scaling infrastructure
-- **Sub-second lab provisioning** vs traditional 5-10 minute VM setups
-- **Real-time AI assistance** with context-aware chatbot and instant feedback
+- **60% cost reduction** through spot instances and optimized infrastructure
+- **~6-10 second lab provisioning** (pod ready) vs traditional 5-10 minute VM setups
+- **Real-time AI assistance** with context-aware chatbot and instant feedback (1-2s response time)
 
 ## ✨ Core Features
 
@@ -271,7 +271,7 @@ sequenceDiagram
 
 ### Backend & API Development
 - **FastAPI** for high-performance, auto-documented APIs
-- **Python 3.9+** with async/await patterns for concurrency
+- **Python 3.12+** with async/await patterns for concurrency
 - **LanceDB** vector database for AI/ML workloads
 - **Strands Agents** for multi-agent AI orchestration (AWS open-source)
 
@@ -295,11 +295,11 @@ sequenceDiagram
 ![Lambda](https://github.com/user-attachments/assets/fec91bbe-74bd-401d-87aa-4d95105aade7)
 
 ### DevOps & Platform Engineering
-- **GitHub Actions** for automated CI/CD pipelines
+- **GitHub Actions** for automated CI/CD pipelines with OIDC
 - **Docker** multi-stage builds for optimized container images
-- **Kubernetes** with custom operators and CRDs
-- **Terraform** for Infrastructure as Code (planned implementation)
-- **Prometheus & Grafana** for observability and monitoring
+- **Kubernetes** with Istio service mesh and custom NodePools
+- **Terraform** for Infrastructure as Code (VPC, EKS, Route 53, CloudFront, ECR, S3, IAM)
+- **CloudWatch & EKS** for observability and monitoring
 
 ## 📊 Performance & Scalability
 
@@ -321,16 +321,52 @@ sequenceDiagram
 - **Cluster Autoscaler** for node-level scaling
 - **Lambda concurrency controls** for cost-effective AI processing
 
+## 📚 Documentation
+
+### Component Documentation
+
+Comprehensive technical documentation is available for each major component:
+
+| Component | Documentation | Description |
+|-----------|--------------|-------------|
+| **Backend** | [`Backend/README.md`](Backend/README.md) | FastAPI application, AI agents, Kubernetes lab management, service/backend architecture (1,168 lines) |
+| **Frontend** | [`Frontend/README.md`](Frontend/README.md) | Angular 19 SPA, chatbot UI, lab interface, HTTP-based chat, multimodal support (1,464 lines) |
+| **DevSecOps** | [`DevSecOps/README.md`](DevSecOps/README.md) | Terraform IaC, EKS cluster, Istio service mesh, CI/CD pipelines, IRSA (1,554 lines) |
+| **Technical Guide** | [`CLAUDE.md`](CLAUDE.md) | Implementation details, deployment procedures, troubleshooting guide |
+
+**Total Documentation:** 4,186+ lines covering architecture, deployment, troubleshooting, and best practices.
+
+### Quick Links
+
+**Backend:**
+- [Service/Backend Architecture](Backend/README.md#core-components)
+- [AI Multi-Agent System](Backend/README.md#ai-multi-agent-system)
+- [Lab Management](Backend/README.md#2-labs-service--backend-labs_backendspy)
+- [API Reference](Backend/README.md#api-requestresponse-examples)
+
+**Frontend:**
+- [Lab Component](Frontend/README.md#1-interactive-lab-environment-lab)
+- [Chatbot Service](Frontend/README.md#2-ai-chatbot-chatbot-serviceschatbotservicets)
+- [Multimodal Support](Frontend/README.md#multimodal-snap--ask)
+- [Routing & Guards](Frontend/README.md#routing--navigation)
+
+**DevSecOps:**
+- [Terraform Infrastructure](DevSecOps/README.md#1-terraform-infrastructure-terraformenvironmentssharedmaintf)
+- [Kubernetes Manifests](DevSecOps/README.md#2-kubernetes-manifests-k8s)
+- [Interactive Labs Container](DevSecOps/README.md#3-interactive-labs-container-interactive-labsdockerfile)
+- [CI/CD Pipelines](DevSecOps/README.md#cicd-pipelines)
+
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 **Development Environment:**
 - **Node.js** 18.19.1+ and **npm** for frontend development
-- **Python** 3.9+ with **pip** for backend development
+- **Python** 3.12+ with **pip** for backend development
 - **Docker Desktop** with Kubernetes enabled for local testing
 - **AWS CLI v2** configured with appropriate permissions
 - **kubectl** 1.25+ for Kubernetes cluster management
+- **Terraform** 1.5+ for infrastructure provisioning
 
 **Cloud Services:**
 - AWS account with EKS, Lambda, DynamoDB, and Bedrock access
@@ -346,12 +382,12 @@ cd rosettacloud
 
 **2. Local Development**
 ```bash
-# Frontend development server
+# Frontend development server (port 4200)
 cd Frontend
 npm install
 ng serve
 
-# Backend API server (separate terminal)
+# Backend API server (port 8000, separate terminal)
 cd Backend
 pip install -r requirements.txt --break-system-packages
 REDIS_HOST=localhost LAB_K8S_NAMESPACE=dev \
@@ -371,14 +407,32 @@ export LANCEDB_S3_URI="s3://rosettacloud-shared-interactive-labs-vector"
 export KNOWLEDGE_BASE_ID="shell-scripts-knowledge-base"
 ```
 
+**For detailed setup instructions, see:**
+- [Backend Setup Guide](Backend/README.md#quick-start)
+- [Frontend Setup Guide](Frontend/README.md#quick-start)
+- [Infrastructure Deployment](DevSecOps/README.md#quick-start)
+
 ### Production Deployment
 
 **Infrastructure Provisioning:**
 ```bash
-# Deploy to Kubernetes cluster
+# 1. Deploy Terraform infrastructure
+cd DevSecOps/Terraform/environments/shared
+terraform init
+terraform apply -var-file="terraform.tfvars"
+
+# 2. Configure kubectl
+aws eks update-kubeconfig --name rosettacloud-eks --region us-east-1
+
+# 3. Install Istio
+istioctl install --set profile=default -y
+
+# 4. Deploy Kubernetes manifests
+kubectl create namespace dev
+kubectl label namespace dev istio-injection=enabled
 kubectl apply -f DevSecOps/K8S/
 
-# Verify deployment
+# 5. Verify deployment
 kubectl get pods -n dev
 kubectl get services -n dev
 ```
@@ -391,24 +445,30 @@ agentcore configure -e agent.py -n rosettacloud_education_agent \
   -er arn:aws:iam::ACCOUNT_ID:role/rosettacloud-agentcore-runtime-role \
   -rf requirements.txt -r us-east-1 -ni
 agentcore launch --auto-update-on-conflict \
-  --env BEDROCK_AGENTCORE_MEMORY_ID=<memory-id>
+  --env BEDROCK_AGENTCORE_MEMORY_ID=<memory-id> \
+  --env GATEWAY_URL=<gateway-url>
 agentcore status   # wait for READY
 
 # document_indexer Lambda is deployed automatically via CI/CD
 # (triggered by pushing changes to Backend/serverless/Lambda/**)
 ```
 
+**For complete deployment procedures, see:**
+- [DevSecOps Deployment Checklist](DevSecOps/README.md#deployment-checklist)
+- [Backend Deployment](Backend/README.md#production-deployment)
+- [Frontend Deployment](Frontend/README.md#production-build)
+
 **CI/CD Pipeline:**
 Six GitHub Actions workflows handle all automated deployments:
 
-| Workflow | Trigger | Action |
-|----------|---------|--------|
-| **Agent Deploy** | push → `Backend/agents/**` | `agentcore launch` via CodeBuild (ARM64) + update K8s ConfigMap with new ARN |
-| **Lambda Deploy** | push → `Backend/serverless/Lambda/**` | Build & push `document_indexer` container → update Lambda |
-| **Questions Sync** | push → `Backend/questions/**` | Sync shell scripts to S3 → triggers EventBridge → document indexing |
-| **Backend Build** | push → `Backend/app/**` | Build image → ECR push → EKS rolling restart |
-| **Frontend Build** | push → `Frontend/src/**` | Build image → ECR push → EKS rolling restart |
-| **Interactive Labs** | push → `DevSecOps/interactive-labs/**` | Build & push lab container image to ECR |
+| Workflow | Trigger | Action | Documentation |
+|----------|---------|--------|---------------|
+| **Agent Deploy** | push → `Backend/agents/**` | `agentcore launch` via CodeBuild (ARM64) + update K8s ConfigMap | [Details](DevSecOps/README.md#1-backend-build-githubworkflowsbackend-buildyml) |
+| **Lambda Deploy** | push → `Backend/serverless/Lambda/**` | Build & push containers → update Lambda | [Details](DevSecOps/README.md#4-lambda-deploy-githubworkflowslambda-deployyml) |
+| **Questions Sync** | push → `Backend/questions/**` | Sync to S3 → triggers EventBridge → indexing | [Details](DevSecOps/README.md#5-questions-sync-githubworkflowsquestions-syncyml) |
+| **Backend Build** | push → `Backend/app/**` | Build image → ECR push → EKS rolling restart | [Details](DevSecOps/README.md#1-backend-build-githubworkflowsbackend-buildyml) |
+| **Frontend Build** | push → `Frontend/src/**` | Build image → ECR push → EKS rolling restart | [Details](DevSecOps/README.md#2-frontend-build-githubworkflowsfrontend-buildyml) |
+| **Interactive Labs** | push → `DevSecOps/interactive-labs/**` | Build & push lab container image to ECR | [Details](DevSecOps/README.md#6-interactive-labs-build-githubworkflowsinteractive-labs-buildyml) |
 
 All workflows use **GitHub OIDC** — no static AWS credentials stored in secrets.
 
@@ -549,35 +609,30 @@ curl http://localhost:8000/health-check
 # Kubernetes manifest validation
 kubeval DevSecOps/K8S/*.yaml
 
-# Terraform plan validation
-terraform plan -var-file="test.tfvars"
+# Terraform validation
+cd DevSecOps/Terraform/environments/shared
+terraform validate
+terraform plan -var-file="terraform.tfvars"
 
 # Container security scanning
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  -v $PWD:/path aquasec/trivy image rosettacloud-backend:latest
+  aquasec/trivy image rosettacloud-backend:latest
 ```
 
-**AI/ML Testing:**
-```bash
-# Test RAG pipeline accuracy
-python tests/test_rag_quality.py
-
-# Validate embedding generation
-python tests/test_embeddings.py
-
-# Check chatbot response quality
-python tests/test_chatbot_responses.py
-```
+**For detailed testing procedures, see:**
+- [Frontend Testing Guide](Frontend/README.md#testing)
+- [Backend Testing Guide](Backend/README.md#testing)
+- [Infrastructure Testing](DevSecOps/README.md#troubleshooting)
 
 ## 📊 Monitoring & Observability
 
 ### Production Monitoring Stack
 
-**Metrics & Alerting:**
-- **Prometheus** for metrics collection with custom business KPIs
-- **Grafana** dashboards for real-time system visualization
-- **AlertManager** for intelligent alert routing and escalation
-- **Custom SLIs/SLOs** for platform reliability measurement
+**Metrics & Logging:**
+- **CloudWatch Logs** for centralized logging (Lambda, EKS control plane)
+- **Kubernetes Metrics** for pod and node resource monitoring
+- **EKS Observability** for cluster health and performance
+- **Custom Metrics** for business KPIs and SLIs/SLOs
 
 **AI/ML Monitoring:**
 - **Model Performance**: Response quality and accuracy tracking
@@ -585,18 +640,16 @@ python tests/test_chatbot_responses.py
 - **Chatbot Analytics**: User satisfaction and conversation flow analysis
 - **Feedback Quality**: AI-generated feedback effectiveness metrics
 
-**Logging & Tracing:**
-- **Centralized Logging**: ELK stack with structured JSON logs
-- **Distributed Tracing**: Jaeger for request flow visualization across AI services
-- **Error Tracking**: Sentry integration for production error monitoring
-- **Audit Logging**: Comprehensive security and compliance logging
-
 **Key Performance Indicators:**
 - **Platform Availability**: 99.9% uptime SLA with automated failover
 - **User Experience**: < 2 second page load times across all features
 - **AI Response Quality**: 95%+ user satisfaction with chatbot responses
 - **Resource Efficiency**: 70% average CPU/memory utilization targets
-- **Cost Optimization**: Monthly cost per active user tracking
+- **Cost Optimization**: Monthly cost per active user tracking ($0.40/month achieved)
+
+**For detailed monitoring procedures, see:**
+- [Backend Monitoring](Backend/README.md#monitoring--observability)
+- [DevSecOps Monitoring](DevSecOps/README.md#monitoring--observability)
 
 ## 🤝 Contributing & Community
 
