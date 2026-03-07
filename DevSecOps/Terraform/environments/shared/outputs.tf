@@ -82,3 +82,25 @@ output "session_table_name" {
   description = "DynamoDB SessionTable (legacy, kept for data)"
 }
 
+################################################################################
+# Cognito + API Gateway
+################################################################################
+output "cognito_user_pool_id" {
+  value       = module.api_gateway_auth.user_pool_id
+  description = "Cognito User Pool ID"
+}
+
+output "cognito_user_pool_client_id" {
+  value       = module.api_gateway_auth.user_pool_client_id
+  description = "Cognito User Pool Client ID (for Angular SDK)"
+}
+
+output "cognito_issuer_url" {
+  value       = module.api_gateway_auth.cognito_issuer_url
+  description = "Cognito JWT issuer URL"
+}
+
+output "api_gateway_endpoint" {
+  value       = module.api_gateway_auth.api_gateway_endpoint
+  description = "Default API Gateway invoke URL"
+}

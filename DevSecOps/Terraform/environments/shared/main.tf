@@ -43,8 +43,8 @@ module "vpc" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  enable_nat_gateway         = false
-  map_public_ip_on_launch    = true
+  enable_nat_gateway      = false
+  map_public_ip_on_launch = true
 
   public_subnet_tags = {
     "kubernetes.io/role/elb" = "1"
@@ -104,15 +104,6 @@ module "route53" {
 
   records = {
     dev = {
-      type = "A"
-      alias = {
-        name                   = module.cloudfront.cloudfront_distribution_domain_name
-        zone_id                = module.cloudfront.cloudfront_distribution_hosted_zone_id
-        evaluate_target_health = false
-      }
-    }
-    api_dev = {
-      name = "api.dev"
       type = "A"
       alias = {
         name                   = module.cloudfront.cloudfront_distribution_domain_name
@@ -719,3 +710,40 @@ resource "aws_eks_access_policy_association" "github_actions_admin" {
   }
 }
 
+################################################################################
+# API Gateway + Cognito
+################################################################################
+module "api_gateway_auth" {
+  source = "../../modules/api-gateway-auth"
+
+  project_name        = "rosettacloud"
+  aws_region          = local.region
+  vpc_id              = module.vpc.vpc_id
+  vpc_cidr            = module.vpc.vpc_cidr_block
+  private_subnet_ids  = module.vpc.private_subnets
+  eks_node_private_ip = "10.16.5.117" # update if EKS node IP changes
+  eks_nodeport        = var.istio_http_nodeport
+
+  domain_name         = "api.dev.rosettacloud.app"
+  acm_certificate_arn = module.acm.acm_certificate_arn
+
+  callback_urls      = ["https://dev.rosettacloud.app/auth/callback", "http://localhost:4200/auth/callback"]
+  logout_urls        = ["https://dev.rosettacloud.app/", "http://localhost:4200/"]
+  cors_allow_origins = ["https://dev.rosettacloud.app", "http://localhost:4200"]
+
+  tags = local.tags
+}
+
+# Route 53 A record for api.dev.rosettacloud.app → API Gateway custom domain
+# (replaces the former CloudFront alias managed inside module.route53)
+resource "aws_route53_record" "api_dev" {
+  zone_id = module.route53.id
+  name    = "api.dev.rosettacloud.app"
+  type    = "A"
+
+  alias {
+    name                   = module.api_gateway_auth.domain_name_target_domain_name
+    zone_id                = module.api_gateway_auth.domain_name_hosted_zone_id
+    evaluate_target_health = false
+  }
+}

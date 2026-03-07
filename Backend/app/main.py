@@ -17,6 +17,7 @@ from app.services import users_service as users
 
 from app.services.questions_service import QuestionService
 from app.backends.questions_backends import QuestionBackend
+from app.dependencies.auth import get_current_user
 
 question_backend = QuestionBackend()
 questions_service = QuestionService(question_backend)
@@ -39,7 +40,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://dev.rosettacloud.app", "http://localhost:4200"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,6 +51,7 @@ logger = logging.getLogger(__name__)
 # ── AgentCore chat ──
 _AGENT_RUNTIME_ARN = os.environ.get("AGENT_RUNTIME_ARN", "")
 _AGENT_REGION = os.environ.get("AWS_REGION", "us-east-1")
+COGNITO_ISSUER_URL = os.environ.get("COGNITO_ISSUER_URL", "")
 
 _agentcore_client = None
 
@@ -111,124 +113,124 @@ class UserProgressUpdate(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
 
-# Dependency to verify user exists
-async def verify_user(user_id: str) -> Dict[str, Any]:
+
+async def _require_user(user_id: str) -> Dict[str, Any]:
+    """Fetch user profile from DynamoDB; raise 404 if not found."""
     user = await users.get_user(user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID {user_id} not found"
+            detail=f"User {user_id} not found",
         )
     return user
 
+
 @app.post("/users", response_model=UserResponse, status_code=201, tags=["Users"])
 async def create_user(user: UserCreate):
-    # Check if email already exists
     existing = await users.get_user_by_email(user.email)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User with email {user.email} already exists"
+            detail=f"User with email {user.email} already exists",
         )
-    
-    # Create user
     user_data = user.dict()
     created_user = await users.create_user(user_data)
-    
     return UserResponse(**created_user)
 
+
 @app.get("/users/{user_id}", response_model=UserResponse, tags=["Users"])
-async def get_user(user: Dict[str, Any] = Depends(verify_user)):
+async def get_user(user_id: str, claims: dict = Depends(get_current_user)):
+    resolved_id = claims["resolved_user_id"]
+    user = await _require_user(resolved_id)
     return UserResponse(**user)
+
 
 @app.get("/users", response_model=UserList, tags=["Users"])
 async def list_users(limit: int = 100, last_key: Optional[str] = None):
     result = await users.list_users(limit, last_key)
     return UserList(**result)
 
+
 @app.put("/users/{user_id}", response_model=UserResponse, tags=["Users"])
-async def update_user(user_id: str, update: UserUpdate):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Update user
+async def update_user(
+    user_id: str,
+    update: UserUpdate,
+    claims: dict = Depends(get_current_user),
+):
+    resolved_id = claims["resolved_user_id"]
+    await _require_user(resolved_id)
     update_data = {k: v for k, v in update.dict().items() if v is not None}
-    updated_user = await users.update_user(user_id, update_data)
-    
+    updated_user = await users.update_user(resolved_id, update_data)
     if not updated_user:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update user"
+            detail="Failed to update user",
         )
-    
     return UserResponse(**updated_user)
 
+
 @app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Users"])
-async def delete_user(user_id: str):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Delete user
-    success = await users.delete_user(user_id)
-    
+async def delete_user(user_id: str, claims: dict = Depends(get_current_user)):
+    resolved_id = claims["resolved_user_id"]
+    await _require_user(resolved_id)
+    success = await users.delete_user(resolved_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete user"
+            detail="Failed to delete user",
         )
 
+
 @app.get("/users/{user_id}/labs", tags=["Users"])
-async def get_user_labs(user_id: str):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Get user labs
-    labs = await users.get_user_labs(user_id)
-    
+async def get_user_labs(user_id: str, claims: dict = Depends(get_current_user)):
+    resolved_id = claims["resolved_user_id"]
+    await _require_user(resolved_id)
+    labs = await users.get_user_labs(resolved_id)
     return {"labs": labs}
+
 
 @app.get("/users/{user_id}/progress", tags=["Users"])
 async def get_user_progress(
     user_id: str,
+    claims: dict = Depends(get_current_user),
     module_uuid: Optional[str] = None,
-    lesson_uuid: Optional[str] = None
+    lesson_uuid: Optional[str] = None,
 ):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Get user progress
-    progress = await users.get_user_progress(user_id, module_uuid, lesson_uuid)
-    
+    resolved_id = claims["resolved_user_id"]
+    await _require_user(resolved_id)
+    progress = await users.get_user_progress(resolved_id, module_uuid, lesson_uuid)
     return {"progress": progress}
 
-@app.post("/users/{user_id}/progress/{module_uuid}/{lesson_uuid}/{question_number}", tags=["Users"])
+
+@app.post(
+    "/users/{user_id}/progress/{module_uuid}/{lesson_uuid}/{question_number}",
+    tags=["Users"],
+)
 async def update_user_progress(
     user_id: str,
     module_uuid: str,
     lesson_uuid: str,
     question_number: int,
-    progress: UserProgressUpdate
+    progress: UserProgressUpdate,
+    claims: dict = Depends(get_current_user),
 ):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Update progress
+    resolved_id = claims["resolved_user_id"]
+    await _require_user(resolved_id)
     success = await users.track_user_progress(
-        user_id, module_uuid, lesson_uuid, question_number, progress.completed
+        resolved_id, module_uuid, lesson_uuid, question_number, progress.completed
     )
-    
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update progress"
+            detail="Failed to update progress",
         )
-    
     return {"updated": True}
+
 
 # Pydantic models for request/response
 class LaunchLabRequest(BaseModel):
-    user_id: str
-    
+    user_id: Optional[str] = None  # Kept for backward compat; user identity comes from JWT
+
 class LabCreationResponse(BaseModel):
     lab_id: str
 
@@ -241,74 +243,64 @@ class LabInfoResponse(BaseModel):
     status: str
     pod_name: Optional[str] = None
 
-# FastAPI routes
+
 @app.post("/labs", status_code=201, response_model=LabCreationResponse, tags=["Labs"])
-async def new_lab(request: LaunchLabRequest):
-    user_id = request.user_id
+async def new_lab(
+    request: LaunchLabRequest,
+    claims: dict = Depends(get_current_user),
+):
+    user_id = claims["resolved_user_id"]
 
-    # Verify user exists
-    await verify_user(user_id)
+    await _require_user(user_id)
 
-    # Check if the user already has an active lab
     active_lab = await users.get_active_lab(user_id)
     if active_lab:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You already have an active lab. Please terminate the existing lab first."
+            detail="You already have an active lab. Please terminate the existing lab first.",
         )
 
-    # Launch lab
     lab_id = await lab.launch()
-
-    # Store active lab in DynamoDB
     await users.set_active_lab(user_id, lab_id)
-
-    # Link lab to user
     await users.link_lab_to_user(user_id, lab_id)
-
     return LabCreationResponse(lab_id=lab_id)
+
 
 @app.get("/labs/{lab_id}", response_model=Union[LabInfoResponse, ErrorResponse], tags=["Labs"])
 async def lab_info(lab_id: str, user_id: Optional[str] = None):
     info = await lab.get_lab_info(lab_id)
     if not info:
-        # Pod is gone — clear active lab so the user can create a new one
         if user_id:
             await users.clear_active_lab(user_id)
         return ErrorResponse(error="lab not found")
-    
-    # Convert to the response model
-    response_data = {
-        "lab_id": info["lab_id"],
-        "pod_ip": info.get("pod_ip"),
-        "hostname": info.get("hostname"),
-        "url": info.get("url"),
-        "time_remaining": info.get("time_remaining"),
-        "status": info["status"],
-        "pod_name": info.get("pod_name")
-    }
-    
-    return LabInfoResponse(**response_data)
+    return LabInfoResponse(
+        lab_id=info["lab_id"],
+        pod_ip=info.get("pod_ip"),
+        hostname=info.get("hostname"),
+        url=info.get("url"),
+        time_remaining=info.get("time_remaining"),
+        status=info["status"],
+        pod_name=info.get("pod_name"),
+    )
+
 
 @app.delete("/labs/{lab_id}", status_code=200, tags=["Labs"])
-async def terminate_lab(lab_id: str, user_id: str):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Stop lab
-    deleted = await lab.stop(lab_id)
-    
-    if deleted:
-        # Clear active lab
-        await users.clear_active_lab(user_id)
+async def terminate_lab(
+    lab_id: str,
+    claims: dict = Depends(get_current_user),
+):
+    user_id = claims["resolved_user_id"]
+    await _require_user(user_id)
 
-        # Unlink lab from user
+    deleted = await lab.stop(lab_id)
+    if deleted:
+        await users.clear_active_lab(user_id)
         await users.unlink_lab_from_user(user_id, lab_id)
-        
         return {"deleted": True}
     else:
         raise HTTPException(status_code=404, detail="Lab not found.")
-    
+
+
 # Chat
 class ChatRequest(BaseModel):
     message: str = ""
@@ -329,64 +321,60 @@ class ChatResponse(BaseModel):
 # Questions
 class QuestionRequest(BaseModel):
     pod_name: str
-    
+
 class QuestionCheckRequest(QuestionRequest):
     pass
 
+
 @app.get("/questions/{module_uuid}/{lesson_uuid}", tags=["Questions"])
-async def get_questions(module_uuid: str, lesson_uuid: str, user_id: str):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Get questions
+async def get_questions(
+    module_uuid: str,
+    lesson_uuid: str,
+    claims: dict = Depends(get_current_user),
+):
+    user_id = claims["resolved_user_id"]
+    await _require_user(user_id)
     result = await questions_service.get_questions(module_uuid, lesson_uuid, user_id)
-    
     return result
+
 
 @app.post("/questions/{module_uuid}/{lesson_uuid}/{question_number}/setup", tags=["Questions"])
 async def setup_question(
-    module_uuid: str, 
-    lesson_uuid: str, 
-    question_number: int, 
+    module_uuid: str,
+    lesson_uuid: str,
+    question_number: int,
     request: QuestionRequest,
-    user_id: str
+    claims: dict = Depends(get_current_user),
 ):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Setup question
+    user_id = claims["resolved_user_id"]
+    await _require_user(user_id)
     result = await questions_service.execute_question_setup(
         request.pod_name, module_uuid, lesson_uuid, question_number
     )
-    
     if result["status"] == "error":
         raise HTTPException(status_code=400, detail=result["message"])
-    
     return result
+
 
 @app.post("/questions/{module_uuid}/{lesson_uuid}/{question_number}/check", tags=["Questions"])
 async def check_question(
-    module_uuid: str, 
-    lesson_uuid: str, 
-    question_number: int, 
+    module_uuid: str,
+    lesson_uuid: str,
+    question_number: int,
     request: QuestionCheckRequest,
-    user_id: str
+    claims: dict = Depends(get_current_user),
 ):
-    # Verify user exists
-    await verify_user(user_id)
-    
-    # Check question
+    user_id = claims["resolved_user_id"]
+    await _require_user(user_id)
     result = await questions_service.execute_question_check(
         request.pod_name, module_uuid, lesson_uuid, question_number
     )
-    
-    # If successful, update user progress
     if result["status"] == "success" and result["completed"]:
         await users.track_user_progress(
             user_id, module_uuid, lesson_uuid, question_number, True
         )
-    
     return result
+
 
 @app.post("/chat", response_model=ChatResponse, tags=["Chat"])
 async def chat(request: ChatRequest):
@@ -460,7 +448,8 @@ async def chat(request: ChatRequest):
 
     return ChatResponse(response=agent_response, agent=agent_name, session_id=session_id)
 
-# Health check endpoint
+
+# Health check endpoint — no auth required (API GW routes it without JWT)
 @app.get("/health-check", tags=["System"])
 async def health_check():
     return {"status": "healthy", "timestamp": time.time()}

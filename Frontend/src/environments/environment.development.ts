@@ -9,4 +9,10 @@ export const environment = {
     seconds: 0,
   },
   pollingInterval: 10000,
+  // Same pool as production — swap for a dev pool if you create one later
+  cognito: {
+    userPoolId: 'us-east-1_REPLACE_ME',
+    userPoolClientId: 'REPLACE_ME',
+    region: 'us-east-1',
+  },
 };
