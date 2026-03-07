@@ -3,3 +3,4 @@ image.png
 Backend/agents/__pycache__/
 .claude/
 docs/plans/
+.worktrees/
