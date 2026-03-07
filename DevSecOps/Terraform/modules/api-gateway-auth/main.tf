@@ -105,25 +105,6 @@ resource "aws_cognito_user_pool_domain" "main" {
 }
 
 ################################################################################
-# Security Group for API Gateway VPC Link
-################################################################################
-resource "aws_security_group" "vpc_link" {
-  name        = "${var.project_name}-apigw-vpc-link"
-  description = "Allows API Gateway VPC Link to reach EKS Istio NodePort"
-  vpc_id      = var.vpc_id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = [var.vpc_cidr]
-    description = "All outbound within VPC"
-  }
-
-  tags = merge(var.tags, { Name = "${var.project_name}-apigw-vpc-link" })
-}
-
-################################################################################
 # API Gateway HTTP API — via terraform-aws-modules/apigateway-v2
 ################################################################################
 module "api_gateway" {
@@ -160,25 +141,14 @@ module "api_gateway" {
     }
   }
 
-  # VPC Link — connects API GW to the private EKS Istio NodePort
-  vpc_links = {
-    istio = {
-      name               = "${var.project_name}-vpc-link"
-      security_group_ids = [aws_security_group.vpc_link.id]
-      subnet_ids         = var.private_subnet_ids
-    }
-  }
-
-  # Routes
+  # Routes — HTTP_PROXY to the public Istio ingress (same origin as CloudFront)
   routes = {
-    # Health check — no auth so load balancers and uptime monitors can reach it
+    # Health check — no auth so uptime monitors can reach it
     "GET /health-check" = {
       integration = {
-        type            = "HTTP_PROXY"
-        uri             = "http://${var.eks_node_private_ip}:${var.eks_nodeport}/health-check"
-        method          = "GET"
-        connection_type = "VPC_LINK"
-        vpc_link_key    = "istio"
+        type   = "HTTP_PROXY"
+        uri    = "http://${var.istio_public_dns}:${var.eks_nodeport}/health-check"
+        method = "GET"
       }
     }
 
@@ -187,11 +157,9 @@ module "api_gateway" {
       authorizer_key     = "cognito"
       authorization_type = "JWT"
       integration = {
-        type            = "HTTP_PROXY"
-        uri             = "http://${var.eks_node_private_ip}:${var.eks_nodeport}/"
-        method          = "ANY"
-        connection_type = "VPC_LINK"
-        vpc_link_key    = "istio"
+        type   = "HTTP_PROXY"
+        uri    = "http://${var.istio_public_dns}:${var.eks_nodeport}/"
+        method = "ANY"
         request_parameters = {
           "overwrite:path" = "$request.path"
         }

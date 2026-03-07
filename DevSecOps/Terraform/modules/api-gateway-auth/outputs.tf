@@ -43,7 +43,3 @@ output "domain_name_hosted_zone_id" {
   description = "Hosted Zone ID of the API GW regional endpoint (for Route53 alias)"
 }
 
-output "vpc_link_id" {
-  value       = module.api_gateway.vpc_links["istio"].id
-  description = "VPC Link ID"
-}

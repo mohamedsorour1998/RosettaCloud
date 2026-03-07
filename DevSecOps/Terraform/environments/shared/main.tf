@@ -716,13 +716,10 @@ resource "aws_eks_access_policy_association" "github_actions_admin" {
 module "api_gateway_auth" {
   source = "../../modules/api-gateway-auth"
 
-  project_name        = "rosettacloud"
-  aws_region          = local.region
-  vpc_id              = module.vpc.vpc_id
-  vpc_cidr            = module.vpc.vpc_cidr_block
-  private_subnet_ids  = module.vpc.private_subnets
-  eks_node_private_ip = "10.16.5.117" # update if EKS node IP changes
-  eks_nodeport        = var.istio_http_nodeport
+  project_name     = "rosettacloud"
+  aws_region       = local.region
+  istio_public_dns = var.node_public_dns
+  eks_nodeport     = var.istio_http_nodeport
 
   domain_name         = "api.dev.rosettacloud.app"
   acm_certificate_arn = module.acm.acm_certificate_arn

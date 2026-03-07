@@ -8,24 +8,9 @@ variable "aws_region" {
   description = "AWS region for Cognito and API Gateway"
 }
 
-variable "vpc_id" {
+variable "istio_public_dns" {
   type        = string
-  description = "VPC ID where the VPC Link will be provisioned"
-}
-
-variable "vpc_cidr" {
-  type        = string
-  description = "VPC CIDR block — used for VPC Link security group egress"
-}
-
-variable "private_subnet_ids" {
-  type        = list(string)
-  description = "Private subnet IDs for the API Gateway VPC Link"
-}
-
-variable "eks_node_private_ip" {
-  type        = string
-  description = "Private IP of the EKS node running the Istio ingress NodePort"
+  description = "Public DNS of the EKS node running the Istio ingress (same origin used by CloudFront)"
 }
 
 variable "eks_nodeport" {
