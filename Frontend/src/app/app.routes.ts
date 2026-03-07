@@ -28,7 +28,6 @@ import { WebinarsComponent } from './webinars/webinars.component';
 import { LearningBlogComponent } from './learning-blog/learning-blog.component';
 import { MyTeachingComponent } from './my-teaching/my-teaching.component';
 import { ChatbotFlowDiagramComponent } from './chatbot-flow-diagram/chatbot-flow-diagram.component';
-import { FeedbackFlowDiagramComponent } from './feedback-flow-diagram/feedback-flow-diagram.component';
 
 export const routes: Routes = [
   // Public routes
@@ -86,10 +85,6 @@ export const routes: Routes = [
   {
     path: 'docs',
     component: ChatbotFlowDiagramComponent,
-  },
-  {
-    path: 'docs/feedback',
-    component: FeedbackFlowDiagramComponent,
   },
   // Protected routes (require login)
   {
