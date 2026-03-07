@@ -475,6 +475,12 @@ resource "aws_iam_role_policy" "backend_irsa_permissions" {
         Effect   = "Allow"
         Action   = ["bedrock-agentcore:InvokeAgentRuntime"]
         Resource = ["arn:aws:bedrock-agentcore:us-east-1:${local.account_id}:runtime/*"]
+      },
+      {
+        Sid      = "CognitoBackfill"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:AdminUpdateUserAttributes"]
+        Resource = ["arn:aws:cognito-idp:us-east-1:${local.account_id}:userpool/*"]
       }
     ]
   })

@@ -52,6 +52,16 @@ logger = logging.getLogger(__name__)
 _AGENT_RUNTIME_ARN = os.environ.get("AGENT_RUNTIME_ARN", "")
 _AGENT_REGION = os.environ.get("AWS_REGION", "us-east-1")
 COGNITO_ISSUER_URL = os.environ.get("COGNITO_ISSUER_URL", "")
+# e.g. https://cognito-idp.us-east-1.amazonaws.com/us-east-1_xxx → us-east-1_xxx
+_COGNITO_USER_POOL_ID = COGNITO_ISSUER_URL.rstrip("/").split("/")[-1] if COGNITO_ISSUER_URL else ""
+
+_cognito_idp_client = None
+
+def _get_cognito_client():
+    global _cognito_idp_client
+    if _cognito_idp_client is None:
+        _cognito_idp_client = boto3.client("cognito-idp", region_name=_AGENT_REGION)
+    return _cognito_idp_client
 
 _agentcore_client = None
 
@@ -114,9 +124,15 @@ class ErrorResponse(BaseModel):
     error: str
 
 
-async def _require_user(user_id: str) -> Dict[str, Any]:
-    """Fetch user profile from DynamoDB; raise 404 if not found."""
+async def _require_user(user_id: str, email: str = "") -> Dict[str, Any]:
+    """Fetch user profile from DynamoDB; raise 404 if not found.
+
+    Falls back to email-based lookup for new users whose Cognito token
+    only contains `sub` (not `custom:user_id`) on their first login.
+    """
     user = await users.get_user(user_id)
+    if not user and email:
+        user = await users.get_user_by_email(email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -135,13 +151,25 @@ async def create_user(user: UserCreate):
         )
     user_data = user.dict()
     created_user = await users.create_user(user_data)
+
+    # Backfill custom:user_id in Cognito so the ID token resolves on next login
+    if _COGNITO_USER_POOL_ID:
+        try:
+            _get_cognito_client().admin_update_user_attributes(
+                UserPoolId=_COGNITO_USER_POOL_ID,
+                Username=user.email,
+                UserAttributes=[{"Name": "custom:user_id", "Value": created_user["user_id"]}],
+            )
+        except Exception as _e:
+            logger.warning("Could not set custom:user_id in Cognito for %s: %s", user.email, _e)
+
     return UserResponse(**created_user)
 
 
 @app.get("/users/{user_id}", response_model=UserResponse, tags=["Users"])
 async def get_user(user_id: str, claims: dict = Depends(get_current_user)):
     resolved_id = claims["resolved_user_id"]
-    user = await _require_user(resolved_id)
+    user = await _require_user(resolved_id, email=claims.get("email", ""))
     return UserResponse(**user)
 
 
