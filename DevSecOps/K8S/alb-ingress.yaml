@@ -1,0 +1,42 @@
+# IngressClass — tells EKS Auto Mode to provision an ALB
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: alb
+  labels:
+    app.kubernetes.io/name: LoadBalancerController
+spec:
+  controller: eks.amazonaws.com/alb
+---
+# Ingress — routes all traffic to the Istio ingress gateway
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rosettacloud-alb
+  namespace: dev
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    # WebSocket support for code-server in lab pods
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
+    # Health check — use Istio's dedicated health port to avoid 404s on unmatched routes
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz/ready
+    alb.ingress.kubernetes.io/healthcheck-port: "15021"
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/success-codes: "200"
+    # Group name — allows future Ingress objects to share this ALB
+    alb.ingress.kubernetes.io/group.name: rosettacloud
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: istio-ingress
+                port:
+                  number: 80
