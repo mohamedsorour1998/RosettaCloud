@@ -11,8 +11,8 @@ export const environment = {
   pollingInterval: 30000,
   // Fill in after: terraform output -raw cognito_user_pool_id / cognito_user_pool_client_id
   cognito: {
-    userPoolId: 'us-east-1_REPLACE_ME',
-    userPoolClientId: 'REPLACE_ME',
+    userPoolId: 'us-east-1_jPds5WJ0I',
+    userPoolClientId: 'i5ilqkdrsl714trat6qkt0al0',
     region: 'us-east-1',
   },
 };
