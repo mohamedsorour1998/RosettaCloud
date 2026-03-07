@@ -156,6 +156,19 @@ module "api_gateway" {
       }
     }
 
+    # CORS preflight — no auth; forward to FastAPI which has CORSMiddleware
+    "OPTIONS /{proxy+}" = {
+      integration = {
+        type   = "HTTP_PROXY"
+        uri    = "http://${var.istio_public_dns}:${var.eks_nodeport}/"
+        method = "ANY"
+        request_parameters = {
+          "overwrite:path"        = "$request.path"
+          "overwrite:header.Host" = "${var.domain_name}"
+        }
+      }
+    }
+
     # Catch-all — JWT required; forwards full request path to Istio
     "$default" = {
       authorizer_key     = "cognito"
