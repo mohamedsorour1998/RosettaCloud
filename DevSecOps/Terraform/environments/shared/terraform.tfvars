@@ -11,5 +11,5 @@ github_oidc_roles = [
   }
 ]
 
-node_public_dns     = "ec2-54-87-145-36.compute-1.amazonaws.com"
+node_public_dns     = "ec2-3-91-85-79.compute-1.amazonaws.com"
 istio_http_nodeport = 30578

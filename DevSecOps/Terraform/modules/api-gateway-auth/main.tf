@@ -149,6 +149,10 @@ module "api_gateway" {
         type   = "HTTP_PROXY"
         uri    = "http://${var.istio_public_dns}:${var.eks_nodeport}/health-check"
         method = "GET"
+        # Istio routes by Host header; set it to the API domain so VirtualService matches
+        request_parameters = {
+          "overwrite:header.Host" = "${var.domain_name}"
+        }
       }
     }
 
@@ -161,7 +165,8 @@ module "api_gateway" {
         uri    = "http://${var.istio_public_dns}:${var.eks_nodeport}/"
         method = "ANY"
         request_parameters = {
-          "overwrite:path" = "$request.path"
+          "overwrite:path"        = "$request.path"
+          "overwrite:header.Host" = "${var.domain_name}"
         }
       }
     }
