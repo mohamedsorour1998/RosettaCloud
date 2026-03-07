@@ -7,7 +7,7 @@ Modern Angular 19 single-page application (SPA) for the RosettaCloud learning pl
 **Technology Stack:**
 - **Angular 19** — Latest version with standalone components
 - **TypeScript 5.7** — Strict mode enabled
-- **Bootstrap 5.3** — Responsive UI framework
+- **Custom SCSS design system** — Dark blueprint aesthetic (Syne + Figtree + JetBrains Mono)
 - **xterm.js** — Browser-based terminal emulation
 - **RxJS 7.8** — Reactive programming with observables
 - **nginx** — Production web server
@@ -356,7 +356,30 @@ Backend validates JPEG magic bytes (`ff d8 ff`) before forwarding to Nova Lite v
 
 **Important:** Chat textarea is **never** disabled by `isLoading` — only the send button is gated. This prevents the `sendSessionStart` welcome-message fetch (~15-30s) from blocking user input.
 
-### 3. User Management (`services/user.service.ts`)
+### 3. User Management & Authentication (`services/user.service.ts`)
+
+**Authentication stack:** AWS SDK `@aws-sdk/client-cognito-identity-provider` called directly from the browser — no backend proxy needed for auth operations.
+
+| Method | SDK Call | Description |
+|--------|----------|-------------|
+| `register(userData)` | `SignUpCommand` → `POST /users` | Create Cognito user + DynamoDB profile; triggers email verification |
+| `confirmSignUp(email, code)` | `ConfirmSignUpCommand` | Verify 6-digit email code after registration |
+| `login(email, password)` | `InitiateAuthCommand` (USER_PASSWORD_AUTH) | Get ID/access/refresh tokens; store in localStorage |
+| `requestPasswordReset(email)` | `ForgotPasswordCommand` | Send reset code to email |
+| `resetPassword(code, email, pw)` | `ConfirmForgotPasswordCommand` | Complete password reset |
+| `resendVerificationEmail(email)` | `ResendConfirmationCodeCommand` | Resend 6-digit verification code |
+| `logout()` | — | Clear all tokens from localStorage |
+
+**Token storage:** ID token stored as `idToken` in localStorage; `AuthInterceptor` attaches it as `Bearer` on every API request.
+
+**Registration flow (3 steps in one form):**
+1. Fill form → `register()` → Cognito sends verification email
+2. Verification step appears → enter 6-digit code → `confirmSignUp()`
+3. Login step → `login()` → ID token issued with `custom:user_id`
+
+**Unconfirmed login handling:** If `InitiateAuthCommand` returns `UserNotConfirmedException`, the login form automatically redirects to the verify step.
+
+### 3a. User Management (`services/user.service.ts`)
 
 **Features:**
 - User registration and login
@@ -447,9 +470,9 @@ private startPolling(): void {
 ## 🎨 UI/UX Features
 
 ### Responsive Design
-- Bootstrap 5 grid system
+- Custom CSS grid system (`.grid-2`, `.grid-3`) with responsive breakpoints
 - Mobile-first approach
-- Breakpoints: xs, sm, md, lg, xl, xxl
+- Breakpoints: 480px, 600px, 768px
 - Collapsible sidebar on mobile
 
 ### Accessibility
@@ -501,6 +524,18 @@ private initTerminal(): void {
 ## 🔧 Configuration
 
 ### Environment Files
+
+Each environment file includes a `cognito` block:
+```typescript
+cognito: {
+  userPoolId: 'us-east-1_jPds5WJ0I',
+  userPoolClientId: 'i5ilqkdrsl714trat6qkt0al0',
+  region: 'us-east-1',
+}
+```
+Used by `UserService` to initialise the `CognitoIdentityProviderClient`. All auth flows run client-side — no backend proxy needed.
+
+### Environment Files — details
 
 **Production (`environment.ts`):**
 ```typescript
@@ -646,6 +681,12 @@ export const AdminGuard: CanActivateFn = (route, state) => {
 ## 🔌 HTTP Interceptors
 
 ### Auth Interceptor (`interceptors/auth.interceptor.ts`)
+
+Attaches the Cognito **ID token** as `Authorization: Bearer <token>` to all requests destined for `environment.apiUrl` (the API Gateway endpoint). Uses ID token (not access token) because:
+- It contains the `aud` claim (= client ID) required by the API Gateway JWT authorizer
+- It carries `custom:user_id` which the FastAPI auth middleware reads
+
+### Auth Interceptor (`interceptors/auth.interceptor.ts`) — details
 
 **Adds JWT token to all requests:**
 ```typescript
@@ -1458,7 +1499,7 @@ Closes #123
 
 ---
 
-**Last Updated:** 2026-03-06  
+**Last Updated:** 2026-03-08
 **Maintainer:** Mohamed Sorour (mohamedsorour1998@gmail.com)  
 **License:** MIT
 

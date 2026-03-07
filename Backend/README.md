@@ -14,6 +14,8 @@ The backend follows a clean **service/backend** separation pattern:
 Backend/
 ├── app/                      # FastAPI application
 │   ├── main.py              # API routes and entrypoint
+│   ├── dependencies/
+│   │   └── auth.py          # JWT decode + resolved_user_id (custom:user_id || sub + email fallback)
 │   ├── services/            # Business logic layer
 │   │   ├── labs_service.py
 │   │   ├── users_service.py
@@ -75,6 +77,7 @@ export USERS_TABLE_NAME="rosettacloud-users"
 export S3_BUCKET_NAME="rosettacloud-shared-interactive-labs"
 export LANCEDB_S3_URI="s3://rosettacloud-shared-interactive-labs-vector"
 export KNOWLEDGE_BASE_ID="shell-scripts-knowledge-base"
+export COGNITO_ISSUER_URL="https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I"
 ```
 
 **Kill stale port:**
@@ -1065,6 +1068,23 @@ aws s3api get-bucket-policy --bucket rosettacloud-shared-interactive-labs-vector
 
 ## 🔐 Security Considerations
 
+### Authentication & JWT
+
+All API routes (except `GET /health-check`, `POST /users`, `OPTIONS /{proxy+}`) are protected by **API Gateway HTTP API JWT authorizer** backed by Amazon Cognito.
+
+**Auth flow:**
+1. Frontend calls Cognito SDK directly (`SignUpCommand` / `InitiateAuthCommand`)
+2. On login, Cognito issues an **ID token** containing `custom:user_id` (or `sub` for brand-new users)
+3. `AuthInterceptor` attaches `Authorization: Bearer <id_token>` to every API request
+4. API Gateway validates signature/expiry before forwarding to FastAPI
+5. `app/dependencies/auth.py` decodes claims and sets `resolved_user_id = custom:user_id || sub`
+6. `_require_user()` falls back to email lookup if `resolved_user_id` is a Cognito sub (first login before token refresh)
+
+**`POST /users` (registration):**
+- No JWT required (user has no token yet)
+- After creating the DynamoDB record, calls `admin_update_user_attributes` to set `custom:user_id` in Cognito so the *next* login's ID token resolves correctly
+- Requires `cognito-idp:AdminUpdateUserAttributes` permission on the IRSA role
+
 ### IAM Roles & Permissions
 
 **Backend Pod (IRSA):**
@@ -1162,7 +1182,7 @@ Not yet implemented. Consider adding:
 
 ---
 
-**Last Updated:** 2026-03-06  
+**Last Updated:** 2026-03-08  
 **Maintainer:** Mohamed Sorour (mohamedsorour1998@gmail.com)  
 **License:** MIT
 

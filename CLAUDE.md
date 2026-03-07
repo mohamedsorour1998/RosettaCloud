@@ -71,14 +71,17 @@ Architecture diagrams are in `Arch/` directory.
 
 ### Request Flow
 
-- **Frontend → Backend**: REST API via `https://api.dev.rosettacloud.app` (FastAPI on K8s, Istio VirtualService)
+- **Frontend → Backend**: REST API via `https://api.dev.rosettacloud.app` → **API Gateway HTTP API** (JWT authorizer validates Cognito ID token) → ALB → Istio ingress pods → FastAPI pod
+- **Public routes** (no JWT): `GET /health-check`, `POST /users` (registration), `OPTIONS /{proxy+}` (CORS preflight)
 - **Frontend → Chatbot**: HTTP POST to `https://api.dev.rosettacloud.app/chat` (FastAPI backend → AgentCore Runtime via boto3)
 
 ### Infrastructure
 
 - **EKS Auto Mode** (k8s 1.33): Cluster `rosettacloud-eks` with custom Karpenter NodePool `rosettacloud-spot` (t3.xlarge, spot, max 1 node). NodePool definition lives in-cluster only, not in Terraform.
-- **CloudFront** (`d2rn486bpgcf7d.cloudfront.net`): Routes to Istio ingress NodePort 30578 on the EKS node. Origin is the node's public DNS (updated in `terraform.tfvars` as `node_public_dns`).
-- **Istio**: Service mesh with sidecar injection in `dev` namespace. Lab pods opt out with `sidecar.istio.io/inject: "false"` annotation. Istio ingress (NodePort) handles all inbound traffic via VirtualService routing.
+- **CloudFront** (`d2rn486bpgcf7d.cloudfront.net`): Routes to ALB (EKS Auto Mode built-in controller). Origin is the ALB DNS (updated in `terraform.tfvars` as `node_public_dns`), port 80. ALB targets Istio ingress pods via `target-type: ip`.
+- **Amazon Cognito**: User Pool `us-east-1_jPds5WJ0I` — email sign-in, `USER_PASSWORD_AUTH`, `custom:user_id` schema attribute, 1h token TTL. Client ID: `i5ilqkdrsl714trat6qkt0al0`
+- **API Gateway HTTP API**: `https://oq2tgavm72.execute-api.us-east-1.amazonaws.com` — custom domain `api.dev.rosettacloud.app` (Route 53 alias). JWT authorizer uses Cognito issuer. HTTP_PROXY integration to ALB (port 80) → Istio with `overwrite:header.Host` = `api.dev.rosettacloud.app`.
+- **Istio**: Service mesh with sidecar injection in `dev` namespace. Lab pods opt out with `sidecar.istio.io/inject: "false"` annotation. Istio ingress (ClusterIP) handles all inbound traffic via VirtualService routing; ALB targets pods directly via `target-type: ip`.
 - **Route 53**: `rosettacloud.app` hosted zone. `dev.rosettacloud.app`, `api.dev.rosettacloud.app`, `*.labs.dev.rosettacloud.app` all alias to CloudFront.
 
 ### Backend Internal Pattern
@@ -187,6 +190,22 @@ Questions backend uses `asyncio.create_subprocess_exec` for kubectl with per-pod
 |---|---|---|
 | Chatbot | `https://api.dev.rosettacloud.app/chat` | `POST /chat` on FastAPI backend → AgentCore Runtime |
 
+### Authentication
+
+**Cognito flow (frontend → browser-side SDK):**
+1. `SignUpCommand` → creates unconfirmed Cognito user + sends 6-digit verification email
+2. `ConfirmSignUpCommand(code)` → confirms user
+3. `InitiateAuthCommand(USER_PASSWORD_AUTH)` → returns ID token + access token + refresh token
+4. ID token stored in `localStorage.idToken`; `AuthInterceptor` attaches it as `Bearer` on all API calls
+5. API Gateway JWT authorizer validates token; request forwarded to FastAPI
+6. FastAPI `get_current_user` decodes claims: `custom:user_id` if present, else `sub`; `_require_user` falls back to email lookup for first login
+
+**`POST /users` (registration, no JWT):**
+- Backend creates DynamoDB record, then calls `cognito-idp:AdminUpdateUserAttributes` to set `custom:user_id` in Cognito
+- Requires `COGNITO_USER_POOL_ID` (extracted from `COGNITO_ISSUER_URL`) + IRSA `CognitoBackfill` permission
+
+**Token type used:** ID token (not access token) — contains `aud` claim (= client ID) needed by API GW JWT authorizer and `custom:user_id` for user resolution.
+
 ### POST /chat — Request / Response
 
 **Request body:**
@@ -255,6 +274,7 @@ Current modules:
 | `AGENT_RUNTIME_ARN` | Backend (`/chat` endpoint) | — | AgentCore Runtime ARN (set in K8s ConfigMap; updated by agent-deploy workflow) |
 | `USERS_TABLE_NAME` | Backend | `rosettacloud-users` | `rosettacloud-users` |
 | `S3_BUCKET_NAME` | Backend | `rosettacloud-shared-interactive-labs` | same |
+| `COGNITO_ISSUER_URL` | Backend | — | `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I` |
 | `NOVA_MODEL_ID` | Backend | `amazon.nova-lite-v1:0` | same |
 | `INGRESS_NAME` | Backend | `rosettacloud-ingress` | `rosettacloud-ingress` |
 | `LAB_IMAGE_PULL_SECRET` | Backend | `ecr-creds` | `ecr-creds` |

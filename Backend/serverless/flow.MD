@@ -1,43 +1,71 @@
-## Event-Driven Serverless Architecture
+## Current Serverless Architecture
 
-This architecture uses two Lambda functions that communicate through EventBridge to create an efficient feedback system.
+The platform uses two Lambda functions as part of the AI and document-processing pipeline.
 
-### Components:
+---
 
-1. **REST API Gateway → Feedback Request Lambda**
-   - Handles incoming feedback requests
-   - Publishes to "FeedbackRequested" Momento topic
-   - Triggers a notification event to the WebSocket Lambda
+### 1. `document_indexer` Lambda
 
-2. **WebSocket API Gateway ↔ WebSocket Handler Lambda**
-   - Handles WebSocket connections/disconnections
-   - Listens for notification events
-   - Pulls specific feedback from "FeedbackGiven" topic
-   - Sends feedback to connected clients
+**Trigger:** S3 EventBridge notification when `.sh` files are uploaded to `s3://rosettacloud-shared-interactive-labs/{module_uuid}/{lesson_uuid}/`
 
-3. **Amazon EventBridge**
-   - Passes notification events between Lambdas
-   - Contains feedback_id to identify which feedback to pull
+**Flow:**
+```
+S3 upload (.sh file)
+  → EventBridge rule (rosettacloud-s3-sh-upload)
+  → document_indexer Lambda (container image)
+  → Parse shell script header (question text, type, difficulty, answers)
+  → Titan Embed v2 (Amazon Bedrock) → vector embedding
+  → LanceDB on S3 (table: shell-scripts-knowledge-base)
+```
 
-### Data Flow:
+**Deployed via:** `lambda-deploy.yml` GitHub Actions workflow (container image → ECR → Lambda update).
 
-1. User requests feedback through frontend
-2. REST API Gateway calls Feedback Request Lambda
-3. Feedback Request Lambda:
-   - Publishes request to "FeedbackRequested" Momento topic
-   - Sends notification event with feedback_id to EventBridge
-   - Returns feedback_id to frontend
+---
 
-4. AI Service processes the request and publishes to "FeedbackGiven"
+### 2. `agent_tools` Lambda (AgentCore Gateway Target)
 
-5. WebSocket Handler Lambda:
-   - Receives notification event with feedback_id
-   - Pulls the specific feedback from "FeedbackGiven" topic
-   - Sends feedback to connected WebSocket clients
+**Trigger:** Amazon Bedrock AgentCore Gateway (`rosettacloud-education-tools`) — called by the multi-agent runtime when a tool is invoked.
 
-### Benefits:
+**Tool dispatch:**
 
-- **Truly Serverless**: No long-running processes
-- **Efficient**: WebSocket Lambda only pulls feedback when notified
-- **Minimalist**: No need for DynamoDB or extra storage
-- **Fast**: Event-driven architecture reduces latency
+| Tool name (Gateway) | Normalized (Lambda) | Description |
+|---------------------|---------------------|-------------|
+| `education-tools___search-knowledge-base` | `search_knowledge_base` | LanceDB vector search — RAG for tutor agent |
+| `education-tools___get-question-details` | `get_question_details` | Fetch question text/answers from S3 |
+| `education-tools___get-question-metadata` | `get_question_metadata` | Module/lesson metadata |
+| `education-tools___get-user-progress` | `get_user_progress` | DynamoDB progress for grader/planner |
+| `education-tools___get-attempt-result` | `get_attempt_result` | Last attempt result |
+| `education-tools___list-available-modules` | `list_available_modules` | All available modules |
+
+**Event format (AgentCore Gateway → Lambda):**
+```python
+# Tool name location:
+tool_name = context.client_context.custom["bedrockAgentCoreToolName"]
+# e.g. "education-tools___get-question-details"
+
+# Event IS the flat tool input params (NOT wrapped):
+# { "module_uuid": "linux-docker-k8s-101", "lesson_uuid": "intro-lesson-01", "question_number": 1 }
+```
+
+**Deployed via:** `lambda-deploy.yml` GitHub Actions workflow.
+
+---
+
+### AI Chat Request Flow (current)
+
+```
+Browser POST /chat {message, user_id, session_id, module_uuid, lesson_uuid}
+  → API Gateway (JWT validated)
+  → FastAPI /chat endpoint
+  → Load in-process session history (_chat_histories[session_id])
+  → boto3 invoke_agent_runtime(payload + history)
+  → AgentCore Runtime (rosettacloud_education_agent)
+  → _classify(message, type) → tutor | grader | planner
+  → Agent(Nova Lite, tools=[...], session_manager=AgentCoreMemorySessionManager)
+  → Tool calls → AgentCore Gateway → agent_tools Lambda → DynamoDB/S3/LanceDB
+  → Response → FastAPI saves history → JSON response to browser
+```
+
+**No WebSockets** — purely synchronous HTTP POST. Session continuity maintained by:
+- **Within session:** in-process `_chat_histories` dict in FastAPI pod (keyed by `session_id`, max 40 msgs, 4h TTL)
+- **Cross session:** AgentCore Memory (`rosettacloud_education_memory-evO1o3F0jN`) via `AgentCoreMemorySessionManager`

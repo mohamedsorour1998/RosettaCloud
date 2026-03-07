@@ -129,6 +129,8 @@ graph TB
     subgraph CDN["AWS Edge"]
         CF[CloudFront]
         R53[Route 53]
+        AGW[API Gateway HTTP API<br/>JWT authorizer]
+        Cognito[Amazon Cognito<br/>User Pool]
     end
 
     subgraph K8S["EKS Cluster — dev namespace"]
@@ -155,9 +157,14 @@ graph TB
     end
 
     UI -->|HTTPS| CF
-    CF --> Istio
+    CF --> ALB[ALB<br/>EKS Auto Mode]
+    CF -->|api.*| AGW
+    AGW -->|JWT verified| ALB
+    ALB --> Istio
     Istio --> FE
     Istio --> BE
+    UI -->|SignUp/SignIn| Cognito
+    AGW -->|JWT validation| Cognito
     BE -->|boto3| Router
     BE <--> Redis
     BE <--> DDB
@@ -265,7 +272,7 @@ sequenceDiagram
 
 ### Frontend Development
 - **Angular 19** with standalone components for modern development
-- **Bootstrap 5** and **TypeScript** for maintainable, responsive UIs
+- **Custom SCSS design system** and **TypeScript** for maintainable, responsive UIs
 - **xterm.js** for browser-based terminal emulation
 ![dev rosettacloud app_register(High Res)](https://github.com/user-attachments/assets/4d46db80-687d-4e4f-a1eb-0a9fcddc070a)
 
@@ -286,7 +293,8 @@ sequenceDiagram
 ### Cloud Infrastructure (AWS)
 - **Amazon EKS** for container orchestration and scaling
 - **AWS Lambda** for serverless AI processing
-- **API Gateway**: HTTP endpoint management
+- **API Gateway HTTP API**: JWT-authorized API endpoint management with Cognito integration
+- **Amazon Cognito**: User Pool for authentication, email verification, JWT token issuance
 - **DynamoDB** for fast, scalable NoSQL data storage
 - **Amazon S3** for vector database backend and file storage
 - **ECR** for secure container image management
@@ -482,6 +490,7 @@ All workflows use **GitHub OIDC** — no static AWS credentials stored in secret
 | `REDIS_HOST` | Redis hostname | No | `redis-service` (K8s) / `localhost` (local) |
 | `LAB_K8S_NAMESPACE` | Kubernetes namespace for lab pods | No | `dev` |
 | `AGENT_RUNTIME_ARN` | AgentCore Runtime ARN (K8s ConfigMap) | ✅ (prod) | `arn:aws:bedrock-agentcore:us-east-1:...` |
+| `COGNITO_ISSUER_URL` | Cognito User Pool issuer URL for JWT validation | ✅ (prod) | `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_xxx` |
 | `BEDROCK_AGENTCORE_MEMORY_ID` | AgentCore Memory ID for cross-session persistence | No | `rosettacloud_education_memory-...` |
 | `LANCEDB_S3_URI` | Vector database S3 location | ✅ | `s3://rosettacloud-shared-interactive-labs-vector` |
 | `KNOWLEDGE_BASE_ID` | LanceDB table name | ✅ | `shell-scripts-knowledge-base` |
@@ -779,7 +788,8 @@ Currently serving as an AWS Community Builder, contributing to technical discuss
 
 ## 🌟 Platform Achievements
 
-✅ **Production-Ready Architecture** serving 1000+ concurrent users  
+✅ **Production-Ready Architecture** serving 1000+ concurrent users
+✅ **Cognito Authentication** with JWT-secured API Gateway, email verification, and token-based auth  
 ✅ **Advanced AI Integration** with RAG-powered chatbot and intelligent feedback  
 ✅ **99.9% Uptime** with automated monitoring and incident response  
 ✅ **60% Cost Reduction** through cloud-native and serverless design  

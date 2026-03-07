@@ -44,7 +44,8 @@ DevSecOps/
 │   ├── backend-serviceaccount.yaml  # IRSA service account
 │   ├── istio-gateway.yaml           # Istio Gateway
 │   ├── istio-virtualservices.yaml   # Istio VirtualServices
-│   └── nginx-nodeport.yaml          # Istio ingress NodePort
+│   ├── alb-ingress.yaml             # IngressClass + Ingress (EKS Auto Mode ALB)
+│   └── istio-ingress-svc.yaml       # istio-ingress ClusterIP service
 └── interactive-labs/
     └── Dockerfile                   # Lab container image
 ```
@@ -138,6 +139,8 @@ kubectl get virtualservices -n dev
 ## 📊 Infrastructure Components
 
 ### 1. Terraform Infrastructure (`Terraform/environments/shared/main.tf`)
+
+> **Authentication stack** added in March 2026: Cognito User Pool + API Gateway HTTP API with JWT authorizer. All API routes are JWT-protected except `GET /health-check`, `POST /users` (registration), and `OPTIONS /{proxy+}` (CORS preflight).
 
 **VPC Configuration:**
 ```hcl
@@ -279,9 +282,9 @@ module "cloudfront" {
 
   origin = {
     istio = {
-      domain_name = var.node_public_dns  # EKS node public DNS
+      domain_name = var.node_public_dns  # ALB DNS (EKS Auto Mode)
       custom_origin_config = {
-        http_port              = var.istio_http_nodeport  # 30578
+        http_port              = var.istio_http_nodeport  # 80
         https_port             = 443
         origin_protocol_policy = "http-only"
       }
@@ -303,7 +306,7 @@ module "cloudfront" {
 
 **Traffic Flow:**
 ```
-User → CloudFront (HTTPS) → EKS Node (HTTP:30578) → Istio Ingress → Services
+User → CloudFront (HTTPS) → ALB (HTTP:80) → Istio ingress pods → Services
 ```
 
 **ECR Repositories:**
@@ -530,6 +533,43 @@ resource "aws_eks_access_policy_association" "github_actions_admin" {
 - Backend pods use IRSA (service account annotations)
 - Lambda functions use execution roles
 
+### 1b. API Gateway & Cognito (`modules/api-gateway-auth/`)
+
+**Resources managed:**
+
+| Resource | Description |
+|----------|-------------|
+| `aws_cognito_user_pool` | User pool — email sign-in, 8-char password policy, `custom:user_id` schema |
+| `aws_cognito_user_pool_client` | SPA client — no secret, `USER_PASSWORD_AUTH` + `USER_SRP_AUTH`, 1h token TTL |
+| `aws_cognito_user_pool_domain` | Hosted UI domain (for future OAuth flows) |
+| `module "api_gateway"` | HTTP API — custom domain `api.dev.rosettacloud.app`, JWT authorizer, HTTP_PROXY integrations to ALB (port 80) |
+
+**Route configuration:**
+
+| Route | Auth | Purpose |
+|-------|------|---------|
+| `GET /health-check` | None | Uptime monitoring |
+| `POST /users` | None | New user registration (no token yet) |
+| `OPTIONS /{proxy+}` | None | CORS preflight (forwarded to FastAPI CORSMiddleware) |
+| `$default` | JWT (Cognito) | All other routes |
+
+**CORS:** Configured at API level (`allow_origins`, `allow_methods`, `allow_headers`). The explicit `OPTIONS` route ensures preflight returns 200 (the JWT-protected `$default` route would otherwise return 401 for OPTIONS).
+
+**Host override:** All integrations set `overwrite:header.Host = api.dev.rosettacloud.app` so Istio's VirtualService matches correctly.
+
+**IRSA — backend pod permissions (added):**
+```
+cognito-idp:AdminUpdateUserAttributes  — backfill custom:user_id on new user registration
+```
+
+**Terraform outputs:**
+```
+cognito_user_pool_id        = us-east-1_jPds5WJ0I
+cognito_user_pool_client_id = i5ilqkdrsl714trat6qkt0al0
+cognito_issuer_url          = https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I
+api_gateway_endpoint        = https://oq2tgavm72.execute-api.us-east-1.amazonaws.com
+```
+
 ### 2. Kubernetes Manifests (`K8S/`)
 
 **Backend Deployment (`be-deployment.yaml`):**
@@ -706,28 +746,44 @@ spec:
               number: 80
 ```
 
-**Istio Ingress NodePort (`nginx-nodeport.yaml`):**
+**ALB IngressClass + Ingress (`alb-ingress.yaml`):**
 ```yaml
-apiVersion: v1
-kind: Service
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
 metadata:
-  name: istio-ingress-nodeport
-  namespace: istio-system
+  name: alb
 spec:
-  type: NodePort
-  selector:
-    istio: ingress
-  ports:
-    - port: 80
-      targetPort: 8080
-      nodePort: 30578
-      protocol: TCP
-      name: http
+  controller: eks.amazonaws.com/alb   # EKS Auto Mode built-in ALB controller
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rosettacloud-alb
+  namespace: dev
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip       # routes to Istio pod IPs directly
+    alb.ingress.kubernetes.io/healthcheck-port: "15021"
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz/ready
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: istio-ingress
+                port:
+                  number: 80
 ```
+
+**`istio-ingress` service** (`istio-ingress-svc.yaml`): ClusterIP (was NodePort). ALB targets pod IPs directly via `target-type: ip`, so no NodePort is needed.
 
 **Traffic Flow:**
 ```
-CloudFront → EKS Node:30578 → Istio Ingress → Gateway → VirtualService → Service → Pod
+CloudFront → ALB → Istio ingress pods (via IP) → Gateway → VirtualService → Service → Pod
 ```
 
 
@@ -1021,23 +1077,32 @@ github_oidc_roles = [
   }
 ]
 
-node_public_dns     = "ec2-54-87-145-36.compute-1.amazonaws.com"
-istio_http_nodeport = 30578
+node_public_dns     = "k8s-dev-rosettac-532528634e-593558786.us-east-1.elb.amazonaws.com"
+istio_http_nodeport = 80
 ```
 
-**Update After Node Changes:**
+**Update After ALB DNS Changes:**
 ```bash
-# Get new node public DNS
-kubectl get nodes -o wide
+# Get ALB DNS (from Kubernetes Ingress)
+kubectl get ingress rosettacloud-alb -n dev -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 
-# Update terraform.tfvars
-node_public_dns = "ec2-XX-XX-XX-XX.compute-1.amazonaws.com"
+# Update terraform.tfvars with new ALB DNS
+node_public_dns = "k8s-dev-rosettac-XXXXXXXX.us-east-1.elb.amazonaws.com"
 
 # Apply changes
 terraform apply -var-file="terraform.tfvars"
 ```
 
 ### Kubernetes ConfigMap Updates
+
+`be-deployment.yaml` ConfigMap — key values:
+```yaml
+COGNITO_ISSUER_URL: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I"
+AGENT_RUNTIME_ARN:  "arn:aws:bedrock-agentcore:..."
+```
+After editing, apply with `kubectl apply -f DevSecOps/K8S/be-deployment.yaml` and restart: `kubectl rollout restart deployment/rosettacloud-backend -n dev`.
+
+### Kubernetes ConfigMap Updates — detail
 
 **Update Agent Runtime ARN:**
 ```bash
@@ -1220,20 +1285,21 @@ kubectl logs -n istio-system -l istio=ingress
 kubectl get gateway -n dev
 kubectl get virtualservices -n dev
 
-# Test NodePort directly
-curl http://NODE_PUBLIC_DNS:30578 -H "Host: dev.rosettacloud.app"
+# Test ALB directly
+ALB_DNS=$(kubectl get ingress rosettacloud-alb -n dev -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+curl -s -o /dev/null -w "%{http_code}" -H "Host: dev.rosettacloud.app" http://$ALB_DNS/
 ```
 
 **Solution:**
 ```bash
-# Restart Istio ingress
-kubectl rollout restart deployment/istio-ingress -n istio-system
+# Check ALB ingress status
+kubectl get ingress rosettacloud-alb -n dev
+kubectl describe ingress rosettacloud-alb -n dev | grep -A10 Events
 
-# Verify NodePort service
-kubectl get svc istio-ingress-nodeport -n istio-system
+# Restart Istio ingress pods
+kubectl rollout restart deployment/istio-ingress -n dev
 
-# Update CloudFront origin if node changed
-# Update terraform.tfvars with new node_public_dns
+# If ALB DNS changed, update terraform.tfvars node_public_dns and apply
 terraform apply -var-file="terraform.tfvars"
 ```
 
@@ -1548,7 +1614,7 @@ kubectl get events -n dev --watch
 
 ---
 
-**Last Updated:** 2026-03-06  
+**Last Updated:** 2026-03-08  
 **Maintainer:** Mohamed Sorour (mohamedsorour1998@gmail.com)  
 **License:** MIT
 
