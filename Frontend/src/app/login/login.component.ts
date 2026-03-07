@@ -18,6 +18,7 @@ import { UserService } from '../services/user.service';
 })
 export class LoginComponent implements OnInit {
   isLoginMode = true;
+  isVerifyMode = false;
   isLoading = false;
   showPassword = false;
   submitted = false;
@@ -25,8 +26,12 @@ export class LoginComponent implements OnInit {
   successMessage = '';
   returnUrl = '/';
 
+  /** Email kept across steps so verify + resend know who to confirm */
+  pendingEmail = '';
+
   loginForm: FormGroup;
   registerForm: FormGroup;
+  verifyForm: FormGroup;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -34,7 +39,6 @@ export class LoginComponent implements OnInit {
     private router: Router,
     private userService: UserService
   ) {
-    // Initialize forms
     this.loginForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', Validators.required],
@@ -53,13 +57,15 @@ export class LoginComponent implements OnInit {
         validators: this.checkPasswords,
       }
     );
+
+    this.verifyForm = this.formBuilder.group({
+      code: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
+    });
   }
 
   ngOnInit(): void {
-    // Check for return URL
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
 
-    // Check if we should show registration form (from route data or query params)
     const showRegister = this.route.snapshot.queryParams['register'];
     this.route.data.subscribe((data) => {
       if (data['register'] || showRegister) {
@@ -67,27 +73,24 @@ export class LoginComponent implements OnInit {
       }
     });
 
-    // Check if user is already logged in
     if (this.userService.isLoggedIn()) {
       this.router.navigate([this.returnUrl]);
     }
   }
 
-  // Custom validator to check if passwords match
   checkPasswords(group: FormGroup) {
     const password = group.get('password')?.value;
     const confirmPassword = group.get('confirmPassword')?.value;
-
     if (password !== confirmPassword) {
       group.get('confirmPassword')?.setErrors({ passwordMismatch: true });
       return { passwordMismatch: true };
     }
-
     return null;
   }
 
   toggleMode(): void {
     this.isLoginMode = !this.isLoginMode;
+    this.isVerifyMode = false;
     this.errorMessage = '';
     this.successMessage = '';
     this.submitted = false;
@@ -99,11 +102,7 @@ export class LoginComponent implements OnInit {
 
   onLogin(): void {
     this.submitted = true;
-
-    // Stop if form is invalid
-    if (this.loginForm.invalid) {
-      return;
-    }
+    if (this.loginForm.invalid) return;
 
     this.isLoading = true;
     this.errorMessage = '';
@@ -111,63 +110,89 @@ export class LoginComponent implements OnInit {
     const { email, password, rememberMe } = this.loginForm.value;
 
     this.userService.login(email, password).subscribe({
-      next: (user) => {
-        // Save user data based on remember me setting
-        if (rememberMe) {
-          localStorage.setItem('rememberUser', 'true');
-        }
-
+      next: () => {
+        if (rememberMe) localStorage.setItem('rememberUser', 'true');
         this.isLoading = false;
         this.router.navigate([this.returnUrl]);
       },
       error: (error) => {
         this.isLoading = false;
-        this.errorMessage =
-          error.message ||
-          'Login failed. Please check your credentials and try again.';
+        // If user exists but is unconfirmed, jump straight to verify step
+        if (error.name === 'UserNotConfirmedException' ||
+            (error.message && error.message.includes('not confirmed'))) {
+          this.pendingEmail = email;
+          this.isLoginMode = false;
+          this.isVerifyMode = true;
+          this.errorMessage = '';
+          this.successMessage = 'Please verify your email first. Enter the 6-digit code we sent you.';
+        } else {
+          this.errorMessage =
+            error.message || 'Login failed. Please check your credentials and try again.';
+        }
       },
     });
   }
 
   onRegister(): void {
     this.submitted = true;
-
-    // Stop if form is invalid
-    if (this.registerForm.invalid) {
-      return;
-    }
+    if (this.registerForm.invalid) return;
 
     this.isLoading = true;
     this.errorMessage = '';
 
     const { name, email, password } = this.registerForm.value;
 
-    const userData = {
-      name,
-      email,
-      password,
-      role: 'user',
-    };
-
-    this.userService.register(userData).subscribe({
-      next: (user) => {
+    this.userService.register({ name, email, password, role: 'user' }).subscribe({
+      next: () => {
         this.isLoading = false;
-        this.successMessage =
-          'Account created successfully! You can now sign in.';
-        this.isLoginMode = true;
-
-        // Pre-fill the login form with the registered email
-        this.loginForm.patchValue({
-          email: email,
-        });
-
+        this.pendingEmail = email;
+        // Switch to verify step
+        this.isLoginMode = false;
+        this.isVerifyMode = true;
         this.submitted = false;
+        this.successMessage = 'Account created! Check your email for the 6-digit verification code.';
       },
       error: (error) => {
         this.isLoading = false;
         this.errorMessage =
           error.message || 'Registration failed. Please try again later.';
       },
+    });
+  }
+
+  onVerify(): void {
+    this.submitted = true;
+    if (this.verifyForm.invalid) return;
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    const { code } = this.verifyForm.value;
+
+    this.userService.confirmSignUp(this.pendingEmail, code).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.isVerifyMode = false;
+        this.isLoginMode = true;
+        this.submitted = false;
+        this.verifyForm.reset();
+        this.successMessage = 'Email verified! You can now sign in.';
+        this.loginForm.patchValue({ email: this.pendingEmail });
+      },
+      error: (error) => {
+        this.isLoading = false;
+        this.errorMessage =
+          error.message || 'Invalid code. Please check your email and try again.';
+      },
+    });
+  }
+
+  onResendCode(): void {
+    if (!this.pendingEmail) return;
+    this.errorMessage = '';
+    this.userService.resendVerificationEmail(this.pendingEmail).subscribe({
+      next: () => { this.successMessage = 'Verification code resent. Check your email.'; },
+      error: (error) => { this.errorMessage = error.message || 'Could not resend code.'; },
     });
   }
 }
