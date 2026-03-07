@@ -12,6 +12,7 @@ data:
   REDIS_HOST: "redis-service"
   REDIS_PORT: "6379"
   AGENT_RUNTIME_ARN: "arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy"
+  COGNITO_ISSUER_URL: ""  # Set to: https://cognito-idp.us-east-1.amazonaws.com/<USER_POOL_ID>
 
 ---
 apiVersion: apps/v1
@@ -77,6 +78,11 @@ spec:
                 configMapKeyRef:
                   name: rosettacloud-backend-config
                   key: AGENT_RUNTIME_ARN
+            - name: COGNITO_ISSUER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: rosettacloud-backend-config
+                  key: COGNITO_ISSUER_URL
 
 ---
 apiVersion: v1
