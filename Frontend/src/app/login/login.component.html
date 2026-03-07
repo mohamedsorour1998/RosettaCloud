@@ -168,33 +168,30 @@
                 </div>
               </div>
 
-              <div class="d-grid mb-3">
+              <div class="d-grid mb-4">
                 <button type="submit" class="btn btn-primary py-2" [disabled]="isLoading">
                   <span *ngIf="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   Verify Email
                 </button>
               </div>
-
-              <div class="text-center">
-                <p class="text-muted small mb-0">
-                  Didn't receive the code?
-                  <a href="javascript:void(0)" (click)="onResendCode()" class="text-primary">Resend</a>
-                </p>
-                <p class="text-muted small mt-2">
-                  <a href="javascript:void(0)" (click)="toggleMode()" class="text-primary">Back to Sign In</a>
-                </p>
-              </div>
             </form>
 
-            <!-- Toggle between login and register (hidden during verify) -->
-            <div *ngIf="!isVerifyMode" class="text-center">
-              <p *ngIf="isLoginMode">
+            <!-- Toggle / verify footer links -->
+            <div class="text-center">
+              <p *ngIf="!isVerifyMode && isLoginMode">
                 Don't have an account?
                 <a href="javascript:void(0)" (click)="toggleMode()" class="text-primary fw-bold">Sign Up</a>
               </p>
-              <p *ngIf="!isLoginMode">
+              <p *ngIf="!isVerifyMode && !isLoginMode">
                 Already have an account?
                 <a href="javascript:void(0)" (click)="toggleMode()" class="text-primary fw-bold">Sign In</a>
+              </p>
+              <p *ngIf="isVerifyMode">
+                Didn't receive the code?
+                <a href="javascript:void(0)" (click)="onResendCode()" class="text-primary fw-bold">Resend</a>
+              </p>
+              <p *ngIf="isVerifyMode">
+                <a href="javascript:void(0)" (click)="toggleMode()" class="text-primary fw-bold">Back to Sign In</a>
               </p>
             </div>
           </div>
