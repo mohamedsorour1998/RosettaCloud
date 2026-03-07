@@ -7,6 +7,26 @@ import {
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import {
+  CognitoIdentityProviderClient,
+  InitiateAuthCommand,
+  SignUpCommand,
+  ConfirmSignUpCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
+  ResendConfirmationCodeCommand,
+} from '@aws-sdk/client-cognito-identity-provider';
+
+// Single shared Cognito client — no credentials needed in browser
+const cognitoClient = new CognitoIdentityProviderClient({
+  region: environment.cognito.region,
+});
+
+/** Decode a JWT payload (base64url → JSON). Does NOT verify signature. */
+function decodeJwtPayload(token: string): Record<string, any> {
+  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  return JSON.parse(atob(base64));
+}
 
 export interface User {
   user_id: string;
@@ -45,7 +65,6 @@ export interface UserList {
 })
 export class UserService {
   listUsers(limit: number): Observable<any> {
-    // Replace with actual implementation that returns an observable
     return this.http.get<any>(`/api/users?limit=${limit}`);
   }
 
@@ -53,7 +72,6 @@ export class UserService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  // Connection status
   private connectionStatus = new BehaviorSubject<boolean>(true);
   public connectionStatus$ = this.connectionStatus.asObservable();
 
@@ -62,7 +80,6 @@ export class UserService {
     this.checkApiConnection();
   }
 
-  // Check API connection
   private checkApiConnection(): void {
     this.http
       .get(`${this.apiUrl}/health-check`, { responseType: 'text' })
@@ -72,127 +89,219 @@ export class UserService {
           return throwError(() => new Error('API connection failed'));
         })
       )
-      .subscribe(() => {
-        this.connectionStatus.next(true);
-      });
+      .subscribe(() => this.connectionStatus.next(true));
   }
 
-  // Get HTTP headers
-  private getHeaders(): HttpHeaders {
-    return new HttpHeaders({
-      'Content-Type': 'application/json',
-    });
-  }
-
-  // Load user from storage
   private loadUserFromStorage(): void {
     const userJson = localStorage.getItem('currentUser');
     if (userJson) {
       try {
-        const user = JSON.parse(userJson);
-        this.currentUserSubject.next(user);
-      } catch (error) {
-        console.error('Failed to parse stored user', error);
+        this.currentUserSubject.next(JSON.parse(userJson));
+      } catch {
         localStorage.removeItem('currentUser');
       }
     }
   }
 
-  // Register new user
+  /**
+   * Register: Cognito SignUp (creates unconfirmed user) then POST /users
+   * to create the DynamoDB profile.
+   * The caller must follow up with confirmSignUp() using the emailed code.
+   */
   register(userData: UserCreate): Observable<User> {
-    return this.http
-      .post<User>(`${this.apiUrl}/users`, userData, {
-        headers: this.getHeaders(),
-      })
-      .pipe(
-        tap((user) => {
-          this.storeUser(user);
-        }),
-        catchError(this.handleError)
-      );
+    return new Observable(observer => {
+      cognitoClient
+        .send(
+          new SignUpCommand({
+            ClientId: environment.cognito.userPoolClientId,
+            Username: userData.email,
+            Password: userData.password,
+            UserAttributes: [
+              { Name: 'email', Value: userData.email },
+              { Name: 'name', Value: userData.name },
+            ],
+          })
+        )
+        .then(() => {
+          // Create DynamoDB profile immediately so backend has a record
+          this.http
+            .post<User>(`${this.apiUrl}/users`, {
+              email: userData.email,
+              name: userData.name,
+              password: userData.password,
+              role: userData.role ?? 'user',
+              metadata: userData.metadata ?? {},
+            })
+            .pipe(catchError(this.handleError))
+            .subscribe({
+              next: user => { observer.next(user); observer.complete(); },
+              error: err => observer.error(err),
+            });
+        })
+        .catch(err => observer.error(err));
+    });
   }
 
-  // Login user
+  /**
+   * Confirm registration with the 6-digit code Cognito emails after signUp.
+   */
+  confirmSignUp(email: string, code: string): Observable<void> {
+    return new Observable(observer => {
+      cognitoClient
+        .send(
+          new ConfirmSignUpCommand({
+            ClientId: environment.cognito.userPoolClientId,
+            Username: email,
+            ConfirmationCode: code,
+          })
+        )
+        .then(() => { observer.next(); observer.complete(); })
+        .catch(err => observer.error(err));
+    });
+  }
+
+  /**
+   * Login: Cognito InitiateAuth (USER_PASSWORD_AUTH) → store tokens → fetch
+   * user profile from backend.
+   *
+   * We store the ID token as the auth token because:
+   *  - It contains the aud claim (= client ID) that API GW validates
+   *  - It carries custom:user_id which FastAPI's auth middleware reads
+   */
   login(email: string, password: string): Observable<User> {
-    // In a real app, this would be a POST request with credentials
-    // For this example, we're using the existing endpoint to find the user by email
-    return this.http
-      .get<{ users: User[] }>(`${this.apiUrl}/users`, {
-        headers: this.getHeaders(),
-        params: { email },
-      })
-      .pipe(
-        map((response) => {
-          const user = response.users.find((u) => u.email === email);
-          if (!user) {
-            throw new Error('User not found');
-          }
+    return new Observable(observer => {
+      cognitoClient
+        .send(
+          new InitiateAuthCommand({
+            AuthFlow: 'USER_PASSWORD_AUTH',
+            ClientId: environment.cognito.userPoolClientId,
+            AuthParameters: {
+              USERNAME: email,
+              PASSWORD: password,
+            },
+          })
+        )
+        .then(response => {
+          const auth = response.AuthenticationResult;
+          if (!auth?.IdToken) throw new Error('No ID token returned from Cognito');
 
-          // In a real app, password verification would happen on the server
-          // Here we just simulate a successful login
-          this.storeUser(user);
-          return user;
-        }),
-        catchError(this.handleError)
-      );
+          // Store tokens
+          localStorage.setItem('idToken', auth.IdToken);
+          if (auth.AccessToken) localStorage.setItem('accessToken', auth.AccessToken);
+          if (auth.RefreshToken) localStorage.setItem('refreshToken', auth.RefreshToken);
+
+          // Extract user_id from ID token payload
+          const payload = decodeJwtPayload(auth.IdToken);
+          const userId: string = payload['custom:user_id'] || payload['sub'];
+          localStorage.setItem('userId', userId);
+
+          // Fetch full profile — interceptor will attach the ID token we just stored
+          this.getUser(userId).subscribe({
+            next: user => { this.storeUser(user); observer.next(user); observer.complete(); },
+            error: err => observer.error(err),
+          });
+        })
+        .catch(err => observer.error(err));
+    });
   }
 
-  // Store user in local storage and update subject
+  logout(): void {
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('idToken');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('rememberUser');
+    this.currentUserSubject.next(null);
+  }
+
+  /**
+   * Returns the ID token used for API Gateway authorization.
+   * Called by AuthInterceptor on every outbound API request.
+   */
+  getAccessToken(): string | null {
+    return localStorage.getItem('idToken');
+  }
+
   private storeUser(user: User): void {
     localStorage.setItem('currentUser', JSON.stringify(user));
     localStorage.setItem('userId', user.user_id);
     this.currentUserSubject.next(user);
   }
 
-  // Logout user
-  logout(): void {
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('rememberUser');
-    this.currentUserSubject.next(null);
-  }
-
-  // Get current user
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
   }
 
-  // Get current user ID
   getCurrentUserId(): string | null {
-    const currentUser = this.getCurrentUser();
-    if (currentUser) {
-      return currentUser.user_id;
-    }
-
-    const storedId = localStorage.getItem('userId');
-    return storedId;
+    return this.currentUserSubject.value?.user_id ?? localStorage.getItem('userId');
   }
 
-  // Check if user is logged in
   isLoggedIn(): boolean {
-    return !!this.getCurrentUserId();
+    return !!this.getAccessToken();
   }
 
-  // Get user by ID
+  // ── Password reset ────────────────────────────────────────────────────────
+
+  requestPasswordReset(email: string): Observable<any> {
+    return new Observable(observer => {
+      cognitoClient
+        .send(
+          new ForgotPasswordCommand({
+            ClientId: environment.cognito.userPoolClientId,
+            Username: email,
+          })
+        )
+        .then(result => { observer.next(result); observer.complete(); })
+        .catch(err => observer.error(err));
+    });
+  }
+
+  /** Confirm forgot-password flow with the emailed code and a new password. */
+  resetPassword(code: string, email: string, newPassword: string): Observable<any> {
+    return new Observable(observer => {
+      cognitoClient
+        .send(
+          new ConfirmForgotPasswordCommand({
+            ClientId: environment.cognito.userPoolClientId,
+            Username: email,
+            ConfirmationCode: code,
+            Password: newPassword,
+          })
+        )
+        .then(result => { observer.next(result); observer.complete(); })
+        .catch(err => observer.error(err));
+    });
+  }
+
+  resendVerificationEmail(email: string): Observable<any> {
+    return new Observable(observer => {
+      cognitoClient
+        .send(
+          new ResendConfirmationCodeCommand({
+            ClientId: environment.cognito.userPoolClientId,
+            Username: email,
+          })
+        )
+        .then(result => { observer.next(result); observer.complete(); })
+        .catch(err => observer.error(err));
+    });
+  }
+
+  // ── Backend API calls (unchanged — token added by AuthInterceptor) ────────
+
   getUser(userId: string): Observable<User> {
     return this.http
-      .get<User>(`${this.apiUrl}/users/${userId}`, {
-        headers: this.getHeaders(),
-      })
+      .get<User>(`${this.apiUrl}/users/${userId}`)
       .pipe(catchError(this.handleError));
   }
 
-  // Update user
   updateUser(userId: string, updates: UserUpdate): Observable<User> {
     return this.http
-      .put<User>(`${this.apiUrl}/users/${userId}`, updates, {
-        headers: this.getHeaders(),
-      })
+      .put<User>(`${this.apiUrl}/users/${userId}`, updates)
       .pipe(
-        tap((updatedUser) => {
-          // Update stored user if it's the current user
-          const currentUser = this.getCurrentUser();
-          if (currentUser && currentUser.user_id === userId) {
+        tap(updatedUser => {
+          if (this.getCurrentUser()?.user_id === userId) {
             this.storeUser(updatedUser);
           }
         }),
@@ -200,17 +309,12 @@ export class UserService {
       );
   }
 
-  // Delete user
   deleteUser(userId: string): Observable<void> {
     return this.http
-      .delete<void>(`${this.apiUrl}/users/${userId}`, {
-        headers: this.getHeaders(),
-      })
+      .delete<void>(`${this.apiUrl}/users/${userId}`)
       .pipe(
         tap(() => {
-          // Logout if deleting current user
-          const currentUser = this.getCurrentUser();
-          if (currentUser && currentUser.user_id === userId) {
+          if (this.getCurrentUser()?.user_id === userId) {
             this.logout();
           }
         }),
@@ -218,64 +322,24 @@ export class UserService {
       );
   }
 
-  // Request password reset
-  requestPasswordReset(email: string): Observable<any> {
-    return this.http
-      .post<any>(
-        `${this.apiUrl}/auth/reset-password`,
-        { email },
-        { headers: this.getHeaders() }
-      )
-      .pipe(catchError(this.handleError));
-  }
-
-  // Reset password with token
-  resetPassword(
-    token: string,
-    userId: string,
-    newPassword: string
-  ): Observable<any> {
-    return this.http
-      .post<any>(
-        `${this.apiUrl}/auth/reset-password/confirm`,
-        {
-          token,
-          userId,
-          password: newPassword,
-        },
-        { headers: this.getHeaders() }
-      )
-      .pipe(catchError(this.handleError));
-  }
-
-  // Get user's progress
   getUserProgress(
     userId: string,
     moduleUuid?: string,
     lessonUuid?: string
   ): Observable<any> {
-    let url = `${this.apiUrl}/users/${userId}/progress`;
-    let params: any = {};
-
+    const params: any = {};
     if (moduleUuid) {
-      params.module_uuid = moduleUuid;
-      if (lessonUuid) {
-        params.lesson_uuid = lessonUuid;
-      }
+      params['module_uuid'] = moduleUuid;
+      if (lessonUuid) params['lesson_uuid'] = lessonUuid;
     }
-
     return this.http
-      .get<{ progress: any }>(url, {
-        headers: this.getHeaders(),
-        params,
-      })
+      .get<{ progress: any }>(`${this.apiUrl}/users/${userId}/progress`, { params })
       .pipe(
-        map((response) => response.progress),
+        map(r => r.progress),
         catchError(this.handleError)
       );
   }
 
-  // Update user's progress
   updateUserProgress(
     userId: string,
     moduleUuid: string,
@@ -286,64 +350,42 @@ export class UserService {
     return this.http
       .post<any>(
         `${this.apiUrl}/users/${userId}/progress/${moduleUuid}/${lessonUuid}/${questionNumber}`,
-        { completed },
-        { headers: this.getHeaders() }
+        { completed }
       )
       .pipe(catchError(this.handleError));
   }
 
-  // Get user's labs
   getUserLabs(userId: string): Observable<{ labs: string[] }> {
     return this.http
-      .get<{ labs: string[] }>(`${this.apiUrl}/users/${userId}/labs`, {
-        headers: this.getHeaders(),
-      })
+      .get<{ labs: string[] }>(`${this.apiUrl}/users/${userId}/labs`)
       .pipe(catchError(this.handleError));
   }
 
-  // Link lab to user
   linkLabToUser(userId: string, labId: string): Observable<any> {
     return this.http
-      .post<any>(
-        `${this.apiUrl}/users/${userId}/labs/${labId}`,
-        {},
-        { headers: this.getHeaders() }
-      )
+      .post<any>(`${this.apiUrl}/users/${userId}/labs/${labId}`, {})
       .pipe(catchError(this.handleError));
   }
 
-  // Unlink lab from user
   unlinkLabFromUser(userId: string, labId: string): Observable<any> {
     return this.http
-      .delete<any>(`${this.apiUrl}/users/${userId}/labs/${labId}`, {
-        headers: this.getHeaders(),
-      })
+      .delete<any>(`${this.apiUrl}/users/${userId}/labs/${labId}`)
       .pipe(catchError(this.handleError));
   }
 
-  // Generic error handler
   private handleError = (error: HttpErrorResponse) => {
     let errorMessage = 'Something went wrong';
-
     if (error.error instanceof ErrorEvent) {
-      // Client-side error
       errorMessage = `Error: ${error.error.message}`;
+    } else if (error.error && typeof error.error === 'object') {
+      errorMessage =
+        error.error.detail ||
+        error.error.message ||
+        `Error ${error.status}: ${error.statusText}`;
     } else {
-      // Server-side error
-      if (error.error && typeof error.error === 'object') {
-        errorMessage =
-          error.error.detail ||
-          error.error.message ||
-          `Error ${error.status}: ${error.statusText}`;
-      } else {
-        errorMessage = `Error ${error.status}: ${error.statusText}`;
-      }
+      errorMessage = `Error ${error.status}: ${error.statusText}`;
     }
-
     console.error('API Error:', error);
     return throwError(() => new Error(errorMessage));
-  }
-  resendVerificationEmail(userId: string) {
-    throw new Error('Method not implemented.');
-  }
+  };
 }
