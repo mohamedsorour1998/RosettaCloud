@@ -11,6 +11,9 @@ What it does:
   - Creates a Cognito user for every item in the 'rosettacloud-users' DynamoDB table
   - Sets email_verified = true and suppresses the welcome email
   - Copies the internal user_id into the custom:user_id attribute
+  - Calls admin_reset_user_password() so Cognito emails each user a password-reset code
+    (created users are in FORCE_CHANGE_PASSWORD status and cannot log in until they
+    complete the Forgot Password flow with that code)
   - Removes the plaintext 'password' field from DynamoDB
 """
 
@@ -60,6 +63,17 @@ def migrate():
             except Exception as exc:
                 print(f"ERROR: {email} — {exc}")
                 continue
+
+            # User is now in FORCE_CHANGE_PASSWORD status.
+            # Send a password-reset code so they can complete Forgot Password flow.
+            try:
+                cognito.admin_reset_user_password(
+                    UserPoolId=USER_POOL_ID,
+                    Username=email,
+                )
+                print(f"  RESET EMAIL SENT: {email}")
+            except Exception as exc:
+                print(f"  WARN: could not send reset email for {email} — {exc}")
 
             # Remove plaintext password from DynamoDB
             try:
