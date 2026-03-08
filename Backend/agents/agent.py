@@ -186,11 +186,14 @@ def _create_session_manager(user_id: str, session_id: str):
 
 def _create_agent(agent_name: str, user_id: str = "", session_id: str = "",
                   messages: list = None, tools: list = None,
-                  session_manager=None, student_context: str = "") -> Agent:
+                  session_manager=None, student_context: str = "",
+                  response_format: str = "") -> Agent:
     """Create a fresh Agent instance for this request."""
     prompt, _ = AGENT_CONFIGS[agent_name]
     if student_context:
         prompt = prompt + f"\n\nCurrent student context: {student_context}\nIMPORTANT: Never include the student context metadata in your response. Only use it internally for tool calls."
+    if response_format:
+        prompt = prompt + f"\n\nResponse format: {response_format}"
     kwargs = {
         "model": _model,
         "system_prompt": prompt,
@@ -284,10 +287,7 @@ def invoke(payload, context=None):
         )
 
     if msg_type == "explain":
-        message = (
-            f"In exactly one sentence (15 words max), plain English, no markdown formatting: "
-            f"what does `{message}` do in a Linux/Kubernetes environment?"
-        )
+        message = f"What does `{message}` do?"
 
     agent_name = _classify(message, msg_type)
 
@@ -316,10 +316,13 @@ def invoke(payload, context=None):
         if lesson_uuid:
             context_parts.append(f"lesson_uuid: {lesson_uuid}")
         context_str = ", ".join(context_parts)
+        resp_fmt = ""
+        if msg_type == "explain":
+            resp_fmt = "Reply in exactly one sentence (15 words max), plain English, no markdown formatting."
         try:
             agent = _create_agent(agent_name, user_id=user_id, session_id=session_id,
                                   messages=history, tools=agent_tools, session_manager=sm,
-                                  student_context=context_str)
+                                  student_context=context_str, response_format=resp_fmt)
         except Exception as e:
             logger.error("Agent creation failed: %s\n%s", e, traceback.format_exc())
             return f"Agent creation error: {e}"
