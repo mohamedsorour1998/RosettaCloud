@@ -186,9 +186,11 @@ def _create_session_manager(user_id: str, session_id: str):
 
 def _create_agent(agent_name: str, user_id: str = "", session_id: str = "",
                   messages: list = None, tools: list = None,
-                  session_manager=None) -> Agent:
+                  session_manager=None, student_context: str = "") -> Agent:
     """Create a fresh Agent instance for this request."""
     prompt, _ = AGENT_CONFIGS[agent_name]
+    if student_context:
+        prompt = prompt + f"\n\nCurrent student context: {student_context}\nIMPORTANT: Never include the student context metadata in your response. Only use it internally for tool calls."
     kwargs = {
         "model": _model,
         "system_prompt": prompt,
@@ -203,12 +205,14 @@ def _create_agent(agent_name: str, user_id: str = "", session_id: str = "",
 
 
 def _extract_text(result) -> str:
-    """Extract text from agent result, stripping any <thinking> tags."""
+    """Extract text from agent result, stripping metadata and thinking tags."""
     try:
         text = result.message["content"][0]["text"]
     except (KeyError, IndexError, TypeError):
         text = str(result)
     text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL).strip()
+    # Strip any leaked JSON context blocks (e.g. {"user_id": "...", "module_uuid": "..."})
+    text = re.sub(r'^\s*\{[^}]*"(?:user_id|module_uuid|lesson_uuid)"[^}]*\}\s*', "", text).strip()
     return text
 
 
@@ -306,30 +310,31 @@ def invoke(payload, context=None):
 
     def _run_agent(agent_tools: list) -> str:
         """Run the agent with tools, using context manager for memory flush."""
+        context_parts = [f"user_id: {user_id}"]
+        if module_uuid:
+            context_parts.append(f"module_uuid: {module_uuid}")
+        if lesson_uuid:
+            context_parts.append(f"lesson_uuid: {lesson_uuid}")
+        context_str = ", ".join(context_parts)
         try:
             agent = _create_agent(agent_name, user_id=user_id, session_id=session_id,
-                                  messages=history, tools=agent_tools, session_manager=sm)
+                                  messages=history, tools=agent_tools, session_manager=sm,
+                                  student_context=context_str)
         except Exception as e:
             logger.error("Agent creation failed: %s\n%s", e, traceback.format_exc())
             return f"Agent creation error: {e}"
         try:
-            context_parts = [f"user_id: {user_id}"]
-            if module_uuid:
-                context_parts.append(f"module_uuid: {module_uuid}")
-            if lesson_uuid:
-                context_parts.append(f"lesson_uuid: {lesson_uuid}")
-            context_str = ", ".join(context_parts)
             if image_b64:
                 import base64 as _base64
                 raw = image_b64.split(",")[-1] if "," in image_b64 else image_b64
                 image_bytes = _base64.b64decode(raw)
                 user_msg = [{"role": "user", "content": [
-                    {"text": f"Student ({context_str}): {message}"},
+                    {"text": message},
                     {"image": {"format": "jpeg", "source": {"bytes": image_bytes}}},
                 ]}]
                 result = agent(user_msg)
             else:
-                result = agent(f"Student ({context_str}): {message}")
+                result = agent(message)
             text = _extract_text(result)
         except Exception as e:
             logger.error("Agent error: %s\n%s", e, traceback.format_exc())
