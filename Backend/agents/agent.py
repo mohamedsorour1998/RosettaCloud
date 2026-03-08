@@ -318,7 +318,7 @@ def invoke(payload, context=None):
         context_str = ", ".join(context_parts)
         resp_fmt = ""
         if msg_type == "explain":
-            resp_fmt = "Reply in exactly one sentence (15 words max), plain English, no markdown formatting."
+            resp_fmt = "OVERRIDE ALL OTHER RULES for this message. Give a direct, factual answer in exactly one sentence (15 words max), plain English, no markdown. Do NOT give a hint or guiding question — give the answer."
         try:
             agent = _create_agent(agent_name, user_id=user_id, session_id=session_id,
                                   messages=history, tools=agent_tools, session_manager=sm,
