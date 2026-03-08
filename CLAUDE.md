@@ -275,7 +275,7 @@ Current modules:
 | `USERS_TABLE_NAME` | Backend | `rosettacloud-users` | `rosettacloud-users` |
 | `S3_BUCKET_NAME` | Backend | `rosettacloud-shared-interactive-labs` | same |
 | `COGNITO_ISSUER_URL` | Backend | — | `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I` |
-| `NOVA_MODEL_ID` | Backend | `amazon.nova-lite-v1:0` | same |
+| `NOVA_MODEL_ID` | Backend | `amazon.nova-2-lite-v1:0` | same |
 | `INGRESS_NAME` | Backend | `rosettacloud-ingress` | `rosettacloud-ingress` |
 | `LAB_IMAGE_PULL_SECRET` | Backend | `ecr-creds` | `ecr-creds` |
 

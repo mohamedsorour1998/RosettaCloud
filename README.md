@@ -68,7 +68,7 @@ def _classify(message: str, msg_type: str) -> str:
 def invoke(payload, context=None):
     agent_name = _classify(payload["message"], payload["type"])
     agent = Agent(
-        model=BedrockModel("amazon.nova-lite-v1:0"),
+        model=BedrockModel("amazon.nova-2-lite-v1:0"),
         system_prompt=AGENT_CONFIGS[agent_name].prompt,
         tools=AGENT_CONFIGS[agent_name].tools,
         session_manager=AgentCoreMemorySessionManager(config),  # long-term memory
@@ -147,7 +147,7 @@ graph TB
         Grader[Grader Agent]
         Planner[Planner Agent]
         Memory[AgentCore Memory]
-        Nova[Nova Lite v1]
+        Nova[Nova 2 Lite]
     end
 
     subgraph Data["Data Layer"]
@@ -283,7 +283,7 @@ sequenceDiagram
 - **Strands Agents** for multi-agent AI orchestration (AWS open-source)
 
 ### AI/ML Services
-- **Amazon Bedrock** with Nova Lite v1 for all agent reasoning and classification
+- **Amazon Bedrock** with Nova 2 Lite for all agent reasoning and classification
 - **Amazon Titan** embeddings for document vectorization
 - **Amazon Bedrock AgentCore**: Multi-agent runtime (tutor/grader/planner) with memory
 - **Retrieval-Augmented Generation** for context-aware responses

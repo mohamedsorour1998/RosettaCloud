@@ -141,7 +141,7 @@ def _init():
     try:
         _bedrock = boto3.client("bedrock-runtime", region_name=REGION)
         _model = BedrockModel(
-            model_id="amazon.nova-lite-v1:0",
+            model_id=os.environ.get("NOVA_MODEL_ID", "amazon.nova-2-lite-v1:0"),
             region_name=REGION,
         )
         logger.info("Model initialized. Memory SDK available: %s, MEMORY_ID: %s",
@@ -210,7 +210,7 @@ def _classify(message: str, msg_type: str) -> str:
 
     try:
         result = _bedrock.converse(
-            modelId="amazon.nova-lite-v1:0",
+            modelId=os.environ.get("NOVA_MODEL_ID", "amazon.nova-2-lite-v1:0"),
             messages=[{"role": "user", "content": [{"text": message}]}],
             system=[{"text": CLASSIFIER_PROMPT}],
             inferenceConfig={"maxTokens": 10, "temperature": 0},

@@ -337,7 +337,7 @@ agentcore status
 **Current Deployment:**
 - Runtime ARN: `arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy`
 - Memory ID: `rosettacloud_education_memory-evO1o3F0jN`
-- Model: `amazon.nova-lite-v1:0` (all agents)
+- Model: `amazon.nova-2-lite-v1:0` (all agents)
 - Region: `us-east-1`
 
 **Agent Routing (`agent.py`):**
@@ -358,7 +358,7 @@ def _classify(message: str, msg_type: str) -> str:
     
     # Fallback: Nova Lite classifier
     result = bedrock.converse(
-        modelId="amazon.nova-lite-v1:0",
+        modelId="amazon.nova-2-lite-v1:0",
         messages=[{"role": "user", "content": [{"text": message}]}],
         system=[{"text": CLASSIFIER_PROMPT}],
         inferenceConfig={"maxTokens": 10, "temperature": 0},
