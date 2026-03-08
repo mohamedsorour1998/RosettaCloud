@@ -141,7 +141,7 @@ def _init():
     try:
         _bedrock = boto3.client("bedrock-runtime", region_name=REGION)
         _model = BedrockModel(
-            model_id=os.environ.get("NOVA_MODEL_ID", "amazon.nova-2-lite-v1:0"),
+            model_id=os.environ.get("NOVA_MODEL_ID", "us.amazon.nova-2-lite-v1:0"),
             region_name=REGION,
         )
         logger.info("Model initialized. Memory SDK available: %s, MEMORY_ID: %s",
@@ -151,8 +151,42 @@ def _init():
         logger.error("Init failed: %s", _init_error)
 
 
+try:
+    from bedrock_agentcore.memory.integrations.strands.config import RetrievalConfig
+except ImportError:
+    RetrievalConfig = None
+
+
+def _create_session_manager(user_id: str, session_id: str):
+    """Create an AgentCoreMemorySessionManager if memory is configured."""
+    if not (MEMORY_ID and AgentCoreMemorySessionManager and session_id):
+        return None
+    try:
+        retrieval = {}
+        if RetrievalConfig:
+            retrieval = {
+                "/preferences/{actorId}": RetrievalConfig(top_k=5, relevance_score=0.5),
+                "/facts/{actorId}": RetrievalConfig(top_k=10, relevance_score=0.3),
+                "/summaries/{actorId}/{sessionId}": RetrievalConfig(top_k=3, relevance_score=0.5),
+            }
+        config = AgentCoreMemoryConfig(
+            memory_id=MEMORY_ID,
+            session_id=session_id,
+            actor_id=user_id or "anonymous",
+            retrieval_config=retrieval,
+        )
+        return AgentCoreMemorySessionManager(
+            agentcore_memory_config=config,
+            region_name=REGION,
+        )
+    except Exception as e:
+        logger.warning("Memory session setup failed: %s", e)
+        return None
+
+
 def _create_agent(agent_name: str, user_id: str = "", session_id: str = "",
-                  messages: list = None, tools: list = None) -> Agent:
+                  messages: list = None, tools: list = None,
+                  session_manager=None) -> Agent:
     """Create a fresh Agent instance for this request."""
     prompt, _ = AGENT_CONFIGS[agent_name]
     kwargs = {
@@ -163,22 +197,8 @@ def _create_agent(agent_name: str, user_id: str = "", session_id: str = "",
     }
     if messages:
         kwargs["messages"] = messages
-    if MEMORY_ID and AgentCoreMemorySessionManager and session_id:
-        try:
-            config = AgentCoreMemoryConfig(
-                memory_id=MEMORY_ID,
-                region_name=REGION,
-                session_id=session_id,
-                actor_id=user_id or "anonymous",
-            )
-            kwargs["session_manager"] = AgentCoreMemorySessionManager(config, region=REGION)
-            kwargs["session_id"] = session_id
-            # Verified: passing both `messages` and `session_manager` to Agent() is safe.
-            # Agent.__init__ sets self.messages = messages directly (line: `self.messages = messages if messages is not None else []`),
-            # then adds session_manager as a hook — the two are independent. messages provides
-            # the initial in-process history; session_manager handles long-term persistence.
-        except Exception as e:
-            logger.warning("Memory session setup failed, continuing without memory: %s", e)
+    if session_manager:
+        kwargs["session_manager"] = session_manager
     return Agent(**kwargs)
 
 
@@ -210,7 +230,7 @@ def _classify(message: str, msg_type: str) -> str:
 
     try:
         result = _bedrock.converse(
-            modelId=os.environ.get("NOVA_MODEL_ID", "amazon.nova-2-lite-v1:0"),
+            modelId=os.environ.get("NOVA_MODEL_ID", "us.amazon.nova-2-lite-v1:0"),
             messages=[{"role": "user", "content": [{"text": message}]}],
             system=[{"text": CLASSIFIER_PROMPT}],
             inferenceConfig={"maxTokens": 10, "temperature": 0},
@@ -281,78 +301,92 @@ def invoke(payload, context=None):
 
     allowed_tools = _AGENT_TOOL_NAMES.get(agent_name, set())
 
-    if GATEWAY_URL:
-        try:
-            # Build headers: add Bearer token only when Cognito creds are configured
-            headers = {}
-            if COGNITO_CLIENT_ID:
-                headers["Authorization"] = f"Bearer {_get_bearer_token()}"
-            mcp_client = MCPClient(
-                lambda: streamablehttp_client(GATEWAY_URL, headers=headers or None)
-            )
-        except Exception as e:
-            logger.error("Failed to create MCPClient: %s", e)
-            return {"agent": "error", "response": f"Gateway connection error: {e}", "session_id": session_id}
+    # Create session manager (context manager ensures messages are flushed on exit)
+    sm = _create_session_manager(user_id, session_id)
 
-        with mcp_client:
-            all_mcp_tools = mcp_client.list_tools_sync()
-            # Rename MCP tools: hyphens/prefix cause modelStreamErrorException on Nova Lite.
-            # _agent_tool_name is the model-facing name; mcp_tool.name (unchanged) is used
-            # for the actual MCP call — so renaming here is safe.
-            for t in all_mcp_tools:
-                t._agent_tool_name = _normalize_tool_name(t.tool_name)
-            agent_tools = [t for t in all_mcp_tools if t.tool_name in allowed_tools]
-            logger.info("Routing to %s via Gateway: user=%s session=...%s tools=%s history_turns=%d",
-                        agent_name, user_id, session_id[-12:] if session_id else "none",
-                        [t.tool_name for t in agent_tools], len(raw_history) // 2)
+    def _run_agent(agent_tools: list) -> str:
+        """Run the agent with tools, using context manager for memory flush."""
+        try:
             agent = _create_agent(agent_name, user_id=user_id, session_id=session_id,
-                                  messages=history, tools=agent_tools)
-            try:
-                context_parts = [f"user_id: {user_id}"]
-                if module_uuid:
-                    context_parts.append(f"module_uuid: {module_uuid}")
-                if lesson_uuid:
-                    context_parts.append(f"lesson_uuid: {lesson_uuid}")
-                context_str = ", ".join(context_parts)
-                if image_b64:
-                    import base64 as _base64
-                    raw = image_b64.split(",")[-1] if "," in image_b64 else image_b64
-                    image_bytes = _base64.b64decode(raw)
-                    user_msg = [{"role": "user", "content": [
-                        {"text": f"Student ({context_str}): {message}"},
-                        {"image": {"format": "jpeg", "source": {"bytes": image_bytes}}},
-                    ]}]
-                    result = agent(user_msg)
-                else:
-                    result = agent(f"Student ({context_str}): {message}")
-                response_text = _extract_text(result)
-            except Exception as e:
-                logger.error("Agent error: %s", e)
-                response_text = f"Agent error: {e}"
-
-            if session_id:
-                try:
-                    updated_messages = getattr(agent, 'messages', None)
-                    if updated_messages:
-                        if len(updated_messages) > MAX_HISTORY_TURNS * 2:
-                            updated_messages = updated_messages[-(MAX_HISTORY_TURNS * 2):]
-                        if len(_session_histories) >= MAX_SESSIONS:
-                            oldest_key = next(iter(_session_histories))
-                            del _session_histories[oldest_key]
-                        _session_histories[session_id] = updated_messages
-                except Exception:
-                    logger.warning("Failed to save session history", exc_info=True)
-    else:
-        # Fallback: no Gateway configured — useful for local dev / agentcore invoke CLI
-        logger.warning("GATEWAY_URL not set — running without tools")
-        agent = _create_agent(agent_name, user_id=user_id, session_id=session_id,
-                              messages=history, tools=[])
-        try:
-            result = agent(f"Student (user_id: {user_id}): {message}")
-            response_text = _extract_text(result)
+                                  messages=history, tools=agent_tools, session_manager=sm)
         except Exception as e:
-            logger.error("Agent error: %s", e)
-            response_text = f"Agent error: {e}"
+            logger.error("Agent creation failed: %s\n%s", e, traceback.format_exc())
+            return f"Agent creation error: {e}"
+        try:
+            context_parts = [f"user_id: {user_id}"]
+            if module_uuid:
+                context_parts.append(f"module_uuid: {module_uuid}")
+            if lesson_uuid:
+                context_parts.append(f"lesson_uuid: {lesson_uuid}")
+            context_str = ", ".join(context_parts)
+            if image_b64:
+                import base64 as _base64
+                raw = image_b64.split(",")[-1] if "," in image_b64 else image_b64
+                image_bytes = _base64.b64decode(raw)
+                user_msg = [{"role": "user", "content": [
+                    {"text": f"Student ({context_str}): {message}"},
+                    {"image": {"format": "jpeg", "source": {"bytes": image_bytes}}},
+                ]}]
+                result = agent(user_msg)
+            else:
+                result = agent(f"Student ({context_str}): {message}")
+            text = _extract_text(result)
+        except Exception as e:
+            logger.error("Agent error: %s\n%s", e, traceback.format_exc())
+            text = f"Agent error: {e}"
+
+        # Save in-process history
+        if session_id:
+            try:
+                updated_messages = getattr(agent, 'messages', None)
+                if updated_messages:
+                    if len(updated_messages) > MAX_HISTORY_TURNS * 2:
+                        updated_messages = updated_messages[-(MAX_HISTORY_TURNS * 2):]
+                    if len(_session_histories) >= MAX_SESSIONS:
+                        oldest_key = next(iter(_session_histories))
+                        del _session_histories[oldest_key]
+                    _session_histories[session_id] = updated_messages
+            except Exception:
+                logger.warning("Failed to save session history", exc_info=True)
+        return text
+
+    response_text = ""
+    try:
+        if GATEWAY_URL:
+            try:
+                headers = {}
+                if COGNITO_CLIENT_ID:
+                    headers["Authorization"] = f"Bearer {_get_bearer_token()}"
+                mcp_client = MCPClient(
+                    lambda: streamablehttp_client(GATEWAY_URL, headers=headers or None)
+                )
+            except Exception as e:
+                logger.error("Failed to create MCPClient: %s", e)
+                return {"agent": "error", "response": f"Gateway connection error: {e}", "session_id": session_id}
+
+            with mcp_client:
+                all_mcp_tools = mcp_client.list_tools_sync()
+                for t in all_mcp_tools:
+                    t._agent_tool_name = _normalize_tool_name(t.tool_name)
+                agent_tools = [t for t in all_mcp_tools if t.tool_name in allowed_tools]
+                logger.info("Routing to %s via Gateway: user=%s session=...%s tools=%s history_turns=%d",
+                            agent_name, user_id, session_id[-12:] if session_id else "none",
+                            [t.tool_name for t in agent_tools], len(raw_history) // 2)
+                response_text = _run_agent(agent_tools)
+        else:
+            logger.warning("GATEWAY_URL not set — running without tools")
+            response_text = _run_agent([])
+    except Exception as e:
+        logger.error("Invoke error: %s\n%s", e, traceback.format_exc())
+        response_text = f"Error: {e}"
+    finally:
+        # Flush buffered memory messages — critical for cross-session persistence
+        if sm:
+            try:
+                sm.close()
+                logger.info("Memory session flushed for session=...%s", session_id[-12:] if session_id else "none")
+            except Exception as e:
+                logger.warning("Memory flush failed: %s", e)
 
     return {
         "agent": agent_name,

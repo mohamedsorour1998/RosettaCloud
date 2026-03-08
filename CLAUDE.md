@@ -132,7 +132,7 @@ Readiness probe: HTTP GET `/` port 80, `initial_delay=3s`, `period=3s`, `timeout
 8. **Planner**: `get_user_progress`, `list_available_modules`, `get_question_metadata`
 9. In-process session history (FastAPI): `_chat_histories` dict in FastAPI backend pod (keyed by `session_id`, max 40 messages, 4-hour TTL, max 500 sessions); single-replica pod makes this fully reliable
 10. In-process session history (AgentCore): `_session_histories` dict in AgentCore Runtime container; reads from `conversation_history` payload (sent by FastAPI), used as fallback for CLI invocations
-11. AgentCore Memory (`rosettacloud_education_memory-evO1o3F0jN`): long-term cross-session persistence via `AgentCoreMemorySessionManager`
+11. AgentCore Memory (`rosettacloud_education_memory_v2-vvC3mbAmra`): long-term cross-session persistence via `AgentCoreMemorySessionManager`
 12. Response returned as JSON `{response, agent, session_id}` — FastAPI saves updated history, returns response to frontend
 
 ### Document Indexing Flow
@@ -275,7 +275,7 @@ Current modules:
 | `USERS_TABLE_NAME` | Backend | `rosettacloud-users` | `rosettacloud-users` |
 | `S3_BUCKET_NAME` | Backend | `rosettacloud-shared-interactive-labs` | same |
 | `COGNITO_ISSUER_URL` | Backend | — | `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I` |
-| `NOVA_MODEL_ID` | Backend | `amazon.nova-2-lite-v1:0` | same |
+| `NOVA_MODEL_ID` | Backend | `us.amazon.nova-2-lite-v1:0` | same (inference profile, not raw model ID) |
 | `INGRESS_NAME` | Backend | `rosettacloud-ingress` | `rosettacloud-ingress` |
 | `LAB_IMAGE_PULL_SECRET` | Backend | `ecr-creds` | `ecr-creds` |
 
@@ -298,7 +298,7 @@ Current modules:
 - **Runtime ARN**: `arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy`
 - **Deploy method**: `agentcore` CLI (CodeBuild builds ARM64 container in the cloud)
 - **ECR**: `339712964409.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-rosettacloud_education_agent`
-- **Memory ID**: `rosettacloud_education_memory-evO1o3F0jN` (env var `BEDROCK_AGENTCORE_MEMORY_ID`)
+- **Memory ID**: `rosettacloud_education_memory_v2-vvC3mbAmra` (env var `BEDROCK_AGENTCORE_MEMORY_ID`)
 - **IAM Role**: `rosettacloud-agentcore-runtime-role` (Bedrock, DynamoDB, S3, ECR, CloudWatch, X-Ray, AgentCore Memory)
 - **HTTP bridge**: FastAPI `/chat` endpoint reads `AGENT_RUNTIME_ARN` env var (from K8s ConfigMap) to invoke the runtime
 
@@ -327,7 +327,7 @@ agentcore configure -e agent.py -n rosettacloud_education_agent \
   -er arn:aws:iam::339712964409:role/rosettacloud-agentcore-runtime-role \
   -rf requirements.txt -r us-east-1 -ni
 agentcore launch --auto-update-on-conflict \
-  --env BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory-evO1o3F0jN \
+  --env BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory_v2-vvC3mbAmra \
   --env GATEWAY_URL=$GATEWAY_URL
 agentcore status
 agentcore invoke '{"message": "What is Docker?", "user_id": "test", "session_id": "test-session-1234567890abcdef1234"}'

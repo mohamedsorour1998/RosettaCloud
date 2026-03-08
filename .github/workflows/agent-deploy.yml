@@ -16,7 +16,7 @@ on:
 env:
   AWS_ACCOUNT_ID: "339712964409"
   IAM_ROLE: github-actions-role
-  MEMORY_ID: rosettacloud_education_memory-evO1o3F0jN
+  MEMORY_ID: rosettacloud_education_memory_v2-vvC3mbAmra
 
 jobs:
   deploy:
