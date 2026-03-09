@@ -12,9 +12,9 @@ RosettaCloud is a production-ready, event-driven learning platform that enhances
 ![Platform](https://github.com/user-attachments/assets/6dea8e4e-e2d8-4bad-8115-07db44d01cba)
 
 
-## 🚀 Live Video
+## 🚀 Demo Video
 
-https://github.com/user-attachments/assets/55d881d1-ea73-475a-89a8-39b8749c5f99
+https://github.com/mohamedsorour1998/RosettaCloud/raw/main/RosettaCloud.mp4
 
 ## 🎯 What Problem Does It Solve?
 
