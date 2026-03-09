@@ -6,6 +6,8 @@ Team: Mohamed Sorour (@mohamedsorour1998)
 
 `#aideas-2025` `#social-good` `#europe-middle-east-africa` `Amazon-Nova`
 
+**Description (for form):** A production-deployed AI platform that democratizes software engineering education — starting with cloud computing and DevOps — using three Amazon Nova 2 Lite agents that teach through hints before answers, real lab environments in the browser, and automated grading. Built on 17 AWS services.
+
 ---
 
 A computer science student in a developing country wants to become a cloud engineer. She watches tutorials. She reads documentation. She passes the theory exam. But she has never deployed an application to a real server.
@@ -34,7 +36,7 @@ RosettaCloud is a production-deployed, AI-powered platform that democratizes sof
 2. **Three AI agents powered by Amazon Nova 2 Lite** — a Tutor that teaches through guided hints, a Grader that validates practical work and gives specific feedback, and a Planner that builds personalized learning paths
 3. **Real practical exercises** — automated scripts that run inside the student's live environment and validate their work, not multiple-choice quizzes
 
-The mission: replace expensive bootcamps and dead-end video tutorials with a free, AI-guided, hands-on learning experience that anyone with a browser can access.
+The mission: replace expensive bootcamps and dead-end video tutorials with an affordable, AI-guided, hands-on learning experience that anyone with a browser can access.
 
 ---
 
@@ -57,7 +59,7 @@ RosettaCloud removes that barrier. Every student gets:
 
 - A **real cloud environment** running in the browser. Not a locked-down playground — a full workspace where you can run real commands, deploy real services, break things, and debug them yourself.
 - An **AI tutor that teaches thinking, not answers**. The three agents guide students through the reasoning process, check their work with real automated validation, and adapt the learning path to their progress.
-- **Zero cost to the student**. The platform runs on spot instances. Each lab session costs approximately $0.04 per hour to operate. A student can learn cloud engineering hands-on for less than the price of a cup of coffee.
+- **Radically affordable**. The platform runs on spot instances. Each lab session costs approximately $0.04 per hour to operate — a fraction of what any bootcamp or cloud certification charges.
 
 This is education technology for social good. Not another chatbot wrapper — a complete learning platform that gives every student in the world the same tools a professional cloud engineer uses.
 
@@ -236,6 +238,6 @@ Software engineering is becoming a foundational skill for the global economy. Cl
 
 RosettaCloud is my attempt to democratize that access. Every student who opens the platform gets the same tools a professional cloud engineer uses — a real environment, a real IDE, and an AI tutor that teaches them to think like an engineer.
 
-It runs today. It is free. And it is built entirely on AWS.
+It runs today. And it is built entirely on AWS.
 
 `dev.rosettacloud.app`
