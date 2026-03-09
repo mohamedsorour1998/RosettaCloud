@@ -1,4 +1,4 @@
-# AIdeas: RosettaCloud — Democratizing Software Engineering Education with Three AI Agents
+# RosettaCloud — Three AI Agents That Teach Engineers
 
 App Category: **Social Good — Education Technology**
 
@@ -6,7 +6,7 @@ Team: Mohamed Sorour (@mohamedsorour1998)
 
 `#aideas-2025` `#social-good` `#europe-middle-east-africa` `Amazon-Nova`
 
-**Description (for form):** A production-deployed AI platform that democratizes software engineering education — starting with cloud computing and DevOps — using three Amazon Nova 2 Lite agents that teach through hints before answers, real lab environments in the browser, and automated grading. Built on 17 AWS services.
+**Description (for form):** Three Amazon Nova 2 Lite agents teach cloud computing through real lab environments in the browser — hints before answers, automated grading, 17 AWS services.
 
 ---
 
