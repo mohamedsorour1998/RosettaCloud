@@ -135,10 +135,10 @@ export class UserService {
             .pipe(catchError(this.handleError))
             .subscribe({
               next: user => { observer.next(user); observer.complete(); },
-              error: err => observer.error(err),
+              error: (err: any) => observer.error(err),
             });
         })
-        .catch(err => observer.error(err));
+        .catch((err: any) => observer.error(err));
     });
   }
 
@@ -156,7 +156,7 @@ export class UserService {
           })
         )
         .then(() => { observer.next(); observer.complete(); })
-        .catch(err => observer.error(err));
+        .catch((err: any) => observer.error(err));
     });
   }
 
@@ -181,7 +181,7 @@ export class UserService {
             },
           })
         )
-        .then(response => {
+        .then((response: any) => {
           const auth = response.AuthenticationResult;
           if (!auth?.IdToken) throw new Error('No ID token returned from Cognito');
 
@@ -198,10 +198,10 @@ export class UserService {
           // Fetch full profile — interceptor will attach the ID token we just stored
           this.getUser(userId).subscribe({
             next: user => { this.storeUser(user); observer.next(user); observer.complete(); },
-            error: err => observer.error(err),
+            error: (err: any) => observer.error(err),
           });
         })
-        .catch(err => observer.error(err));
+        .catch((err: any) => observer.error(err));
     });
   }
 
@@ -252,8 +252,8 @@ export class UserService {
             Username: email,
           })
         )
-        .then(result => { observer.next(result); observer.complete(); })
-        .catch(err => observer.error(err));
+        .then((result: any) => { observer.next(result); observer.complete(); })
+        .catch((err: any) => observer.error(err));
     });
   }
 
@@ -269,8 +269,8 @@ export class UserService {
             Password: newPassword,
           })
         )
-        .then(result => { observer.next(result); observer.complete(); })
-        .catch(err => observer.error(err));
+        .then((result: any) => { observer.next(result); observer.complete(); })
+        .catch((err: any) => observer.error(err));
     });
   }
 
@@ -283,8 +283,8 @@ export class UserService {
             Username: email,
           })
         )
-        .then(result => { observer.next(result); observer.complete(); })
-        .catch(err => observer.error(err));
+        .then((result: any) => { observer.next(result); observer.complete(); })
+        .catch((err: any) => observer.error(err));
     });
   }
 

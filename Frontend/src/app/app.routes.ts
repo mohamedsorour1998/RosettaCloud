@@ -16,6 +16,7 @@ import { UserSettingsComponent } from './user-settings/user-settings.component';
 import { AboutUsComponent } from './about-us/about-us.component';
 import { ContactUsComponent } from './contact-us/contact-us.component';
 import { AdminUsersComponent } from './admin-users/admin-users.component';
+import { AdminMetricsComponent } from './admin-metrics/admin-metrics.component';
 import { AdminGuard } from './guards/admin.guard';
 import { CoursesComponent } from './courses/courses.component';
 import { MyCoursesComponent } from './my-courses/my-courses.component';
@@ -141,6 +142,11 @@ export const routes: Routes = [
   {
     path: 'admin/users',
     component: AdminUsersComponent,
+    canActivate: [AuthGuard, AdminGuard],
+  },
+  {
+    path: 'admin/metrics',
+    component: AdminMetricsComponent,
     canActivate: [AuthGuard, AdminGuard],
   },
 

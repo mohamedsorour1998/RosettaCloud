@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Annotated, Any, Optional, Dict, Union, List, Literal
 from fastapi import FastAPI, HTTPException, status, Path, Depends
 from pydantic import BaseModel, EmailStr, Field
+from collections import defaultdict
 
 import time
 import json
@@ -87,6 +88,65 @@ def _chat_history_get(session_id: str) -> list:
 
 def _chat_history_set(session_id: str, history: list) -> None:
     _chat_histories[session_id] = (time.time(), history)
+
+
+# ── Rate Limiting ──
+# In-memory sliding window per user. Single-replica pod → fully reliable.
+_rate_limits: dict[str, list[float]] = defaultdict(list)
+
+# Limits: endpoint → (max_requests, window_seconds)
+_RATE_LIMIT_CONFIG = {
+    "chat": (30, 3600),       # 30 chat messages per hour
+    "lab_create": (5, 3600),  # 5 lab creations per hour
+    "lab_terminate": (10, 3600),  # 10 lab terminations per hour
+}
+
+
+# ── Analytics / Metrics ──
+# In-memory per-user event counters. Single-replica pod → fully reliable.
+# Structure: _metrics[user_id] = {"lab_started": N, "lab_terminated": N,
+#   "question_attempted": N, "question_correct": N, "chat_message": N,
+#   "first_seen": epoch, "last_seen": epoch}
+_metrics: dict[str, dict[str, Any]] = {}
+_metrics_global: dict[str, int] = defaultdict(int)  # aggregate counters
+
+
+def _track_event(user_id: str, event: str) -> None:
+    """Record a user event for analytics."""
+    now = time.time()
+    if user_id not in _metrics:
+        _metrics[user_id] = {
+            "lab_started": 0, "lab_terminated": 0,
+            "question_attempted": 0, "question_correct": 0,
+            "chat_message": 0,
+            "first_seen": now, "last_seen": now,
+        }
+    _metrics[user_id][event] = _metrics[user_id].get(event, 0) + 1
+    _metrics[user_id]["last_seen"] = now
+    _metrics_global[event] += 1
+
+
+def _check_rate_limit(user_id: str, action: str) -> None:
+    """Raise 429 if user exceeds rate limit for the given action."""
+    config = _RATE_LIMIT_CONFIG.get(action)
+    if not config:
+        return
+    max_requests, window = config
+    key = f"{user_id}:{action}"
+    now = time.time()
+    cutoff = now - window
+
+    # Prune expired timestamps
+    timestamps = _rate_limits[key]
+    _rate_limits[key] = [t for t in timestamps if t > cutoff]
+
+    if len(_rate_limits[key]) >= max_requests:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded: max {max_requests} {action} requests per {window // 60} minutes. Please try again later.",
+        )
+    _rate_limits[key].append(now)
+
 
 # User Management
 class UserCreate(BaseModel):
@@ -278,6 +338,7 @@ async def new_lab(
     claims: dict = Depends(get_current_user),
 ):
     user_id = claims["resolved_user_id"]
+    _check_rate_limit(user_id, "lab_create")
 
     await _require_user(user_id)
 
@@ -291,6 +352,7 @@ async def new_lab(
     lab_id = await lab.launch()
     await users.set_active_lab(user_id, lab_id)
     await users.link_lab_to_user(user_id, lab_id)
+    _track_event(user_id, "lab_started")
     return LabCreationResponse(lab_id=lab_id)
 
 
@@ -318,12 +380,14 @@ async def terminate_lab(
     claims: dict = Depends(get_current_user),
 ):
     user_id = claims["resolved_user_id"]
+    _check_rate_limit(user_id, "lab_terminate")
     await _require_user(user_id)
 
     deleted = await lab.stop(lab_id)
     if deleted:
         await users.clear_active_lab(user_id)
         await users.unlink_lab_from_user(user_id, lab_id)
+        _track_event(user_id, "lab_terminated")
         return {"deleted": True}
     else:
         raise HTTPException(status_code=404, detail="Lab not found.")
@@ -397,7 +461,9 @@ async def check_question(
     result = await questions_service.execute_question_check(
         request.pod_name, module_uuid, lesson_uuid, question_number
     )
+    _track_event(user_id, "question_attempted")
     if result["status"] == "success" and result["completed"]:
+        _track_event(user_id, "question_correct")
         await users.track_user_progress(
             user_id, module_uuid, lesson_uuid, question_number, True
         )
@@ -405,9 +471,12 @@ async def check_question(
 
 
 @app.post("/chat", response_model=ChatResponse, tags=["Chat"])
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, claims: dict = Depends(get_current_user)):
     if not _AGENT_RUNTIME_ARN:
         raise HTTPException(status_code=503, detail="AGENT_RUNTIME_ARN not configured")
+
+    _check_rate_limit(claims["resolved_user_id"], "chat")
+    _track_event(claims["resolved_user_id"], "chat_message")
 
     session_id = request.session_id
     # session_start and explain must not read or write session history:
@@ -475,6 +544,41 @@ async def chat(request: ChatRequest):
         _chat_history_set(session_id, updated)
 
     return ChatResponse(response=agent_response, agent=agent_name, session_id=session_id)
+
+
+# ── Admin Metrics ──
+@app.get("/admin/metrics", tags=["System"])
+async def admin_metrics():
+    """Aggregate platform metrics for pilot data collection.
+    No auth — intended for internal/admin use only."""
+    total_users = len(_metrics)
+    aggregate = dict(_metrics_global)
+
+    # Per-user breakdown
+    per_user = {}
+    for uid, m in _metrics.items():
+        per_user[uid] = {
+            k: v for k, v in m.items()
+            if k not in ("first_seen", "last_seen")
+        }
+        per_user[uid]["active_minutes"] = round(
+            (m["last_seen"] - m["first_seen"]) / 60, 1
+        )
+
+    # Derived stats
+    attempted = aggregate.get("question_attempted", 0)
+    correct = aggregate.get("question_correct", 0)
+    accuracy = round(correct / attempted * 100, 1) if attempted else 0
+
+    return {
+        "total_users": total_users,
+        "aggregate": aggregate,
+        "accuracy_pct": accuracy,
+        "per_user": per_user,
+        "collected_since": min(
+            (m["first_seen"] for m in _metrics.values()), default=None
+        ),
+    }
 
 
 # Health check endpoint — no auth required (API GW routes it without JWT)

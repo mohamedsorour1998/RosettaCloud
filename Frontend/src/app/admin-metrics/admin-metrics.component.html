@@ -1,0 +1,191 @@
+<div class="metrics-container">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container animate-fade-in">
+    <div class="spinner">
+      <svg viewBox="0 0 50 50" class="spinner-circle">
+        <circle
+          class="path"
+          cx="25"
+          cy="25"
+          r="20"
+          fill="none"
+          stroke-width="4"
+        ></circle>
+      </svg>
+    </div>
+    <h4>Loading platform metrics</h4>
+    <p>Fetching analytics data from the backend</p>
+  </div>
+
+  <!-- Error State -->
+  <div
+    *ngIf="errorMessage && !isLoading"
+    class="error-container animate-fade-in"
+  >
+    <div class="error-icon">
+      <i class="bi bi-exclamation-triangle"></i>
+    </div>
+    <h3>Something went wrong</h3>
+    <p>{{ errorMessage }}</p>
+    <button class="btn-retry" (click)="loadMetrics()">
+      <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+    </button>
+  </div>
+
+  <!-- Metrics Content -->
+  <div
+    *ngIf="!isLoading && !errorMessage"
+    class="metrics-content animate-fade-in"
+  >
+    <!-- Header Banner -->
+    <div class="metrics-banner animate-slide-in-up">
+      <div class="banner-content">
+        <div class="banner-text">
+          <h1 class="banner-title">
+            <i class="bi bi-graph-up me-2"></i>Platform Metrics
+          </h1>
+          <p class="banner-subtitle">
+            Real-time analytics for pilot data collection
+          </p>
+        </div>
+        <div class="banner-actions">
+          <button class="btn-refresh" (click)="loadMetrics()">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Refresh</span>
+          </button>
+          <span class="last-refresh" *ngIf="lastRefresh">
+            <i class="bi bi-clock"></i> {{ getLastRefresh() }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aggregate Stats -->
+    <div class="stats-grid animate-slide-in-up" style="--delay: 0.1s">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="bi bi-people"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ metrics?.total_users ?? 0 }}</h3>
+          <p class="stat-label">Active Users</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon success">
+          <i class="bi bi-play-circle"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ getAggregate('lab_started') }}</h3>
+          <p class="stat-label">Labs Started</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon info">
+          <i class="bi bi-chat-dots"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ getAggregate('chat_message') }}</h3>
+          <p class="stat-label">Chat Messages</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon warning">
+          <i class="bi bi-question-circle"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ getAggregate('question_attempted') }}</h3>
+          <p class="stat-label">Questions Attempted</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon accent">
+          <i class="bi bi-check2-circle"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ getAggregate('question_correct') }}</h3>
+          <p class="stat-label">Correct Answers</p>
+        </div>
+      </div>
+
+      <div class="stat-card highlight">
+        <div class="stat-icon highlight-icon">
+          <i class="bi bi-bullseye"></i>
+        </div>
+        <div class="stat-content">
+          <h3 class="stat-number">{{ metrics?.accuracy_pct ?? 0 }}%</h3>
+          <p class="stat-label">Accuracy Rate</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Collection Info -->
+    <div class="info-bar animate-slide-in-up" style="--delay: 0.15s">
+      <i class="bi bi-info-circle"></i>
+      <span>Collecting since: {{ getCollectedSince() }}</span>
+      <span class="separator">|</span>
+      <span>Auto-refreshes every 30s</span>
+      <span class="separator">|</span>
+      <span>In-memory metrics (resets on pod restart)</span>
+    </div>
+
+    <!-- Per-User Table -->
+    <div class="table-container animate-slide-in-up" style="--delay: 0.2s">
+      <div class="container-header">
+        <h2>Per-User Breakdown</h2>
+        <span class="user-count">{{ userIds.length }} users tracked</span>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="userIds.length === 0" class="empty-state">
+        <div class="empty-icon">
+          <i class="bi bi-people"></i>
+        </div>
+        <h3>No user activity yet</h3>
+        <p>Metrics will appear here once users interact with the platform</p>
+      </div>
+
+      <!-- Table -->
+      <div *ngIf="userIds.length > 0" class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Labs</th>
+              <th>Questions</th>
+              <th>Correct</th>
+              <th>Accuracy</th>
+              <th>Chat Msgs</th>
+              <th>Active Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let uid of userIds">
+              <td class="user-id" [title]="uid">{{ truncateUserId(uid) }}</td>
+              <td>{{ getUserMetric(uid, 'lab_started') }}</td>
+              <td>{{ getUserMetric(uid, 'question_attempted') }}</td>
+              <td>{{ getUserMetric(uid, 'question_correct') }}</td>
+              <td>
+                <span class="accuracy-badge" [ngClass]="{
+                  'high': getUserMetric(uid, 'question_attempted') > 0 && (getUserMetric(uid, 'question_correct') / getUserMetric(uid, 'question_attempted') * 100) >= 70,
+                  'medium': getUserMetric(uid, 'question_attempted') > 0 && (getUserMetric(uid, 'question_correct') / getUserMetric(uid, 'question_attempted') * 100) >= 40 && (getUserMetric(uid, 'question_correct') / getUserMetric(uid, 'question_attempted') * 100) < 70,
+                  'low': getUserMetric(uid, 'question_attempted') > 0 && (getUserMetric(uid, 'question_correct') / getUserMetric(uid, 'question_attempted') * 100) < 40
+                }">
+                  {{ getUserMetric(uid, 'question_attempted') > 0
+                    ? ((getUserMetric(uid, 'question_correct') / getUserMetric(uid, 'question_attempted')) * 100 | number:'1.0-0') + '%'
+                    : '-' }}
+                </span>
+              </td>
+              <td>{{ getUserMetric(uid, 'chat_message') }}</td>
+              <td>{{ getUserMetric(uid, 'active_minutes') | number:'1.1-1' }} min</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
