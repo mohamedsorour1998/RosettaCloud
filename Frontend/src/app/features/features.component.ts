@@ -27,90 +27,65 @@ interface Testimonial {
 export class FeaturesComponent implements OnInit {
   features: Feature[] = [
     {
-      title: 'Interactive Learning Labs',
+      title: 'Dedicated Kubernetes Cluster',
       description:
-        'Practice coding in real-time with our browser-based development environments. No setup required - just start coding instantly.',
-      icon: 'bi-laptop',
+        'A fresh Kind cluster + full Docker daemon provisioned per student in under 10 seconds. Run kubectl apply, docker build, and helm install on infrastructure you fully own.',
+      icon: 'bi-diagram-3',
     },
     {
-      title: 'AI-Powered Feedback',
+      title: 'VS Code in Browser',
       description:
-        'Receive instant, personalized feedback on your code from our intelligent grading system, helping you learn from mistakes faster.',
+        'Full code-server IDE served at your lab subdomain. Edit files, open terminals, run commands — exactly like your local dev environment, with no local setup.',
+      icon: 'bi-code-square',
+    },
+    {
+      title: '3 Specialized AI Agents',
+      description:
+        'Tutor (hint-first teaching), Grader (exit-code validation), Planner (learning path). Powered by Amazon Nova 2 Lite via AgentCore + MCP Gateway with 6 tools.',
       icon: 'bi-robot',
     },
     {
-      title: 'Expert-Led Courses',
+      title: 'Cross-Session AI Memory',
       description:
-        'Learn from industry professionals with real-world experience at top tech companies across the MENA region and globally.',
-      icon: 'bi-person-video3',
+        'AgentCore Memory persists your learning history across sessions. The AI remembers what you struggled with last week and adapts explanations accordingly.',
+      icon: 'bi-brain',
     },
     {
-      title: 'Project-Based Learning',
+      title: 'Exit-Code Grading',
       description:
-        'Build real-world projects that you can add to your portfolio, demonstrating your skills to potential employers.',
-      icon: 'bi-kanban',
+        'Practical exercises are graded by executing validation scripts inside your live pod. Real verification — not multiple choice. Same as how production CI/CD pipelines work.',
+      icon: 'bi-check2-circle',
     },
     {
-      title: 'Career Support',
+      title: 'Structured Curriculum',
       description:
-        'Get guidance on resume building, interview preparation, and job hunting strategies to kickstart your tech career.',
-      icon: 'bi-briefcase',
-    },
-    {
-      title: 'Community Engagement',
-      description:
-        'Connect with fellow learners, collaborate on projects, and build your professional network within our thriving community.',
-      icon: 'bi-people',
+        'Linux fundamentals → Docker → Kubernetes → Cloud Engineering. Each lesson builds on the last with MCQ and practical questions validated against real running infrastructure.',
+      icon: 'bi-map',
     },
   ];
 
   keyFeatures: Feature[] = [
     {
-      title: 'Personalized Learning Paths',
+      title: 'Hint-First AI Pedagogy',
       description:
-        'Our platform adapts to your skill level and learning goals, creating a customized curriculum that evolves as you progress.',
-      icon: 'bi-signpost-split',
+        'Our AI tutor engages before you attempt, guiding your reasoning through hints. When you get stuck, it asks questions — not gives answers. You build real intuition, not exam memory.',
+      icon: 'bi-lightbulb',
     },
     {
-      title: 'Multilingual Support',
+      title: 'Isolated Infrastructure Per Student',
       description:
-        'Access courses in Arabic and English, making tech education accessible across the entire MENA region.',
-      icon: 'bi-translate',
+        'Every lab session provisions a dedicated Kubernetes pod, Service, and Istio VirtualService. No shared environments, no noisy neighbours. Mirrors how production cloud infrastructure actually works.',
+      icon: 'bi-shield-lock',
     },
     {
-      title: 'Offline Learning',
+      title: 'Automated Exit-Code Grading',
       description:
-        'Download course materials to continue learning even without an internet connection, perfect for areas with limited connectivity.',
-      icon: 'bi-cloud-download',
+        'Practical exercises are validated by running scripts inside your live pod via kubectl exec. Pass or fail is determined by real exit codes — the same way CI/CD pipelines work.',
+      icon: 'bi-terminal-fill',
     },
   ];
 
-  testimonials: Testimonial[] = [
-    {
-      quote:
-        'RosettaCloud transformed my career path. The interactive labs and personalized feedback helped me master coding concepts I had struggled with for years.',
-      author: 'Fatima Al-Zahra',
-      role: 'Junior Developer',
-      company: 'TechVision Cairo',
-      imageUrl: 'assets/testimonials/fatima.jpg',
-    },
-    {
-      quote:
-        'As someone with no technical background, I was intimidated by programming. RosettaCloud made it approachable with step-by-step guidance and real-time support.',
-      author: 'Omar Khalid',
-      role: 'UX Designer',
-      company: 'Creative Solutions',
-      imageUrl: 'assets/testimonials/omar.jpg',
-    },
-    {
-      quote:
-        'The project-based approach gave me practical experience that I could immediately apply in my job. My company has already promoted me based on my new skills!',
-      author: 'Leila Mansour',
-      role: 'Data Analyst',
-      company: 'FinTech Innovations',
-      imageUrl: 'assets/testimonials/leila.jpg',
-    },
-  ];
+  testimonials: Testimonial[] = [];
 
   constructor(private themeService: ThemeService) {}
 

@@ -3,78 +3,76 @@
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-lg-10 col-xl-8">
-        <h1 class="display-3 fw-bold mb-4 hero-title">
-          Transforming Software Engineering Education Across MENA
+        <!-- AIdeas badge -->
+        <div class="mb-4">
+          <span class="badge bg-warning text-dark px-3 py-2 fs-6 fw-semibold">
+            <i class="bi bi-trophy-fill me-1"></i>
+            AIdeas 2025 — Top 50 Finalist · $250K Competition
+          </span>
+        </div>
+        <h1 class="display-3 fw-bold mb-3 hero-title">
+          Real Kubernetes Clusters.<br>VS Code in Browser.<br>3 AI Agents.
         </h1>
-        <p class="lead fw-normal mb-5 hero-subtitle">
-          Connect with top industry experts, build real-world skills with
-          interactive labs, and launch your tech career with personalized
-          guidance tailored for the MENA region.
+        <p class="lead fw-normal mb-2 hero-subtitle">
+          Dedicated K8s cluster + Docker daemon + VS Code provisioned per student in <strong>10 seconds</strong>.
+          A hint-first AI tutor that teaches thinking — not answers.
+        </p>
+        <p class="mb-4 hero-mission text-white-50">
+          Democratizing software engineering, DevOps, and cloud education through real infrastructure and AI tutoring.
         </p>
         <div class="hero-buttons">
           <a routerLink="/register" class="btn btn-primary btn-lg px-5 py-3">
-            <i class="bi bi-rocket me-2"></i>Get Started Free
+            <i class="bi bi-rocket me-2"></i>Start Free — No Credit Card
           </a>
-          <a
-            routerLink="/features"
-            class="btn btn-outline-light btn-lg px-5 py-3"
-          >
-            <i class="bi bi-grid-3x3-gap me-2"></i>Explore Features
+          <a routerLink="/pricing" class="btn btn-outline-light btn-lg px-5 py-3">
+            <i class="bi bi-card-list me-2"></i>See Pricing
           </a>
         </div>
+        <p class="mt-3 text-white-50 small">
+          Free tier includes 2h/week of real lab time · No setup · Cancel anytime
+        </p>
       </div>
     </div>
   </div>
   <div class="hero-overlay"></div>
 </section>
 
-<!-- Features Section -->
+<!-- Feature Cards -->
 <section class="features-section py-5">
   <div class="container">
     <div class="row g-4">
-      <!-- Feature Card 1 -->
       <div class="col-md-4">
         <div class="feature-card h-100 text-center">
           <div class="card-body">
-            <div class="icon-wrapper mb-4">
-              <i class="bi bi-person-badge"></i>
-            </div>
-            <h3 class="card-title h4 mb-3">Expert Instructors</h3>
+            <div class="icon-wrapper mb-4"><i class="bi bi-diagram-3-fill"></i></div>
+            <h3 class="card-title h4 mb-3">Dedicated K8s Per Student</h3>
             <p class="card-text">
-              Learn from industry leaders with years of real‑world experience at
-              top tech companies across the MENA region and globally.
+              Every session provisions a fresh Kind cluster with a full Docker daemon.
+              Not a shared sandbox — your own cluster. <code>kubectl apply</code>, <code>docker build</code>, <code>helm install</code>.
             </p>
           </div>
         </div>
       </div>
-
-      <!-- Feature Card 2 (Featured) -->
       <div class="col-md-4">
         <div class="feature-card h-100 text-center featured">
           <div class="card-body">
-            <div class="icon-wrapper mb-4">
-              <i class="bi bi-laptop"></i>
-            </div>
-            <h3 class="card-title h4 mb-3">Interactive Labs</h3>
+            <div class="icon-wrapper mb-4"><i class="bi bi-robot"></i></div>
+            <h3 class="card-title h4 mb-3">Hint-First AI Tutor</h3>
             <p class="card-text">
-              Practice hands‑on coding in real‑time with our browser‑based
-              development environments — no setup required.
+              3 specialized agents — Tutor, Grader, Planner — powered by Amazon Nova 2 Lite via AgentCore.
+              The AI guides your thinking through hints, never gives you the answer.
             </p>
           </div>
         </div>
       </div>
-
-      <!-- Feature Card 3 -->
       <div class="col-md-4">
         <div class="feature-card h-100 text-center">
           <div class="card-body">
-            <div class="icon-wrapper mb-4">
-              <i class="bi bi-robot"></i>
-            </div>
-            <h3 class="card-title h4 mb-3">AI‑Driven Learning</h3>
+            <div class="icon-wrapper mb-4"><i class="bi bi-check2-circle"></i></div>
+            <h3 class="card-title h4 mb-3">Exit-Code Grading</h3>
             <p class="card-text">
-              Receive personalized feedback and adaptive learning paths powered
-              by our intelligent grading and recommendation engine.
+              Practical exercises are validated by running scripts inside your live pod.
+              Exit code 0 = correct. Real verification, not multiple choice.
             </p>
           </div>
         </div>
@@ -150,62 +148,23 @@
   </div>
 </section>
 
-<!-- Testimonials Section -->
-<section class="testimonials-section py-5">
+<!-- Testimonials Section — populated with real pilot data after April 12 -->
+<section class="testimonials-section py-5" *ngIf="testimonials.length > 0">
   <div class="container">
     <div class="row justify-content-center mb-5">
       <div class="col-lg-8 text-center">
-        <h2 class="section-title">What Our Community Says</h2>
-        <p class="section-subtitle">
-          Join thousands of students and instructors across the MENA region
-        </p>
+        <h2 class="section-title">What Students Say</h2>
       </div>
     </div>
-
     <div class="row g-4">
-      <div
-        class="col-md-4 mb-4 mb-md-0"
-        *ngFor="let testimonial of testimonials"
-      >
+      <div class="col-md-4 mb-4 mb-md-0" *ngFor="let testimonial of testimonials">
         <div class="testimonial-card h-100 animate-on-scroll">
-          <div class="quote-icon" aria-hidden="true">
-            <i class="bi bi-quote"></i>
-          </div>
+          <div class="quote-icon" aria-hidden="true"><i class="bi bi-quote"></i></div>
           <p class="testimonial-text">{{ testimonial.quote }}</p>
           <div class="testimonial-author">
             <h4 class="author-name">{{ testimonial.name }}</h4>
-            <p class="author-title">
-              {{ testimonial.title }}, {{ testimonial.company }}
-            </p>
+            <p class="author-title">{{ testimonial.title }}, {{ testimonial.company }}</p>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Multilingual Section -->
-<section class="multilingual-section py-5">
-  <div class="container">
-    <div class="row align-items-center">
-      <div class="col-lg-6 mb-4 mb-lg-0 animate-on-scroll">
-        <h2 class="section-title">Education in Your Language</h2>
-        <p class="mb-4">
-          We believe everyone deserves access to quality tech education,
-          regardless of language. Our platform offers courses in Arabic,
-          English, and French to serve learners across the MENA region.
-        </p>
-        <div class="language-badges mb-4">
-          <span class="badge rounded-pill">English</span>
-          <span class="badge rounded-pill">العربية</span>
-          <span class="badge rounded-pill">Français</span>
-        </div>
-      </div>
-      <div class="col-lg-6 animate-on-scroll">
-        <div
-          class="language-image d-flex align-items-center justify-content-center"
-        >
-          <i class="bi bi-translate language-icon"></i>
         </div>
       </div>
     </div>
