@@ -585,3 +585,14 @@ async def admin_metrics():
 @app.get("/health-check", tags=["System"])
 async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
+
+
+@app.get("/public/stats", tags=["Public"])
+async def public_stats():
+    """Public-safe platform counters — no auth, no per-user data."""
+    return {
+        "labs_launched": _metrics_global.get("lab_started", 0),
+        "questions_answered": _metrics_global.get("question_attempted", 0),
+        "ai_messages": _metrics_global.get("chat_message", 0),
+        "active_users": len(_metrics),
+    }
