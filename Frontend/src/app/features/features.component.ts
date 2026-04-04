@@ -14,7 +14,6 @@ interface Testimonial {
   author: string;
   role: string;
   company: string;
-  imageUrl?: string;
 }
 
 @Component({
@@ -48,7 +47,7 @@ export class FeaturesComponent implements OnInit {
       title: 'Cross-Session AI Memory',
       description:
         'AgentCore Memory persists your learning history across sessions. The AI remembers what you struggled with last week and adapts explanations accordingly.',
-      icon: 'bi-brain',
+      icon: 'bi-infinity',
     },
     {
       title: 'Exit-Code Grading',
@@ -101,38 +100,4 @@ export class FeaturesComponent implements OnInit {
     }, 100);
   }
 
-  // Method to get initials for avatar fallback
-  getInitials(name: string): string {
-    if (!name) return '';
-    const parts = name.split(' ');
-    return (
-      parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')
-    ).toUpperCase();
-  }
-
-  // Helper for responsive image loading
-  imageError(event: any): void {
-    // Create initials for the fallback
-    const testimonial = this.testimonials.find(
-      (t) =>
-        t.imageUrl === event.target.src || event.target.alt.includes(t.author)
-    );
-
-    if (testimonial) {
-      const initials = this.getInitials(testimonial.author);
-      // Set a solid color background with initials instead
-      event.target.style.display = 'none';
-      const parent = event.target.parentElement;
-
-      if (parent) {
-        const avatarDiv = document.createElement('div');
-        avatarDiv.className = 'author-avatar';
-        avatarDiv.textContent = initials;
-        parent.appendChild(avatarDiv);
-      }
-    } else {
-      // Generic fallback
-      event.target.src = 'https://via.placeholder.com/60x60?text=User';
-    }
-  }
 }
