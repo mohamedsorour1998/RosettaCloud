@@ -30,6 +30,7 @@ import { LearningBlogComponent } from './learning-blog/learning-blog.component';
 import { MyTeachingComponent } from './my-teaching/my-teaching.component';
 import { ChatbotFlowDiagramComponent } from './chatbot-flow-diagram/chatbot-flow-diagram.component';
 import { UniversityComponent } from './university/university.component';
+import { StatsComponent } from './stats/stats.component';
 
 export const routes: Routes = [
   // Public routes
@@ -37,6 +38,7 @@ export const routes: Routes = [
   { path: 'features', component: FeaturesComponent },
   { path: 'pricing', component: PricingComponent },
   { path: 'university', component: UniversityComponent },
+  { path: 'stats', component: StatsComponent },
   { path: 'instructors', component: InstructorsComponent },
   { path: 'courses', component: CoursesComponent },
   { path: 'login', component: LoginComponent },

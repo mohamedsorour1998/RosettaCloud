@@ -9,6 +9,7 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import {
   BehaviorSubject,
   Observable,
@@ -71,7 +72,7 @@ interface LabInfo {
 @Component({
   selector: 'app-lab',
   standalone: true,
-  imports: [CommonModule, FeedbackComponent, ChatbotComponent],
+  imports: [CommonModule, FormsModule, FeedbackComponent, ChatbotComponent],
   templateUrl: './lab.component.html',
   styleUrls: ['./lab.component.scss'],
 })
@@ -136,6 +137,12 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       icon: 'bi-camera-fill',
     },
   ];
+
+  // NPS feedback
+  showNps = false;
+  npsRating = 0;
+  npsFeedback = '';
+  npsSubmitted = false;
 
   // Lab hours metering
   labStartTime: number | null = null;
@@ -253,6 +260,24 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   dismissOnboarding(): void {
     this.showOnboarding = false;
     localStorage.setItem('rc_onboarding_seen', '1');
+    this.triggerNps();
+  }
+
+  triggerNps(): void {
+    const seen = localStorage.getItem('rc_nps_seen');
+    if (!seen) {
+      setTimeout(() => { this.showNps = true; }, 2000);
+    }
+  }
+
+  submitNps(): void {
+    const entry = { rating: this.npsRating, feedback: this.npsFeedback, ts: Date.now() };
+    const existing: object[] = JSON.parse(localStorage.getItem('rc_nps_data') || '[]');
+    existing.push(entry);
+    localStorage.setItem('rc_nps_data', JSON.stringify(existing));
+    localStorage.setItem('rc_nps_seen', '1');
+    this.npsSubmitted = true;
+    setTimeout(() => { this.showNps = false; }, 2000);
   }
 
   startLabTimer(): void {

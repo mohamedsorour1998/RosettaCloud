@@ -1,0 +1,62 @@
+<div class="stats-hero text-white text-center py-5">
+  <div class="container">
+    <span class="badge bg-warning text-dark mb-3 px-3 py-2">Built in Public</span>
+    <h1 class="display-5 fw-bold mb-2">Live Platform Metrics</h1>
+    <p class="opacity-75">Real numbers from production — fetched on page load</p>
+  </div>
+</div>
+
+<div class="container py-5">
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-primary"></div>
+    <p class="text-muted mt-3">Fetching live data from production…</p>
+  </div>
+
+  <div *ngIf="!loading && stats" class="row g-4 justify-content-center">
+    <div class="col-6 col-md-3">
+      <div class="metric-card text-center p-4 rounded-3 border h-100">
+        <i class="bi bi-diagram-3-fill fs-1 text-primary mb-3 d-block"></i>
+        <div class="display-5 fw-bold text-primary">{{ stats.labs_launched }}</div>
+        <div class="fw-semibold mt-1">Labs Launched</div>
+        <div class="text-muted small">Real K8s clusters provisioned</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="metric-card text-center p-4 rounded-3 border h-100">
+        <i class="bi bi-patch-check-fill fs-1 text-success mb-3 d-block"></i>
+        <div class="display-5 fw-bold text-success">{{ stats.questions_answered }}</div>
+        <div class="fw-semibold mt-1">Questions Answered</div>
+        <div class="text-muted small">MCQ + practical exercises</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="metric-card text-center p-4 rounded-3 border h-100">
+        <i class="bi bi-robot fs-1 text-warning mb-3 d-block"></i>
+        <div class="display-5 fw-bold text-warning">{{ stats.ai_messages }}</div>
+        <div class="fw-semibold mt-1">AI Messages</div>
+        <div class="text-muted small">Tutor / Grader / Planner</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="metric-card text-center p-4 rounded-3 border h-100">
+        <i class="bi bi-people-fill fs-1 text-info mb-3 d-block"></i>
+        <div class="display-5 fw-bold text-info">{{ stats.total_users_seen }}</div>
+        <div class="fw-semibold mt-1">Users Tracked</div>
+        <div class="text-muted small">Unique learners since last restart</div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="!loading && !stats" class="text-center py-5">
+    <i class="bi bi-wifi-off fs-1 text-muted mb-3 d-block"></i>
+    <p class="text-muted">Could not reach the production API. Check back shortly.</p>
+  </div>
+
+  <div class="text-center mt-5">
+    <p class="text-muted small">
+      RosettaCloud runs on Amazon EKS with Karpenter spot instances.
+      Metrics are in-memory and reset on pod restart.
+    </p>
+    <a routerLink="/" class="btn btn-outline-primary mt-2">← Back to Home</a>
+  </div>
+</div>
