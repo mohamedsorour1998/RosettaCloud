@@ -1,0 +1,72 @@
+<div class="quiz-hero text-white text-center py-5">
+  <div class="container">
+    <h1 class="display-5 fw-bold mb-2">Test Your Kubernetes Knowledge</h1>
+    <p class="opacity-75 mb-0">5 questions · 3 minutes · See how ready you are for the real lab</p>
+  </div>
+</div>
+
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+
+      <div *ngIf="!finished">
+        <div class="progress mb-2" style="height: 6px">
+          <div class="progress-bar bg-primary"
+               [style.width.%]="(current / questions.length) * 100"></div>
+        </div>
+        <p class="text-muted small mb-3">Question {{ current + 1 }} of {{ questions.length }}</p>
+        <h3 class="fw-bold mb-4">{{ questions[current].q }}</h3>
+
+        <div class="mb-4">
+          <button
+            *ngFor="let opt of questions[current].options; let i = index"
+            class="btn w-100 text-start mb-2 option-btn"
+            [class.btn-outline-secondary]="selected === null || (selected !== i && i !== questions[current].correct)"
+            [class.btn-success]="selected !== null && i === questions[current].correct"
+            [class.btn-danger]="selected !== null && selected === i && i !== questions[current].correct"
+            (click)="select(i)"
+          >
+            <span class="option-letter me-2 fw-bold">{{ ['A','B','C','D'][i] }}</span>{{ opt }}
+          </button>
+        </div>
+
+        <div class="alert alert-info" *ngIf="selected !== null">
+          <strong>{{ selected === questions[current].correct ? '✓ Correct!' : '✗ Not quite.' }}</strong>
+          {{ questions[current].explanation }}
+        </div>
+
+        <div class="text-end" *ngIf="selected !== null">
+          <button class="btn btn-primary px-5" (click)="next()">
+            {{ current < questions.length - 1 ? 'Next →' : 'See Results' }}
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="finished" class="text-center">
+        <div class="score-circle mx-auto mb-4">
+          <span class="display-3 fw-bold text-primary">{{ score }}/5</span>
+        </div>
+        <h2 class="fw-bold mb-2">
+          {{ score === 5 ? '🏆 Perfect!' : score >= 3 ? '👍 Solid start!' : '💡 Room to grow!' }}
+        </h2>
+        <p class="text-muted mb-4">
+          {{ score === 5 ? 'You\'re ready for the advanced labs.' : score >= 3 ? 'The AI tutor will fill the gaps.' : 'RosettaCloud\'s hint-first tutor will guide you step by step.' }}
+        </p>
+        <div class="d-flex gap-3 justify-content-center flex-wrap mb-4">
+          <a routerLink="/register" class="btn btn-primary btn-lg px-5">
+            <i class="bi bi-rocket me-2"></i>Try the Real Lab Free
+          </a>
+          <button class="btn btn-outline-secondary" (click)="restart()">Retake</button>
+        </div>
+        <div class="share-box p-3 rounded-3 border">
+          <p class="small text-muted mb-2">Share your score:</p>
+          <p class="small font-monospace bg-light p-2 rounded mb-2">{{ shareText }}</p>
+          <button class="btn btn-sm btn-outline-primary" (click)="copyShare()">
+            <i class="bi bi-clipboard me-1"></i>Copy
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

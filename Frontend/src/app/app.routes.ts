@@ -31,6 +31,7 @@ import { MyTeachingComponent } from './my-teaching/my-teaching.component';
 import { ChatbotFlowDiagramComponent } from './chatbot-flow-diagram/chatbot-flow-diagram.component';
 import { UniversityComponent } from './university/university.component';
 import { StatsComponent } from './stats/stats.component';
+import { QuizComponent } from './quiz/quiz.component';
 
 export const routes: Routes = [
   // Public routes
@@ -39,6 +40,7 @@ export const routes: Routes = [
   { path: 'pricing', component: PricingComponent },
   { path: 'university', component: UniversityComponent },
   { path: 'stats', component: StatsComponent },
+  { path: 'quiz', component: QuizComponent },
   { path: 'instructors', component: InstructorsComponent },
   { path: 'courses', component: CoursesComponent },
   { path: 'login', component: LoginComponent },
