@@ -74,6 +74,18 @@
             <span>Pricing</span>
           </a>
         </li>
+        <li class="nav-item">
+          <a
+            class="nav-link"
+            routerLink="/university"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            (click)="isMenuOpen = false"
+          >
+            <i class="bi bi-building nav-icon"></i>
+            <span>University</span>
+          </a>
+        </li>
       </ul>
 
       <!-- Right-aligned items -->

@@ -29,12 +29,14 @@ import { WebinarsComponent } from './webinars/webinars.component';
 import { LearningBlogComponent } from './learning-blog/learning-blog.component';
 import { MyTeachingComponent } from './my-teaching/my-teaching.component';
 import { ChatbotFlowDiagramComponent } from './chatbot-flow-diagram/chatbot-flow-diagram.component';
+import { UniversityComponent } from './university/university.component';
 
 export const routes: Routes = [
   // Public routes
   { path: '', component: MainComponent },
   { path: 'features', component: FeaturesComponent },
   { path: 'pricing', component: PricingComponent },
+  { path: 'university', component: UniversityComponent },
   { path: 'instructors', component: InstructorsComponent },
   { path: 'courses', component: CoursesComponent },
   { path: 'login', component: LoginComponent },

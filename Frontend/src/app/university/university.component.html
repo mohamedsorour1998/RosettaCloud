@@ -1,0 +1,61 @@
+<div class="university-hero text-white text-center py-5">
+  <div class="container py-4">
+    <span class="badge bg-warning text-dark mb-3 px-3 py-2">For Universities, Bootcamps &amp; Corporate Training</span>
+    <h1 class="display-4 fw-bold mb-3">Give Every Student a Real Cloud Lab</h1>
+    <p class="lead mb-4 opacity-75">
+      Not a shared sandbox. Not a simulation. A dedicated Kubernetes cluster + Docker + VS Code
+      provisioned in 10 seconds — with a 3-agent AI tutor included at every tier.
+    </p>
+    <a routerLink="/contact" [queryParams]="{ subject: 'university' }" class="btn btn-warning btn-lg px-5">
+      <i class="bi bi-envelope me-2"></i>Get a Quote
+    </a>
+  </div>
+</div>
+
+<div class="container py-5">
+  <!-- Benefits -->
+  <div class="row justify-content-center mb-5">
+    <div class="col-lg-8 text-center">
+      <h2 class="mb-2">What Your Students Get</h2>
+      <p class="text-muted">Everything needed to teach real cloud engineering — not just theory</p>
+    </div>
+  </div>
+  <div class="row g-4 mb-5">
+    <div class="col-md-6 col-lg-4" *ngFor="let b of benefits">
+      <div class="benefit-card p-4 h-100 rounded-3 border">
+        <i class="bi {{ b.icon }} fs-2 text-primary mb-3 d-block"></i>
+        <h5 class="fw-bold">{{ b.title }}</h5>
+        <p class="text-muted mb-0">{{ b.desc }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pricing Table -->
+  <div class="row justify-content-center mb-4">
+    <div class="col-lg-8 text-center">
+      <h2 class="mb-2">Bulk Pricing</h2>
+      <p class="text-muted">Dramatically cheaper than AWS Skill Builder ($29/mo) or KodeKloud AI ($46/mo)</p>
+    </div>
+  </div>
+  <div class="row g-3 justify-content-center mb-5">
+    <div class="col-md-4" *ngFor="let p of pricing">
+      <div class="pricing-card p-4 rounded-3 border text-center">
+        <div class="fw-bold fs-5 mb-2">{{ p.seats }}</div>
+        <div class="display-6 fw-bold text-primary">{{ p.price }}</div>
+        <div class="text-muted small">or {{ p.annual }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparison callout -->
+  <div class="callout-box p-4 rounded-3 text-center mb-5">
+    <h4 class="fw-bold mb-2">KodeKloud hands you a shared sandbox.<br>We provision a dedicated cluster.</h4>
+    <p class="text-muted mb-3">
+      Your students run <code>kubectl apply</code>, <code>docker build</code>, and <code>helm install</code>
+      on infrastructure they fully own for the session — the same way production works.
+    </p>
+    <a routerLink="/contact" [queryParams]="{ subject: 'university' }" class="btn btn-primary px-5">
+      <i class="bi bi-envelope me-2"></i>Contact Us for a Demo
+    </a>
+  </div>
+</div>

@@ -1,0 +1,20 @@
+.university-hero {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding: 5rem 0;
+}
+
+.benefit-card {
+  transition: box-shadow 0.2s;
+  &:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
+}
+
+.pricing-card {
+  background: #f8f9fa;
+  transition: box-shadow 0.2s;
+  &:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
+}
+
+.callout-box {
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.07), rgba(25, 135, 84, 0.07));
+  border: 1px solid rgba(13, 110, 253, 0.2) !important;
+}
