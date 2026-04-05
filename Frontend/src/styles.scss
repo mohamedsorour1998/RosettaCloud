@@ -236,3 +236,35 @@ button,
 .panel-header a {
   cursor: pointer !important;
 }
+
+// ── RTL / Arabic Support ──
+[dir="rtl"] {
+  font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+
+  .navbar-nav {
+    flex-direction: row-reverse;
+  }
+
+  .ms-auto {
+    margin-left: unset !important;
+    margin-right: auto !important;
+  }
+
+  .me-2 {
+    margin-right: unset !important;
+    margin-left: 0.5rem !important;
+  }
+
+  .text-start {
+    text-align: right !important;
+  }
+
+  .text-end {
+    text-align: left !important;
+  }
+
+  .compare-table th:first-child,
+  .compare-table td:first-child {
+    text-align: right;
+  }
+}

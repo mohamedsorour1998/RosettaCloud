@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PublicMetricsService, PublicStats } from '../services/public-metrics.service';
+import { I18nService } from '../services/i18n.service';
 
 interface Testimonial {
   quote: string;
@@ -37,7 +38,10 @@ export class MainComponent implements OnInit {
     { value: '10 sec', label: 'Lab Provisioning', icon: 'bi-lightning-fill' },
   ];
 
-  constructor(private metricsService: PublicMetricsService) {}
+  constructor(
+    private metricsService: PublicMetricsService,
+    public i18n: I18nService
+  ) {}
 
   ngOnInit(): void {
     this.initAnimations();

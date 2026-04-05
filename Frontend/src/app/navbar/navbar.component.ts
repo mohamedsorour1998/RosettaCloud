@@ -15,6 +15,7 @@ import { Subscription, filter } from 'rxjs';
 import { UserService, User } from '../services/user.service';
 import { ThemeService } from '../services/theme.service';
 import { ScrollService } from '../services/scroll.service';
+import { I18nService, Lang } from '../services/i18n.service';
 
 @Component({
   selector: 'app-navbar',
@@ -49,7 +50,8 @@ export class NavbarComponent implements OnInit, OnDestroy, AfterViewInit {
     private userSvc: UserService,
     private router: Router,
     public themeService: ThemeService,
-    private scrollService: ScrollService
+    private scrollService: ScrollService,
+    public i18n: I18nService
   ) {}
 
   /**
@@ -176,6 +178,10 @@ export class NavbarComponent implements OnInit, OnDestroy, AfterViewInit {
       this.toggleSearch(); // Close the search overlay
       this.scrollService.scrollToTop(); // Scroll to top of results
     }
+  }
+
+  switchLang(lang: Lang): void {
+    this.i18n.setLang(lang);
   }
 
   ngOnDestroy(): void {

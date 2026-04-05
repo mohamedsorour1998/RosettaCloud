@@ -90,6 +90,19 @@
 
       <!-- Right-aligned items -->
       <ul class="navbar-nav ms-auto right-nav">
+        <!-- Language switcher -->
+        <li class="nav-item ms-2 d-flex align-items-center">
+          <button
+            class="btn btn-sm"
+            [class.btn-outline-secondary]="i18n.lang() !== 'ar'"
+            [class.btn-primary]="i18n.lang() === 'ar'"
+            (click)="switchLang(i18n.lang() === 'en' ? 'ar' : 'en')"
+            title="Switch language / تغيير اللغة"
+          >
+            {{ i18n.lang() === 'en' ? 'العربية' : 'English' }}
+          </button>
+        </li>
+
         <!-- Search Button - New addition -->
         <li class="nav-item d-flex align-items-center search-toggle-container">
           <button
