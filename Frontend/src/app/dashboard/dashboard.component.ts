@@ -36,6 +36,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   showCleanupConfirmation = false;
   showSuccessNotification = false;
 
+  // Learning streak
+  streak = 0;
+
   // Component cleanup
   private destroy$ = new Subject<void>();
   Object: any;
@@ -48,6 +51,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadDashboardData();
+    this.loadStreak();
+  }
+
+  private loadStreak(): void {
+    const stored = localStorage.getItem('rc_streak');
+    if (!stored) { this.streak = 0; return; }
+    const data = JSON.parse(stored) as { count: number; lastDate: string };
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    if (data.lastDate === today || data.lastDate === yesterday) {
+      this.streak = data.count;
+    } else {
+      this.streak = 0;
+    }
+  }
+
+  static recordActivity(): void {
+    const today = new Date().toDateString();
+    const stored = localStorage.getItem('rc_streak');
+    if (!stored) {
+      localStorage.setItem('rc_streak', JSON.stringify({ count: 1, lastDate: today }));
+      return;
+    }
+    const data = JSON.parse(stored) as { count: number; lastDate: string };
+    if (data.lastDate === today) return;
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    const newCount = data.lastDate === yesterday ? data.count + 1 : 1;
+    localStorage.setItem('rc_streak', JSON.stringify({ count: newCount, lastDate: today }));
   }
 
   ngOnDestroy(): void {

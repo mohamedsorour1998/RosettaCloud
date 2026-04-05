@@ -54,6 +54,15 @@
       </button>
     </div>
 
+    <!-- Learning Streak -->
+    <div class="streak-banner d-flex align-items-center gap-3 p-3 rounded-3 mb-4" *ngIf="streak > 0">
+      <span class="fs-1">🔥</span>
+      <div>
+        <div class="fw-bold">{{ streak }}-day learning streak!</div>
+        <div class="text-muted small">Keep going — consistency is how you master cloud engineering.</div>
+      </div>
+    </div>
+
     <!-- Welcome Banner -->
     <div class="welcome-banner animate-slide-in-up">
       <div class="welcome-content">

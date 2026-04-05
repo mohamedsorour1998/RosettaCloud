@@ -1092,3 +1092,55 @@
     opacity: 1;
   }
 }
+
+// ── Course Roadmap ──
+.roadmap-section {
+  .roadmap-track {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+    }
+  }
+
+  .roadmap-item {
+    flex: 1;
+    min-width: 180px;
+
+    .roadmap-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--bs-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .roadmap-card {
+      background: #fff;
+      transition: box-shadow 0.2s;
+      &:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
+    }
+
+    &.active .roadmap-card {
+      border-color: var(--bs-primary) !important;
+    }
+  }
+
+  .roadmap-connector {
+    width: 40px;
+    height: 2px;
+    background: var(--bs-border-color);
+    margin-top: 3.5rem;
+    flex-shrink: 0;
+
+    @media (max-width: 768px) {
+      width: 2px;
+      height: 30px;
+      margin: 0 auto;
+    }
+  }
+}
