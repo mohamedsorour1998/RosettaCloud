@@ -1,10 +1,11 @@
 <div class="university-hero text-white text-center py-5">
   <div class="container py-4">
     <span class="badge bg-warning text-dark mb-3 px-3 py-2">For Universities, Bootcamps &amp; Corporate Training</span>
-    <h1 class="display-4 fw-bold mb-3">Give Every Student a Real Cloud Lab</h1>
+    <h1 class="display-4 fw-bold mb-3">Real Cloud Labs for Every Student in Your Course</h1>
     <p class="lead mb-4 opacity-75">
-      Not a shared sandbox. Not a simulation. A dedicated Kubernetes cluster + Docker + VS Code
-      provisioned in 10 seconds — with a 3-agent AI tutor included at every tier.
+      Your students get a fully isolated cloud environment the moment they log in —
+      Kubernetes, Docker, and VS Code, all in the browser.
+      Plus an AI tutor that teaches them to think, not just to follow instructions.
     </p>
     <a routerLink="/contact" [queryParams]="{ subject: 'university' }" class="btn btn-warning btn-lg px-5">
       <i class="bi bi-envelope me-2"></i>Get a Quote
@@ -34,7 +35,7 @@
   <div class="row justify-content-center mb-4">
     <div class="col-lg-8 text-center">
       <h2 class="mb-2">Bulk Pricing</h2>
-      <p class="text-muted">Dramatically cheaper than AWS Skill Builder ($29/mo) or KodeKloud AI ($46/mo)</p>
+      <p class="text-muted">Simple per-seat pricing for courses of any size. No setup fees, no long-term contracts.</p>
     </div>
   </div>
   <div class="row g-3 justify-content-center mb-5">
@@ -47,12 +48,19 @@
     </div>
   </div>
 
-  <!-- Comparison callout -->
+  <!-- Compare callout -->
+  <div class="text-center mb-5">
+    <p class="text-muted mb-3">Wondering how RosettaCloud stacks up against other platforms?</p>
+    <a routerLink="/" fragment="compare" class="btn btn-outline-primary px-4">
+      <i class="bi bi-table me-2"></i>See the Full Comparison
+    </a>
+  </div>
+
+  <!-- CTA -->
   <div class="callout-box p-4 rounded-3 text-center mb-5">
-    <h4 class="fw-bold mb-2">KodeKloud hands you a shared sandbox.<br>We provision a dedicated cluster.</h4>
+    <h4 class="fw-bold mb-2">Ready to bring real cloud labs to your course?</h4>
     <p class="text-muted mb-3">
-      Your students run <code>kubectl apply</code>, <code>docker build</code>, and <code>helm install</code>
-      on infrastructure they fully own for the session — the same way production works.
+      Get in touch and we'll walk you through setup, pricing, and how to integrate labs into your existing curriculum.
     </p>
     <a routerLink="/contact" [queryParams]="{ subject: 'university' }" class="btn btn-primary px-5">
       <i class="bi bi-envelope me-2"></i>Contact Us for a Demo
