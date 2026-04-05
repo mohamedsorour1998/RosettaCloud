@@ -69,11 +69,11 @@
               [class.excluded]="!feature.included"
             >
               <i
-                class="bi"
-                [ngClass]="
-                  feature.included ? 'bi-check-circle-fill' : 'bi-x-circle'
-                "
-                class="feature-icon"
+                [ngClass]="{
+                  'feature-icon': true,
+                  'bi-check-circle-fill text-success': feature.included,
+                  'bi-x-circle text-muted': !feature.included
+                }"
               ></i>
               <span>{{ feature.text }}</span>
             </li>
