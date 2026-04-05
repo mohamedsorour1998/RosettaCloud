@@ -1003,6 +1003,58 @@
   }
 }
 
+// ── Comparison Table ──
+.compare-section {
+  .compare-table {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+
+    th {
+      background: var(--bs-dark);
+      color: #fff;
+      font-weight: 600;
+      padding: 1rem;
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .rosettacloud-row td {
+      background: rgba(25, 135, 84, 0.08);
+      font-size: 0.95rem;
+    }
+  }
+}
+
+// ── Platform Integrity ──
+.integrity-section {
+  .integrity-card {
+    background: #fff;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    height: 100%;
+    transition: box-shadow 0.2s;
+
+    &:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
+// ── Tech Depth ──
+.tech-depth-section {
+  .tech-depth-bar .badge {
+    font-size: 0.8rem;
+  }
+
+  .scale-card {
+    background: var(--bs-light);
+  }
+}
+
 // Animations
 @keyframes fadeInDown {
   from {

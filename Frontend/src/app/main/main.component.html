@@ -168,6 +168,164 @@
   </div>
 </section>
 
+<!-- ═══ How It Compares ═══ -->
+<section class="compare-section py-5">
+  <div class="container">
+    <div class="row justify-content-center mb-5">
+      <div class="col-lg-9 text-center">
+        <h2 class="section-title">How It Compares</h2>
+        <p class="section-subtitle">
+          Every competitor gives students shared sandboxes, videos, or chatbot responses.
+          RosettaCloud is the only platform that provisions real cloud infrastructure per student.
+        </p>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table compare-table text-center align-middle">
+        <thead>
+          <tr>
+            <th class="text-start">Platform</th>
+            <th>Real K8s / Docker</th>
+            <th>Hint-First AI</th>
+            <th>Exit-Code Grading</th>
+            <th>Price/mo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="text-start fw-semibold">AWS Skill Builder</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Console sandbox</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Answers Q&amp;A</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+            <td>$29</td>
+          </tr>
+          <tr>
+            <td class="text-start fw-semibold">Coursera</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Videos only</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> QA chatbot</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Multiple choice</td>
+            <td>$8–24</td>
+          </tr>
+          <tr>
+            <td class="text-start fw-semibold">GitHub Codespaces</td>
+            <td><i class="bi bi-dash-circle-fill text-warning"></i> No Docker daemon</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Copilot gives answers</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+            <td>~$0.18/hr</td>
+          </tr>
+          <tr>
+            <td class="text-start fw-semibold">KodeKloud</td>
+            <td><i class="bi bi-dash-circle-fill text-warning"></i> Shared pre-built</td>
+            <td><i class="bi bi-dash-circle-fill text-warning"></i> Validates after</td>
+            <td><i class="bi bi-dash-circle-fill text-warning"></i> Scripted checks</td>
+            <td>$15–46</td>
+          </tr>
+          <tr class="table-success rosettacloud-row">
+            <td class="text-start fw-bold">🏆 RosettaCloud</td>
+            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Dedicated per student</strong></td>
+            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Hint-first, 3 agents</strong></td>
+            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Live exit-code</strong></td>
+            <td><strong>$0 free / $19 pro</strong></td>
+          </tr>
+        </tbody>
+        <caption class="text-center text-muted small mt-2">
+          Deep dives: <a routerLink="/compare/kodekloud">vs KodeKloud</a> ·
+          <a routerLink="/compare/skill-builder">vs AWS Skill Builder</a>
+        </caption>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Platform Integrity ═══ -->
+<section class="integrity-section py-5 bg-light">
+  <div class="container">
+    <div class="row justify-content-center mb-4">
+      <div class="col-lg-8 text-center">
+        <h2 class="section-title">Platform Integrity</h2>
+        <p class="text-muted">Abuse prevention built into every layer — not bolted on</p>
+      </div>
+    </div>
+    <div class="row g-3 justify-content-center">
+      <div class="col-md-4 col-lg-2">
+        <div class="integrity-card text-center p-3">
+          <i class="bi bi-envelope-check-fill fs-2 text-primary mb-2 d-block"></i>
+          <div class="fw-semibold small">Email Verification</div>
+          <div class="text-muted" style="font-size:0.75rem">Cognito confirms every account</div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="integrity-card text-center p-3">
+          <i class="bi bi-1-circle-fill fs-2 text-primary mb-2 d-block"></i>
+          <div class="fw-semibold small">1 Active Lab</div>
+          <div class="text-muted" style="font-size:0.75rem">Redis enforces one lab per user</div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="integrity-card text-center p-3">
+          <i class="bi bi-speedometer2 fs-2 text-primary mb-2 d-block"></i>
+          <div class="fw-semibold small">Rate Limiting</div>
+          <div class="text-muted" style="font-size:0.75rem">30 chat/hr · 5 lab/hr per user</div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="integrity-card text-center p-3">
+          <i class="bi bi-clock-history fs-2 text-primary mb-2 d-block"></i>
+          <div class="fw-semibold small">Auto-Termination</div>
+          <div class="text-muted" style="font-size:0.75rem">Labs expire after 60 min</div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="integrity-card text-center p-3">
+          <i class="bi bi-node-plus-fill fs-2 text-primary mb-2 d-block"></i>
+          <div class="fw-semibold small">Node Cap</div>
+          <div class="text-muted" style="font-size:0.75rem">Karpenter limits to 1 spot node</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 100% AWS-Native AI + Technical Depth + Scale ═══ -->
+<section class="tech-depth-section py-5">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <span class="badge bg-warning text-dark mb-3">100% AWS-Native AI Stack</span>
+        <h2 class="section-title">Built on AWS. Only AWS.</h2>
+        <p class="text-muted mb-4">
+          Unlike competitors using Gemini, Claude Sonnet, or DeepSeek R1,
+          RosettaCloud runs exclusively on Amazon Nova 2 Lite, Titan Embeddings v2,
+          and AgentCore — the services AWS judges know best.
+        </p>
+        <div class="tech-depth-bar d-flex flex-wrap gap-2">
+          <span class="badge rounded-pill bg-primary px-3 py-2">17 AWS Services</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">3 AI Agents</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">6 MCP Tools</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">6 CI/CD Pipelines</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">EKS Auto Mode</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">Istio Service Mesh</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">Karpenter Spot</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">AgentCore + MCP</span>
+          <span class="badge rounded-pill bg-success px-3 py-2">Production Deployed</span>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="scale-card p-4 rounded-3 border">
+          <h5 class="fw-bold mb-3"><i class="bi bi-graph-up-arrow text-success me-2"></i>Scales to Zero. Scales to Many.</h5>
+          <ul class="list-unstyled mb-0">
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>EKS Auto Mode</strong> — zero manual node management</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Karpenter</strong> — spot instances, scales to zero overnight</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Per-lab isolation</strong> — no noisy-neighbor problem</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Multi-region</strong> — one Terraform variable to expand globally</li>
+            <li class="mb-0"><i class="bi bi-check-circle text-success me-2"></i><strong>98% gross margin</strong> — $0.04/hr compute at $19/mo paid tier</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- CTA Section -->
 <section class="cta-section py-5 text-center">
   <div class="container">
