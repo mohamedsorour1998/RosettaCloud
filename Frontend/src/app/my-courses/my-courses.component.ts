@@ -191,90 +191,30 @@ export class MyCoursesComponent implements OnInit, OnDestroy, AfterViewInit {
    * (Simulating API call with mock data for now)
    */
   loadEnrolledCourses(): void {
-    // Simulate API loading delay
     this.isLoading = true;
 
-    // Wrap in NgZone to ensure change detection
     this.zone.run(() => {
       setTimeout(() => {
-        // Mock data for enrolled courses
         this.enrolledCourses = [
           {
-            id: 'modern-react-development',
-            title: 'Modern React Development with Hooks and Context',
-            instructor: 'Dr. Sarah Johnson',
-            imageUrl: '/assets/courses/react-dev.jpg',
-            progress: 65,
-            lastAccessed: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-            nextSection: 'Advanced State Management with useReducer',
-            estimatedTimeLeft: '4h 20m',
-            category: 'Web Development',
-            tags: ['React', 'JavaScript', 'Frontend'],
-            hasUpdates: true,
-          },
-          {
-            id: 'flutter-masterclass',
-            title: 'Flutter Masterclass: Building Cross-Platform Apps',
-            instructor: 'Ahmad Hassan',
-            imageUrl: '/assets/courses/flutter-masterclass.jpg',
-            progress: 32,
-            lastAccessed: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-            nextSection: 'Building Custom Animations',
-            estimatedTimeLeft: '8h 45m',
-            category: 'Mobile Development',
-            tags: ['Flutter', 'Dart', 'Mobile'],
-          },
-          {
-            id: 'python-data-analysis',
-            title: 'Python for Data Analysis and Visualization',
-            instructor: 'Mei Zhang, PhD',
-            imageUrl: '/assets/courses/python-data-analysis.jpg',
-            progress: 100,
-            lastAccessed: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-            completionCertificate: true,
-            category: 'Data Science',
-            tags: ['Python', 'Data Analysis', 'Visualization'],
-          },
-          {
-            id: 'javascript-fundamentals',
-            title: 'JavaScript Fundamentals for Modern Web Development',
-            instructor: 'Alex Thompson',
-            imageUrl: '/assets/courses/javascript-fundamentals.jpg',
-            progress: 88,
-            lastAccessed: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-            nextSection: 'Advanced DOM Manipulation',
-            estimatedTimeLeft: '1h 15m',
-            category: 'Web Development',
-            tags: ['JavaScript', 'Web Development'],
-          },
-          {
-            id: 'aws-certified-solutions-architect',
-            title: 'AWS Certified Solutions Architect - Associate',
-            instructor: 'James Wilson',
-            imageUrl: '/assets/courses/aws-architect.jpg',
-            progress: 12,
-            lastAccessed: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-            nextSection: 'Virtual Private Cloud (VPC) Design',
-            estimatedTimeLeft: '12h 30m',
-            category: 'Cloud Computing',
-            tags: ['AWS', 'Cloud', 'DevOps'],
+            id: 'linux-docker-k8s-101',
+            title: 'Linux, Docker & Kubernetes 101',
+            instructor: 'Mohamed Sorour',
+            imageUrl: '',
+            progress: 0,
+            lastAccessed: new Date(),
+            nextSection: 'Intro to Linux & Docker',
+            estimatedTimeLeft: '~2h',
+            category: 'Cloud Engineering',
+            tags: ['Linux', 'Docker', 'Kubernetes', 'Cloud'],
           },
         ];
-
-        // Fix image paths and ensure filteredCourses gets populated
-        this.enrolledCourses.forEach((course) => {
-          if (course.imageUrl && !course.imageUrl.startsWith('/')) {
-            course.imageUrl = '/' + course.imageUrl;
-          }
-        });
 
         this.filteredCourses = [...this.enrolledCourses];
         this.applyFilters();
         this.isLoading = false;
-
-        // Force change detection
         this.cdr.detectChanges();
-      }, 1000);
+      }, 300);
     });
   }
 
