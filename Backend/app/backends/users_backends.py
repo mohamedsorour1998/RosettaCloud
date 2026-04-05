@@ -418,12 +418,55 @@ class DynamoDBUserBackend:
         return None
 
     async def set_active_lab(self, user_id: str, lab_id: str) -> None:
-        """Set the user's active lab."""
-        await self.update_user(user_id, {"active_lab": lab_id})
+        """Set the user's active lab and record start time."""
+        await self.update_user(user_id, {
+            "active_lab": lab_id,
+            "lab_started_at": int(time.time()),
+        })
 
     async def clear_active_lab(self, user_id: str) -> None:
-        """Clear the user's active lab."""
-        await self.update_user(user_id, {"active_lab": None})
+        """Clear the user's active lab and start time."""
+        await self.update_user(user_id, {"active_lab": None, "lab_started_at": None})
+
+    async def record_lab_session(self, user_id: str, duration_minutes: int) -> None:
+        """Add session duration to the user's current-week lab usage."""
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+
+        user = await self.get_user(user_id)
+        if not user:
+            return
+        stored_week_start = user.get("lab_week_start", 0) or 0
+        current_minutes = (user.get("lab_week_minutes", 0) or 0) if stored_week_start >= week_start else 0
+
+        await self.update_user(user_id, {
+            "lab_week_start": week_start,
+            "lab_week_minutes": current_minutes + duration_minutes,
+        })
+
+    async def get_lab_quota(self, user_id: str) -> Dict[str, Any]:
+        """Return weekly lab quota for the user."""
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+        week_end = week_start + 7 * 24 * 3600
+
+        user = await self.get_user(user_id)
+        if not user:
+            return {"minutes_used": 0, "minutes_remaining": 120, "minutes_limit": 120, "week_resets_at": week_end}
+
+        stored_week_start = user.get("lab_week_start", 0) or 0
+        minutes_used = (user.get("lab_week_minutes", 0) or 0) if stored_week_start >= week_start else 0
+        minutes_limit = 120  # Free tier: 2h/week
+        return {
+            "minutes_used": minutes_used,
+            "minutes_remaining": max(0, minutes_limit - minutes_used),
+            "minutes_limit": minutes_limit,
+            "week_resets_at": week_end,
+        }
 
 #
 class LmsUserBackend:
@@ -1053,12 +1096,55 @@ class LmsUserBackend:
         return None
 
     async def set_active_lab(self, user_id: str, lab_id: str) -> None:
-        """Set the user's active lab."""
-        await self.update_user(user_id, {"active_lab": lab_id})
+        """Set the user's active lab and record start time."""
+        await self.update_user(user_id, {
+            "active_lab": lab_id,
+            "lab_started_at": int(time.time()),
+        })
 
     async def clear_active_lab(self, user_id: str) -> None:
-        """Clear the user's active lab."""
-        await self.update_user(user_id, {"active_lab": None})
+        """Clear the user's active lab and start time."""
+        await self.update_user(user_id, {"active_lab": None, "lab_started_at": None})
+
+    async def record_lab_session(self, user_id: str, duration_minutes: int) -> None:
+        """Add session duration to the user's current-week lab usage."""
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+
+        user = await self.get_user(user_id)
+        if not user:
+            return
+        stored_week_start = user.get("lab_week_start", 0) or 0
+        current_minutes = (user.get("lab_week_minutes", 0) or 0) if stored_week_start >= week_start else 0
+
+        await self.update_user(user_id, {
+            "lab_week_start": week_start,
+            "lab_week_minutes": current_minutes + duration_minutes,
+        })
+
+    async def get_lab_quota(self, user_id: str) -> Dict[str, Any]:
+        """Return weekly lab quota for the user."""
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+        week_end = week_start + 7 * 24 * 3600
+
+        user = await self.get_user(user_id)
+        if not user:
+            return {"minutes_used": 0, "minutes_remaining": 120, "minutes_limit": 120, "week_resets_at": week_end}
+
+        stored_week_start = user.get("lab_week_start", 0) or 0
+        minutes_used = (user.get("lab_week_minutes", 0) or 0) if stored_week_start >= week_start else 0
+        minutes_limit = 120
+        return {
+            "minutes_used": minutes_used,
+            "minutes_remaining": max(0, minutes_limit - minutes_used),
+            "minutes_limit": minutes_limit,
+            "week_resets_at": week_end,
+        }
 
 # Factory functions
 def get_dynamodb_backend():

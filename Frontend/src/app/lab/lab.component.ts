@@ -146,8 +146,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // Lab hours metering
   labStartTime: number | null = null;
-  labMinutesUsed = 0;
+  labSecondsElapsed = 0;
   private labTimerInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Weekly quota
+  weeklyMinutesRemaining: number | null = null;
+  weeklyMinutesLimit = 120;
+  private quotaInterval: ReturnType<typeof setInterval> | null = null;
 
   // User data properties
   userProgressData: any = {};
@@ -282,11 +287,12 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
   startLabTimer(): void {
     this.labStartTime = Date.now();
+    this.labSecondsElapsed = 0;
     this.labTimerInterval = setInterval(() => {
       if (this.labStartTime) {
-        this.labMinutesUsed = Math.floor((Date.now() - this.labStartTime) / 60000);
+        this.labSecondsElapsed = Math.floor((Date.now() - this.labStartTime) / 1000);
       }
-    }, 30000);
+    }, 1000);
   }
 
   stopLabTimer(): void {
@@ -294,13 +300,46 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       clearInterval(this.labTimerInterval);
       this.labTimerInterval = null;
     }
+    if (this.quotaInterval) {
+      clearInterval(this.quotaInterval);
+      this.quotaInterval = null;
+    }
   }
 
-  get labHoursDisplay(): string {
-    const h = Math.floor(this.labMinutesUsed / 60);
-    const m = this.labMinutesUsed % 60;
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  get sessionTimeDisplay(): string {
+    const h = Math.floor(this.labSecondsElapsed / 3600);
+    const m = Math.floor((this.labSecondsElapsed % 3600) / 60);
+    const s = this.labSecondsElapsed % 60;
+    const mm = String(m).padStart(2, '0');
+    const ss = String(s).padStart(2, '0');
+    return h > 0 ? `${h}h ${mm}m ${ss}s` : `${mm}m ${ss}s`;
   }
+
+  get quotaDisplay(): string {
+    if (this.weeklyMinutesRemaining === null) return '';
+    const r = this.weeklyMinutesRemaining;
+    if (r <= 0) return '0m left';
+    const h = Math.floor(r / 60);
+    const m = r % 60;
+    return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
+  }
+
+  fetchLabQuota(): void {
+    const userId = this.labSv.getCurrentUserId();
+    this.labSv.getLabQuota(userId).subscribe(q => {
+      this.weeklyMinutesRemaining = q.minutes_remaining;
+      this.weeklyMinutesLimit = q.minutes_limit;
+    });
+  }
+
+  startQuotaPolling(): void {
+    this.fetchLabQuota();
+    this.quotaInterval = setInterval(() => this.fetchLabQuota(), 5 * 60 * 1000);
+  }
+
+  /** @deprecated use sessionTimeDisplay */
+  get labHoursDisplay(): string { return this.sessionTimeDisplay; }
+  get labMinutesUsed(): number { return Math.floor(this.labSecondsElapsed / 60); }
 
   ngOnDestroy(): void {
     // Reset lab context on the chatbot service when navigating away
@@ -466,6 +505,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       if (!this.labStartTime) {
         this.initOnboarding();
         this.startLabTimer();
+        this.startQuotaPolling();
       }
 
       // Use url first if available, then pod_ip, then hostname

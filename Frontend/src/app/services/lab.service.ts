@@ -141,6 +141,12 @@ export class LabService {
     );
   }
 
+  getLabQuota(userId: string): Observable<{ minutes_used: number; minutes_remaining: number; minutes_limit: number; week_resets_at: number }> {
+    return this.http
+      .get<any>(`${this.apiUrl}/users/${userId}/lab-quota`, { headers: this.getHeaders() })
+      .pipe(catchError(() => of({ minutes_used: 0, minutes_remaining: 120, minutes_limit: 120, week_resets_at: 0 })));
+  }
+
   launchLab(userId: string): Observable<LabCreationResponse> {
     return this.http
       .post<LabCreationResponse>(

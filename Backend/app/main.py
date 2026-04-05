@@ -383,14 +383,33 @@ async def terminate_lab(
     _check_rate_limit(user_id, "lab_terminate")
     await _require_user(user_id)
 
+    # Read lab_started_at before clearing, to record session duration
+    user_data = await users.get_user(user_id)
+    lab_started_at = (user_data or {}).get("lab_started_at")
+
     deleted = await lab.stop(lab_id)
     if deleted:
         await users.clear_active_lab(user_id)
         await users.unlink_lab_from_user(user_id, lab_id)
         _track_event(user_id, "lab_terminated")
+
+        if lab_started_at:
+            duration_minutes = max(1, (int(time.time()) - int(lab_started_at)) // 60)
+            await users.record_lab_session(user_id, duration_minutes)
+
         return {"deleted": True}
     else:
         raise HTTPException(status_code=404, detail="Lab not found.")
+
+
+@app.get("/users/{user_id}/lab-quota", tags=["Labs"])
+async def get_lab_quota(
+    user_id: str,
+    claims: dict = Depends(get_current_user),
+):
+    resolved_id = claims["resolved_user_id"]
+    await _require_user(resolved_id)
+    return await users.get_lab_quota(resolved_id)
 
 
 # Chat

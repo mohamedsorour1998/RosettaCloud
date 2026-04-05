@@ -1475,15 +1475,28 @@
   }
 }
 
-// ── Lab Hours Meter ──
-.lab-meter {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 0.4rem 0.9rem;
+// ── Session timer + quota chips in header ──
+.lab-session-chip,
+.lab-quota-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.65rem;
   border-radius: 999px;
-  font-size: 0.82rem;
-  z-index: 1000;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+
+  i { font-size: 0.72rem; }
+}
+
+.lab-quota-chip {
+  background: rgba(37, 117, 252, 0.18);
+  color: #7eb8ff;
+}
+
+.lab-quota-chip.quota-low {
+  background: rgba(220, 53, 69, 0.2);
+  color: #ff8080;
 }
