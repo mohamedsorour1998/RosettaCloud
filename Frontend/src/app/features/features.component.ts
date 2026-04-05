@@ -1,19 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { ThemeService } from '../services/theme.service';
 
 interface Feature {
   title: string;
   description: string;
   icon: string;
-}
-
-interface Testimonial {
-  quote: string;
-  author: string;
-  role: string;
-  company: string;
 }
 
 @Component({
@@ -23,81 +15,64 @@ interface Testimonial {
   templateUrl: './features.component.html',
   styleUrls: ['./features.component.scss'],
 })
-export class FeaturesComponent implements OnInit {
+export class FeaturesComponent {
   features: Feature[] = [
     {
-      title: 'Dedicated Kubernetes Cluster',
+      title: 'Your Own Cloud Lab, Ready in 10 Seconds',
       description:
-        'A fresh Kind cluster + full Docker daemon provisioned per student in under 10 seconds. Run kubectl apply, docker build, and helm install on infrastructure you fully own.',
+        'Click Start Lab and you get a real, fully isolated cloud environment — Kubernetes, Docker, and VS Code — all in your browser. No installs, no configuration. Just open and start.',
       icon: 'bi-diagram-3',
     },
     {
-      title: 'VS Code in Browser',
+      title: 'Code Right in Your Browser',
       description:
-        'Full code-server IDE served at your lab subdomain. Edit files, open terminals, run commands — exactly like your local dev environment, with no local setup.',
+        'A full VS Code editor opens automatically in your lab. Open a terminal, write files, run commands — exactly like working on a real machine, without installing anything on yours.',
       icon: 'bi-code-square',
     },
     {
-      title: '3 Specialized AI Agents',
+      title: 'An AI Tutor That Helps You Think',
       description:
-        'Tutor (hint-first teaching), Grader (exit-code validation), Planner (learning path). Powered by Amazon Nova 2 Lite via AgentCore + MCP Gateway with 6 tools.',
+        'Stuck on a task? Ask the AI. It won\'t just give you the answer — it asks the right questions to help you figure it out. That\'s how you build skills that stick.',
       icon: 'bi-robot',
     },
     {
-      title: 'Cross-Session AI Memory',
+      title: 'The AI Remembers Where You Left Off',
       description:
-        'AgentCore Memory persists your learning history across sessions. The AI remembers what you struggled with last week and adapts explanations accordingly.',
+        'Every session picks up where the last one ended. The AI knows what topics you\'ve covered and what you struggled with — so it can help you more effectively each time.',
       icon: 'bi-infinity',
     },
     {
-      title: 'Exit-Code Grading',
+      title: 'Know Instantly If Your Work Is Correct',
       description:
-        'Practical exercises are graded by executing validation scripts inside your live pod. Real verification — not multiple choice. Same as how production CI/CD pipelines work.',
+        'When you complete a task, click Check — the platform runs your work and tells you immediately if it passed. No waiting, no guessing. Real feedback on real commands.',
       icon: 'bi-check2-circle',
     },
     {
-      title: 'Structured Curriculum',
+      title: 'A Clear Path From Zero to Job-Ready',
       description:
-        'Linux fundamentals → Docker → Kubernetes → Cloud Engineering. Each lesson builds on the last with MCQ and practical questions validated against real running infrastructure.',
+        'Start with Linux basics, move to Docker, then Kubernetes. Each lesson builds on the last, so by the end you\'ll have the hands-on skills employers actually look for.',
       icon: 'bi-map',
     },
   ];
 
   keyFeatures: Feature[] = [
     {
-      title: 'Hint-First AI Pedagogy',
+      title: 'Learn By Doing, Not Watching',
       description:
-        'Our AI tutor engages before you attempt, guiding your reasoning through hints. When you get stuck, it asks questions — not gives answers. You build real intuition, not exam memory.',
+        'Most platforms teach by showing you videos. RosettaCloud puts you in the environment — typing real commands, seeing real results. You learn faster and remember more.',
       icon: 'bi-lightbulb',
     },
     {
-      title: 'Isolated Infrastructure Per Student',
+      title: 'Your Environment, Nobody Else\'s',
       description:
-        'Every lab session provisions a dedicated Kubernetes pod, Service, and Istio VirtualService. No shared environments, no noisy neighbours. Mirrors how production cloud infrastructure actually works.',
+        'Your lab is completely separate from every other student\'s. You can\'t break anyone else\'s work, and nobody can interfere with yours. Practice freely without limits.',
       icon: 'bi-shield-lock',
     },
     {
-      title: 'Automated Exit-Code Grading',
+      title: 'Real Feedback on Real Work',
       description:
-        'Practical exercises are validated by running scripts inside your live pod via kubectl exec. Pass or fail is determined by real exit codes — the same way CI/CD pipelines work.',
+        'When you complete a task, the platform actually runs your commands and checks the result. You\'ll know immediately if it worked — the same way a real job would tell you.',
       icon: 'bi-terminal-fill',
     },
   ];
-
-  testimonials: Testimonial[] = [];
-
-  constructor(private themeService: ThemeService) {}
-
-  ngOnInit(): void {
-    // Scroll to the features section if the URL has the #features hash
-    setTimeout(() => {
-      if (window.location.hash === '#features') {
-        const featuresSection = document.getElementById('features');
-        if (featuresSection) {
-          featuresSection.scrollIntoView({ behavior: 'smooth' });
-        }
-      }
-    }, 100);
-  }
-
 }

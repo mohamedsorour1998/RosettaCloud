@@ -1,32 +1,26 @@
-<!-- Hero Section -->
+<!-- Hero -->
 <div class="features-hero">
   <div class="container text-center py-5">
-    <h1 class="display-4 mb-3 animate-fade-in-down">
-      Powerful Features for Effective Learning
+    <h1 class="display-5 fw-bold mb-3">
+      Everything You Need to Actually Learn Cloud Engineering
     </h1>
-    <p class="lead mb-4 animate-fade-in">
-      Discover the tools and resources that make RosettaCloud the only platform
-      that provisions real Kubernetes clusters, Docker, and VS Code per student
+    <p class="lead mb-4">
+      Real labs. Real feedback. An AI that teaches you to think — not just copy.
     </p>
-    <div class="hero-cta animate-fade-in-up">
-      <a routerLink="/register" class="btn btn-light btn-lg me-md-3"
-        >Start Learning Now</a
-      >
-      <a href="#features" class="btn btn-outline-secondary btn-lg"
-        >Explore Features</a
-      >
+    <div class="hero-cta">
+      <a routerLink="/register" class="btn btn-light btn-lg me-3">Start Free</a>
+      <a routerLink="/pricing" class="btn btn-outline-light btn-lg">See Plans</a>
     </div>
   </div>
 </div>
 
 <div class="container py-5">
-  <!-- Main Features Section -->
-  <section id="features" class="features-grid py-5">
+
+  <!-- Feature Cards -->
+  <section id="features" class="py-4">
     <div class="text-center mb-5">
-      <h2 class="mb-3">Platform Features</h2>
-      <p class="lead text-muted">
-        Everything you need to master software development
-      </p>
+      <h2 class="fw-bold mb-2">What You Get</h2>
+      <p class="text-muted">Everything included in every plan, from day one.</p>
     </div>
 
     <div class="row g-4">
@@ -42,166 +36,62 @@
     </div>
   </section>
 
-  <!-- Interactive Demo Section -->
+  <!-- What it looks like -->
   <section class="interactive-demo my-5 p-4 p-md-5 rounded">
-    <div class="row align-items-center">
-      <div class="col-lg-6 mb-4 mb-lg-0">
-        <div class="demo-content">
-          <h2>Interactive Learning Environment</h2>
-          <p class="lead">
-            Our browser-based coding labs eliminate setup headaches and let you
-            focus on learning.
-          </p>
-
-          <ul class="demo-features">
-            <li>
-              <i class="bi bi-check-circle-fill text-success"></i>
-              <span>Full Docker daemon — build and run real containers</span>
-            </li>
-            <li>
-              <i class="bi bi-check-circle-fill text-success"></i>
-              <span>Real Kubernetes cluster — kubectl, helm, deployments</span>
-            </li>
-            <li>
-              <i class="bi bi-check-circle-fill text-success"></i>
-              <span>AI tutor available inside the lab at any time</span>
-            </li>
-            <li>
-              <i class="bi bi-check-circle-fill text-success"></i>
-              <span>Progress saved in DynamoDB — resume across sessions</span>
-            </li>
-          </ul>
-
-          <a routerLink="/register" class="btn btn-primary mt-3">Try It Now</a>
-        </div>
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <h2 class="fw-bold mb-3">This is what your lab looks like</h2>
+        <p class="lead mb-4">
+          The moment your lab starts, you have a real Kubernetes cluster and a full VS Code editor — already connected, already running.
+        </p>
+        <ul class="demo-features">
+          <li>
+            <i class="bi bi-check-circle-fill text-success"></i>
+            <span>Run <code>docker build</code> and see your image appear instantly</span>
+          </li>
+          <li>
+            <i class="bi bi-check-circle-fill text-success"></i>
+            <span>Deploy to Kubernetes with <code>kubectl apply</code> — it actually works</span>
+          </li>
+          <li>
+            <i class="bi bi-check-circle-fill text-success"></i>
+            <span>Ask the AI tutor without leaving the page</span>
+          </li>
+          <li>
+            <i class="bi bi-check-circle-fill text-success"></i>
+            <span>Your progress is saved — come back tomorrow and pick up where you stopped</span>
+          </li>
+        </ul>
+        <a routerLink="/register" class="btn btn-primary mt-2">Try It Now — Free</a>
       </div>
       <div class="col-lg-6">
-        <div class="demo-image">
-          <div class="code-editor-preview">
-            <div class="code-editor-header">
-              <span class="window-control"></span>
-              <span class="window-control"></span>
-              <span class="window-control"></span>
-              <div class="file-name">main.js</div>
-            </div>
-            <div class="code-editor-body">
-              <!-- Redesigned code editor content to avoid curly brace issues -->
-              <div class="code-content">
-                <div class="code-line">
-                  <span class="keyword">function</span>
-                  <span class="function-name">analyzeData</span
-                  ><span class="plain">(dataset) &#123;</span>
-                </div>
-                <div class="code-line code-indented-1">
-                  <span class="keyword">const</span>
-                  <span class="plain">results = &#123;</span>
-                </div>
-                <div class="code-line code-indented-2">
-                  <span class="plain">average: </span
-                  ><span class="number">0</span><span class="plain">,</span>
-                </div>
-                <div class="code-line code-indented-2">
-                  <span class="plain">max: </span
-                  ><span class="number">-Infinity</span
-                  ><span class="plain">,</span>
-                </div>
-                <div class="code-line code-indented-2">
-                  <span class="plain">min: </span
-                  ><span class="number">Infinity</span>
-                </div>
-                <div class="code-line code-indented-1">
-                  <span class="plain">&#125;;</span>
-                </div>
-                <div class="code-line">&nbsp;</div>
-                <div class="code-line code-indented-1">
-                  <span class="keyword">if</span>
-                  <span class="plain">(!dataset || dataset.length === </span
-                  ><span class="number">0</span
-                  ><span class="plain">) &#123;</span>
-                </div>
-                <div class="code-line code-indented-2">
-                  <span class="keyword">return</span>
-                  <span class="plain">results;</span>
-                </div>
-                <div class="code-line code-indented-1">
-                  <span class="plain">&#125;</span>
-                </div>
-                <div class="code-line">&nbsp;</div>
-                <div class="code-line code-indented-1">
-                  <span class="comment">// Calculate statistics</span>
-                </div>
-                <div class="code-line code-indented-1">
-                  <span class="keyword">let</span>
-                  <span class="plain">sum = </span><span class="number">0</span
-                  ><span class="plain">;</span>
-                </div>
-                <div class="code-line">&nbsp;</div>
-                <div class="code-line code-indented-1">
-                  <span class="keyword">for</span> <span class="plain">(</span
-                  ><span class="keyword">let</span>
-                  <span class="plain">i = </span><span class="number">0</span
-                  ><span class="plain">; i < dataset.length; i++) &#123;</span>
-                </div>
-                <div class="code-line code-indented-2">
-                  <span class="keyword">const</span>
-                  <span class="plain">value = dataset[i];</span>
-                </div>
-                <div class="code-line code-indented-2">
-                  <span class="plain">sum += value;</span>
-                </div>
-                <div class="code-line">&nbsp;</div>
-                <div class="code-line code-indented-2">
-                  <span class="keyword">if</span>
-                  <span class="plain">(value > results.max) &#123;</span>
-                </div>
-                <div class="code-line code-indented-3">
-                  <span class="plain">results.max = value;</span>
-                </div>
-                <div class="code-line code-indented-2">
-                  <span class="plain">&#125;</span>
-                </div>
-                <div class="code-line">&nbsp;</div>
-                <div class="code-line code-indented-2">
-                  <span class="keyword">if</span>
-                  <span class="plain">(value < results.min) &#123;</span>
-                </div>
-                <div class="code-line code-indented-3">
-                  <span class="plain">results.min = value;</span>
-                </div>
-                <div class="code-line code-indented-2">
-                  <span class="plain">&#125;</span>
-                </div>
-                <div class="code-line code-indented-1">
-                  <span class="plain">&#125;</span>
-                </div>
-                <div class="code-line">&nbsp;</div>
-                <div class="code-line code-indented-1">
-                  <span class="plain"
-                    >results.average = sum / dataset.length;</span
-                  >
-                </div>
-                <div class="code-line code-indented-1">
-                  <span class="keyword">return</span>
-                  <span class="plain">results;</span>
-                </div>
-                <div class="code-line">
-                  <span class="plain">&#125;</span>
-                </div>
-              </div>
-            </div>
+        <div class="terminal-preview">
+          <div class="terminal-top">
+            <span class="t-dot dot-red"></span>
+            <span class="t-dot dot-yellow"></span>
+            <span class="t-dot dot-green"></span>
+            <span class="t-title">student&#64;rosettacloud:~</span>
+          </div>
+          <div class="terminal-body">
+            <div class="t-line"><span class="t-dim">$</span> <span class="t-cmd">kubectl get nodes</span></div>
+            <div class="t-line t-dim">NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STATUS&nbsp;&nbsp;&nbsp;ROLES</div>
+            <div class="t-line t-success">kind-control-plane&nbsp;&nbsp;Ready&nbsp;&nbsp;&nbsp;&nbsp;control-plane</div>
+            <div class="t-line mt-2"><span class="t-dim">$</span> <span class="t-cmd">docker run hello-world</span></div>
+            <div class="t-line t-success">Hello from Docker! ✓</div>
+            <div class="t-line mt-2"><span class="t-dim">$</span> <span class="t-cmd">helm install nginx bitnami/nginx</span></div>
+            <div class="t-line t-success">Release "nginx" has been deployed ✓</div>
+            <div class="t-line mt-2 t-dim"># Your cluster. Your lab. Ready in <span class="t-highlight">8s</span>.</div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Key Differentiators -->
+  <!-- What makes it different -->
   <section class="key-features py-5 my-5 rounded">
     <div class="text-center mb-5">
-      <h2>What Makes Us Different</h2>
-      <p class="lead text-muted">
-        What makes RosettaCloud categorically different from every other platform
-      </p>
+      <h2 class="fw-bold mb-2">Why This Works Better</h2>
+      <p class="text-muted">Most platforms tell you about cloud engineering. We put you inside it.</p>
     </div>
 
     <div class="row justify-content-center g-4">
@@ -217,37 +107,16 @@
     </div>
   </section>
 
-  <!-- Testimonials — real pilot data added after April 12 -->
-  <section class="testimonials py-5 my-5" *ngIf="testimonials.length > 0">
-    <div class="text-center mb-5">
-      <h2>What Students Say</h2>
-    </div>
-    <div class="row g-4">
-      <div *ngFor="let testimonial of testimonials" class="col-md-4">
-        <div class="testimonial-card h-100">
-          <p class="testimonial-quote">{{ testimonial.quote }}</p>
-          <div class="testimonial-author">
-            <h5 class="author-name">{{ testimonial.author }}</h5>
-            <p class="author-role">{{ testimonial.role }}, {{ testimonial.company }}</p>
-          </div>
-        </div>
-      </div>
+  <!-- CTA -->
+  <section class="cta text-center py-5 my-5 rounded">
+    <h2 class="mb-3">Start with 2 free hours every week</h2>
+    <p class="lead mb-4">
+      No credit card. No setup. Open your browser and start your first lab in under a minute.
+    </p>
+    <div class="cta-buttons">
+      <a routerLink="/register" class="btn btn-light btn-lg me-3">Sign Up Free</a>
+      <a routerLink="/pricing" class="btn btn-outline-light btn-lg">View Plans</a>
     </div>
   </section>
 
-  <!-- Call to Action -->
-  <section class="cta text-center py-5 my-5 rounded">
-    <h2 class="mb-3">Ready to Start Your Learning Journey?</h2>
-    <p class="lead mb-4">
-      Join engineers already mastering cloud skills on RosettaCloud
-    </p>
-    <div class="cta-buttons">
-      <a routerLink="/register" class="btn btn-light btn-lg me-md-3"
-        >Sign Up Free</a
-      >
-      <a routerLink="/pricing" class="btn btn-outline-light btn-lg"
-        >View Plans</a
-      >
-    </div>
-  </section>
 </div>
