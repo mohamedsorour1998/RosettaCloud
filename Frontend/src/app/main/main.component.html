@@ -1,4 +1,4 @@
-<!-- ═══ 1. HERO — bg-depth-1 (#212529) ═══ -->
+<!-- ═══ 1. HERO ═══ -->
 <section class="hero-section">
   <div class="hero-bg-glow"></div>
   <div class="container position-relative">
@@ -7,30 +7,27 @@
       <!-- Left: headline + CTAs -->
       <div class="col-lg-7">
         <div class="mb-4">
-          <span class="badge bg-warning text-dark px-3 py-2 fs-6 fw-semibold">
+          <span class="badge bg-warning text-dark px-3 py-2 fw-semibold">
             <i class="bi bi-trophy-fill me-1"></i>
-            AIdeas 2025 — Top 50 Finalist · $250K Competition
+            AIdeas 2025 — Top 50 Finalist
           </span>
         </div>
-        <h1 class="display-3 fw-bold mb-3 hero-title">
-          {{ i18n.lang() === 'ar' ? i18n.t('hero.title') : 'Real Kubernetes Clusters. VS Code in Browser. 3 AI Agents.' }}
+        <h1 class="display-4 fw-bold mb-3 hero-title">
+          {{ i18n.lang() === 'ar' ? i18n.t('hero.title') : 'Your Own Kubernetes Cluster. VS Code in Your Browser. An AI Tutor That Thinks With You.' }}
         </h1>
-        <p class="lead fw-normal mb-2 hero-subtitle">
-          {{ i18n.lang() === 'ar' ? i18n.t('hero.subtitle') : 'Dedicated K8s cluster + Docker daemon + VS Code provisioned per student in 10 seconds. A hint-first AI tutor that teaches thinking — not answers.' }}
-        </p>
-        <p class="mb-4 hero-mission">
-          {{ i18n.lang() === 'ar' ? i18n.t('hero.mission') : 'Democratizing software engineering, DevOps, and cloud education through real infrastructure and AI tutoring.' }}
+        <p class="lead fw-normal mb-4 hero-subtitle">
+          {{ i18n.lang() === 'ar' ? i18n.t('hero.subtitle') : 'Get a real cloud lab ready in 10 seconds — Kubernetes, Docker, and VS Code, all in your browser. Practice with the tools cloud engineers actually use, guided by an AI that teaches you to think, not just to copy.' }}
         </p>
         <div class="hero-buttons">
-          <a routerLink="/register" class="btn btn-primary btn-lg px-5 py-3">
+          <a routerLink="/register" class="btn btn-primary px-4 py-2">
             <i class="bi bi-rocket me-2"></i>{{ i18n.lang() === 'ar' ? i18n.t('hero.cta.free') : 'Start Free — No Credit Card' }}
           </a>
-          <a routerLink="/pricing" class="btn btn-outline-light btn-lg px-5 py-3">
+          <a routerLink="/pricing" class="btn btn-outline-light px-4 py-2">
             <i class="bi bi-card-list me-2"></i>{{ i18n.lang() === 'ar' ? i18n.t('hero.cta.pricing') : 'See Pricing' }}
           </a>
         </div>
         <p class="mt-3 hero-fine-print">
-          {{ i18n.lang() === 'ar' ? i18n.t('hero.free_note') : 'Free tier includes 2h/week of real lab time · No setup · Cancel anytime' }}
+          {{ i18n.lang() === 'ar' ? i18n.t('hero.free_note') : 'Free tier includes 2h/week · No setup required · Cancel anytime' }}
         </p>
       </div>
 
@@ -51,7 +48,7 @@
             <span class="t-line t-success">Hello from Docker! ✓</span>
             <span class="t-line mt-2"><span class="t-dim">$</span> <span class="t-cmd">helm install nginx bitnami/nginx</span></span>
             <span class="t-line t-success">Release "nginx" has been installed ✓</span>
-            <span class="t-line mt-2 t-dim"># Lab provisioned in <span class="t-highlight">8.4s</span> · Kind cluster ready</span>
+            <span class="t-line mt-2 t-dim"># Lab ready in <span class="t-highlight">8.4s</span> · Full cluster, just for you</span>
           </div>
         </div>
       </div>
@@ -60,7 +57,7 @@
   </div>
 </section>
 
-<!-- ═══ 2. STATS STRIP — bg-depth-2 (#2a2d31) ═══ -->
+<!-- ═══ 2. STATS STRIP ═══ -->
 <section class="stats-strip">
   <div class="stats-strip-inner">
     <div class="stat-cell" *ngFor="let stat of statistics">
@@ -68,10 +65,10 @@
       <span class="stat-label">{{ stat.label }}</span>
     </div>
   </div>
-  <div class="stats-footnote">Live data from production · Fetched on page load</div>
+  <div class="stats-footnote">Live stats from the platform</div>
 </section>
 
-<!-- ═══ 3. FEATURES — bg-depth-1 (#212529) ═══ -->
+<!-- ═══ 3. FEATURES ═══ -->
 <section class="features-section py-5">
   <div class="container">
     <p class="section-eyebrow text-center mb-4">Why RosettaCloud</p>
@@ -80,10 +77,10 @@
         <div class="feature-card h-100 text-center">
           <div class="card-body">
             <div class="icon-wrapper mb-4"><i class="bi bi-diagram-3-fill"></i></div>
-            <h3 class="card-title h4 mb-3">Dedicated K8s Per Student</h3>
+            <h3 class="card-title h4 mb-3">Your Own Cloud Lab</h3>
             <p class="card-text">
-              Every session provisions a fresh Kind cluster with a full Docker daemon.
-              Not a shared sandbox — your own cluster. <code>kubectl apply</code>, <code>docker build</code>, <code>helm install</code>.
+              Every session gives you a fully isolated cloud environment — Kubernetes, Docker, and VS Code — all in your browser.
+              Not a shared sandbox. Your own lab, nobody else's.
             </p>
           </div>
         </div>
@@ -92,10 +89,10 @@
         <div class="feature-card h-100 text-center featured">
           <div class="card-body">
             <div class="icon-wrapper mb-4"><i class="bi bi-robot"></i></div>
-            <h3 class="card-title h4 mb-3">Hint-First AI Tutor</h3>
+            <h3 class="card-title h4 mb-3">AI Tutor That Guides, Not Tells</h3>
             <p class="card-text">
-              3 specialized agents — Tutor, Grader, Planner — powered by Amazon Nova 2 Lite via AgentCore.
-              The AI guides your thinking through hints, never gives you the answer.
+              Three specialized AI agents — Tutor, Grader, and Planner — work together to guide your thinking.
+              The AI asks the right questions so you arrive at the answer yourself.
             </p>
           </div>
         </div>
@@ -104,10 +101,10 @@
         <div class="feature-card h-100 text-center">
           <div class="card-body">
             <div class="icon-wrapper mb-4"><i class="bi bi-check2-circle"></i></div>
-            <h3 class="card-title h4 mb-3">Exit-Code Grading</h3>
+            <h3 class="card-title h4 mb-3">Instant Feedback on Real Tasks</h3>
             <p class="card-text">
-              Practical exercises are validated by running scripts inside your live pod.
-              Exit code 0 = correct. Real verification, not multiple choice.
+              Complete a hands-on exercise and get graded automatically — no multiple choice, no guessing.
+              Type the right commands and the platform confirms it instantly.
             </p>
           </div>
         </div>
@@ -116,15 +113,15 @@
   </div>
 </section>
 
-<!-- ═══ 4. COMPARE TABLE — bg-depth-2 (#2a2d31) ═══ -->
+<!-- ═══ 4. COMPARE TABLE ═══ -->
 <section class="compare-section py-5">
   <div class="container">
     <div class="row justify-content-center mb-5">
       <div class="col-lg-9 text-center">
         <h2 class="section-title">How It Compares</h2>
         <p class="section-subtitle">
-          Every competitor gives students shared sandboxes, videos, or chatbot responses.
-          RosettaCloud is the only platform that provisions real cloud infrastructure per student.
+          Every competitor gives you videos, shared sandboxes, or chatbot responses.
+          RosettaCloud gives you a real cloud environment and an AI that makes you think.
         </p>
       </div>
     </div>
@@ -137,9 +134,9 @@
         <thead>
           <tr>
             <th class="text-start">Platform</th>
-            <th>Real K8s / Docker</th>
-            <th>Hint-First AI</th>
-            <th>Exit-Code Grading</th>
+            <th>Dedicated Cloud Lab</th>
+            <th>Hint-First AI Tutor</th>
+            <th>Automated Grading</th>
             <th>Price/mo</th>
           </tr>
         </thead>
@@ -147,20 +144,20 @@
           <tr>
             <td class="text-start fw-semibold">AWS Skill Builder</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i> Console sandbox</td>
-            <td><i class="bi bi-x-circle-fill text-danger"></i> Answers Q&amp;A</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Q&amp;A assistant</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i></td>
             <td>$29</td>
           </tr>
           <tr>
             <td class="text-start fw-semibold">Coursera</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i> Videos only</td>
-            <td><i class="bi bi-x-circle-fill text-danger"></i> QA chatbot</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Q&amp;A chatbot</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i> Multiple choice</td>
             <td>$8–24</td>
           </tr>
           <tr>
             <td class="text-start fw-semibold">GitHub Codespaces</td>
-            <td><i class="bi bi-dash-circle-fill text-warning"></i> No Docker daemon</td>
+            <td><i class="bi bi-dash-circle-fill text-warning"></i> No isolated K8s cluster</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i> Copilot gives answers</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i></td>
             <td>~$0.18/hr</td>
@@ -176,7 +173,7 @@
             <td class="text-start fw-bold">🏆 RosettaCloud</td>
             <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Dedicated per student</strong></td>
             <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Hint-first, 3 agents</strong></td>
-            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Live exit-code</strong></td>
+            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Instant, automatic</strong></td>
             <td><strong>$0 free / $19 pro</strong></td>
           </tr>
         </tbody>
@@ -185,15 +182,15 @@
   </div>
 </section>
 
-<!-- ═══ 5. ROADMAP — bg-depth-1 (#212529) ═══ -->
+<!-- ═══ 5. ROADMAP ═══ -->
 <section class="roadmap-section py-5">
   <div class="container">
     <div class="row justify-content-center mb-5">
       <div class="col-lg-8 text-center">
         <h2 class="section-title">Your Learning Path</h2>
         <p class="section-subtitle">
-          From Linux basics to production cloud engineering — each lab builds on the last,
-          with a fresh Kubernetes cluster every step.
+          From your first Linux command to deploying on the cloud —
+          every lab builds real skills you can put on your resume.
         </p>
       </div>
     </div>
@@ -203,7 +200,7 @@
         <div class="roadmap-card p-3 rounded-3">
           <i class="bi bi-terminal-fill fs-3 text-primary mb-2 d-block"></i>
           <h5 class="fw-bold">Linux + Docker + Kubernetes 101</h5>
-          <p class="text-muted small mb-1">6 practical labs · MCQ + exit-code grading</p>
+          <p class="text-muted small mb-1">6 hands-on labs · Instant graded feedback</p>
           <span class="badge bg-success">Live</span>
         </div>
       </div>
@@ -221,7 +218,7 @@
         <div class="roadmap-card p-3 rounded-3">
           <i class="bi bi-gear-wide-connected fs-3 text-secondary mb-2 d-block"></i>
           <h5 class="fw-bold">Terraform + CI/CD</h5>
-          <p class="text-muted small mb-0">IaC · GitHub Actions · AWS deployment</p>
+          <p class="text-muted small mb-0">Infrastructure as Code · Automated deployments</p>
         </div>
       </div>
       <div class="roadmap-connector"></div>
@@ -229,46 +226,44 @@
         <div class="roadmap-card p-3 rounded-3">
           <i class="bi bi-cloud-arrow-up-fill fs-3 text-secondary mb-2 d-block"></i>
           <h5 class="fw-bold">Cloud Engineering</h5>
-          <p class="text-muted small mb-0">EKS · IAM · S3 · Lambda · Production patterns</p>
+          <p class="text-muted small mb-0">Deploy real applications · Production patterns</p>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═══ 6. TECH DEPTH — bg-depth-2 (#2a2d31) ═══ -->
+<!-- ═══ 6. TECH DEPTH ═══ -->
 <section class="tech-depth-section py-5">
   <div class="container">
     <div class="row align-items-center g-5">
       <div class="col-lg-6">
-        <span class="badge bg-warning text-dark mb-3">100% AWS-Native AI Stack</span>
-        <h2 class="section-title text-start">Built on AWS. Only AWS.</h2>
+        <span class="badge bg-warning text-dark mb-3">Powered by AWS</span>
+        <h2 class="section-title text-start">Enterprise Infrastructure. Student Pricing.</h2>
         <p class="tech-depth-body mb-4">
-          Unlike competitors using Gemini, Claude Sonnet, or DeepSeek R1,
-          RosettaCloud runs exclusively on Amazon Nova 2 Lite, Titan Embeddings v2,
-          and AgentCore — the services AWS judges know best.
+          RosettaCloud runs on the same cloud infrastructure used at top companies —
+          not emulators, not simulations. You practice on real tools so your skills transfer directly to the job.
         </p>
         <div class="tech-depth-bar d-flex flex-wrap gap-2">
-          <span class="badge rounded-pill bg-primary px-3 py-2">17 AWS Services</span>
-          <span class="badge rounded-pill bg-primary px-3 py-2">3 AI Agents</span>
-          <span class="badge rounded-pill bg-primary px-3 py-2">6 MCP Tools</span>
-          <span class="badge rounded-pill bg-primary px-3 py-2">6 CI/CD Pipelines</span>
-          <span class="badge rounded-pill bg-primary px-3 py-2">EKS Auto Mode</span>
-          <span class="badge rounded-pill bg-primary px-3 py-2">Istio Service Mesh</span>
-          <span class="badge rounded-pill bg-primary px-3 py-2">Karpenter Spot</span>
-          <span class="badge rounded-pill bg-primary px-3 py-2">AgentCore + MCP</span>
-          <span class="badge rounded-pill bg-success px-3 py-2">Production Deployed</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">Always Available</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">Ready in 10 Seconds</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">3 Specialized AI Agents</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">Fully Isolated Labs</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">Real Kubernetes</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">Real Docker</span>
+          <span class="badge rounded-pill bg-primary px-3 py-2">VS Code in Browser</span>
+          <span class="badge rounded-pill bg-success px-3 py-2">Production-Grade</span>
         </div>
       </div>
       <div class="col-lg-6">
         <div class="scale-card p-4 rounded-3">
-          <h5 class="fw-bold mb-3"><i class="bi bi-graph-up-arrow text-success me-2"></i>Scales to Zero. Scales to Many.</h5>
+          <h5 class="fw-bold mb-3"><i class="bi bi-shield-check text-success me-2"></i>What You Can Count On</h5>
           <ul class="list-unstyled mb-0">
-            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>EKS Auto Mode</strong> — zero manual node management</li>
-            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Karpenter</strong> — spot instances, scales to zero overnight</li>
-            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Per-lab isolation</strong> — no noisy-neighbor problem</li>
-            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Multi-region</strong> — one Terraform variable to expand globally</li>
-            <li class="mb-0"><i class="bi bi-check-circle text-success me-2"></i><strong>98% gross margin</strong> — $0.04/hr compute at $19/mo paid tier</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Zero setup</strong> — sign up and start your first lab in under a minute</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Your own environment</strong> — fully isolated, never shared with other students</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Available worldwide</strong> — low-latency access from anywhere</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i><strong>Always on</strong> — no downtime, no maintenance windows during your study session</li>
+            <li class="mb-0"><i class="bi bi-check-circle text-success me-2"></i><strong>Free tier available</strong> — 2 hours/week at no cost, no credit card needed</li>
           </ul>
         </div>
       </div>
@@ -276,21 +271,21 @@
   </div>
 </section>
 
-<!-- ═══ 7. CTA — bg-depth-1 (#212529) ═══ -->
+<!-- ═══ 7. CTA ═══ -->
 <section class="cta-section py-5 text-center">
   <div class="cta-bg-glow"></div>
   <div class="container position-relative">
     <div class="row justify-content-center">
       <div class="col-lg-7">
-        <h2 class="mb-3">Start Learning on Real Infrastructure</h2>
+        <h2 class="mb-3">Ready to Build Real Skills?</h2>
         <p class="lead mb-4">
-          Free tier includes 2 hours/week of real lab time. No credit card. No setup.
+          Start with 2 free hours of lab time every week. No credit card, no setup — just open your browser and start coding.
         </p>
         <div class="cta-buttons mb-4">
-          <a routerLink="/register" class="btn btn-primary btn-lg px-5">
+          <a routerLink="/register" class="btn btn-primary px-4 py-2">
             <i class="bi bi-lightning-charge me-2"></i>Start Free Now
           </a>
-          <a routerLink="/pricing" class="btn btn-outline-light btn-lg px-5">
+          <a routerLink="/pricing" class="btn btn-outline-light px-4 py-2">
             <i class="bi bi-card-list me-2"></i>View Plans
           </a>
         </div>
