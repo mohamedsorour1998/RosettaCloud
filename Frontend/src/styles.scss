@@ -267,4 +267,19 @@ button,
   .compare-table td:first-child {
     text-align: right;
   }
+
+  .ps-3 {
+    padding-right: 1rem !important;
+    padding-left: unset !important;
+  }
+
+  .pe-3 {
+    padding-left: 1rem !important;
+    padding-right: unset !important;
+  }
+
+  .compare-table th,
+  .compare-table td {
+    text-align: right;
+  }
 }

@@ -18,7 +18,7 @@ const AR: Record<string, string> = {
 @Injectable({ providedIn: 'root' })
 export class I18nService {
   private _lang = signal<Lang>(
-    (localStorage.getItem('rc_lang') as Lang) || 'en'
+    localStorage.getItem('rc_lang') === 'ar' ? 'ar' : 'en'
   );
 
   readonly lang = this._lang.asReadonly();

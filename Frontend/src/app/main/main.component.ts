@@ -47,6 +47,14 @@ export class MainComponent implements OnInit {
     this.initAnimations();
     this.checkPreferredTheme();
     this.loadLiveStats();
+    this.updateStatLabels();
+  }
+
+  private updateStatLabels(): void {
+    this.statistics[0].label = this.i18n.lang() === 'ar' ? this.i18n.t('stats.labs') : 'Labs Launched';
+    this.statistics[1].label = this.i18n.lang() === 'ar' ? this.i18n.t('stats.questions') : 'Questions Answered';
+    this.statistics[2].label = this.i18n.lang() === 'ar' ? this.i18n.t('stats.ai') : 'AI Messages';
+    this.statistics[3].label = this.i18n.lang() === 'ar' ? this.i18n.t('stats.provisioning') : 'Lab Provisioning';
   }
 
   private loadLiveStats(): void {
