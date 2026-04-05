@@ -51,15 +51,13 @@
 
   .btn {
     font-weight: 600;
-    letter-spacing: 0.03rem;
-    text-transform: uppercase;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 
-    i { font-size: 1.1rem; vertical-align: middle; }
+    i { font-size: 1rem; vertical-align: middle; }
 
     &:hover {
-      transform: translateY(-0.2rem);
-      box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.25);
+      transform: translateY(-0.15rem);
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
     }
   }
 
@@ -460,7 +458,6 @@
 
   .btn {
     font-weight: 600;
-    letter-spacing: 0.03rem;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 
     &:hover {

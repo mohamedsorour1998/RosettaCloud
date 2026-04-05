@@ -13,21 +13,23 @@
           </span>
         </div>
         <h1 class="display-4 fw-bold mb-3 hero-title">
-          {{ i18n.lang() === 'ar' ? i18n.t('hero.title') : 'Your Own Kubernetes Cluster. VS Code in Your Browser. An AI Tutor That Thinks With You.' }}
+          Your Own Kubernetes Cluster.<br>
+          VS Code in Your Browser.<br>
+          An AI Tutor That Thinks With You.
         </h1>
         <p class="lead fw-normal mb-4 hero-subtitle">
-          {{ i18n.lang() === 'ar' ? i18n.t('hero.subtitle') : 'Get a real cloud lab ready in 10 seconds — Kubernetes, Docker, and VS Code, all in your browser. Practice with the tools cloud engineers actually use, guided by an AI that teaches you to think, not just to copy.' }}
+          Get a real cloud lab ready in 10 seconds — Kubernetes, Docker, and VS Code, all in your browser. Practice with the tools cloud engineers actually use, guided by an AI that teaches you to think, not just to copy.
         </p>
         <div class="hero-buttons">
           <a routerLink="/register" class="btn btn-primary px-4 py-2">
-            <i class="bi bi-rocket me-2"></i>{{ i18n.lang() === 'ar' ? i18n.t('hero.cta.free') : 'Start Free — No Credit Card' }}
+            <i class="bi bi-rocket me-2"></i>Start Free — No Credit Card
           </a>
           <a routerLink="/pricing" class="btn btn-outline-light px-4 py-2">
-            <i class="bi bi-card-list me-2"></i>{{ i18n.lang() === 'ar' ? i18n.t('hero.cta.pricing') : 'See Pricing' }}
+            <i class="bi bi-card-list me-2"></i>See Pricing
           </a>
         </div>
         <p class="mt-3 hero-fine-print">
-          {{ i18n.lang() === 'ar' ? i18n.t('hero.free_note') : 'Free tier includes 2h/week · No setup required · Cancel anytime' }}
+          Free tier includes 2h/week · No setup required · Cancel anytime
         </p>
       </div>
 
@@ -289,20 +291,6 @@
             <i class="bi bi-card-list me-2"></i>View Plans
           </a>
         </div>
-        <p class="cta-fine-print mb-2">Or get notified when new courses launch:</p>
-        <form class="d-flex gap-2 justify-content-center flex-wrap" (submit)="submitEmail($event)">
-          <input
-            type="email"
-            class="form-control w-auto"
-            placeholder="your@email.com"
-            [(ngModel)]="emailInput"
-            name="email"
-            style="min-width:240px"
-          />
-          <button type="submit" class="btn btn-outline-light" [disabled]="emailSubmitted">
-            {{ emailSubmitted ? '✓ Subscribed' : 'Notify Me' }}
-          </button>
-        </form>
       </div>
     </div>
   </div>
