@@ -1431,11 +1431,47 @@
 
   .onboarding-card {
     background: #fff;
+    color: #212529;
     border-radius: 1rem;
     padding: 2rem;
     max-width: 480px;
     width: 90%;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+}
+
+:host-context([data-bs-theme="dark"]) {
+  .onboarding-overlay .onboarding-card {
+    background: #2a2d31;
+    color: #f8f9fa;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+    .text-muted {
+      color: rgba(248, 249, 250, 0.6) !important;
+    }
+
+    .btn-outline-secondary {
+      color: #adb5bd;
+      border-color: rgba(255, 255, 255, 0.2);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #f8f9fa;
+      }
+    }
+
+    .form-control {
+      background: #343a40;
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #f8f9fa;
+
+      &::placeholder { color: #6c757d; }
+    }
+
+    .progress {
+      background: rgba(255, 255, 255, 0.1);
+    }
   }
 }
 
