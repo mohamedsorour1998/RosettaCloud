@@ -8,7 +8,7 @@ export interface PublicStats {
   labs_launched: number;
   questions_answered: number;
   ai_messages: number;
-  active_users: number;
+  total_users_seen: number;
 }
 
 @Injectable({ providedIn: 'root' })

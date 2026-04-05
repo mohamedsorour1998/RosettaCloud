@@ -156,6 +156,18 @@ module "api_gateway" {
       }
     }
 
+    # Public platform stats — no auth; landing page reads live counters
+    "GET /public/stats" = {
+      integration = {
+        type   = "HTTP_PROXY"
+        uri    = "http://${var.istio_public_dns}:${var.eks_nodeport}/public/stats"
+        method = "GET"
+        request_parameters = {
+          "overwrite:header.Host" = "${var.domain_name}"
+        }
+      }
+    }
+
     # Registration — no auth; user has no JWT yet when creating an account
     "POST /users" = {
       integration = {

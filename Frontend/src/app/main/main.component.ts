@@ -48,15 +48,9 @@ export class MainComponent implements OnInit {
   private loadLiveStats(): void {
     this.metricsService.getStats().subscribe((data: PublicStats | null) => {
       if (!data) return;
-      this.statistics[0].value = data.labs_launched > 0
-        ? data.labs_launched.toLocaleString()
-        : 'Live';
-      this.statistics[1].value = data.questions_answered > 0
-        ? data.questions_answered.toLocaleString()
-        : 'Live';
-      this.statistics[2].value = data.ai_messages > 0
-        ? data.ai_messages.toLocaleString()
-        : 'Live';
+      this.statistics[0].value = data.labs_launched.toLocaleString();
+      this.statistics[1].value = data.questions_answered.toLocaleString();
+      this.statistics[2].value = data.ai_messages.toLocaleString();
     });
   }
 

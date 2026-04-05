@@ -594,5 +594,5 @@ async def public_stats():
         "labs_launched": _metrics_global.get("lab_started", 0),
         "questions_answered": _metrics_global.get("question_attempted", 0),
         "ai_messages": _metrics_global.get("chat_message", 0),
-        "active_users": len(_metrics),
+        "total_users_seen": len(_metrics),
     }
