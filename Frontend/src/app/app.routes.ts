@@ -32,6 +32,7 @@ import { ChatbotFlowDiagramComponent } from './chatbot-flow-diagram/chatbot-flow
 import { UniversityComponent } from './university/university.component';
 import { StatsComponent } from './stats/stats.component';
 import { QuizComponent } from './quiz/quiz.component';
+import { CompareComponent } from './compare/compare.component';
 
 export const routes: Routes = [
   // Public routes
@@ -41,6 +42,7 @@ export const routes: Routes = [
   { path: 'university', component: UniversityComponent },
   { path: 'stats', component: StatsComponent },
   { path: 'quiz', component: QuizComponent },
+  { path: 'compare/:slug', component: CompareComponent },
   { path: 'instructors', component: InstructorsComponent },
   { path: 'courses', component: CoursesComponent },
   { path: 'login', component: LoginComponent },
