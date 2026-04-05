@@ -1,3 +1,35 @@
+<!-- Onboarding Overlay -->
+<div class="onboarding-overlay" *ngIf="showOnboarding">
+  <div class="onboarding-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="progress flex-grow-1 me-3" style="height:4px">
+        <div class="progress-bar bg-primary"
+             [style.width.%]="((onboardingStep + 1) / onboardingSteps.length) * 100">
+        </div>
+      </div>
+      <small class="text-muted">{{ onboardingStep + 1 }} / {{ onboardingSteps.length }}</small>
+    </div>
+    <div class="text-center mb-3">
+      <i class="bi {{ onboardingSteps[onboardingStep].icon }} fs-1 text-primary"></i>
+    </div>
+    <h4 class="fw-bold text-center mb-2">{{ onboardingSteps[onboardingStep].title }}</h4>
+    <p class="text-muted text-center mb-4">{{ onboardingSteps[onboardingStep].body }}</p>
+    <div class="d-flex justify-content-between">
+      <button class="btn btn-link text-muted" (click)="dismissOnboarding()">Skip</button>
+      <button class="btn btn-primary px-4" (click)="nextOnboardingStep()">
+        {{ onboardingStep < onboardingSteps.length - 1 ? 'Next' : 'Start Learning' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Lab Hours Meter -->
+<div class="lab-meter" *ngIf="labMinutesUsed > 0">
+  <i class="bi bi-clock me-1"></i>
+  Lab time: <strong>{{ labHoursDisplay }}</strong>
+  <span class="text-muted ms-2" style="font-size:0.75rem">Free tier: 2h/week</span>
+</div>
+
 <div class="lab-container">
   <!-- Header -->
   <header class="lab-header">

@@ -1418,3 +1418,36 @@
     transform: translate(-50%, -50%) rotate(360deg);
   }
 }
+
+// ── Onboarding Overlay ──
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .onboarding-card {
+    background: #fff;
+    border-radius: 1rem;
+    padding: 2rem;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+}
+
+// ── Lab Hours Meter ──
+.lab-meter {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  z-index: 1000;
+}

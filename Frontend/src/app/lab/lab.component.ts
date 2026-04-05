@@ -111,6 +111,37 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   showSidebar = false;
   showChatbot = false;
 
+  // Onboarding
+  showOnboarding = false;
+  onboardingStep = 0;
+  readonly onboardingSteps = [
+    {
+      title: 'Your dedicated K8s cluster is starting',
+      body: 'RosettaCloud is provisioning a fresh Kubernetes cluster just for you. This takes about 10 seconds. You\'ll have full kubectl, docker, and helm access.',
+      icon: 'bi-diagram-3-fill',
+    },
+    {
+      title: 'VS Code is your workspace',
+      body: 'The panel on the right is a full VS Code IDE. Open a terminal with Ctrl+` and start running real commands.',
+      icon: 'bi-code-square',
+    },
+    {
+      title: 'Ask the AI tutor anytime',
+      body: 'The chatbot guides you through hints — it won\'t give you the answer, but it will help you think. Try: "I\'m stuck on question 1, give me a hint."',
+      icon: 'bi-robot',
+    },
+    {
+      title: 'Snap & Ask — screenshot your terminal',
+      body: 'Use the camera icon in the chatbot to screenshot your terminal. The AI will analyse exactly what you see and explain what went wrong.',
+      icon: 'bi-camera-fill',
+    },
+  ];
+
+  // Lab hours metering
+  labStartTime: number | null = null;
+  labMinutesUsed = 0;
+  private labTimerInterval: ReturnType<typeof setInterval> | null = null;
+
   // User data properties
   userProgressData: any = {};
   moduleUuid: string | null = null;
@@ -203,6 +234,49 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     setTimeout(() => this.adjustIframe(), 1000);
   }
 
+  initOnboarding(): void {
+    const seen = localStorage.getItem('rc_onboarding_seen');
+    if (!seen) {
+      this.showOnboarding = true;
+      this.onboardingStep = 0;
+    }
+  }
+
+  nextOnboardingStep(): void {
+    if (this.onboardingStep < this.onboardingSteps.length - 1) {
+      this.onboardingStep++;
+    } else {
+      this.dismissOnboarding();
+    }
+  }
+
+  dismissOnboarding(): void {
+    this.showOnboarding = false;
+    localStorage.setItem('rc_onboarding_seen', '1');
+  }
+
+  startLabTimer(): void {
+    this.labStartTime = Date.now();
+    this.labTimerInterval = setInterval(() => {
+      if (this.labStartTime) {
+        this.labMinutesUsed = Math.floor((Date.now() - this.labStartTime) / 60000);
+      }
+    }, 30000);
+  }
+
+  stopLabTimer(): void {
+    if (this.labTimerInterval) {
+      clearInterval(this.labTimerInterval);
+      this.labTimerInterval = null;
+    }
+  }
+
+  get labHoursDisplay(): string {
+    const h = Math.floor(this.labMinutesUsed / 60);
+    const m = this.labMinutesUsed % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  }
+
   ngOnDestroy(): void {
     // Reset lab context on the chatbot service when navigating away
     this.chatbotSv.setLabContext('', '');
@@ -214,6 +288,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.progressSub?.unsubscribe();
     this.iframeSub?.unsubscribe();
     this.themeSub?.unsubscribe();
+
+    // Stop lab hours timer
+    this.stopLabTimer();
 
     // Signal completion to all observables using takeUntil
     this.destroy$.next();
@@ -361,6 +438,11 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Handle running state
     if (info.status === 'running') {
+      if (!this.labStartTime) {
+        this.initOnboarding();
+        this.startLabTimer();
+      }
+
       // Use url first if available, then pod_ip, then hostname
       let labUrl = info.url;
       if (!labUrl && info.pod_ip) {
