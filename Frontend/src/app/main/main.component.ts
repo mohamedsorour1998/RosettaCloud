@@ -5,13 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { PublicMetricsService, PublicStats } from '../services/public-metrics.service';
 import { I18nService } from '../services/i18n.service';
 
-interface Testimonial {
-  quote: string;
-  name: string;
-  title: string;
-  company: string;
-}
-
 interface Statistic {
   value: string;
   label: string;
@@ -26,8 +19,6 @@ interface Statistic {
   styleUrls: ['./main.component.scss'],
 })
 export class MainComponent implements OnInit {
-  testimonials: Testimonial[] = [];
-
   emailInput = '';
   emailSubmitted = false;
 
