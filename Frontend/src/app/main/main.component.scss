@@ -393,12 +393,16 @@
     }
   }
 
+  .roadmap-badge {
+    min-height: 1.4rem; // reserve space even when empty (&nbsp;)
+  }
+
   .roadmap-connector {
     width: 40px;
     height: 2px;
     background: var(--primary-gradient);
     opacity: 0.4;
-    margin-top: 3.5rem;
+    margin-top: 4rem; // badge height + half card top padding
     flex-shrink: 0;
 
     @media (max-width: 768px) {
