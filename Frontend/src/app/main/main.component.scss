@@ -176,6 +176,59 @@
   padding: 0.5rem 0 0.75rem;
 }
 
+// ── How It Works ──────────────────────────
+.how-it-works-section {
+  background: #212529;
+
+  .hiw-step {
+    border: 1px solid rgba(var(--bs-secondary-rgb), 0.15);
+    transition: box-shadow 0.2s;
+    &:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
+  }
+
+  .hiw-step-featured {
+    border-color: rgba(var(--bs-primary-rgb), 0.3);
+    background: rgba(var(--bs-primary-rgb), 0.04);
+  }
+
+  .hiw-number {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: rgba(var(--bs-secondary-rgb), 0.12);
+    color: var(--bs-secondary);
+    font-weight: 700;
+    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hiw-number-featured {
+    background: var(--primary-gradient);
+    color: white;
+  }
+
+  h5 { color: #f8f9fa; }
+  .text-muted { color: rgba(255, 255, 255, 0.5) !important; }
+}
+
+:host-context([data-bs-theme="dark"]) {
+  .how-it-works-section {
+    .hiw-step {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+    .hiw-step-featured {
+      background: rgba(var(--bs-primary-rgb), 0.1);
+      border-color: rgba(var(--bs-primary-rgb), 0.35);
+    }
+    .hiw-number {
+      background: rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+    }
+  }
+}
+
 // ── Section Typography ────────────────────
 .section-title {
   font-size: 2rem;
