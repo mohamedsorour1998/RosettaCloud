@@ -28,7 +28,11 @@ questions_service = QuestionService(question_backend)
 async def lifespan(app: FastAPI):
     await lab.init()
     await users.init()
+    await _load_stats_from_dynamodb()
+    flush_task = asyncio.create_task(_stats_flush_loop())
     yield
+    flush_task.cancel()
+    await _flush_stats_to_dynamodb()
     await users.close()
     await lab.close()
 
@@ -110,9 +114,63 @@ _RATE_LIMIT_CONFIG = {
 _metrics: dict[str, dict[str, Any]] = {}
 _metrics_global: dict[str, int] = defaultdict(int)  # aggregate counters
 
+# DynamoDB config for persisting global counters across pod restarts
+_STATS_TABLE = os.getenv("USERS_TABLE_NAME", "rosettacloud-users")
+_STATS_PK = "STATS#global"
+_stats_dirty = False  # tracks whether we need to flush to DynamoDB
+
+
+async def _load_stats_from_dynamodb() -> None:
+    """Seed in-memory global counters from DynamoDB on startup."""
+    try:
+        ddb = boto3.client("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
+        resp = await asyncio.to_thread(
+            ddb.get_item,
+            TableName=_STATS_TABLE,
+            Key={"user_id": {"S": _STATS_PK}},
+        )
+        item = resp.get("Item", {})
+        for key in ("lab_started", "question_attempted", "chat_message"):
+            if key in item:
+                _metrics_global[key] = int(item[key].get("N", 0))
+        logger.info("Loaded global stats from DynamoDB: %s", dict(_metrics_global))
+    except Exception as exc:
+        logger.warning("Could not load stats from DynamoDB (will start from 0): %s", exc)
+
+
+async def _flush_stats_to_dynamodb() -> None:
+    """Write current global counters to DynamoDB."""
+    global _stats_dirty
+    if not _stats_dirty:
+        return
+    try:
+        ddb = boto3.client("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
+        await asyncio.to_thread(
+            ddb.put_item,
+            TableName=_STATS_TABLE,
+            Item={
+                "user_id": {"S": _STATS_PK},
+                "lab_started": {"N": str(_metrics_global.get("lab_started", 0))},
+                "question_attempted": {"N": str(_metrics_global.get("question_attempted", 0))},
+                "chat_message": {"N": str(_metrics_global.get("chat_message", 0))},
+                "updated_at": {"N": str(int(time.time()))},
+            },
+        )
+        _stats_dirty = False
+    except Exception as exc:
+        logger.warning("Could not flush stats to DynamoDB: %s", exc)
+
+
+async def _stats_flush_loop() -> None:
+    """Background task: flush stats to DynamoDB every 2 minutes."""
+    while True:
+        await asyncio.sleep(120)
+        await _flush_stats_to_dynamodb()
+
 
 def _track_event(user_id: str, event: str) -> None:
     """Record a user event for analytics."""
+    global _stats_dirty
     now = time.time()
     if user_id not in _metrics:
         _metrics[user_id] = {
@@ -124,6 +182,7 @@ def _track_event(user_id: str, event: str) -> None:
     _metrics[user_id][event] = _metrics[user_id].get(event, 0) + 1
     _metrics[user_id]["last_seen"] = now
     _metrics_global[event] += 1
+    _stats_dirty = True
 
 
 def _check_rate_limit(user_id: str, action: str) -> None:

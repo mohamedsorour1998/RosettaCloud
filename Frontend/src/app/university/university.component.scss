@@ -9,9 +9,44 @@
 }
 
 .pricing-card {
-  background: #f8f9fa;
   transition: box-shadow 0.2s;
   &:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); }
+}
+
+:host-context([data-bs-theme="dark"]) {
+  .pricing-card {
+    background: #1e2a3a;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: #e2e8f0;
+
+    .text-muted {
+      color: #94a3b8 !important;
+    }
+  }
+
+  .benefit-card {
+    background: #1e2a3a;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+
+    .text-muted {
+      color: #94a3b8 !important;
+    }
+  }
+
+  .callout-box {
+    background: linear-gradient(135deg, rgba(13, 110, 253, 0.15), rgba(25, 135, 84, 0.15));
+    border-color: rgba(13, 110, 253, 0.35) !important;
+  }
+}
+
+:host-context([data-bs-theme="light"]) {
+  .pricing-card {
+    background: #f8f9fa;
+  }
+
+  .benefit-card {
+    background: #ffffff;
+  }
 }
 
 .callout-box {

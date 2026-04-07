@@ -7,6 +7,57 @@
   height: 100%;
 }
 
+// ── Onboarding / NPS overlay ────────────────────────────────────────────────
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  backdrop-filter: blur(2px);
+
+  .onboarding-card {
+    background: #ffffff;
+    border-radius: 1rem;
+    padding: 2rem;
+    max-width: 28rem;
+    width: 100%;
+    box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.35);
+    color: #212529;
+
+    .text-muted { color: #6c757d !important; }
+
+    textarea.form-control {
+      background: #f8f9fa;
+      border-color: #dee2e6;
+      color: #212529;
+    }
+  }
+}
+
+:host-context([data-bs-theme="dark"]) {
+  .onboarding-overlay .onboarding-card {
+    background: #1e2a3a;
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    .text-muted { color: #94a3b8 !important; }
+
+    textarea.form-control {
+      background: #16202e;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+
+      &::placeholder { color: #64748b; }
+    }
+
+    .btn-link.text-muted { color: #94a3b8 !important; }
+  }
+}
+
 // Main container
 .lab-container {
   display: flex;

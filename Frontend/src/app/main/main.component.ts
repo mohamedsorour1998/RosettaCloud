@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Subscription, interval } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { PublicMetricsService, PublicStats } from '../services/public-metrics.service';
 
 interface Statistic {
@@ -16,13 +18,15 @@ interface Statistic {
   templateUrl: './main.component.html',
   styleUrls: ['./main.component.scss'],
 })
-export class MainComponent implements OnInit {
+export class MainComponent implements OnInit, OnDestroy {
   statistics: Statistic[] = [
     { value: '—', label: 'Labs Launched', icon: 'bi-diagram-3-fill' },
     { value: '—', label: 'Questions Answered', icon: 'bi-patch-check-fill' },
     { value: '—', label: 'AI Messages', icon: 'bi-robot' },
     { value: '10 sec', label: 'Lab Provisioning', icon: 'bi-lightning-fill' },
   ];
+
+  private statsSub?: Subscription;
 
   constructor(private metricsService: PublicMetricsService) {}
 
@@ -32,13 +36,27 @@ export class MainComponent implements OnInit {
     this.loadLiveStats();
   }
 
+  ngOnDestroy(): void {
+    this.statsSub?.unsubscribe();
+  }
+
   private loadLiveStats(): void {
-    this.metricsService.getStats().subscribe((data: PublicStats | null) => {
-      if (!data) return;
-      this.statistics[0].value = data.labs_launched.toLocaleString();
-      this.statistics[1].value = data.questions_answered.toLocaleString();
-      this.statistics[2].value = data.ai_messages.toLocaleString();
+    // Fetch immediately, then refresh every 30 seconds
+    this.statsSub = interval(30000).pipe(
+      switchMap(() => this.metricsService.getStats())
+    ).subscribe((data: PublicStats | null) => {
+      if (data) this.applyStats(data);
     });
+    // Also fetch right away
+    this.metricsService.getStats().subscribe((data: PublicStats | null) => {
+      if (data) this.applyStats(data);
+    });
+  }
+
+  private applyStats(data: PublicStats): void {
+    this.statistics[0].value = data.labs_launched.toLocaleString();
+    this.statistics[1].value = data.questions_answered.toLocaleString();
+    this.statistics[2].value = data.ai_messages.toLocaleString();
   }
 
   private checkPreferredTheme(): void {
