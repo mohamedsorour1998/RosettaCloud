@@ -22,13 +22,13 @@ The platform provisions a fresh Kubernetes cluster, a Docker daemon, and a full 
 
 Three AI agents guided by Amazon Nova 2 Lite power the tutoring. The Tutor teaches through hints before answers, forcing the student to reason rather than copy. The Grader validates practical exercises by running the student's command inside the live environment and checking the result. The Planner tracks progress across modules and recommends what to study next. Cross-session memory means the tutor remembers what each student struggled with last week.
 
-The curriculum starts with software engineering — Python, scripting, building APIs — and progresses naturally to containerisation with Docker, orchestration with Kubernetes, and cloud infrastructure. DevOps is not the product. Employable engineering skills are the product.
+The curriculum starts with Linux and scripting — the foundation every cloud engineer needs — and builds naturally to containerisation with Docker, orchestration with Kubernetes, and cloud infrastructure as code. DevOps is not the product. Employable cloud engineering skills are the product.
 
 ---
 
 ## Why This Matters
 
-The standard path to a software engineering career in a developing country looks like this: watch tutorials, collect certificates, hope the interviewer doesn't ask you to build something live.
+The standard path to a cloud engineering career in a developing country looks like this: watch tutorials, collect certificates, hope the interviewer doesn't ask you to deploy something live.
 
 That path fails at the practical step. AWS Skill Builder costs $29 per month and teaches AWS console navigation — not portable skills. GitHub Codespaces blocks privileged containers by policy, so you cannot run `docker run` inside one. KodeKloud, the best existing hands-on platform, connects students to shared pre-existing Kubernetes sandboxes — you don't own the daemon, and you certainly don't own the cluster. None of them provision real infrastructure from scratch. None of them include a hint-first AI tutor in the base price.
 
@@ -69,7 +69,7 @@ The judges in the first round were right about everything. They identified five 
 
 **On user validation**: I ran three informal sessions with students after the first round. Each one changed the platform in a specific way.
 
-The first student — a Python developer, not a systems person — opened the lab and went silent. I watched him look at a Kubernetes manifest as his starting point and feel immediately out of his depth. The problem was sequencing, not ability. The curriculum began with orchestration because I built it as a cloud engineer. Someone learning software engineering needs to start with code — scripting, containerising an application they wrote, understanding why Docker exists before they need to understand why Kubernetes exists. I reorganised the curriculum. Software engineering first. Cloud as the natural next layer.
+The first student — a Python developer new to infrastructure — opened the lab and went silent. I watched him look at a Kubernetes manifest as his starting point and feel immediately out of his depth. The problem was sequencing, not ability. The curriculum began with orchestration because I built it as a cloud engineer thinking cloud-first. Someone new to the field needs to start with Linux commands and scripting, then containerise something they wrote, before Kubernetes makes sense. I reorganised the curriculum to build the mental model layer by layer: Linux fundamentals first, Docker next, Kubernetes once containers feel natural.
 
 The second student completed the first practical question without using the AI tutor at all. The chat was visible in the sidebar. She didn't know what it was for. She worked by trial and error, got the correct exit code, moved on. The tutor's first message now arrives before the first question — it introduces itself, explains the hint-first approach, and asks what the student already knows about the topic. If students don't know to use the tutor, it doesn't exist.
 
@@ -77,11 +77,11 @@ The third session was the hardest to watch. A student running the platform on a 
 
 **On the business model**: The math is now explicit. A free user costs approximately $0.35 per month to serve — two hours per week at $0.04 per hour. A Pro subscriber at $19 per month generates roughly $18.63 in gross margin on compute. At steady state, one Pro subscriber subsidises approximately 53 free users. University bulk deals at $7-9 per student per month maintain similar margins at volume. The freemium model is standard for developer tools. The unit economics here are favourable because the variable cost is compute, not people.
 
-**On the competitive landscape**: The competitive analysis forced clarity about what RosettaCloud is not. It is not certification prep — Skill Builder does that better at scale. It is not course breadth — Coursera has 10,000 options. It is not DevOps-only — KodeKloud owns that niche and does it well. The position is narrow and defensible: software engineering education with real, isolated infrastructure per student and a hint-first AI tutor built in at every price point. That combination does not exist anywhere else. The moat is not a feature list — it is a provisioning architecture that no content platform can replicate without becoming an infrastructure company.
+**On the competitive landscape**: The competitive analysis forced clarity about what RosettaCloud is not. It is not certification prep — Skill Builder does that better at scale. It is not course breadth — Coursera has 10,000 options. It is not DevOps-only — KodeKloud owns that niche and does it well. The position is narrow and defensible: cloud engineering education with real, isolated infrastructure per student and a hint-first AI tutor built in at every price point. That combination does not exist anywhere else. The moat is not a feature list — it is a provisioning architecture that no content platform can replicate without becoming an infrastructure company.
 
 **On what I still don't know**: Whether hint-first pedagogy produces measurably better learning outcomes than validate-after approaches. The research on productive failure supports it, and every user session I have observed suggests students retain more when they reason first. I have not run a controlled comparison. That is the work that comes next, and saying otherwise would be dishonest.
 
-The infrastructure gap in software engineering education is real, solvable, and until now unsolved. Every other platform gives students content. RosettaCloud gives students a place to build.
+The infrastructure gap in cloud engineering education is real, solvable, and until now unsolved. Every other platform gives students content. RosettaCloud gives students a place to build.
 
 ---
 
