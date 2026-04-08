@@ -452,6 +452,21 @@
   }
 }
 
+// Trust & Security
+.trust-item {
+  background: rgba(var(--bs-primary-rgb), 0.02);
+  transition: box-shadow 0.2s;
+
+  &:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+}
+
+:host-context([data-bs-theme="dark"]) {
+  .trust-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+}
+
 :host-context([data-bs-theme="dark"]) {
   .economics-card {
     background: rgba(var(--bs-primary-rgb), 0.1);

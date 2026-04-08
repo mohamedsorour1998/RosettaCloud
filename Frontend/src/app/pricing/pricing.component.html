@@ -138,6 +138,61 @@
   <!-- FAQ Section using the reusable FAQ component -->
   <app-faq [faqItems]="faqItems" title="Pricing FAQs"></app-faq>
 
+  <!-- Trust & Security -->
+  <div class="row justify-content-center mb-5 animate-on-scroll">
+    <div class="col-lg-10">
+      <div class="text-center mb-4">
+        <span class="badge bg-success px-3 py-2 mb-2">Abuse Prevention — Already Built</span>
+        <h3 class="fw-bold mb-1">Security Is Not a Roadmap Item</h3>
+        <p class="text-muted">Every one of these controls is live in production right now.</p>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6 col-lg-4">
+          <div class="trust-item p-3 rounded-3 border h-100">
+            <i class="bi bi-envelope-check-fill text-primary fs-4 mb-2 d-block"></i>
+            <h6 class="fw-bold mb-1">Email verification</h6>
+            <p class="text-muted small mb-0">Amazon Cognito requires a confirmed email before any lab can launch. No disposable addresses.</p>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <div class="trust-item p-3 rounded-3 border h-100">
+            <i class="bi bi-person-lock text-primary fs-4 mb-2 d-block"></i>
+            <h6 class="fw-bold mb-1">1 active lab per user</h6>
+            <p class="text-muted small mb-0">Redis enforces a single concurrent lab per account. No cluster farming, no parallel abuse.</p>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <div class="trust-item p-3 rounded-3 border h-100">
+            <i class="bi bi-clock-history text-primary fs-4 mb-2 d-block"></i>
+            <h6 class="fw-bold mb-1">Auto-termination</h6>
+            <p class="text-muted small mb-0">Every lab has a hard TTL. Sessions terminate automatically — no runaway compute costs.</p>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <div class="trust-item p-3 rounded-3 border h-100">
+            <i class="bi bi-hdd-network-fill text-primary fs-4 mb-2 d-block"></i>
+            <h6 class="fw-bold mb-1">Karpenter node cap</h6>
+            <p class="text-muted small mb-0">A cluster-level max-node limit prevents unbounded resource provisioning even under attack.</p>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <div class="trust-item p-3 rounded-3 border h-100">
+            <i class="bi bi-speedometer2 text-primary fs-4 mb-2 d-block"></i>
+            <h6 class="fw-bold mb-1">API rate limiting</h6>
+            <p class="text-muted small mb-0">Per-user rate limits on lab creation, AI chat, and question submission are enforced server-side.</p>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+          <div class="trust-item p-3 rounded-3 border h-100">
+            <i class="bi bi-calendar-week-fill text-primary fs-4 mb-2 d-block"></i>
+            <h6 class="fw-bold mb-1">Weekly quota — server-side</h6>
+            <p class="text-muted small mb-0">Free-tier lab hours are tracked per calendar week in DynamoDB. Quota is enforced in the API, not just the UI.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Unit Economics -->
   <div class="row justify-content-center mb-5 animate-on-scroll">
     <div class="col-lg-10">
