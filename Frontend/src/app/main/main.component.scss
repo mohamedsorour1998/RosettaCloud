@@ -411,6 +411,74 @@
   }
 }
 
+// ── The Secret ────────────────────────────
+.secret-section {
+  background: #212529;
+
+  h2 { color: #f8f9fa; }
+  .lead { color: rgba(255, 255, 255, 0.6) !important; }
+
+  .secret-card {
+    border: 1px solid rgba(var(--bs-secondary-rgb), 0.15);
+    color: #f8f9fa;
+
+    h6 { color: rgba(255, 255, 255, 0.55); }
+
+    li { font-size: 0.9rem; color: rgba(255, 255, 255, 0.8); }
+
+    code {
+      font-size: 0.875em;
+      border-radius: 0.25rem;
+      padding: 0.1rem 0.3rem;
+      background: rgba(255, 255, 255, 0.08);
+      color: #7dd3fc;
+    }
+  }
+
+  .secret-card-bad {
+    background: rgba(220, 53, 69, 0.04);
+    border-color: rgba(220, 53, 69, 0.15);
+  }
+
+  .secret-card-good {
+    background: rgba(25, 135, 84, 0.04);
+    border-color: rgba(25, 135, 84, 0.2);
+  }
+
+  .secret-footer {
+    background: rgba(var(--bs-primary-rgb), 0.06);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+    color: #f8f9fa;
+
+    a {
+      color: var(--primary-color);
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
+  }
+}
+
+:host-context([data-bs-theme="dark"]) {
+  .secret-section {
+    .secret-card-bad {
+      background: rgba(220, 53, 69, 0.08);
+      border-color: rgba(220, 53, 69, 0.2);
+    }
+    .secret-card-good {
+      background: rgba(25, 135, 84, 0.08);
+      border-color: rgba(25, 135, 84, 0.25);
+    }
+    .secret-card code {
+      background: rgba(255, 255, 255, 0.08);
+      color: #7dd3fc;
+    }
+    .secret-footer {
+      background: rgba(var(--bs-primary-rgb), 0.12);
+      color: #e2e8f0;
+    }
+  }
+}
+
 // ── Roadmap ───────────────────────────────
 .roadmap-section {
   background: #212529;
