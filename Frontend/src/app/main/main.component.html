@@ -170,46 +170,46 @@
         <thead>
           <tr>
             <th class="text-start">Platform</th>
-            <th>Dedicated Cloud Lab</th>
-            <th>Hint-First AI Tutor</th>
-            <th>Automated Grading</th>
-            <th>Price/mo</th>
+            <th>Fresh K8s per student</th>
+            <th>Docker daemon</th>
+            <th>Hint-first AI</th>
+            <th>Price / AI included</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td class="text-start fw-semibold">AWS Skill Builder</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i> Console sandbox</td>
-            <td><i class="bi bi-x-circle-fill text-danger"></i> Q&amp;A assistant</td>
-            <td><i class="bi bi-x-circle-fill text-danger"></i></td>
-            <td>$29</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> No</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Q&amp;A only</td>
+            <td>$29 / add-on</td>
           </tr>
           <tr>
             <td class="text-start fw-semibold">Coursera</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i> Videos only</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> No</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i> Q&amp;A chatbot</td>
-            <td><i class="bi bi-x-circle-fill text-danger"></i> Multiple choice</td>
-            <td>$8–24</td>
+            <td>$8–24 / none</td>
           </tr>
           <tr>
             <td class="text-start fw-semibold">GitHub Codespaces</td>
-            <td><i class="bi bi-dash-circle-fill text-warning"></i> No isolated K8s cluster</td>
+            <td><i class="bi bi-dash-circle-fill text-warning"></i> No K8s cluster</td>
+            <td><i class="bi bi-x-circle-fill text-danger"></i> Blocked by policy</td>
             <td><i class="bi bi-x-circle-fill text-danger"></i> Copilot gives answers</td>
-            <td><i class="bi bi-x-circle-fill text-danger"></i></td>
-            <td>~$0.18/hr</td>
+            <td>~$0.18/hr / none</td>
           </tr>
           <tr>
             <td class="text-start fw-semibold">KodeKloud</td>
             <td><i class="bi bi-dash-circle-fill text-warning"></i> Shared pre-built</td>
+            <td><i class="bi bi-dash-circle-fill text-warning"></i> Shared playground</td>
             <td><i class="bi bi-dash-circle-fill text-warning"></i> Validates after</td>
-            <td><i class="bi bi-dash-circle-fill text-warning"></i> Scripted checks</td>
-            <td>$15–46</td>
+            <td>$15–46 / $46 plan</td>
           </tr>
           <tr class="rosettacloud-row">
             <td class="text-start fw-bold">🏆 RosettaCloud</td>
-            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Dedicated per student</strong></td>
-            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Hint-first, 3 agents</strong></td>
-            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Instant, automatic</strong></td>
+            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Dedicated, fresh each session</strong></td>
+            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>Full daemon — docker build/run</strong></td>
+            <td><i class="bi bi-check-circle-fill text-success"></i> <strong>3 agents, always included</strong></td>
             <td><strong>$0 free / $19 pro</strong></td>
           </tr>
         </tbody>
@@ -376,6 +376,62 @@
           <a routerLink="/pricing" class="btn btn-outline-light px-4 py-2">
             <i class="bi bi-card-list me-2"></i>View Plans
           </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 8. SOCIAL IMPACT ═══ -->
+<section class="social-impact-section py-5">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <span class="badge bg-success mb-3 px-3 py-2">Social Impact</span>
+        <h2 class="section-title text-start">The Infrastructure Gap Is Real</h2>
+        <p class="mb-3">
+          Cloud <em>content</em> is everywhere — YouTube, Coursera, Skill Builder.
+          But cloud <em>infrastructure</em> costs money that students in developing countries don't have.
+          RosettaCloud runs production-grade environments on spot instances and subsidises free-tier access for learners worldwide.
+        </p>
+        <ul class="list-unstyled mb-4">
+          <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Free tier:</strong> 2h/week real lab time — no credit card, ever</li>
+          <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>Pro:</strong> $19/mo — less than a programming textbook</li>
+          <li class="mb-0"><i class="bi bi-check-circle-fill text-success me-2"></i><strong>University bulk:</strong> from $7/student/mo — accessible to bootcamps worldwide</li>
+        </ul>
+        <a routerLink="/pricing" class="btn btn-outline-primary px-4">
+          <i class="bi bi-card-list me-2"></i>See Full Pricing
+        </a>
+      </div>
+      <div class="col-lg-6">
+        <div class="impact-card p-4 p-md-5 rounded-3">
+          <h5 class="fw-bold mb-4"><i class="bi bi-briefcase-fill text-primary me-2"></i>The Skills That Get You Hired</h5>
+          <p class="text-muted mb-4">
+            Employers hiring cloud engineers test CLI proficiency —
+            <code>kubectl</code>, <code>docker</code>, <code>helm</code> —
+            not which buttons you clicked in a web console.
+            RosettaCloud closes the gap between watching and doing.
+          </p>
+          <div class="row g-3 text-center">
+            <div class="col-4">
+              <div class="impact-stat">
+                <div class="impact-value text-primary">$130K+</div>
+                <div class="impact-label">Avg DevOps salary (US)</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="impact-stat">
+                <div class="impact-value text-success">30%</div>
+                <div class="impact-label">IT teams hiring DevOps now</div>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="impact-stat">
+                <div class="impact-value text-warning">95%</div>
+                <div class="impact-label">New AI deployments use K8s by 2028</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

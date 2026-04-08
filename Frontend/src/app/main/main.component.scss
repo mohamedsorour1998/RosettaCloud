@@ -619,6 +619,56 @@
   }
 }
 
+// ── Social Impact ─────────────────────────
+.social-impact-section {
+  background: #212529;
+
+  p, li { color: rgba(255, 255, 255, 0.7); }
+
+  .impact-card {
+    background: rgba(var(--bs-primary-rgb), 0.05);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+
+    h5 { color: #f8f9fa; }
+
+    code {
+      background: rgba(var(--bs-primary-rgb), 0.08);
+      border-radius: 0.25rem;
+      padding: 0.1rem 0.3rem;
+      font-size: 0.875em;
+      color: #7dd3fc;
+    }
+  }
+
+  .impact-stat {
+    .impact-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .impact-label {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.45);
+      margin-top: 0.25rem;
+    }
+  }
+}
+
+:host-context([data-bs-theme="dark"]) {
+  .social-impact-section {
+    .impact-card {
+      background: rgba(var(--bs-primary-rgb), 0.1);
+      border-color: rgba(var(--bs-primary-rgb), 0.25);
+
+      code {
+        background: rgba(255, 255, 255, 0.08);
+        color: #7dd3fc;
+      }
+    }
+    .impact-label { color: #94a3b8; }
+  }
+}
+
 // ── Scroll animations ─────────────────────
 .animate-on-scroll {
   opacity: 0;
