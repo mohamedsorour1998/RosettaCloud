@@ -91,9 +91,72 @@ _init_error = None
 # Note: concurrent requests for the same session_id can race on the save step.
 # This is low probability (frontend is sequential) and acceptable — AgentCore Memory
 # is the durable store; in-process dict is a best-effort short-term cache.
-_session_histories: dict = {}  # session_id -> list of Strands message dicts
+#
+# CRITICAL: only text/image blocks are stored here. Tool_use/tool_result blocks are
+# stripped before save (see _sanitize_history). Storing raw Strands messages with tool
+# blocks causes Bedrock ValidationException on the next turn when truncation or
+# interrupted runs leave tool_use/tool_result blocks unbalanced:
+#   "The number of toolResult blocks ... exceeds the number of toolUse blocks
+#    of previous turn."
+# Tools are re-invoked fresh each turn — we only need the text conversation for context.
+_session_histories: dict = {}  # session_id -> list of sanitized Strands message dicts
 MAX_HISTORY_TURNS = 20  # keep last 20 message pairs to avoid unbounded context growth
 MAX_SESSIONS = 500  # evict oldest when dict exceeds this limit
+
+
+def _sanitize_history(messages) -> list:
+    """Strip tool_use/tool_result blocks from message history.
+
+    Bedrock Converse requires every tool_result to match a prior tool_use block in
+    exact order within the immediately preceding assistant turn. Any imbalance
+    (from history truncation, interrupted agent runs, stale cache replay) triggers
+    a ValidationException. The safest approach is to reduce history to text+image
+    content only; tools are re-invoked fresh on the next turn as needed.
+
+    Bedrock Converse also requires strict alternation of user/assistant turns.
+    When a message becomes empty (all its content was tool blocks) and is dropped,
+    we may end up with two consecutive same-role messages — these are merged.
+    """
+    # Phase 1: strip tool blocks, drop fully-empty messages
+    cleaned: list = []
+    for m in messages or []:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role")
+        if role not in ("user", "assistant"):
+            continue
+        content = m.get("content", [])
+        if not isinstance(content, list):
+            continue
+        clean_blocks: list = []
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if "text" in block and block.get("text"):
+                clean_blocks.append({"text": block["text"]})
+            elif "image" in block and role == "user":
+                clean_blocks.append(block)
+            # Explicitly drop: toolUse, toolResult, any other block types
+        if clean_blocks:
+            cleaned.append({"role": role, "content": clean_blocks})
+
+    # Phase 2: merge consecutive same-role messages (Bedrock requires alternation)
+    merged: list = []
+    for m in cleaned:
+        if merged and merged[-1]["role"] == m["role"]:
+            merged[-1]["content"] = merged[-1]["content"] + m["content"]
+        else:
+            merged.append(m)
+
+    # Phase 3: anchor boundaries
+    # History must start with a user message
+    while merged and merged[0]["role"] != "user":
+        merged.pop(0)
+    # History must end with an assistant message (otherwise the next user message
+    # would produce two consecutive user turns after the caller appends it)
+    while merged and merged[-1]["role"] == "user":
+        merged.pop()
+    return merged
 
 
 CLASSIFIER_PROMPT = """\
@@ -291,17 +354,23 @@ def invoke(payload, context=None):
 
     agent_name = _classify(message, msg_type)
 
-    # Build Strands message history from payload (sent by ws_agent_handler, reliable).
-    # Falls back to in-process dict for direct invocations (agentcore invoke CLI, tests).
-    raw_history = payload.get("conversation_history", [])
-    if raw_history:
-        history = [
+    # Build Strands message history from payload (sent by FastAPI, authoritative).
+    # Falls back to in-process dict only for direct invocations (agentcore invoke CLI, tests).
+    # IMPORTANT: when the payload contains the "conversation_history" key at all — even an
+    # empty list (session_start / explain / fresh session) — trust it over the in-process
+    # cache. Otherwise stale tool-block-laden cache entries can leak into the next turn and
+    # trigger Bedrock's toolResult/toolUse imbalance ValidationException.
+    if "conversation_history" in payload:
+        raw_history = payload.get("conversation_history") or []
+        history = _sanitize_history([
             {"role": m["role"], "content": [{"text": m["text"]}]}
             for m in raw_history
-            if m.get("text")
-        ]
+            if isinstance(m, dict) and m.get("text")
+        ])
+    elif session_id:
+        history = _sanitize_history(_session_histories.get(session_id, []))
     else:
-        history = _session_histories.get(session_id, []) if session_id else []
+        history = []
 
     allowed_tools = _AGENT_TOOL_NAMES.get(agent_name, set())
 
@@ -343,17 +412,25 @@ def invoke(payload, context=None):
             logger.error("Agent error: %s\n%s", e, traceback.format_exc())
             text = f"Agent error: {e}"
 
-        # Save in-process history
+        # Save in-process history — sanitize BEFORE truncation so tool_use/tool_result
+        # blocks never enter the cache. Truncating raw Strands messages can slice
+        # between a tool_use and its matching tool_result, leaving the next turn
+        # unable to satisfy Bedrock's alignment rule.
         if session_id:
             try:
                 updated_messages = getattr(agent, 'messages', None)
                 if updated_messages:
-                    if len(updated_messages) > MAX_HISTORY_TURNS * 2:
-                        updated_messages = updated_messages[-(MAX_HISTORY_TURNS * 2):]
-                    if len(_session_histories) >= MAX_SESSIONS:
-                        oldest_key = next(iter(_session_histories))
-                        del _session_histories[oldest_key]
-                    _session_histories[session_id] = updated_messages
+                    sanitized = _sanitize_history(updated_messages)
+                    if len(sanitized) > MAX_HISTORY_TURNS * 2:
+                        sanitized = sanitized[-(MAX_HISTORY_TURNS * 2):]
+                        # Re-anchor after slice: history must start on a user turn
+                        while sanitized and sanitized[0]["role"] != "user":
+                            sanitized.pop(0)
+                    if sanitized:
+                        if len(_session_histories) >= MAX_SESSIONS:
+                            oldest_key = next(iter(_session_histories))
+                            del _session_histories[oldest_key]
+                        _session_histories[session_id] = sanitized
             except Exception:
                 logger.warning("Failed to save session history", exc_info=True)
         return text
