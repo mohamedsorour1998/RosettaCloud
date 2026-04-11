@@ -76,10 +76,13 @@
         <span class="lab-session-chip" *ngIf="labSecondsElapsed > 0">
           <i class="bi bi-clock"></i> {{ sessionTimeDisplay }}
         </span>
-        <!-- Weekly quota -->
+        <!-- Weekly quota — baseline from last server poll, ticks down every
+             second via the labTimerInterval change-detection cycle. The
+             quota-low CSS modifier tracks the effective live value so the
+             colour flip happens in real time, not just at poll boundaries. -->
         <span class="lab-quota-chip"
               *ngIf="weeklyMinutesRemaining !== null"
-              [class.quota-low]="weeklyMinutesRemaining < 30">
+              [class.quota-low]="quotaMinutesEffective < 30">
           <i class="bi bi-battery-half"></i> {{ quotaDisplay }} this week
         </span>
       </div>

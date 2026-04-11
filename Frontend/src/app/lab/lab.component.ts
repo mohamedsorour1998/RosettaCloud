@@ -150,7 +150,20 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   private labTimerInterval: ReturnType<typeof setInterval> | null = null;
 
   // Weekly quota
+  /**
+   * Last server-fetched value of remaining weekly lab minutes. This is the
+   * BASELINE — the effective live value shown in the UI is derived from this
+   * plus the elapsed wall-clock time since the fetch (see quotaDisplay).
+   * Without the elapsed-time decrement the chip would freeze at whatever
+   * the last poll returned and only tick down once per polling interval.
+   */
   weeklyMinutesRemaining: number | null = null;
+  /**
+   * Epoch ms when weeklyMinutesRemaining was last refreshed from the server.
+   * Used by quotaDisplay / quotaMinutesEffective to compute a live countdown
+   * between server polls. Re-set every time fetchLabQuota lands a response.
+   */
+  weeklyMinutesFetchedAt: number = 0;
   weeklyMinutesLimit = 120;
   private quotaInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -315,9 +328,32 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     return h > 0 ? `${h}h ${mm}m ${ss}s` : `${mm}m ${ss}s`;
   }
 
+  /**
+   * Effective live remaining minutes — the baseline from the last server
+   * fetch minus the wall-clock minutes elapsed since that fetch. Clamped
+   * to [0, baseline] so it can never go negative or overflow.
+   *
+   * Read by both the chip text (quotaDisplay) and the "quota-low" CSS
+   * class guard in the template, so a user approaching zero sees the
+   * colour change in real time without waiting for the next poll.
+   *
+   * Angular's default change detection re-evaluates getters on every
+   * tick — labTimerInterval fires once per second and mutates
+   * labSecondsElapsed, which triggers CD and makes this getter recompute.
+   * That is what drives the live countdown in the chip.
+   */
+  get quotaMinutesEffective(): number {
+    if (this.weeklyMinutesRemaining === null) return 0;
+    if (!this.weeklyMinutesFetchedAt) return this.weeklyMinutesRemaining;
+    const elapsedMin = Math.floor(
+      (Date.now() - this.weeklyMinutesFetchedAt) / 60000
+    );
+    return Math.max(0, this.weeklyMinutesRemaining - elapsedMin);
+  }
+
   get quotaDisplay(): string {
     if (this.weeklyMinutesRemaining === null) return '';
-    const r = this.weeklyMinutesRemaining;
+    const r = this.quotaMinutesEffective;
     if (r <= 0) return '0m left';
     const h = Math.floor(r / 60);
     const m = r % 60;
@@ -327,14 +363,26 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   fetchLabQuota(): void {
     const userId = this.labSv.getCurrentUserId();
     this.labSv.getLabQuota(userId).subscribe(q => {
+      // The backend returns a value that already includes in-flight minutes
+      // (close_lab_session path) — we simply record it as the new baseline
+      // and reset the fetch timestamp so the local countdown restarts from
+      // the server's authoritative value. This recalibration catches any
+      // drift between the client clock and server clock as well as any
+      // committed-minutes change from a recently-closed session.
       this.weeklyMinutesRemaining = q.minutes_remaining;
+      this.weeklyMinutesFetchedAt = Date.now();
       this.weeklyMinutesLimit = q.minutes_limit;
     });
   }
 
   startQuotaPolling(): void {
     this.fetchLabQuota();
-    this.quotaInterval = setInterval(() => this.fetchLabQuota(), 5 * 60 * 1000);
+    // Poll every 60 seconds. The UI itself ticks every second from
+    // labTimerInterval — so the value the user sees updates in real time
+    // from the baseline, and the 60s poll only serves to recalibrate
+    // against the authoritative server value (e.g. if another tab closed
+    // a session or the user's clock is skewed).
+    this.quotaInterval = setInterval(() => this.fetchLabQuota(), 60 * 1000);
   }
 
   /** @deprecated use sessionTimeDisplay */
