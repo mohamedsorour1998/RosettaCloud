@@ -28,6 +28,12 @@ questions_service = QuestionService(question_backend)
 async def lifespan(app: FastAPI):
     await lab.init()
     await users.init()
+    # Register the auto-terminate callback AFTER users.init so users_service
+    # is ready when the janitor fires. The callback records the auto-killed
+    # session against the user's weekly quota and releases per-user lab state
+    # — without it, free-tier users who let their labs expire never have any
+    # minutes deducted and can launch unlimited labs.
+    lab.set_auto_terminate_callback(_on_lab_auto_terminated)
     await _load_stats_from_dynamodb()
     flush_task = asyncio.create_task(_stats_flush_loop())
     yield
@@ -35,6 +41,30 @@ async def lifespan(app: FastAPI):
     await _flush_stats_to_dynamodb()
     await users.close()
     await lab.close()
+
+
+async def _on_lab_auto_terminated(lab_id: str, owner_id: str) -> None:
+    """Janitor callback: record session duration + release lab state for a
+    lab that the background janitor auto-terminated (TTL expiry or quota cap).
+
+    Mirrors the bookkeeping performed in the DELETE /labs/{lab_id} handler so
+    that labs killed by the janitor are indistinguishable from labs killed by
+    an explicit user action, from the quota's point of view.
+    """
+    if not owner_id:
+        logger.warning("Auto-terminated lab %s has no owner — session unrecorded", lab_id)
+        return
+    try:
+        minutes = await users.close_lab_session(owner_id)
+        await users.unlink_lab_from_user(owner_id, lab_id)
+        _track_event(owner_id, "lab_terminated")
+        logger.info(
+            "Auto-terminated lab %s: recorded %d min for user %s",
+            lab_id, minutes, owner_id,
+        )
+    except Exception as exc:
+        logger.error("Auto-terminate bookkeeping failed for lab %s user %s: %s",
+                     lab_id, owner_id, exc)
 
 app = FastAPI(
     title="RosettaCloud API",
@@ -408,7 +438,30 @@ async def new_lab(
             detail="You already have an active lab. Please terminate the existing lab first.",
         )
 
-    lab_id = await lab.launch()
+    # ── Weekly free-tier quota enforcement ────────────────────────────────
+    # Read quota *before* launching. If the user has 0 minutes remaining,
+    # refuse outright. Otherwise, cap the lab's TTL to the user's remaining
+    # minutes so the janitor will auto-terminate the pod when quota runs out.
+    quota = await users.get_lab_quota(user_id)
+    minutes_remaining = int(quota.get("minutes_remaining", 0) or 0)
+    if minutes_remaining <= 0:
+        reset_at = int(quota.get("week_resets_at", 0) or 0)
+        from datetime import datetime as _dt, timezone as _tz
+        reset_str = (
+            _dt.fromtimestamp(reset_at, tz=_tz.utc).strftime("%a %d %b %H:%M UTC")
+            if reset_at else "next Monday"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Weekly free-tier lab quota exhausted "
+                f"({quota.get('minutes_used', 0)}/{quota.get('minutes_limit', 120)} minutes used). "
+                f"Quota resets on {reset_str}."
+            ),
+        )
+    ttl_secs = minutes_remaining * 60
+
+    lab_id = await lab.launch(ttl_secs=ttl_secs, owner_id=user_id)
     await users.set_active_lab(user_id, lab_id)
     await users.link_lab_to_user(user_id, lab_id)
     _track_event(user_id, "lab_started")
@@ -420,7 +473,11 @@ async def lab_info(lab_id: str, user_id: Optional[str] = None):
     info = await lab.get_lab_info(lab_id)
     if not info:
         if user_id:
-            await users.clear_active_lab(user_id)
+            # Phantom-lab recovery: pod is gone (janitor killed it or pod crashed).
+            # Record the session duration against the user's weekly quota before
+            # clearing active_lab — otherwise users whose pod dies outside the
+            # explicit DELETE path never pay for the time they actually used.
+            await users.close_lab_session(user_id)
         return ErrorResponse(error="lab not found")
     return LabInfoResponse(
         lab_id=info["lab_id"],
@@ -442,20 +499,14 @@ async def terminate_lab(
     _check_rate_limit(user_id, "lab_terminate")
     await _require_user(user_id)
 
-    # Read lab_started_at before clearing, to record session duration
-    user_data = await users.get_user(user_id)
-    lab_started_at = (user_data or {}).get("lab_started_at")
-
     deleted = await lab.stop(lab_id)
     if deleted:
-        await users.clear_active_lab(user_id)
+        # close_lab_session does the full bookkeeping atomically: computes
+        # duration from lab_started_at, adds it to the weekly quota, and
+        # clears active_lab/lab_started_at in a single DynamoDB update.
+        await users.close_lab_session(user_id)
         await users.unlink_lab_from_user(user_id, lab_id)
         _track_event(user_id, "lab_terminated")
-
-        if lab_started_at:
-            duration_minutes = max(1, (int(time.time()) - int(lab_started_at)) // 60)
-            await users.record_lab_session(user_id, duration_minutes)
-
         return {"deleted": True}
     else:
         raise HTTPException(status_code=404, detail="Lab not found.")

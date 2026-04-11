@@ -12,7 +12,7 @@ import logging
 import os
 import uuid
 from functools import wraps
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
@@ -76,9 +76,25 @@ class EKSLabs:
         # Lab tracking
         self._active: Dict[str, str] = {}    # lab_id → pod_name
         self._created: Dict[str, float] = {} # lab_id → epoch secs
+        self._owners: Dict[str, str] = {}    # lab_id → user_id (for janitor callback)
+        # lab_id → per-lab TTL override in seconds (populated when launch() is
+        # called with ttl_secs to cap a free-tier user's session to their
+        # remaining weekly quota).
+        self._ttl_override: Dict[str, int] = {}
+        # Invoked by the janitor when a lab is auto-terminated — receives
+        # (lab_id, owner_id). Owner may be empty for labs launched without
+        # tracking. Registered from main.py at startup.
+        self._on_auto_terminate: Optional[Callable[[str, str], Awaitable[None]]] = None
         self._janitor: Optional[asyncio.Task] = None
-        
+
         LOG.debug("EKSLabs backend initialized")
+
+    def set_auto_terminate_callback(self, cb: Callable[[str, str], Awaitable[None]]) -> None:
+        """Register a coroutine invoked by the janitor before stopping an expired
+        lab. The callback receives (lab_id, owner_id) and should record the
+        session duration against the user's quota and clean up per-user state.
+        """
+        self._on_auto_terminate = cb
 
     async def _init_clients(self):
         """Initialize Kubernetes client objects"""
@@ -285,14 +301,19 @@ class EKSLabs:
                     raise
 
     async def _time_left(self, lab_id: str) -> Optional[Dict[str, int]]:
-        """Calculate time remaining for a lab"""
+        """Calculate time remaining for a lab.
+
+        Uses the per-lab TTL override if set (free-tier quota cap), otherwise
+        falls back to the global POD_TTL_SECS.
+        """
         ts = self._created.get(lab_id)
         if ts is None:
             return None
-            
+
+        ttl = self._ttl_override.get(lab_id, POD_TTL_SECS)
         now = dt.datetime.now(dt.timezone.utc).timestamp()
-        left = max(0, POD_TTL_SECS - int(now - ts))
-        
+        left = max(0, ttl - int(now - ts))
+
         return {
             "minutes": left // 60,
             "seconds": left % 60,
@@ -321,13 +342,30 @@ class EKSLabs:
                 await self._janitor
         LOG.info("EKS lab backend shut down")
 
-    async def launch(self, *, tag: str | None = None) -> str:
-        """Launch a new lab pod and return its ID"""
+    async def launch(
+        self,
+        *,
+        tag: str | None = None,
+        ttl_secs: Optional[int] = None,
+        owner_id: str = "",
+    ) -> str:
+        """Launch a new lab pod and return its ID.
+
+        ``ttl_secs``: optional per-lab TTL override. Used to cap a free-tier
+        user's session to their remaining weekly minutes so the janitor will
+        auto-terminate the lab when their quota runs out. Clamped to the
+        global POD_TTL_SECS ceiling (no lab can run longer than the platform
+        maximum).
+
+        ``owner_id``: user id that launched the lab. Tracked so the janitor
+        can notify ``_on_auto_terminate`` when the lab expires, letting
+        main.py record the session duration against the user's weekly quota.
+        """
         LOG.info("Launching new lab pod")
-        
+
         # Generate a unique lab ID if not provided
         lab_id = tag or f"lab-{uuid.uuid4().hex[:8]}"
-        
+
         try:
             # Create pod, service, and VirtualService in parallel
             pod_id, *_ = await asyncio.gather(
@@ -335,21 +373,30 @@ class EKSLabs:
                 self._create_lab_svc(lab_id),
                 self._create_lab_vs(lab_id),
             )
-            
+
             # Track the active lab
             self._active[lab_id] = pod_id
             self._created[lab_id] = dt.datetime.now(dt.timezone.utc).timestamp()
-            
-            LOG.info(f"Lab {lab_id} launched successfully with pod {pod_id}")
+            if owner_id:
+                self._owners[lab_id] = owner_id
+            if ttl_secs is not None and ttl_secs > 0:
+                # Clamp to platform ceiling — a user's remaining quota is never
+                # allowed to override the global maximum session length.
+                self._ttl_override[lab_id] = min(int(ttl_secs), POD_TTL_SECS)
+
+            LOG.info(
+                f"Lab {lab_id} launched successfully with pod {pod_id} "
+                f"(owner={owner_id or 'unknown'}, ttl={self._ttl_override.get(lab_id, POD_TTL_SECS)}s)"
+            )
             return lab_id
-            
+
         except Exception as e:
             LOG.error(f"Failed to launch lab {lab_id}: {e}")
-            
+
             # Clean up if needed
             with contextlib.suppress(Exception):
                 await self.stop(lab_id)
-                
+
             raise RuntimeError(f"Failed to launch lab: {str(e)}")
 
     async def stop(self, lab_id: str) -> bool:
@@ -360,6 +407,8 @@ class EKSLabs:
         # Remove from in-memory tracking (no-op if not present)
         self._active.pop(lab_id, None)
         self._created.pop(lab_id, None)
+        self._owners.pop(lab_id, None)
+        self._ttl_override.pop(lab_id, None)
 
         try:
             # Delete all K8s resources in parallel; each handler ignores 404 already
@@ -462,30 +511,53 @@ class EKSLabs:
         return await self._time_left(lab_id)
 
     async def _janitor_loop(self):
-        """Background task to clean up expired labs"""
+        """Background task to clean up expired labs.
+
+        Honours per-lab TTL overrides (free-tier quota caps) as well as the
+        global POD_TTL_SECS. Before stopping a lab, invokes the registered
+        ``_on_auto_terminate`` callback so main.py can record the session
+        duration against the user's weekly quota — without this, users whose
+        labs are killed by the janitor never have their minutes deducted and
+        the quota enforcement at launch becomes a no-op.
+        """
         LOG.info("Starting janitor loop")
-        
+
         while True:
             try:
                 now = dt.datetime.now(dt.timezone.utc).timestamp()
-                
+
                 # Find expired labs
-                expired = []
+                expired: List[str] = []
                 for lab_id, created_at in list(self._created.items()):
-                    if now - created_at > POD_TTL_SECS:
-                        LOG.info(f"Lab {lab_id} has expired (created {int(now - created_at)}s ago)")
+                    ttl = self._ttl_override.get(lab_id, POD_TTL_SECS)
+                    if now - created_at > ttl:
+                        LOG.info(
+                            f"Lab {lab_id} has expired "
+                            f"(created {int(now - created_at)}s ago, ttl={ttl}s)"
+                        )
                         expired.append(lab_id)
-                
+
                 # Stop expired labs
                 for lab_id in expired:
+                    # Snapshot owner BEFORE stop() wipes in-memory state
+                    owner = self._owners.get(lab_id, "")
+                    if self._on_auto_terminate:
+                        try:
+                            await self._on_auto_terminate(lab_id, owner)
+                        except Exception as cb_err:
+                            # Callback failure must not prevent K8s cleanup —
+                            # a stuck user record is preferable to a stuck pod.
+                            LOG.error(
+                                f"Auto-terminate callback failed for {lab_id}: {cb_err}"
+                            )
                     try:
                         await self.stop(lab_id)
                     except Exception as e:
                         LOG.error(f"Error stopping expired lab {lab_id}: {e}")
-                
+
             except Exception as e:
                 LOG.error(f"Error in janitor loop: {e}")
-                
+
             # Wait before next check
             await asyncio.sleep(60)
 

@@ -425,7 +425,11 @@ class DynamoDBUserBackend:
         })
 
     async def clear_active_lab(self, user_id: str) -> None:
-        """Clear the user's active lab and start time."""
+        """Clear the user's active lab and start time.
+
+        NOTE: Does NOT record session duration. Callers that need the duration
+        deducted from the weekly quota should use close_lab_session() instead.
+        """
         await self.update_user(user_id, {"active_lab": None, "lab_started_at": None})
 
     async def record_lab_session(self, user_id: str, duration_minutes: int) -> None:
@@ -446,8 +450,63 @@ class DynamoDBUserBackend:
             "lab_week_minutes": current_minutes + duration_minutes,
         })
 
+    async def close_lab_session(self, user_id: str) -> int:
+        """Atomically close the user's active lab session.
+
+        Computes the session duration from ``lab_started_at``, adds it to the
+        user's weekly quota, and clears ``active_lab``/``lab_started_at`` — all
+        in a single DynamoDB update so the quota and active-lab state can never
+        diverge (the source of the "0m left but still launches" bug).
+
+        Idempotent:
+          * No active_lab and no lab_started_at → no-op, returns 0.
+          * lab_started_at present → records duration, returns minutes_recorded.
+
+        Safe to call from every termination path: explicit DELETE, phantom-lab
+        recovery in GET /labs/{id}, and the janitor auto-terminate callback.
+        Returns the number of minutes recorded (0 if the session was already closed).
+        """
+        user = await self.get_user(user_id)
+        if not user:
+            return 0
+
+        lab_started_at = user.get("lab_started_at")
+        has_active = bool(user.get("active_lab"))
+
+        if not lab_started_at:
+            # Session already closed — ensure active_lab is also cleared
+            if has_active:
+                await self.update_user(user_id, {"active_lab": None})
+            return 0
+
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+
+        stored_week_start = user.get("lab_week_start", 0) or 0
+        current_minutes = (user.get("lab_week_minutes", 0) or 0) if stored_week_start >= week_start else 0
+
+        duration_minutes = max(1, (int(time.time()) - int(lab_started_at)) // 60)
+
+        # Single atomic update: record session + clear active state. Without this,
+        # any code path that runs record + clear sequentially can be interrupted
+        # between calls, leaving active_lab cleared but minutes not deducted.
+        await self.update_user(user_id, {
+            "active_lab": None,
+            "lab_started_at": None,
+            "lab_week_start": week_start,
+            "lab_week_minutes": current_minutes + duration_minutes,
+        })
+        return duration_minutes
+
     async def get_lab_quota(self, user_id: str) -> Dict[str, Any]:
-        """Return weekly lab quota for the user."""
+        """Return weekly lab quota for the user.
+
+        Includes in-flight minutes for the currently active lab so that
+        enforcement at launch time matches what the user sees in the UI — a
+        user mid-session won't appear to still have their full quota left.
+        """
         from datetime import datetime, timezone, timedelta
         now_dt = datetime.now(timezone.utc)
         monday = now_dt - timedelta(days=now_dt.weekday())
@@ -460,6 +519,15 @@ class DynamoDBUserBackend:
 
         stored_week_start = user.get("lab_week_start", 0) or 0
         minutes_used = (user.get("lab_week_minutes", 0) or 0) if stored_week_start >= week_start else 0
+
+        # Count in-flight session minutes toward used total (quota check at
+        # launch always sees a freshly settled value even if the prior session
+        # is still open).
+        lab_started_at = user.get("lab_started_at")
+        if lab_started_at:
+            in_flight = max(0, (int(time.time()) - int(lab_started_at)) // 60)
+            minutes_used += in_flight
+
         minutes_limit = 120  # Free tier: 2h/week
         return {
             "minutes_used": minutes_used,
@@ -1124,6 +1192,35 @@ class LmsUserBackend:
             "lab_week_minutes": current_minutes + duration_minutes,
         })
 
+    async def close_lab_session(self, user_id: str) -> int:
+        """Atomic close-session parity with DynamoDBUserBackend.close_lab_session."""
+        user = await self.get_user(user_id)
+        if not user:
+            return 0
+        lab_started_at = user.get("lab_started_at")
+        has_active = bool(user.get("active_lab"))
+        if not lab_started_at:
+            if has_active:
+                await self.update_user(user_id, {"active_lab": None})
+            return 0
+
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+
+        stored_week_start = user.get("lab_week_start", 0) or 0
+        current_minutes = (user.get("lab_week_minutes", 0) or 0) if stored_week_start >= week_start else 0
+        duration_minutes = max(1, (int(time.time()) - int(lab_started_at)) // 60)
+
+        await self.update_user(user_id, {
+            "active_lab": None,
+            "lab_started_at": None,
+            "lab_week_start": week_start,
+            "lab_week_minutes": current_minutes + duration_minutes,
+        })
+        return duration_minutes
+
     async def get_lab_quota(self, user_id: str) -> Dict[str, Any]:
         """Return weekly lab quota for the user."""
         from datetime import datetime, timezone, timedelta
@@ -1138,6 +1235,12 @@ class LmsUserBackend:
 
         stored_week_start = user.get("lab_week_start", 0) or 0
         minutes_used = (user.get("lab_week_minutes", 0) or 0) if stored_week_start >= week_start else 0
+
+        lab_started_at = user.get("lab_started_at")
+        if lab_started_at:
+            in_flight = max(0, (int(time.time()) - int(lab_started_at)) // 60)
+            minutes_used += in_flight
+
         minutes_limit = 120
         return {
             "minutes_used": minutes_used,
