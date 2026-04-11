@@ -459,6 +459,37 @@ def invoke(payload, context=None):
         except Exception as e:
             logger.error("Agent creation failed: %s\n%s", e, traceback.format_exc())
             return f"Agent creation error: {e}"
+
+        # ── Re-sanitize AFTER Agent creation ──
+        # When a session_manager is attached, Strands'
+        # RepositorySessionManager.initialize() OVERRIDES the `messages=`
+        # kwarg we passed with whatever it loaded from the persistence
+        # backend (AgentCore Memory here). See strands-agents/sdk-python
+        # RepositorySessionManager.initialize line ~136:
+        #   agent.messages = prepend_messages + [...loaded messages...]
+        #
+        # AgentCore Memory contains unsanitized messages from deploys prior
+        # to the history-sanitization fix — they may start with an assistant
+        # turn (pagination/session_start artefacts) or carry dangling
+        # toolUse blocks. Strands' own _fix_broken_tool_use only repairs
+        # orphaned tool_result blocks; it does NOT fix the
+        # "first message is assistant" case, and the result is a Bedrock
+        # ValidationException: "A conversation must start with a user
+        # message."
+        #
+        # Overriding agent.messages with our sanitized copy here keeps the
+        # session-manager's retrieval features intact while guaranteeing the
+        # message list we send to Bedrock obeys the alternation/anchoring
+        # rules. Subsequent saves heal AgentCore Memory as new, clean
+        # messages are persisted.
+        if hasattr(agent, "messages"):
+            try:
+                agent.messages = _sanitize_history(agent.messages or [])
+            except Exception:
+                logger.warning(
+                    "Failed to re-sanitize agent.messages after creation",
+                    exc_info=True,
+                )
         try:
             if image_b64:
                 import base64 as _base64
@@ -510,8 +541,54 @@ def invoke(payload, context=None):
                 "please repeat your last question and I'll answer it fresh."
             )
         except Exception as e:
-            logger.error("Agent error: %s\n%s", e, traceback.format_exc())
-            text = f"Agent error: {e}"
+            # ── Recover from Bedrock ValidationException ──
+            # Strands does not wrap botocore ClientError from the underlying
+            # Converse call, so these land in this catch-all. Inspect the
+            # error code and, for ValidationException, return a friendly
+            # recovery message and wipe any stale in-process history so the
+            # next turn starts from a known-good state.
+            #
+            # Observed in production: "A conversation must start with a user
+            # message" — root cause is the session_manager loading pre-fix
+            # messages from AgentCore Memory. The re-sanitize above prevents
+            # it on this turn, but we still want belt-and-braces recovery if
+            # anything slips through.
+            err_code = ""
+            try:
+                from botocore.exceptions import ClientError
+                if isinstance(e, ClientError):
+                    err_code = e.response.get("Error", {}).get("Code", "") or ""
+            except Exception:
+                pass
+
+            if err_code == "ValidationException":
+                msg_str = str(e)
+                logger.warning(
+                    "Bedrock ValidationException for %s agent (user=%s session=...%s): %s",
+                    agent_name, user_id, session_id[-12:] if session_id else "none", msg_str,
+                )
+                # Drop any poisoned in-process history for this session
+                if session_id:
+                    _session_histories.pop(session_id, None)
+                if "start with a user" in msg_str.lower():
+                    text = (
+                        "I lost track of our conversation state for a moment. "
+                        "I've reset my short-term memory for this session — "
+                        "please ask your question again and I'll start fresh."
+                    )
+                elif "toolresult" in msg_str.lower() or "tooluse" in msg_str.lower():
+                    text = (
+                        "I hit a tool-use state error. "
+                        "I've cleared my short-term memory — please repeat your question."
+                    )
+                else:
+                    text = (
+                        "I hit a validation error talking to the model. "
+                        "Please rephrase your question and try again."
+                    )
+            else:
+                logger.error("Agent error: %s\n%s", e, traceback.format_exc())
+                text = f"Agent error: {e}"
 
         # Save in-process history — sanitize BEFORE truncation so tool_use/tool_result
         # blocks never enter the cache. Truncating raw Strands messages can slice
