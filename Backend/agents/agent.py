@@ -24,6 +24,20 @@ except ImportError:
 from strands import Agent
 from strands.models.bedrock import BedrockModel
 
+# Strands raises these when the model's output or context window exceeds its
+# ceiling. Without explicit handling the user sees a raw traceback. We catch
+# them in _run_agent and return a graceful fallback.
+try:
+    from strands.types.exceptions import (
+        MaxTokensReachedException,
+        ContextWindowOverflowException,
+    )
+except ImportError:  # pragma: no cover — older Strands releases
+    class MaxTokensReachedException(Exception):
+        pass
+    class ContextWindowOverflowException(Exception):
+        pass
+
 import time
 import urllib.request
 import urllib.parse
@@ -196,6 +210,15 @@ AGENT_CONFIGS = {
 }
 
 
+# Max output tokens per LLM call. Without this, Strands passes no maxTokens
+# to Bedrock and the platform default (1024 for Nova Lite) is used — far too
+# low for the Grader's multi-tool-call responses. Nova 2 Lite supports 5000
+# output tokens; 4096 leaves headroom and still protects against runaway
+# generation. Bumping this is the primary fix for MaxTokensReachedException
+# on the Grader agent (the one in the screenshot).
+MAX_OUTPUT_TOKENS = int(os.environ.get("AGENT_MAX_OUTPUT_TOKENS", "4096"))
+
+
 def _init():
     global _model, _bedrock, _init_error
     if _model is not None:
@@ -206,9 +229,13 @@ def _init():
         _model = BedrockModel(
             model_id=os.environ.get("NOVA_MODEL_ID", "us.amazon.nova-2-lite-v1:0"),
             region_name=REGION,
+            max_tokens=MAX_OUTPUT_TOKENS,
+            temperature=0.3,
         )
-        logger.info("Model initialized. Memory SDK available: %s, MEMORY_ID: %s",
-                     AgentCoreMemorySessionManager is not None, MEMORY_ID)
+        logger.info(
+            "Model initialized. Memory SDK available: %s, MEMORY_ID: %s, max_tokens: %d",
+            AgentCoreMemorySessionManager is not None, MEMORY_ID, MAX_OUTPUT_TOKENS,
+        )
     except Exception as e:
         _init_error = f"{e}\n{traceback.format_exc()}"
         logger.error("Init failed: %s", _init_error)
@@ -280,6 +307,43 @@ def _extract_text(result) -> str:
     # Strip any leaked JSON context blocks (e.g. {"user_id": "...", "module_uuid": "..."})
     text = re.sub(r'^\s*\{[^}]*"(?:user_id|module_uuid|lesson_uuid)"[^}]*\}\s*', "", text).strip()
     return text
+
+
+def _salvage_partial_text(agent) -> str:
+    """Walk the agent's message log and pull out the last assistant text block.
+
+    Called when ``MaxTokensReachedException`` fires: the model stopped
+    mid-response so ``result`` is None, but earlier iterations of the agent
+    loop may have produced usable text in the message history. Any incomplete
+    tool_use blocks are silently ignored — they were never executed.
+    """
+    try:
+        msgs = getattr(agent, "messages", []) or []
+    except Exception:
+        return ""
+    # Walk backwards for the most recent assistant turn with real text content
+    for m in reversed(msgs):
+        if not isinstance(m, dict) or m.get("role") != "assistant":
+            continue
+        content = m.get("content") or []
+        if not isinstance(content, list):
+            continue
+        parts: list = []
+        for block in content:
+            if isinstance(block, dict) and block.get("text"):
+                parts.append(block["text"])
+        if parts:
+            joined = "\n\n".join(parts).strip()
+            # Apply the same cleanup _extract_text does
+            joined = re.sub(r"<thinking>.*?</thinking>", "", joined, flags=re.DOTALL).strip()
+            joined = re.sub(
+                r'^\s*\{[^}]*"(?:user_id|module_uuid|lesson_uuid)"[^}]*\}\s*',
+                "",
+                joined,
+            ).strip()
+            if joined:
+                return joined
+    return ""
 
 
 def _classify(message: str, msg_type: str) -> str:
@@ -408,6 +472,43 @@ def invoke(payload, context=None):
             else:
                 result = agent(message)
             text = _extract_text(result)
+        except MaxTokensReachedException as e:
+            # The model's stop_reason was max_tokens mid-loop. Strands treats
+            # this as unrecoverable because any in-flight tool_use blocks may
+            # be truncated. Try to salvage whatever assistant text the model
+            # did emit before the cut-off; fall back to a friendly message.
+            logger.warning(
+                "MaxTokens reached for %s agent (user=%s session=...%s): %s",
+                agent_name, user_id, session_id[-12:] if session_id else "none", e,
+            )
+            partial = _salvage_partial_text(agent)
+            if partial:
+                text = (
+                    f"{partial}\n\n"
+                    "_(My response was cut off because it got too long. "
+                    "Ask me to continue or be more specific and I'll keep going.)_"
+                )
+            else:
+                text = (
+                    "My response got too long and was cut off. "
+                    "Could you ask me something more specific — "
+                    "for example, a single question number or topic — so I can give a focused answer?"
+                )
+        except ContextWindowOverflowException as e:
+            logger.warning(
+                "Context window overflow for %s agent (user=%s session=...%s): %s",
+                agent_name, user_id, session_id[-12:] if session_id else "none", e,
+            )
+            # Clear the in-process session history for this session so the
+            # next turn starts fresh — otherwise we keep replaying the
+            # overflowing history and every turn fails.
+            if session_id:
+                _session_histories.pop(session_id, None)
+            text = (
+                "Our conversation has gotten too long for me to remember everything. "
+                "I've cleared my short-term memory for this session — "
+                "please repeat your last question and I'll answer it fresh."
+            )
         except Exception as e:
             logger.error("Agent error: %s\n%s", e, traceback.format_exc())
             text = f"Agent error: {e}"
