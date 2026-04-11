@@ -427,8 +427,18 @@
         </p>
       </div>
 
-      <!-- Error State -->
-      <div class="lab-error" *ngIf="!isLoading && errorMessage">
+      <!-- Quota Exhausted State — no retry button since another attempt
+           would immediately get another 403. The reset date is included in
+           the backend detail message shown via errorMessage. -->
+      <div class="lab-error" *ngIf="!isLoading && isQuotaExhausted">
+        <div class="error-icon"><i class="bi bi-battery"></i></div>
+        <h5>Weekly lab quota used</h5>
+        <p>{{ errorMessage }}</p>
+        <p class="text-muted" style="font-size:0.85em">You can still review questions and lessons while you wait for your quota to reset.</p>
+      </div>
+
+      <!-- General Error State -->
+      <div class="lab-error" *ngIf="!isLoading && errorMessage && !isQuotaExhausted">
         <div class="error-icon"><i class="bi bi-exclamation-triangle"></i></div>
         <h5>Oops! Something went wrong</h5>
         <p>{{ errorMessage }}</p>
@@ -466,8 +476,11 @@
       </div>
     </main>
 
-    <!-- Chatbot Panel -->
+    <!-- Chatbot Panel — hidden when quota is exhausted (no lab context, and
+         app-chatbot fires HTTP requests on mount that would have no useful
+         context anyway). -->
     <aside
+      *ngIf="!isQuotaExhausted"
       class="chatbot-panel"
       [class.mobile-hidden]="isMobile && !showChatbot"
     >

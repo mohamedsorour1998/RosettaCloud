@@ -104,6 +104,14 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   isLabActive = false;
   isApiConnected = true;
   errorMessage: string | null = null;
+  /**
+   * Set to true when lab creation is rejected with HTTP 403 (weekly quota
+   * exhausted). Triggers a dedicated UI state: hides the AI chat panel (which
+   * has no lab context and would confuse the user) and shows a quota-specific
+   * message instead of the generic "Oops! Something went wrong" + retry button.
+   * Reset to false when the user navigates away or explicitly re-initialises.
+   */
+  isQuotaExhausted = false;
   timeRemaining$ = new BehaviorSubject<string>('');
 
   // UI related properties
@@ -473,7 +481,24 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         this.loadLabInfo(res.lab_id);
       }),
       catchError((err) => {
-        this.errorMessage = 'Error creating lab: ' + (err.message || 'Unknown');
+        const msg: string = err.message || 'Unknown';
+        // The backend returns HTTP 403 with detail "Weekly free-tier lab quota
+        // exhausted ...". lab.service.ts handleError converts HttpErrorResponse
+        // to a plain Error, so we detect via the message string.
+        if (
+          msg.toLowerCase().includes('quota exhausted') ||
+          msg.toLowerCase().includes('weekly free-tier')
+        ) {
+          this.isQuotaExhausted = true;
+          this.errorMessage = msg;
+          // Stop quota polling — no active lab, nothing left to measure.
+          if (this.quotaInterval) {
+            clearInterval(this.quotaInterval);
+            this.quotaInterval = null;
+          }
+        } else {
+          this.errorMessage = 'Error creating lab: ' + msg;
+        }
         this.isLoading = false;
         return of(null);
       })
@@ -1090,6 +1115,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.feedbackMessage = '';
       this.isAnswerCorrect = false;
       this.errorMessage = null;
+      this.isQuotaExhausted = false;
       this.labId = null;
     } catch (e) {
       console.error('Error clearing question state:', e);
