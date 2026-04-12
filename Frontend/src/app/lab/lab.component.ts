@@ -453,8 +453,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.leftPanelWidth = Math.max(150, Math.min(newWidth, maxWidth));
     };
     const onUp = () => {
-      document.body.style.userSelect = '';
-      (document.body.style as any).webkitUserSelect = '';
+      document.body.style.removeProperty('user-select');
+      document.body.style.removeProperty('-webkit-user-select');
       document.body.style.cursor = '';
       this.savePanelWidths();
       document.removeEventListener('mousemove', onMove);
@@ -487,8 +487,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.rightPanelWidth = Math.max(220, Math.min(newWidth, maxWidth));
     };
     const onUp = () => {
-      document.body.style.userSelect = '';
-      (document.body.style as any).webkitUserSelect = '';
+      document.body.style.removeProperty('user-select');
+      document.body.style.removeProperty('-webkit-user-select');
       document.body.style.cursor = '';
       this.savePanelWidths();
       document.removeEventListener('mousemove', onMove);

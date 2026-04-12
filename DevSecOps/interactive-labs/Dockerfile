@@ -90,6 +90,9 @@ RUN printf '%s\n' \
      '  "workbench.colorTheme": "Default Dark+",' \
      '  "workbench.preferredDarkColorTheme": "Default Dark+",' \
      '  "chat.disableAIFeatures": true,' \
+     '  "chat.commandCenter.enabled": false,' \
+     '  "github.copilot.enable": { "*": false },' \
+     '  "github.copilot.editor.enableAutoCompletions": false,' \
      '  "auto-run-command.commands": [' \
      '    { "command": "workbench.action.terminal.toggleTerminal" }' \
      '  ]' \
@@ -132,13 +135,49 @@ RUN code-server \
 ############################
 USER root
 
-# Purge any built-in Copilot/AI extensions shipped with code-server itself
-# (belt-and-suspenders on top of not installing them via --install-extension)
-RUN rm -rf \
-     /usr/lib/code-server/lib/vscode/extensions/github.copilot* \
-     /usr/lib/code-server/lib/vscode/extensions/ms-vscode.copilot* \
-     /data/extensions/github.copilot* \
-     2>/dev/null; exit 0
+# Purge Copilot/AI completely:
+#  1) Strip matching entries from product.json builtInExtensions so VS Code never
+#     registers the Chat/Sessions panel UI, even if directory removal is incomplete.
+#  2) Remove all Copilot/chat extension directories from both system and user paths.
+RUN python3 - <<'PYEOF'
+import json, sys
+path = '/usr/lib/code-server/lib/vscode/product.json'
+with open(path) as f:
+    p = json.load(f)
+
+BLOCKED = ('copilot', 'chat')
+
+# builtInExtensions — list of {"name": ..., "version": ...}
+orig = p.get('builtInExtensions', [])
+p['builtInExtensions'] = [
+    e for e in orig
+    if not any(kw in e.get('name', '').lower() for kw in BLOCKED)
+]
+removed = [e.get('name') for e in orig if e not in p['builtInExtensions']]
+if removed:
+    print('Removed from builtInExtensions:', removed, file=sys.stderr)
+
+# extensionEnabledApiProposals — dict keyed by extension id
+prop = 'extensionEnabledApiProposals'
+if prop in p:
+    before = list(p[prop].keys())
+    p[prop] = {k: v for k, v in p[prop].items()
+               if not any(kw in k.lower() for kw in BLOCKED)}
+    gone = [k for k in before if k not in p[prop]]
+    if gone:
+        print('Removed from extensionEnabledApiProposals:', gone, file=sys.stderr)
+
+with open(path, 'w') as f:
+    json.dump(p, f, indent=2)
+print('product.json patched', file=sys.stderr)
+PYEOF
+RUN find /usr/lib/code-server/lib/vscode/extensions/ -maxdepth 1 \
+         \( -iname '*copilot*' -o -iname '*copilot-chat*' -o -iname '*github.chat*' \) \
+         -exec rm -rf {} + 2>/dev/null; \
+    find /data/extensions/ -maxdepth 1 \
+         \( -iname '*copilot*' -o -iname '*copilot-chat*' -o -iname '*github.chat*' \) \
+         -exec rm -rf {} + 2>/dev/null; \
+    exit 0
 
 RUN curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
      | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg \

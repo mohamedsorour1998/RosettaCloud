@@ -294,6 +294,12 @@
   flex-direction: column;
   gap: 1.75rem; // Increased from 1.5rem for more vertical space between messages
   position: relative;
+  // Ensure text inside the chat area is always selectable — overrides any
+  // user-select:none placed on document.body by the panel-resize handler.
+  // !important is required because the resize handler sets an inline style
+  // on body; authored !important rules beat inherited inline styles.
+  user-select: text !important;
+  -webkit-user-select: text !important;
 
   .message-wrapper {
     display: flex;
