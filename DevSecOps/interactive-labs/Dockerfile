@@ -132,6 +132,14 @@ RUN code-server \
 ############################
 USER root
 
+# Purge any built-in Copilot/AI extensions shipped with code-server itself
+# (belt-and-suspenders on top of not installing them via --install-extension)
+RUN rm -rf \
+     /usr/lib/code-server/lib/vscode/extensions/github.copilot* \
+     /usr/lib/code-server/lib/vscode/extensions/ms-vscode.copilot* \
+     /data/extensions/github.copilot* \
+     2>/dev/null; exit 0
+
 RUN curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
      | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg \
      && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
