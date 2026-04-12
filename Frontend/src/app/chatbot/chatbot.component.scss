@@ -295,11 +295,20 @@
   gap: 1.75rem; // Increased from 1.5rem for more vertical space between messages
   position: relative;
   // Ensure text inside the chat area is always selectable — overrides any
-  // user-select:none placed on document.body by the panel-resize handler.
-  // !important is required because the resize handler sets an inline style
-  // on body; authored !important rules beat inherited inline styles.
+  // user-select:none placed on document.body by the panel-resize handler or
+  // by Bootstrap (.btn sets user-select:none on all button elements).
   user-select: text !important;
   -webkit-user-select: text !important;
+
+  // ::ng-deep pierces Angular emulated encapsulation so the rule reaches
+  // elements injected via [innerHTML] (formatMessage output) which do NOT
+  // receive the _ngcontent attribute and are therefore unreachable by normal
+  // scoped selectors.
+  /* stylelint-disable-next-line selector-pseudo-element-no-unknown */
+  ::ng-deep * {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
 
   .message-wrapper {
     display: flex;

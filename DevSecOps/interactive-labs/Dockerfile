@@ -129,7 +129,8 @@ RUN code-server \
      --install-extension visualstudioexptteam.vscodeintellicode \
      --install-extension wholroyd.jinja \
      --install-extension zainchen.json \
-     --install-extension zhuangtongfa.material-theme
+     --install-extension zhuangtongfa.material-theme \
+     --install-extension garug.auto-run-command
 
 ############################
 # 3) CADDY INSTALLATION & CONFIGURATION
