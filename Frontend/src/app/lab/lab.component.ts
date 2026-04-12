@@ -1536,12 +1536,17 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
    * Check if feedback button should be shown
    */
   get showFeedbackButton(): boolean {
-    const completedCount = this.getCompletedQuestionsCount();
     const totalCount = this.questions.length;
-    // Show only when at least 75% of questions are genuinely completed.
-    // Removed the "on last question" condition: being on the last question
-    // does not mean the user has finished and is ready to give feedback.
-    return totalCount > 0 && completedCount / totalCount >= 0.75;
+    if (totalCount === 0) return false;
+    const completedCount = this.getCompletedQuestionsCount();
+    // Show when all questions are complete, OR when the student is on the
+    // last question and has completed it (end-of-lab trigger).
+    if (completedCount === totalCount) return true;
+    const lastQ = this.questions[totalCount - 1];
+    return (
+      this.currentQuestionIndex === totalCount - 1 &&
+      (lastQ?.completed ?? false)
+    );
   }
 
   /**
