@@ -94,11 +94,36 @@ RUN printf '%s\n' \
      '  "chat.commandCenter.enabled": false,' \
      '  "github.copilot.enable": { "*": false },' \
      '  "github.copilot.editor.enableAutoCompletions": false,' \
-     '  "auto-run-command.commands": [' \
-     '    { "command": "workbench.action.terminal.toggleTerminal" }' \
-     '  ]' \
+     '  "task.allowAutomaticTasks": "on",' \
+     '  "security.workspace.trust.enabled": false' \
      '}' \
      > /data/User/settings.json
+
+# Workspace task: open the terminal panel automatically when the lab folder
+# is opened.  "runOn": "folderOpen" + task.allowAutomaticTasks:on (above) is
+# the native VS Code mechanism — no extension required.
+RUN mkdir -p /home/coder/lab/.vscode && \
+    printf '%s\n' \
+     '{' \
+     '  "version": "2.0.0",' \
+     '  "tasks": [' \
+     '    {' \
+     '      "label": "Open Terminal",' \
+     '      "type": "shell",' \
+     '      "command": "clear",' \
+     '      "runOptions": { "runOn": "folderOpen" },' \
+     '      "presentation": {' \
+     '        "reveal": "always",' \
+     '        "panel": "new",' \
+     '        "showReuseMessage": false,' \
+     '        "clear": true' \
+     '      },' \
+     '      "problemMatcher": []' \
+     '    }' \
+     '  ]' \
+     '}' \
+     > /home/coder/lab/.vscode/tasks.json && \
+    chown -R coder:coder /home/coder/lab/.vscode
 
 RUN code-server \
      --extensions-dir /data/extensions \
@@ -129,8 +154,7 @@ RUN code-server \
      --install-extension visualstudioexptteam.vscodeintellicode \
      --install-extension wholroyd.jinja \
      --install-extension zainchen.json \
-     --install-extension zhuangtongfa.material-theme \
-     --install-extension garug.auto-run-command
+     --install-extension zhuangtongfa.material-theme
 
 ############################
 # 3) CADDY INSTALLATION & CONFIGURATION

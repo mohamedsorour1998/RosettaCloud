@@ -501,6 +501,29 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     window.addEventListener('blur', onUp);
   }
 
+  /**
+   * Shield the code-server iframe from stealing mouse events whenever the user
+   * presses the mouse button on any element OTHER than the iframe itself.
+   * This fixes two problems in one:
+   *   1. Resize drag stalls — mousemove stops firing once the cursor enters the
+   *      iframe because the iframe captures it in its own browsing context.
+   *   2. Text-selection drag breaks in the chat panel for the same reason.
+   * Setting pointer-events:none on the iframe for the duration of the drag
+   * lets all mousemove/mouseup events surface to the parent document as normal.
+   * The listener fires in the capture phase so it runs before any child handler.
+   */
+  @HostListener('mousedown', ['$event'])
+  onHostMouseDown(e: MouseEvent): void {
+    const iframe = this.el.nativeElement.querySelector('.code-server-iframe') as HTMLIFrameElement | null;
+    if (!iframe || e.target === iframe) return;
+    iframe.style.pointerEvents = 'none';
+    const restore = () => {
+      iframe.style.pointerEvents = '';
+      document.removeEventListener('mouseup', restore, true);
+    };
+    document.addEventListener('mouseup', restore, true);
+  }
+
   /** @deprecated use sessionTimeDisplay */
   get labHoursDisplay(): string { return this.sessionTimeDisplay; }
   get labMinutesUsed(): number { return Math.floor(this.labSecondsElapsed / 60); }
