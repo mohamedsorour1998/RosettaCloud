@@ -110,7 +110,7 @@ RUN mkdir -p /home/coder/lab/.vscode && \
      '    {' \
      '      "label": "Open Terminal",' \
      '      "type": "shell",' \
-     '      "command": "clear",' \
+     '      "command": "/bin/bash",' \
      '      "runOptions": { "runOn": "folderOpen" },' \
      '      "presentation": {' \
      '        "reveal": "always",' \
