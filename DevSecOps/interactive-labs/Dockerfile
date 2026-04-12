@@ -94,36 +94,9 @@ RUN printf '%s\n' \
      '  "chat.commandCenter.enabled": false,' \
      '  "github.copilot.enable": { "*": false },' \
      '  "github.copilot.editor.enableAutoCompletions": false,' \
-     '  "task.allowAutomaticTasks": "on",' \
-     '  "security.workspace.trust.enabled": false' \
+     '  "workbench.startupEditor": "none"' \
      '}' \
      > /data/User/settings.json
-
-# Workspace task: open the terminal panel automatically when the lab folder
-# is opened.  "runOn": "folderOpen" + task.allowAutomaticTasks:on (above) is
-# the native VS Code mechanism — no extension required.
-RUN mkdir -p /home/coder/lab/.vscode && \
-    printf '%s\n' \
-     '{' \
-     '  "version": "2.0.0",' \
-     '  "tasks": [' \
-     '    {' \
-     '      "label": "Open Terminal",' \
-     '      "type": "shell",' \
-     '      "command": "/bin/bash",' \
-     '      "runOptions": { "runOn": "folderOpen" },' \
-     '      "presentation": {' \
-     '        "reveal": "always",' \
-     '        "panel": "new",' \
-     '        "showReuseMessage": false,' \
-     '        "clear": true' \
-     '      },' \
-     '      "problemMatcher": []' \
-     '    }' \
-     '  ]' \
-     '}' \
-     > /home/coder/lab/.vscode/tasks.json && \
-    chown -R coder:coder /home/coder/lab/.vscode
 
 RUN code-server \
      --extensions-dir /data/extensions \
