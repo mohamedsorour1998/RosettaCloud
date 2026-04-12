@@ -2,6 +2,7 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  AfterViewInit,
   ViewChild,
   ElementRef,
   AfterViewChecked,
@@ -26,7 +27,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
   standalone: true,
   imports: [CommonModule, FormsModule, HttpClientModule],
 })
-export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class ChatbotComponent implements OnInit, AfterViewInit, OnDestroy, AfterViewChecked {
   @ViewChild('chatContainer') chatContainer!: ElementRef;
   @ViewChild('messageInput') messageInput!: ElementRef;
 
@@ -62,6 +63,19 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
   ) {}
+
+  ngAfterViewInit(): void {
+    // Force text selection on the chat container via an inline style.
+    // CSS authored rules (even !important) can be beaten by inherited inline
+    // styles from ancestors (e.g. document.body during panel resize).
+    // An inline style on the element itself has the highest possible priority
+    // and cannot be overridden by anything above it in the DOM.
+    const el = this.chatContainer?.nativeElement as HTMLElement | undefined;
+    if (el) {
+      el.style.setProperty('user-select', 'text', 'important');
+      el.style.setProperty('-webkit-user-select', 'text', 'important');
+    }
+  }
 
   ngOnInit(): void {
     this.subscriptions.push(

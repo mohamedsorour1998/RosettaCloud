@@ -89,6 +89,7 @@ RUN printf '%s\n' \
      '{' \
      '  "workbench.colorTheme": "Default Dark+",' \
      '  "workbench.preferredDarkColorTheme": "Default Dark+",' \
+     '  "workbench.secondarySideBar.defaultVisibility": "hidden",' \
      '  "chat.disableAIFeatures": true,' \
      '  "chat.commandCenter.enabled": false,' \
      '  "github.copilot.enable": { "*": false },' \

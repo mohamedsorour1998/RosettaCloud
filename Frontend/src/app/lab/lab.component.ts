@@ -300,7 +300,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   dismissOnboarding(): void {
     this.showOnboarding = false;
     localStorage.setItem('rc_onboarding_seen', '1');
-    this.triggerNps();
+    // NPS is no longer triggered here — it fires after lab termination so the
+    // user has actually used the product before being asked for feedback.
   }
 
   triggerNps(): void {
@@ -902,11 +903,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
    * Set up a specific question
    */
   private setupQuestion(n: number): void {
-    if (!this.labId || !this.isLabActive) return;
-
-    const labInfo = this.labInfo$.getValue();
-    if (!labInfo) return;
-
+    // Always update UI state so navigation works even while the lab is loading.
     this.resetUI();
     this.currentQuestionIndex = n - 1;
     this.questions[this.currentQuestionIndex].visited = true;
@@ -919,6 +916,12 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
         element.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }, 100);
+
+    // The kubectl setup call requires a live pod — skip until lab is active.
+    if (!this.labId || !this.isLabActive) return;
+
+    const labInfo = this.labInfo$.getValue();
+    if (!labInfo) return;
 
     console.log(
       `Setting up question ${n} with pod name: ${labInfo.pod_name || 'unknown'}`
@@ -1256,6 +1259,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe({
         next: () => {
           try {
+            // Ask for NPS feedback now that the user has finished a session.
+            this.triggerNps();
+
             sessionStorage.removeItem('activeLabId');
             sessionStorage.removeItem(this.qStateKey);
             this.questions = [];
@@ -1526,12 +1532,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   get showFeedbackButton(): boolean {
     const completedCount = this.getCompletedQuestionsCount();
     const totalCount = this.questions.length;
-
-    return (
-      totalCount > 0 &&
-      (this.currentQuestionIndex === this.questions.length - 1 ||
-        completedCount / totalCount >= 0.75)
-    );
+    // Show only when at least 75% of questions are genuinely completed.
+    // Removed the "on last question" condition: being on the last question
+    // does not mean the user has finished and is ready to give feedback.
+    return totalCount > 0 && completedCount / totalCount >= 0.75;
   }
 
   /**
