@@ -432,6 +432,7 @@
     overflow-wrap: break-word;
     word-break: break-word; // Help break long words
     user-select: text; // Explicitly allow text selection inside chat messages
+    -webkit-user-select: text; // Webkit prefix required — Chrome inherits -webkit-user-select:none from body during panel resize
 
     p {
       margin: 0 0 1rem 0;
