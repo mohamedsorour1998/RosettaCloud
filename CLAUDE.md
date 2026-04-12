@@ -118,6 +118,8 @@ Service → Backend mappings:
 
 **Image**: 1.86 GB, `IfNotPresent` policy (200ms cached pull). No `imagePullSecrets`; EKS node IAM role handles ECR auth. Lab pods annotated `sidecar.istio.io/inject: "false"`.
 
+**VS Code (code-server) extensions:** `github.copilot` and `github.copilot-chat` are intentionally **not installed**. `settings.json` baked into the image sets `"chat.disableAIFeatures": true` so the Copilot chat/sessions panel never appears in student labs. The RosettaCloud AI tutor (right panel) is the only AI interface students should see.
+
 Readiness probe: HTTP GET `/` port 80, `initial_delay=3s`, `period=3s`, `timeout=5s`, `failure_threshold=40`.
 
 **Resource warning:** Each lab runs a full Kind cluster. A t3.xlarge (4 CPU) supports platform services + 1 lab. Two concurrent Kind clusters starve the entire node.
@@ -2034,6 +2036,8 @@ Key public API used by components:
 setUserId(userId: string): void          // called on login
 setLabContext(moduleUuid: string, lessonUuid: string): void  // called by LabComponent.ngOnInit
 sendMessage(message: string): void       // chat messages
+sendImageMessage(base64: string, text: string): void  // send image + text immediately
+stagePendingImage(base64: string, defaultText?: string): void  // stage screenshot for user to edit before sending
 sendGradeMessage(moduleUuid, lessonUuid, questionNumber, result): void  // auto-grade on answer
 sendFeedbackRequest(moduleUuid, lessonUuid, questions, userProgress): void  // end-of-lab feedback
 clearChat(): void
@@ -2042,10 +2046,21 @@ messages$: Observable<ChatMessage[]>
 loading$: Observable<boolean>
 connected$: Observable<boolean>   // always true (HTTP)
 sources$: Observable<Source[]>    // always empty (AgentCore doesn't return sources)
+pendingImageStaged$: Observable<{ base64: string; defaultText: string }>  // emits when Snap & Ask captures a screenshot
 ```
+
+**Snap & Ask — stage before send:** `lab.component.ts:analyzeTerminal()` calls `stagePendingImage(base64)` instead of sending immediately. `ChatbotComponent` subscribes to `pendingImageStaged$` (a `Subject`, not `BehaviorSubject` — no replay for late subscribers), stores the base64 in `pendingImageData`, pre-fills `currentMessage` with the default text, and shows a preview card above the input. `sendMessage()` detects `pendingImageData` and calls `sendImageMessage()` instead of `sendMessage()`.
 
 **Implementation notes:**
 - All HTTP calls go through a private `post<T>(body)` helper that retries **once after 1.5 s on HTTP status 0** (connection refused / cold backend pod). Other error codes propagate immediately without retry.
 - The chat textarea is **never** disabled by `isLoading` — only the send button is gated. This prevents the `sendSessionStart` welcome-message fetch (~15-30 s) from blocking user input.
 - `sendSessionStart` is called by `LabComponent` only when lab status transitions to `running` (not on `pending`). It fires silently (no user bubble) and the response appears as a Planner message.
 - Markdown ordered lists use `<ol start="N">` so lists interrupted by blank lines continue at the correct number instead of resetting to 1.
+
+### Lab Component UI (`Frontend/src/app/lab/`)
+
+**Resizable panels:** The lab layout has three columns — left (Lab Questions sidebar), centre (code-server iframe), right (AI Chat). Left and right panels are JS-resized via `startResizeLeft()` / `startResizeRight()` on `mousedown` of `.panel-resizer` drag handles. Widths are persisted to `localStorage` keys `rc_left_panel_w` / `rc_right_panel_w`. Double-clicking a handle collapses/expands the panel. During drag, `document.body.style.userSelect = 'none'` is set and cleared on `mouseup` **and** on `window.blur` (prevents the selection lock sticking if the mouse is released outside the browser window).
+
+**Quota-exhausted state:** When `isQuotaExhausted` is true the left sidebar (`<aside class="lab-sidebar">`) and the left drag handle are hidden via `*ngIf="!isQuotaExhausted"`. The right AI Chat panel is also hidden (`*ngIf="!isQuotaExhausted"` already existed on that side). Only the quota-error card in the centre is shown.
+
+**Question title overflow:** `.question-title` in the flex title row has `min-width: 0` and `word-break: break-word` so long question text wraps within the panel without pushing the Ask-AI `?` button off-screen.
