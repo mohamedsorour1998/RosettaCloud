@@ -94,7 +94,8 @@ RUN printf '%s\n' \
      '  "chat.commandCenter.enabled": false,' \
      '  "github.copilot.enable": { "*": false },' \
      '  "github.copilot.editor.enableAutoCompletions": false,' \
-     '  "workbench.startupEditor": "none"' \
+     '  "workbench.startupEditor": "none",' \
+     '  "security.workspace.trust.enabled": false' \
      '}' \
      > /data/User/settings.json
 
