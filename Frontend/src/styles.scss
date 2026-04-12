@@ -283,3 +283,14 @@ button,
     text-align: right;
   }
 }
+
+/* ── Chat panel text selection ──────────────────────────────────────────────
+   Global rule (no Angular scoping) so it covers [innerHTML]-injected content.
+   Overrides the body inline style user-select:none set during panel resizes. */
+.chat-container,
+.message-bubble,
+.message-text,
+.chat-container * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
