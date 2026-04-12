@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, of, throwError, timer } from 'rxjs';
+import { BehaviorSubject, Observable, of, Subject, throwError, timer } from 'rxjs';
 import { map, catchError, retry } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
@@ -46,6 +46,11 @@ export class ChatbotService {
   public loading$ = this.loadingSubject.asObservable();
   public connected$ = of(true);
   public sources$ = of<Source[]>([]);
+
+  // ── Snap & Ask staging ──────────────────────────────────────────────────
+  private pendingImageStagedSubject = new Subject<{ base64: string; defaultText: string }>();
+  /** Emits once each time a screenshot is staged (Snap & Ask capture). */
+  public pendingImageStaged$ = this.pendingImageStagedSubject.asObservable();
 
   constructor(private http: HttpClient) {
     this.sessionId = 'session-' + crypto.randomUUID() + '-' + Date.now();
@@ -106,6 +111,17 @@ export class ChatbotService {
           this.loadingSubject.next(false);
         },
       });
+  }
+
+  /**
+   * Stages a screenshot for the user to review/edit before sending.
+   * Called by lab.component.ts after capture; does NOT send to backend.
+   */
+  public stagePendingImage(
+    base64: string,
+    defaultText = 'I need help with this. What am I doing wrong?'
+  ): void {
+    this.pendingImageStagedSubject.next({ base64, defaultText });
   }
 
   public sendImageMessage(base64: string, text: string = 'Help me understand what I see in my terminal'): void {

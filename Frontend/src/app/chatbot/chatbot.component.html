@@ -233,6 +233,22 @@
       <i class="bi bi-cpu-fill"></i> {{ tooltipText }}
     </div>
 
+    <!-- Staged screenshot preview — shown when Snap & Ask has captured but not yet sent -->
+    <div *ngIf="pendingImageData" class="pending-image-card">
+      <img [src]="pendingImageData" alt="Staged screenshot" class="pending-thumb" />
+      <div class="pending-info">
+        <span class="pending-label">Screenshot attached</span>
+        <span class="pending-type">terminal capture · jpeg</span>
+      </div>
+      <button class="pending-remove-btn"
+              type="button"
+              (click)="clearPendingImage()"
+              title="Remove screenshot"
+              aria-label="Remove screenshot">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
     <!-- Input Area -->
     <div class="input-area">
       <textarea

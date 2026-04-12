@@ -1398,7 +1398,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
 
       const base64 = canvas.toDataURL('image/jpeg', 0.75);
       this.openChatPanel();
-      this.chatbotSv.sendImageMessage(base64, 'I need help with this. What am I doing wrong?');
+      this.chatbotSv.stagePendingImage(base64);
     } catch {
       // User cancelled or browser unsupported — fail silently
     }

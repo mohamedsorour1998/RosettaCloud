@@ -37,6 +37,8 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   currentMessage = '';
   showSources = false;
   showClearConfirmation = false;
+  /** Base64 JPEG staged by Snap & Ask, cleared after send or dismiss. */
+  pendingImageData: string | null = null;
 
   get hasUserSentMessage(): boolean {
     return this.messages.some(m => m.role === 'user' || m.role === 'assistant');
@@ -50,6 +52,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   tooltipX = 0;
   tooltipY = 0;
   private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingImageFocusTimer: ReturnType<typeof setTimeout> | null = null;
   messageRatings: Map<string, 'up' | 'down'> = new Map();
 
   private subscriptions: Subscription[] = [];
@@ -88,6 +91,22 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.isConnected = isConnected;
       })
     );
+
+    this.subscriptions.push(
+      this.chatbotService.pendingImageStaged$.subscribe(({ base64, defaultText }) => {
+        this.pendingImageData = base64;
+        this.currentMessage = defaultText;
+        // Let Angular update the DOM, then select all text so typing replaces the default.
+        clearTimeout(this.pendingImageFocusTimer ?? undefined);
+        this.pendingImageFocusTimer = setTimeout(() => {
+          if (this.messageInput?.nativeElement) {
+            this.messageInput.nativeElement.focus();
+            this.messageInput.nativeElement.select();
+            this.adjustTextareaHeight();
+          }
+        });
+      })
+    );
   }
 
   ngAfterViewChecked(): void {
@@ -100,6 +119,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   ngOnDestroy(): void {
     this.subscriptions.forEach((sub) => sub.unsubscribe());
     clearTimeout(this.tooltipTimer ?? undefined);
+    clearTimeout(this.pendingImageFocusTimer ?? undefined);
   }
 
   /**
@@ -121,6 +141,7 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   doClearChat(): void {
     this.chatbotService.clearChat();
+    this.pendingImageData = null;
     this.showClearConfirmation = false;
   }
 
@@ -128,11 +149,17 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Sends the current message to the chatbot service
    */
   sendMessage(): void {
+    if (this.isLoading) return;
     const message = this.currentMessage.trim();
     if (!message) return;
     this.shouldAutoScroll = true;
 
-    this.chatbotService.sendMessage(message);
+    if (this.pendingImageData) {
+      this.chatbotService.sendImageMessage(this.pendingImageData, message);
+      this.pendingImageData = null;
+    } else {
+      this.chatbotService.sendMessage(message);
+    }
     this.currentMessage = '';
 
     // Focus the input and adjust height
@@ -151,6 +178,11 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Then send it immediately
     this.sendMessage();
+  }
+
+  /** Dismisses the staged screenshot without clearing the typed text. */
+  clearPendingImage(): void {
+    this.pendingImageData = null;
   }
 
   /**
