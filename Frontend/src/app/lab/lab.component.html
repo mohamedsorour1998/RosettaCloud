@@ -72,6 +72,19 @@
           }"
         ></span>
         <span class="status-text">{{ labInfo.status | titlecase }}</span>
+        <!-- Panel expand chips — visible only when a panel is collapsed on desktop -->
+        <button *ngIf="!isMobile && !isLeftVisible"
+                class="panel-expand-btn"
+                (click)="toggleLeftPanel()"
+                title="Expand questions panel">
+          <i class="bi bi-layout-sidebar"></i> Questions
+        </button>
+        <button *ngIf="!isMobile && !isRightVisible && !isQuotaExhausted"
+                class="panel-expand-btn panel-expand-btn--right"
+                (click)="toggleRightPanel()"
+                title="Expand AI chat panel">
+          AI Chat <i class="bi bi-layout-sidebar-reverse"></i>
+        </button>
         <!-- Live session timer -->
         <span class="lab-session-chip" *ngIf="labSecondsElapsed > 0">
           <i class="bi bi-clock"></i> {{ sessionTimeDisplay }}
@@ -141,7 +154,10 @@
   <!-- Main Content Area -->
   <div class="lab-content" [class.instructions-open]="showInstructions">
     <!-- Question Sidebar -->
-    <aside class="lab-sidebar" [class.mobile-hidden]="isMobile && !showSidebar">
+    <aside class="lab-sidebar"
+           [class.mobile-hidden]="isMobile && !showSidebar"
+           [style.width.px]="isMobile ? null : leftPanelWidth"
+           [style.minWidth.px]="isMobile ? null : leftPanelWidth">
       <!-- Mobile close button -->
       <button
         *ngIf="isMobile"
@@ -410,6 +426,15 @@
       </div>
     </aside>
 
+    <!-- Left drag handle — hidden on mobile (panels are overlays there) -->
+  <div *ngIf="!isMobile"
+       class="panel-resizer panel-resizer--left"
+       (mousedown)="startResizeLeft($event)"
+       (dblclick)="toggleLeftPanel()"
+       title="Drag to resize · Double-click to collapse">
+    <div class="resizer-line"></div>
+  </div>
+
     <!-- Main Editor Panel -->
     <main class="lab-main">
       <!-- Loading State -->
@@ -476,6 +501,15 @@
       </div>
     </main>
 
+  <!-- Right drag handle -->
+  <div *ngIf="!isMobile && !isQuotaExhausted"
+       class="panel-resizer panel-resizer--right"
+       (mousedown)="startResizeRight($event)"
+       (dblclick)="toggleRightPanel()"
+       title="Drag to resize · Double-click to collapse">
+    <div class="resizer-line"></div>
+  </div>
+
     <!-- Chatbot Panel — hidden when quota is exhausted (no lab context, and
          app-chatbot fires HTTP requests on mount that would have no useful
          context anyway). -->
@@ -483,6 +517,8 @@
       *ngIf="!isQuotaExhausted"
       class="chatbot-panel"
       [class.mobile-hidden]="isMobile && !showChatbot"
+      [style.width.px]="isMobile ? null : rightPanelWidth"
+      [style.minWidth.px]="isMobile ? null : rightPanelWidth"
     >
       <!-- Mobile close button -->
       <button

@@ -277,12 +277,13 @@
 
 // Sidebar
 .lab-sidebar {
-  width: 18.75rem;
-  min-width: 18.75rem;
+  // width and min-width are now driven by [style.width.px] binding in the template.
+  // flex-shrink:0 prevents the flex container from compressing below the bound width.
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   border-right: 0.0625rem solid transparent;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
   position: relative;
   overflow: hidden;
 
@@ -960,10 +961,11 @@
 
 // Chatbot Panel
 .chatbot-panel {
-  width: 21.875rem;
-  min-width: 21.875rem;
+  // width and min-width are now driven by [style.width.px] binding in the template.
+  // flex-shrink:0 prevents the flex container from compressing below the bound width.
+  flex-shrink: 0;
   border-left: 0.0625rem solid transparent;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
   position: relative;
   overflow: hidden;
 
@@ -1311,8 +1313,7 @@
   }
 
   .lab-sidebar {
-    width: 15.625rem;
-    min-width: 15.625rem;
+    // JS-controlled width takes precedence; no override needed at this breakpoint.
   }
 
   .lab-main {
@@ -1418,6 +1419,65 @@
       height: 2.5rem;
       font-size: 1rem;
     }
+  }
+}
+
+// ── Resizable panel drag handles ─────────────────────────────────────────
+.panel-resizer {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  background: transparent;
+  z-index: 5;
+  // Subtle hover highlight
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(var(--bs-primary-rgb), 0.06);
+  }
+
+  // Thin colored line in the center of the handle
+  .resizer-line {
+    position: absolute;
+    top: 10%;
+    bottom: 10%;
+    left: 2px;
+    width: 1px;
+    background: transparent;
+    transition: background 0.15s;
+    pointer-events: none;
+  }
+
+  &:hover .resizer-line {
+    background: var(--primary-color);
+    opacity: 0.5;
+  }
+}
+
+// ── Panel expand chips (shown in header when a panel is collapsed) ────────
+.panel-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
+  background: rgba(var(--bs-primary-rgb), 0.08);
+  color: var(--primary-color);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+  margin-left: 0.5rem;
+
+  &:hover {
+    background: rgba(var(--bs-primary-rgb), 0.15);
+    border-color: rgba(var(--bs-primary-rgb), 0.5);
+  }
+
+  i {
+    font-size: 0.8rem;
   }
 }
 

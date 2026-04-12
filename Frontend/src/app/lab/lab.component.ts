@@ -112,6 +112,20 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
    * Reset to false when the user navigates away or explicitly re-initialises.
    */
   isQuotaExhausted = false;
+
+  // ── Resizable panels ──────────────────────────────────────────────────────
+  /** Left panel (Questions sidebar) width in px. 0 = collapsed. */
+  leftPanelWidth = +(localStorage.getItem('rc_left_panel_w') ?? '300');
+  /** Right panel (AI Chat) width in px. 0 = collapsed. */
+  rightPanelWidth = +(localStorage.getItem('rc_right_panel_w') ?? '350');
+  /** Width to restore when left panel is expanded after a collapse. */
+  private _leftRestoreWidth = this.leftPanelWidth > 0 ? this.leftPanelWidth : 300;
+  /** Width to restore when right panel is expanded after a collapse. */
+  private _rightRestoreWidth = this.rightPanelWidth > 0 ? this.rightPanelWidth : 350;
+
+  get isLeftVisible(): boolean { return this.leftPanelWidth > 0; }
+  get isRightVisible(): boolean { return this.rightPanelWidth > 0; }
+
   timeRemaining$ = new BehaviorSubject<string>('');
 
   // UI related properties
@@ -391,6 +405,91 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     // against the authoritative server value (e.g. if another tab closed
     // a session or the user's clock is skewed).
     this.quotaInterval = setInterval(() => this.fetchLabQuota(), 60 * 1000);
+  }
+
+  private savePanelWidths(): void {
+    localStorage.setItem('rc_left_panel_w', String(this.leftPanelWidth));
+    localStorage.setItem('rc_right_panel_w', String(this.rightPanelWidth));
+  }
+
+  toggleLeftPanel(): void {
+    if (this.isLeftVisible) {
+      this._leftRestoreWidth = this.leftPanelWidth;
+      this.leftPanelWidth = 0;
+    } else {
+      this.leftPanelWidth = this._leftRestoreWidth || 300;
+    }
+    this.savePanelWidths();
+  }
+
+  toggleRightPanel(): void {
+    if (this.isRightVisible) {
+      this._rightRestoreWidth = this.rightPanelWidth;
+      this.rightPanelWidth = 0;
+    } else {
+      this.rightPanelWidth = this._rightRestoreWidth || 350;
+    }
+    this.savePanelWidths();
+  }
+
+  /**
+   * Begins a left-panel drag resize on mousedown on the left resizer handle.
+   * Binds mousemove/mouseup to document (zone.js-patched → triggers CD).
+   * Min width: 150px. Max: 40% of .lab-content container width.
+   */
+  startResizeLeft(e: MouseEvent): void {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = this.leftPanelWidth;
+    const container = this.el.nativeElement.querySelector('.lab-content') as HTMLElement | null;
+    const maxWidth = container ? Math.floor(container.offsetWidth * 0.4) : 600;
+
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    const onMove = (ev: MouseEvent) => {
+      const newWidth = startWidth + (ev.clientX - startX);
+      this.leftPanelWidth = Math.max(150, Math.min(newWidth, maxWidth));
+    };
+    const onUp = () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      this.savePanelWidths();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  /**
+   * Begins a right-panel drag resize on mousedown on the right resizer handle.
+   * Moving mouse LEFT increases right panel width (inverted delta).
+   * Min width: 220px. Max: 45% of .lab-content container width.
+   */
+  startResizeRight(e: MouseEvent): void {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = this.rightPanelWidth;
+    const container = this.el.nativeElement.querySelector('.lab-content') as HTMLElement | null;
+    const maxWidth = container ? Math.floor(container.offsetWidth * 0.45) : 700;
+
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    const onMove = (ev: MouseEvent) => {
+      const newWidth = startWidth - (ev.clientX - startX);
+      this.rightPanelWidth = Math.max(220, Math.min(newWidth, maxWidth));
+    };
+    const onUp = () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      this.savePanelWidths();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   }
 
   /** @deprecated use sessionTimeDisplay */
