@@ -431,6 +431,7 @@
     max-width: 100%;
     overflow-wrap: break-word;
     word-break: break-word; // Help break long words
+    user-select: text; // Explicitly allow text selection inside chat messages
 
     p {
       margin: 0 0 1rem 0;

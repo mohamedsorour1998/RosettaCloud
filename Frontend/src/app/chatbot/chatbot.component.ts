@@ -348,11 +348,36 @@ export class ChatbotComponent implements OnInit, OnDestroy, AfterViewChecked {
   copyMessage(content: string): void {
     // Strip markdown formatting for clipboard
     const plainText = content
-      .replace(/```[\s\S]*?```/g, (match) => {
-        // Extract code blocks without the backticks
-        return match.replace(/```(?:[a-zA-Z]*\n)?|\n```$/g, '');
-      })
-      .replace(/`([^`]+)`/g, '$1'); // Remove inline code formatting
+      // fenced code blocks: keep inner code, strip fences + optional language tag
+      .replace(/```[\w-]*\n?([\s\S]*?)```/g, '$1')
+      // inline code: strip backticks
+      .replace(/`([^`]+)`/g, '$1')
+      // ATX headings: ## Heading → Heading
+      .replace(/^#{1,6}\s+/gm, '')
+      // bold+italic ***text*** / ___text___
+      .replace(/\*{3}(.+?)\*{3}/gs, '$1')
+      .replace(/_{3}(.+?)_{3}/gs, '$1')
+      // bold **text** / __text__
+      .replace(/\*{2}(.+?)\*{2}/gs, '$1')
+      .replace(/_{2}(.+?)_{2}/gs, '$1')
+      // italic *text* / _text_  (single char, not touching list markers)
+      .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/gs, '$1')
+      .replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/gs, '$1')
+      // strikethrough ~~text~~
+      .replace(/~~(.+?)~~/gs, '$1')
+      // markdown links [label](url) → label
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // unordered list markers (- / * / + at line start)
+      .replace(/^[ \t]*[-*+]\s+/gm, '')
+      // ordered list markers (1. / 2. at line start)
+      .replace(/^[ \t]*\d+\.\s+/gm, '')
+      // blockquotes
+      .replace(/^[ \t]*>\s*/gm, '')
+      // horizontal rules
+      .replace(/^[-*_]{3,}\s*$/gm, '')
+      // collapse 3+ blank lines to 2
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
     navigator.clipboard.writeText(plainText).then(
       () => {
