@@ -290,6 +290,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Average score across all enrolled lessons (0-100).
+   * Derived from completed / total questions in userProgress.
+   */
+  get averageScore(): number {
+    if (!this.userProgress || Object.keys(this.userProgress).length === 0) return 0;
+    let totalQ = 0;
+    let completedQ = 0;
+    for (const moduleId of Object.keys(this.userProgress)) {
+      for (const lessonId of Object.keys(this.userProgress[moduleId] || {})) {
+        totalQ += this.getTotalQuestionsCount(moduleId, lessonId);
+        completedQ += this.getCompletedQuestionsCount(moduleId, lessonId);
+      }
+    }
+    return totalQ > 0 ? Math.round((completedQ / totalQ) * 100) : 0;
+  }
+
+  /**
    * Check if lesson is completed
    */
   isLessonCompleted(moduleId: string, lessonId: string): boolean {
