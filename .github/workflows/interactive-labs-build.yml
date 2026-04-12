@@ -34,10 +34,35 @@ jobs:
 
       - name: Build & push
         run: |
-          IMAGE=${{ steps.login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          REGISTRY=${{ steps.login.outputs.registry }}
+          SHA_TAG="${GITHUB_SHA::8}"
+          IMAGE_LATEST="$REGISTRY/${{ env.ECR_REPOSITORY }}:latest"
+          IMAGE_SHA="$REGISTRY/${{ env.ECR_REPOSITORY }}:$SHA_TAG"
           docker build --platform linux/amd64 \
             -f DevSecOps/interactive-labs/Dockerfile \
             DevSecOps/interactive-labs \
-            -t "$IMAGE"
-          docker push "$IMAGE"
-          echo "Pushed $IMAGE"
+            -t "$IMAGE_LATEST" \
+            -t "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          echo "Pushed $IMAGE_LATEST and $IMAGE_SHA"
+          echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
+          echo "image_sha=$IMAGE_SHA" >> "$GITHUB_OUTPUT"
+        id: build
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Update backend ConfigMap with new image tag
+        run: |
+          aws eks update-kubeconfig --name rosettacloud-eks --region us-east-1
+          kubectl patch configmap rosettacloud-backend-config -n dev \
+            --patch "{\"data\":{\"LAB_POD_IMAGE\":\"${{ steps.build.outputs.image_sha }}\"}}"
+          echo "ConfigMap LAB_POD_IMAGE updated to ${{ steps.build.outputs.image_sha }}"
+
+      - name: Restart backend to pick up new ConfigMap
+        run: |
+          kubectl rollout restart deployment/rosettacloud-backend -n dev
+          kubectl rollout status deployment/rosettacloud-backend -n dev --timeout=120s
