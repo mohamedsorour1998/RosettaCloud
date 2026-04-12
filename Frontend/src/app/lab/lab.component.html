@@ -155,6 +155,7 @@
   <div class="lab-content" [class.instructions-open]="showInstructions">
     <!-- Question Sidebar -->
     <aside class="lab-sidebar"
+           *ngIf="!isQuotaExhausted"
            [class.mobile-hidden]="isMobile && !showSidebar"
            [style.width.px]="isMobile ? null : leftPanelWidth"
            [style.minWidth.px]="isMobile ? null : leftPanelWidth">
@@ -427,7 +428,7 @@
     </aside>
 
     <!-- Left drag handle — hidden on mobile (panels are overlays there) -->
-  <div *ngIf="!isMobile"
+  <div *ngIf="!isMobile && !isQuotaExhausted"
        class="panel-resizer panel-resizer--left"
        (mousedown)="startResizeLeft($event)"
        (dblclick)="toggleLeftPanel()"
@@ -459,7 +460,6 @@
         <div class="error-icon"><i class="bi bi-battery"></i></div>
         <h5>Weekly lab quota used</h5>
         <p>{{ errorMessage }}</p>
-        <p class="text-muted" style="font-size:0.85em">You can still review questions and lessons while you wait for your quota to reset.</p>
       </div>
 
       <!-- General Error State -->

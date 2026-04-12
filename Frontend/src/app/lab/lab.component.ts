@@ -445,6 +445,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const maxWidth = container ? Math.floor(container.offsetWidth * 0.4) : 600;
 
     document.body.style.userSelect = 'none';
+    (document.body.style as any).webkitUserSelect = 'none';
     document.body.style.cursor = 'col-resize';
 
     const onMove = (ev: MouseEvent) => {
@@ -453,13 +454,16 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     };
     const onUp = () => {
       document.body.style.userSelect = '';
+      (document.body.style as any).webkitUserSelect = '';
       document.body.style.cursor = '';
       this.savePanelWidths();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      window.removeEventListener('blur', onUp);
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    window.addEventListener('blur', onUp);
   }
 
   /**
@@ -475,6 +479,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const maxWidth = container ? Math.floor(container.offsetWidth * 0.45) : 700;
 
     document.body.style.userSelect = 'none';
+    (document.body.style as any).webkitUserSelect = 'none';
     document.body.style.cursor = 'col-resize';
 
     const onMove = (ev: MouseEvent) => {
@@ -483,13 +488,16 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     };
     const onUp = () => {
       document.body.style.userSelect = '';
+      (document.body.style as any).webkitUserSelect = '';
       document.body.style.cursor = '';
       this.savePanelWidths();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      window.removeEventListener('blur', onUp);
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    window.addEventListener('blur', onUp);
   }
 
   /** @deprecated use sessionTimeDisplay */

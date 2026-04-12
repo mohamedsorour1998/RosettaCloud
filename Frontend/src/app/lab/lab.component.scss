@@ -545,10 +545,12 @@
 
     .question-title {
       flex: 1;
+      min-width: 0;
       font-size: 1.1rem;
       font-weight: 600;
       margin: 0;
       line-height: 1.4;
+      word-break: break-word;
     }
 
     .btn-ask-ai {
