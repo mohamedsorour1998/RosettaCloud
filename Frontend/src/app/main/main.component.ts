@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { PublicMetricsService, PublicStats } from '../services/public-metrics.service';
@@ -28,7 +28,16 @@ export class MainComponent implements OnInit, OnDestroy {
 
   private statsSub?: Subscription;
 
-  constructor(private metricsService: PublicMetricsService) {}
+  constructor(
+    private metricsService: PublicMetricsService,
+    private router: Router,
+  ) {}
+
+  /** Route to /dashboard if already signed in, else to /register. */
+  startFree(): void {
+    const token = localStorage.getItem('idToken');
+    this.router.navigate([token ? '/dashboard' : '/register']);
+  }
 
   ngOnInit(): void {
     this.initAnimations();

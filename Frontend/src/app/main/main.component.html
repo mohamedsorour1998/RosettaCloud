@@ -24,7 +24,7 @@
           Cloud engineering skills that get you hired. Not just certified.
         </p>
         <div class="hero-buttons">
-          <a routerLink="/register" class="btn btn-primary px-4 py-2">
+          <a (click)="startFree()" class="btn btn-primary px-4 py-2" style="cursor:pointer">
             <i class="bi bi-rocket me-2"></i>Start Free — No Credit Card
           </a>
           <a routerLink="/pricing" class="btn btn-outline-light px-4 py-2">
@@ -369,7 +369,7 @@
           Start with 2 free hours of lab time every week. No credit card, no setup — just open your browser and start coding.
         </p>
         <div class="cta-buttons mb-4">
-          <a routerLink="/register" class="btn btn-primary px-4 py-2">
+          <a (click)="startFree()" class="btn btn-primary px-4 py-2" style="cursor:pointer">
             <i class="bi bi-lightning-charge me-2"></i>Start Free Now
           </a>
           <a routerLink="/pricing" class="btn btn-outline-light px-4 py-2">
