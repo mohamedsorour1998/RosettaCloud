@@ -89,6 +89,7 @@ RUN printf '%s\n' \
      '{' \
      '  "workbench.colorTheme": "Default Dark+",' \
      '  "workbench.preferredDarkColorTheme": "Default Dark+",' \
+     '  "chat.disableAIFeatures": true,' \
      '  "auto-run-command.commands": [' \
      '    { "command": "workbench.action.terminal.toggleTerminal" }' \
      '  ]' \
@@ -104,8 +105,6 @@ RUN code-server \
      --install-extension formulahendry.auto-close-tag \
      --install-extension formulahendry.auto-rename-tag \
      --install-extension formulahendry.code-runner \
-     --install-extension github.copilot \
-     --install-extension github.copilot-chat \
      --install-extension github.vscode-github-actions \
      --install-extension hashicorp.terraform \
      --install-extension hussamadil.ayat \
