@@ -169,6 +169,8 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   // Lab hours metering
   labStartTime: number | null = null;
   labSecondsElapsed = 0;
+  /** Total seconds the session is budgeted for, captured from the first quota fetch. */
+  sessionBudgetSeconds = 0;
   private labTimerInterval: ReturnType<typeof setInterval> | null = null;
 
   // Weekly quota
@@ -331,6 +333,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   startLabTimer(): void {
     this.labStartTime = Date.now();
     this.labSecondsElapsed = 0;
+    this.sessionBudgetSeconds = 0; // re-captured on first quota fetch
     this.labTimerInterval = setInterval(() => {
       if (this.labStartTime) {
         this.labSecondsElapsed = Math.floor((Date.now() - this.labStartTime) / 1000);
@@ -350,12 +353,13 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get sessionTimeDisplay(): string {
-    const h = Math.floor(this.labSecondsElapsed / 3600);
-    const m = Math.floor((this.labSecondsElapsed % 3600) / 60);
-    const s = this.labSecondsElapsed % 60;
+    const remaining = Math.max(0, this.sessionBudgetSeconds - this.labSecondsElapsed);
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = remaining % 60;
     const mm = String(m).padStart(2, '0');
     const ss = String(s).padStart(2, '0');
-    return h > 0 ? `${h}h ${mm}m ${ss}s` : `${mm}m ${ss}s`;
+    return h > 0 ? `${h}h ${mm}m ${ss}s left` : `${mm}m ${ss}s left`;
   }
 
   /**
@@ -412,6 +416,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.weeklyMinutesRemaining = q.minutes_remaining;
       this.weeklyMinutesFetchedAt = Date.now();
       this.weeklyMinutesLimit = q.minutes_limit;
+      // Capture once — first quota response sets the session countdown budget.
+      if (!this.sessionBudgetSeconds) {
+        this.sessionBudgetSeconds = q.minutes_remaining * 60;
+      }
     });
   }
 

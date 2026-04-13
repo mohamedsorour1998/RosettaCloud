@@ -34,20 +34,6 @@
     </div>
   </div>
 
-  <!-- AI Quota Bar (shown when quota data is available) -->
-  <div class="quota-bar" *ngIf="aiQuota !== null" [class.quota-exhausted]="isQuotaExhausted">
-    <i class="bi" [ngClass]="isQuotaExhausted ? 'bi-slash-circle' : 'bi-chat-dots'"></i>
-    <span *ngIf="!isQuotaExhausted">
-      {{ aiQuota!.messages_remaining }} / {{ aiQuota!.messages_limit }} AI messages left this week
-    </span>
-    <span *ngIf="isQuotaExhausted">
-      Weekly AI quota used — resets {{ aiQuota!.week_resets_at * 1000 | date:'mediumDate' }}
-    </span>
-    <div class="quota-progress" *ngIf="!isQuotaExhausted">
-      <div class="quota-fill" [style.width.%]="(aiQuota!.messages_remaining / aiQuota!.messages_limit) * 100"></div>
-    </div>
-  </div>
-
   <!-- Main Chat Body -->
   <div class="chatbot-body">
     <!-- Sources Panel - Slide in from right when active -->

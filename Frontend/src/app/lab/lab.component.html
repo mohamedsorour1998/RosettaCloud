@@ -86,7 +86,7 @@
           AI Chat <i class="bi bi-layout-sidebar-reverse"></i>
         </button>
         <!-- Live session timer -->
-        <span class="lab-session-chip" *ngIf="labSecondsElapsed > 0">
+        <span class="lab-session-chip" *ngIf="sessionBudgetSeconds > 0">
           <i class="bi bi-clock"></i> {{ sessionTimeDisplay }}
         </span>
         <!-- Weekly quota — baseline from last server poll, ticks down every
