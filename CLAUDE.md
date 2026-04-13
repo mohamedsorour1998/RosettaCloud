@@ -144,16 +144,17 @@ Free-tier quota enforcement depends on every termination path recording session 
 
 1. Frontend sends `POST https://api.dev.rosettacloud.app/chat` with `{session_id, message, user_id, module_uuid, lesson_uuid}`
 2. `session_id` generated once per page load by `ChatbotService` constructor (stable for the whole chat session); module/lesson set via `ChatbotService.setLabContext()` by `LabComponent.ngOnInit`
-3. FastAPI `/chat` endpoint loads in-process history from `_chat_histories` dict (keyed by `session_id`), includes it as `conversation_history` in the AgentCore payload
-4. FastAPI calls `invoke_agent_runtime` synchronously via boto3 (`bedrock-agentcore` service)
-5. AgentCore classifies message → routes to tutor, grader, or planner agent
-6. **Tutor**: `search_knowledge_base` (LanceDB vector search) + `get_question_details` + `get_question_metadata`; calls `get_question_details(module_uuid, lesson_uuid, N)` for "question N" asks
-7. **Grader**: `get_question_details`, `get_user_progress`, `get_attempt_result`
-8. **Planner**: `get_user_progress`, `list_available_modules`, `get_question_metadata`
-9. In-process session history (FastAPI): `_chat_histories` dict in FastAPI backend pod (keyed by `session_id`, max 40 messages, 4-hour TTL, max 500 sessions); single-replica pod makes this fully reliable
-10. In-process session history (AgentCore): `_session_histories` dict in AgentCore Runtime container; reads from `conversation_history` payload (sent by FastAPI), used as fallback for CLI invocations
-11. AgentCore Memory (`rosettacloud_education_memory_v2-vvC3mbAmra`): long-term cross-session persistence via `AgentCoreMemorySessionManager`
-12. Response returned as JSON `{response, agent, session_id}` — FastAPI saves updated history, returns response to frontend
+3. FastAPI `/chat` endpoint enforces **weekly AI message quota** for `type=chat` requests: reads `ai_week_messages` + `ai_week_start` from DynamoDB (`users.get_ai_quota()`); raises **403** `AI_QUOTA_EXHAUSTED` when `messages_remaining <= 0`. Free tier: **50 messages/week**, resets Monday UTC midnight. After a successful response, `users.increment_ai_messages()` atomically bumps the DynamoDB counter. `type=hint`, `type=grade`, and `type=session_start` are excluded from quota (system-initiated). `GET /users/{id}/ai-quota` exposes quota state to the frontend.
+4. FastAPI loads in-process history from `_chat_histories` dict (keyed by `session_id`), includes it as `conversation_history` in the AgentCore payload
+5. FastAPI calls `invoke_agent_runtime` synchronously via boto3 (`bedrock-agentcore` service)
+6. AgentCore classifies message → routes to tutor, grader, or planner agent
+7. **Tutor**: `search_knowledge_base` (LanceDB vector search) + `get_question_details` + `get_question_metadata`; calls `get_question_details(module_uuid, lesson_uuid, N)` for "question N" asks
+8. **Grader**: `get_question_details`, `get_user_progress`, `get_attempt_result`
+9. **Planner**: `get_user_progress`, `list_available_modules`, `get_question_metadata`
+10. In-process session history (FastAPI): `_chat_histories` dict in FastAPI backend pod (keyed by `session_id`, max 40 messages, 4-hour TTL, max 500 sessions); single-replica pod makes this fully reliable
+11. In-process session history (AgentCore): `_session_histories` dict in AgentCore Runtime container; reads from `conversation_history` payload (sent by FastAPI), used as fallback for CLI invocations
+12. AgentCore Memory (`rosettacloud_education_memory_v2-vvC3mbAmra`): long-term cross-session persistence via `AgentCoreMemorySessionManager`
+13. Response returned as JSON `{response, agent, session_id}` — FastAPI saves updated history, increments `ai_week_messages` in DynamoDB, returns response to frontend
 
 ### Agent History Sanitization (`agent.py:_sanitize_history`)
 
@@ -1730,17 +1731,18 @@ Use this table directly in the article (condensed version):
 - **Growth Efficiency Ratio**: New ARR per dollar spent on marketing
 
 **Pricing model (for finalist article, addressing judge feedback)**:
-- **Freemium**: Free tier — 2h/week lab time, 1 course, AI tutor with rate limits. Cost: ~$0.35/month per free user (spot t3.xlarge ~$0.04/hour × 2h/week × 4.3 weeks).
+- **Freemium**: Free tier — 2h/week lab time + 50 AI messages/week, 1 course. Cost: ~$0.40/month per free user ($0.35 compute + $0.05 AI inference on Nova 2 Lite).
 - **Individual paid**: $15-25/month — unlimited lab time, all courses, full AI tutor, priority lab provisioning. Dramatically undercuts AWS Skill Builder ($29) and A Cloud Guru ($35).
 - **University/bootcamp bulk**: $8-12/student/month — volume discount, admin dashboard, cohort tracking, custom courses. Distribution channel: university IT departments and bootcamp operators.
 - **Enterprise training**: Custom pricing — corporate onboarding, team labs, branded experience.
 
-**Unit economics**:
-- Spot t3.xlarge: ~$0.04/hour per lab
-- Average lab session: 1-2 hours
-- Free user (2h/week): ~$0.35/month cost → subsidized by paid users
-- Paid user ($20/month, avg 8h/month lab): $0.32 compute + ~$0.05 AI (Nova 2 Lite) = ~$0.37 cost → $19.63 gross margin (~98%)
-- At scale with Karpenter: multiple labs share nodes, costs drop further
+**Unit economics** (compute + AI, full cost):
+- Lab compute: spot t3.xlarge ~$0.04/hour
+- AI inference: Nova 2 Lite ~$0.00025/message (~$0.000060/1K input + $0.000240/1K output; avg ~2K input + ~300 output tokens per turn including tool calls)
+- Free user (2h/week lab + 50 msg/week AI): $0.35 compute + $0.05 AI = **~$0.40/month** total
+- Paid user ($20/month, avg 8h/month lab + ~200 msg/month): $0.32 compute + $0.05 AI = **~$0.37/month** → $18.63 gross margin (**~98%**)
+- 1 Pro subscriber subsidises ~46 free users ($18.63 ÷ $0.40)
+- At scale with Karpenter: multiple labs bin-pack per node, compute cost drops further
 
 **SaaS stage**: Early stage (live product, real users, but no paid tier yet). Validate with pilot users → add payment → prove retention → scale.
 
@@ -2044,16 +2046,23 @@ clearChat(): void
 
 messages$: Observable<ChatMessage[]>
 loading$: Observable<boolean>
+aiQuota$: Observable<AiQuota | null>  // null until setUserId() is called; updates after every chat message
 connected$: Observable<boolean>   // always true (HTTP)
 sources$: Observable<Source[]>    // always empty (AgentCore doesn't return sources)
 pendingImageStaged$: Observable<{ base64: string; defaultText: string }>  // emits when Snap & Ask captures a screenshot
+
+// AiQuota shape: { messages_used, messages_remaining, messages_limit, week_resets_at }
+loadAiQuota(): void   // fetches GET /users/{id}/ai-quota; called automatically by setUserId() and after each chat response
 ```
+
+**AI message quota (frontend):** `setUserId()` triggers `loadAiQuota()` so the quota bar appears as soon as the user logs in. After each successful `sendMessage` / `sendImageMessage` response, `loadAiQuota()` is called again to refresh the counter. If the backend returns 403 `AI_QUOTA_EXHAUSTED`, `sendMessage` catches it, sets the quota state, and adds a friendly error message with the reset date. `ChatbotComponent` exposes `isQuotaExhausted` (getter) and disables both the textarea and send button when true. A quota bar appears between the chatbot header and chat body showing `X / 50 AI messages left this week` with a mini progress bar; it turns amber when exhausted.
 
 **Snap & Ask — stage before send:** `lab.component.ts:analyzeTerminal()` calls `stagePendingImage(base64)` instead of sending immediately. `ChatbotComponent` subscribes to `pendingImageStaged$` (a `Subject`, not `BehaviorSubject` — no replay for late subscribers), stores the base64 in `pendingImageData`, pre-fills `currentMessage` with the default text, and shows a preview card above the input. `sendMessage()` detects `pendingImageData` and calls `sendImageMessage()` instead of `sendMessage()`.
 
 **Implementation notes:**
 - All HTTP calls go through a private `post<T>(body)` helper that retries **once after 1.5 s on HTTP status 0** (connection refused / cold backend pod). Other error codes propagate immediately without retry.
-- The chat textarea is **never** disabled by `isLoading` — only the send button is gated. This prevents the `sendSessionStart` welcome-message fetch (~15-30 s) from blocking user input.
+- The chat textarea is disabled by both `!isConnected` and `isQuotaExhausted`; the send button is additionally gated on `isLoading`. This means quota exhaustion disables input without blocking the existing isLoading pattern.
+- The chat textarea is **never** disabled by `isLoading` alone — only the send button is gated on loading. This prevents the `sendSessionStart` welcome-message fetch (~15-30 s) from blocking user input.
 - `sendSessionStart` is called by `LabComponent` only when lab status transitions to `running` (not on `pending`). It fires silently (no user bubble) and the response appears as a Planner message.
 - Markdown ordered lists use `<ol start="N">` so lists interrupted by blank lines continue at the correct number instead of resetting to 1.
 
