@@ -796,6 +796,16 @@
             background: rgba(var(--bs-secondary-rgb), 0.15);
           }
         }
+
+        &.btn-recheck {
+          background: rgba(var(--bs-info-rgb), 0.1);
+          color: var(--bs-info);
+          border: 0.0625rem solid rgba(var(--bs-info-rgb), 0.25);
+
+          &:hover:not(:disabled) {
+            background: rgba(var(--bs-info-rgb), 0.18);
+          }
+        }
       }
     }
   }

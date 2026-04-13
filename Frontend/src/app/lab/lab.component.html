@@ -381,6 +381,18 @@
             <span class="btn-text">Check Solution</span>
           </button>
 
+          <!-- Re-check for already-completed practical questions -->
+          <button
+            class="btn-submit btn-recheck"
+            [ngClass]="{ loading: checkInProgress }"
+            *ngIf="cq.type === 'check' && cq.completed"
+            [disabled]="checkInProgress || !isLabActive"
+            (click)="checkQuestion(currentQuestionIndex + 1)"
+          >
+            <span class="spinner" *ngIf="checkInProgress"></span>
+            <span class="btn-text"><i class="bi bi-arrow-repeat"></i> Re-check Solution</span>
+          </button>
+
           <button
             class="btn-next"
             *ngIf="
