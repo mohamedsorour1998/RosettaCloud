@@ -4,6 +4,13 @@ import { BehaviorSubject, Observable, of, Subject, throwError, timer } from 'rxj
 import { map, catchError, retry } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
+export interface AiQuota {
+  messages_used: number;
+  messages_remaining: number;
+  messages_limit: number;
+  week_resets_at: number;
+}
+
 export type AgentType = 'tutor' | 'grader' | 'planner' | null;
 
 export interface ChatMessage {
@@ -40,10 +47,12 @@ export class ChatbotService {
 
   private messagesSubject = new BehaviorSubject<ChatMessage[]>([]);
   private loadingSubject = new BehaviorSubject<boolean>(false);
+  private aiQuotaSubject = new BehaviorSubject<AiQuota | null>(null);
 
   // HTTP is always "connected"; sources are not returned by AgentCore.
   public messages$ = this.messagesSubject.asObservable();
   public loading$ = this.loadingSubject.asObservable();
+  public aiQuota$ = this.aiQuotaSubject.asObservable();
   public connected$ = of(true);
   public sources$ = of<Source[]>([]);
 
@@ -73,6 +82,17 @@ export class ChatbotService {
 
   public setUserId(userId: string): void {
     this.userId = userId;
+    this.loadAiQuota();
+  }
+
+  public loadAiQuota(): void {
+    if (!this.userId) return;
+    this.http
+      .get<AiQuota>(`${environment.apiUrl}/users/${this.userId}/ai-quota`)
+      .subscribe({
+        next: (quota) => this.aiQuotaSubject.next(quota),
+        error: () => { /* quota load failure is non-fatal */ },
+      });
   }
 
   public setLabContext(moduleUuid: string, lessonUuid: string): void {
@@ -101,13 +121,24 @@ export class ChatbotService {
             agent: res.agent as AgentType,
           });
           this.loadingSubject.next(false);
+          this.loadAiQuota();
         },
         error: (err) => {
-          this.addMessage({
-            role: 'error',
-            content: `Agent error: ${err.message ?? 'Unknown error'}`,
-            timestamp: new Date(),
-          });
+          if (err.status === 403 && err.error?.detail?.code === 'AI_QUOTA_EXHAUSTED') {
+            const quota: AiQuota = err.error.detail.quota;
+            this.aiQuotaSubject.next(quota);
+            this.addMessage({
+              role: 'error',
+              content: `You've used all ${quota.messages_limit} free AI messages for this week. Your quota resets on ${new Date(quota.week_resets_at * 1000).toLocaleDateString()}.`,
+              timestamp: new Date(),
+            });
+          } else {
+            this.addMessage({
+              role: 'error',
+              content: `Agent error: ${err.message ?? 'Unknown error'}`,
+              timestamp: new Date(),
+            });
+          }
           this.loadingSubject.next(false);
         },
       });
@@ -151,13 +182,24 @@ export class ChatbotService {
             agent: res.agent as AgentType,
           });
           this.loadingSubject.next(false);
+          this.loadAiQuota();
         },
         error: (err) => {
-          this.addMessage({
-            role: 'error',
-            content: `Analysis error: ${err.message ?? 'Unknown error'}`,
-            timestamp: new Date(),
-          });
+          if (err.status === 403 && err.error?.detail?.code === 'AI_QUOTA_EXHAUSTED') {
+            const quota: AiQuota = err.error.detail.quota;
+            this.aiQuotaSubject.next(quota);
+            this.addMessage({
+              role: 'error',
+              content: `You've used all ${quota.messages_limit} free AI messages for this week. Your quota resets on ${new Date(quota.week_resets_at * 1000).toLocaleDateString()}.`,
+              timestamp: new Date(),
+            });
+          } else {
+            this.addMessage({
+              role: 'error',
+              content: `Analysis error: ${err.message ?? 'Unknown error'}`,
+              timestamp: new Date(),
+            });
+          }
           this.loadingSubject.next(false);
         },
       });

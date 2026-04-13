@@ -599,6 +599,16 @@ async def check_question(
     return result
 
 
+@app.get("/users/{user_id}/ai-quota", tags=["Chat"])
+async def get_ai_quota(
+    user_id: str,
+    claims: dict = Depends(get_current_user),
+):
+    resolved_id = claims["resolved_user_id"]
+    await _require_user(resolved_id)
+    return await users.get_ai_quota(resolved_id)
+
+
 @app.post("/chat", response_model=ChatResponse, tags=["Chat"])
 async def chat(request: ChatRequest, claims: dict = Depends(get_current_user)):
     if not _AGENT_RUNTIME_ARN:
@@ -606,6 +616,15 @@ async def chat(request: ChatRequest, claims: dict = Depends(get_current_user)):
 
     _check_rate_limit(claims["resolved_user_id"], "chat")
     _track_event(claims["resolved_user_id"], "chat_message")
+
+    # Enforce weekly AI message quota for user-initiated chat messages
+    if request.type == "chat":
+        quota = await users.get_ai_quota(claims["resolved_user_id"])
+        if quota["messages_remaining"] <= 0:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": "AI_QUOTA_EXHAUSTED", "quota": quota},
+            )
 
     session_id = request.session_id
     # session_start and explain must not read or write session history:
@@ -671,6 +690,13 @@ async def chat(request: ChatRequest, claims: dict = Depends(get_current_user)):
         if len(updated) > _CHAT_MAX_MESSAGES:
             updated = updated[-_CHAT_MAX_MESSAGES:]
         _chat_history_set(session_id, updated)
+
+    # Increment persisted AI message counter for user-initiated messages
+    if request.type == "chat":
+        try:
+            await users.increment_ai_messages(claims["resolved_user_id"])
+        except Exception as exc:
+            logger.warning("Failed to increment AI message count: %s", exc)
 
     return ChatResponse(response=agent_response, agent=agent_name, session_id=session_id)
 

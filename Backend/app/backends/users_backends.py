@@ -536,6 +536,48 @@ class DynamoDBUserBackend:
             "week_resets_at": week_end,
         }
 
+    async def get_ai_quota(self, user_id: str) -> Dict[str, Any]:
+        """Return weekly AI message quota for the user."""
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+        week_end = week_start + 7 * 24 * 3600
+
+        messages_limit = 50  # Free tier: 50 AI messages/week
+        user = await self.get_user(user_id)
+        if not user:
+            return {"messages_used": 0, "messages_remaining": messages_limit, "messages_limit": messages_limit, "week_resets_at": week_end}
+
+        stored_week_start = user.get("ai_week_start", 0) or 0
+        messages_used = (user.get("ai_week_messages", 0) or 0) if stored_week_start >= week_start else 0
+
+        return {
+            "messages_used": messages_used,
+            "messages_remaining": max(0, messages_limit - messages_used),
+            "messages_limit": messages_limit,
+            "week_resets_at": week_end,
+        }
+
+    async def increment_ai_messages(self, user_id: str) -> None:
+        """Atomically increment the user's weekly AI message count."""
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+
+        user = await self.get_user(user_id)
+        if not user:
+            return
+
+        stored_week_start = user.get("ai_week_start", 0) or 0
+        current = (user.get("ai_week_messages", 0) or 0) if stored_week_start >= week_start else 0
+
+        await self.update_user(user_id, {
+            "ai_week_start": week_start,
+            "ai_week_messages": current + 1,
+        })
+
 #
 class LmsUserBackend:
     def __init__(self) -> None:
@@ -1248,6 +1290,49 @@ class LmsUserBackend:
             "minutes_limit": minutes_limit,
             "week_resets_at": week_end,
         }
+
+    async def get_ai_quota(self, user_id: str) -> Dict[str, Any]:
+        """Return weekly AI message quota (delegates to DynamoDB record via extension data)."""
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+        week_end = week_start + 7 * 24 * 3600
+
+        messages_limit = 50
+        user = await self.get_user(user_id)
+        if not user:
+            return {"messages_used": 0, "messages_remaining": messages_limit, "messages_limit": messages_limit, "week_resets_at": week_end}
+
+        ext = await self._get_extension_data(user)
+        stored_week_start = ext.get("ai_week_start", 0) or 0
+        messages_used = (ext.get("ai_week_messages", 0) or 0) if stored_week_start >= week_start else 0
+
+        return {
+            "messages_used": messages_used,
+            "messages_remaining": max(0, messages_limit - messages_used),
+            "messages_limit": messages_limit,
+            "week_resets_at": week_end,
+        }
+
+    async def increment_ai_messages(self, user_id: str) -> None:
+        """Atomically increment the user's weekly AI message count in extension data."""
+        from datetime import datetime, timezone, timedelta
+        now_dt = datetime.now(timezone.utc)
+        monday = now_dt - timedelta(days=now_dt.weekday())
+        week_start = int(datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc).timestamp())
+
+        user = await self.get_user(user_id)
+        if not user:
+            return
+
+        ext = await self._get_extension_data(user)
+        stored_week_start = ext.get("ai_week_start", 0) or 0
+        current = (ext.get("ai_week_messages", 0) or 0) if stored_week_start >= week_start else 0
+
+        ext["ai_week_start"] = week_start
+        ext["ai_week_messages"] = current + 1
+        await self._update_extension_data(user_id, ext)
 
 # Factory functions
 def get_dynamodb_backend():

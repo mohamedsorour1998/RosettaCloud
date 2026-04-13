@@ -16,6 +16,7 @@ import {
   ChatMessage,
   Source,
   AgentType,
+  AiQuota,
 } from '../services/chatbot.service';
 import { Subscription } from 'rxjs';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -55,6 +56,11 @@ export class ChatbotComponent implements OnInit, AfterViewInit, OnDestroy, After
   private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingImageFocusTimer: ReturnType<typeof setTimeout> | null = null;
   messageRatings: Map<string, 'up' | 'down'> = new Map();
+  aiQuota: AiQuota | null = null;
+
+  get isQuotaExhausted(): boolean {
+    return this.aiQuota !== null && this.aiQuota.messages_remaining <= 0;
+  }
 
   private subscriptions: Subscription[] = [];
 
@@ -103,6 +109,12 @@ export class ChatbotComponent implements OnInit, AfterViewInit, OnDestroy, After
     this.subscriptions.push(
       this.chatbotService.connected$.subscribe((isConnected) => {
         this.isConnected = isConnected;
+      })
+    );
+
+    this.subscriptions.push(
+      this.chatbotService.aiQuota$.subscribe((quota) => {
+        this.aiQuota = quota;
       })
     );
 
