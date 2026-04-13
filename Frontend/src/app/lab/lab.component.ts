@@ -417,8 +417,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       this.weeklyMinutesFetchedAt = Date.now();
       this.weeklyMinutesLimit = q.minutes_limit;
       // Capture once — first quota response sets the session countdown budget.
+      // Cap at POD_TTL_SECS (3600s = 1 hour): each lab runs at most 1 hour
+      // regardless of how much weekly quota remains.
       if (!this.sessionBudgetSeconds) {
-        this.sessionBudgetSeconds = q.minutes_remaining * 60;
+        this.sessionBudgetSeconds = Math.min(q.minutes_remaining * 60, 3600);
       }
     });
   }
