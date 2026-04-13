@@ -24,9 +24,9 @@ export class PricingComponent implements OnInit {
       featured: false,
       features: [
         { text: '2 hours/week real lab time', included: true },
+        { text: '50 AI tutor messages/week', included: true },
         { text: 'VS Code + Docker + K8s in browser', included: true },
         { text: '1 course included', included: true },
-        { text: 'AI tutor (rate limited)', included: true },
         { text: 'Community access', included: true },
         { text: 'Unlimited lab time', included: false },
         { text: 'All courses', included: false },
@@ -80,7 +80,7 @@ export class PricingComponent implements OnInit {
     {
       question: 'What do I get with the free tier?',
       answer:
-        'The free tier gives you 2 hours per week of real lab time with a dedicated Kubernetes cluster, Docker daemon, and VS Code in your browser. You get access to 1 course and the AI tutor with rate limits. No credit card required.',
+        'The free tier gives you 2 hours per week of real lab time with a dedicated Kubernetes cluster, Docker daemon, and VS Code in your browser — plus 50 AI tutor messages per week. You get access to 1 course and the AI tutor. No credit card required. Both quotas reset every Monday.',
     },
     {
       question: 'How is this different from AWS Skill Builder or Coursera?',
