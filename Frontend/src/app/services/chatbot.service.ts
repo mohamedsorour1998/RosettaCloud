@@ -164,7 +164,7 @@ export class ChatbotService {
   }
 
   public sendProactiveHint(questionNumber: number, questionText: string): void {
-    const message = `I'm stuck on Question ${questionNumber} — can you give me a hint?`;
+    const message = `I'm stuck on Question ${questionNumber} — can you give me a hint? Also, which part of the course material should I review to understand this better?`;
     this.addMessage({ role: 'user', content: message, timestamp: new Date() });
     this.loadingSubject.next(true);
 
