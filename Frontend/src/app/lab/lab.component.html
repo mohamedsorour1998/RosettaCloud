@@ -98,6 +98,13 @@
               [class.quota-low]="quotaMinutesEffective < 30">
           <i class="bi bi-battery-half"></i> {{ quotaDisplay }} this week
         </span>
+        <!-- AI message quota chip — updates live after every chat exchange -->
+        <span class="lab-quota-chip ai-quota-chip"
+              *ngIf="aiQuota !== null"
+              [class.quota-low]="isAiQuotaExhausted">
+          <i class="bi" [ngClass]="isAiQuotaExhausted ? 'bi-slash-circle' : 'bi-chat-dots'"></i>
+          {{ aiQuotaDisplay }} this week
+        </span>
       </div>
     </div>
 

@@ -35,7 +35,7 @@ import {
 } from 'rxjs/operators';
 import { LabService } from '../services/lab.service';
 import { UserService } from '../services/user.service';
-import { ChatbotService } from '../services/chatbot.service';
+import { ChatbotService, AiQuota } from '../services/chatbot.service';
 import { FeedbackComponent } from '../feedback/feedback.component';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
 import { ThemeService } from '../services/theme.service';
@@ -189,6 +189,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   weeklyMinutesLimit = 120;
   private quotaInterval: ReturnType<typeof setInterval> | null = null;
 
+  // AI message quota
+  aiQuota: AiQuota | null = null;
+
   // User data properties
   userProgressData: any = {};
   moduleUuid: string | null = null;
@@ -201,6 +204,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
   private progressSub?: Subscription;
   private iframeSub?: Subscription;
   private themeSub?: Subscription;
+  private aiQuotaSub?: Subscription;
 
   // Constants
   private readonly qStateKey = 'lab-question-state';
@@ -266,6 +270,9 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     // loadQuestions resolves — but this ordering must remain consistent).
     this.chatbotSv.setUserId(this.labSv.getCurrentUserId());
     this.chatbotSv.setLabContext(this.moduleUuid as string, this.lessonUuid as string);
+
+    // Track AI message quota so the lab toolbar chip stays current.
+    this.aiQuotaSub = this.chatbotSv.aiQuota$.subscribe(q => { this.aiQuota = q; });
 
     // Initialize lab environment
     this.initLab();
@@ -381,6 +388,16 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const h = Math.floor(r / 60);
     const m = r % 60;
     return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
+  }
+
+  get isAiQuotaExhausted(): boolean {
+    return this.aiQuota !== null && this.aiQuota.messages_remaining <= 0;
+  }
+
+  get aiQuotaDisplay(): string {
+    if (!this.aiQuota) return '';
+    if (this.isAiQuotaExhausted) return '0 AI messages left';
+    return `${this.aiQuota.messages_remaining} / ${this.aiQuota.messages_limit} AI messages left`;
   }
 
   fetchLabQuota(): void {
@@ -542,6 +559,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     this.progressSub?.unsubscribe();
     this.iframeSub?.unsubscribe();
     this.themeSub?.unsubscribe();
+    this.aiQuotaSub?.unsubscribe();
 
     // Stop lab hours timer
     this.stopLabTimer();
