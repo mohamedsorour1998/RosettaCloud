@@ -445,11 +445,18 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const container = this.el.nativeElement.querySelector('.lab-content') as HTMLElement | null;
     const maxWidth = container ? Math.floor(container.offsetWidth * 0.4) : 600;
     const iframe = this.el.nativeElement.querySelector('.code-server-iframe') as HTMLIFrameElement | null;
+    const chatPanel = this.el.nativeElement.querySelector('.chatbot-panel') as HTMLElement | null;
 
     document.body.style.userSelect = 'none';
     (document.body.style as any).webkitUserSelect = 'none';
     document.body.style.cursor = 'col-resize';
     if (iframe) iframe.style.pointerEvents = 'none';
+    // Explicitly exempt the AI chat panel so text inside it stays selectable
+    // even while body has user-select:none during drag.
+    if (chatPanel) {
+      chatPanel.style.userSelect = 'text';
+      (chatPanel.style as any).webkitUserSelect = 'text';
+    }
 
     const onMove = (ev: MouseEvent) => {
       const newWidth = startWidth + (ev.clientX - startX);
@@ -460,6 +467,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       document.body.style.removeProperty('-webkit-user-select');
       document.body.style.cursor = '';
       if (iframe) iframe.style.pointerEvents = '';
+      if (chatPanel) {
+        chatPanel.style.removeProperty('user-select');
+        chatPanel.style.removeProperty('-webkit-user-select');
+      }
       this.savePanelWidths();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
@@ -482,11 +493,16 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const container = this.el.nativeElement.querySelector('.lab-content') as HTMLElement | null;
     const maxWidth = container ? Math.floor(container.offsetWidth * 0.45) : 700;
     const iframe = this.el.nativeElement.querySelector('.code-server-iframe') as HTMLIFrameElement | null;
+    const chatPanel = this.el.nativeElement.querySelector('.chatbot-panel') as HTMLElement | null;
 
     document.body.style.userSelect = 'none';
     (document.body.style as any).webkitUserSelect = 'none';
     document.body.style.cursor = 'col-resize';
     if (iframe) iframe.style.pointerEvents = 'none';
+    if (chatPanel) {
+      chatPanel.style.userSelect = 'text';
+      (chatPanel.style as any).webkitUserSelect = 'text';
+    }
 
     const onMove = (ev: MouseEvent) => {
       const newWidth = startWidth - (ev.clientX - startX);
@@ -497,6 +513,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
       document.body.style.removeProperty('-webkit-user-select');
       document.body.style.cursor = '';
       if (iframe) iframe.style.pointerEvents = '';
+      if (chatPanel) {
+        chatPanel.style.removeProperty('user-select');
+        chatPanel.style.removeProperty('-webkit-user-select');
+      }
       this.savePanelWidths();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
@@ -1539,14 +1559,10 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
     const totalCount = this.questions.length;
     if (totalCount === 0) return false;
     const completedCount = this.getCompletedQuestionsCount();
-    // Show when all questions are complete, OR when the student is on the
-    // last question and has completed it (end-of-lab trigger).
+    // Show when all questions are complete, OR when the student has navigated
+    // to the last question (whether they completed it or skipped to it).
     if (completedCount === totalCount) return true;
-    const lastQ = this.questions[totalCount - 1];
-    return (
-      this.currentQuestionIndex === totalCount - 1 &&
-      (lastQ?.completed ?? false)
-    );
+    return this.currentQuestionIndex === totalCount - 1;
   }
 
   /**

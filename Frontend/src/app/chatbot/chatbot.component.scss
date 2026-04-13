@@ -1,3 +1,11 @@
+// Ensure text in the chat panel is always selectable — the :host rule applies
+// to the <app-chatbot> element itself, giving it the highest Angular-scoped
+// specificity so it is never overridden by inherited user-select:none from body.
+:host {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
 // Main container
 .chatbot-widget {
   display: flex;

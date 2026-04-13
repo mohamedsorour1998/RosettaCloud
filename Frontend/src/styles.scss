@@ -285,8 +285,11 @@ button,
 }
 
 /* ── Chat panel text selection ──────────────────────────────────────────────
-   Global rule (no Angular scoping) so it covers [innerHTML]-injected content.
-   Overrides the body inline style user-select:none set during panel resizes. */
+   Global rules (no Angular scoping) so they cover [innerHTML]-injected content.
+   Targets the host element (app-chatbot) and all descendants so that inherited
+   user-select:none from document.body during panel resizes cannot propagate in. */
+app-chatbot,
+app-chatbot *,
 .chat-container,
 .message-bubble,
 .message-text,
