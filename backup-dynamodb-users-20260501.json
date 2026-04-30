@@ -1,0 +1,794 @@
+{
+    "Items": [
+        {
+            "updated_at": {
+                "N": "283599"
+            },
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "efbbcd65"
+            },
+            "created_at": {
+                "N": "282610"
+            },
+            "role": {
+                "S": "user"
+            },
+            "labs": {
+                "L": []
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    },
+                                    "2": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "active_lab": {
+                "NULL": true
+            },
+            "email": {
+                "S": "mohamedsorour1998+test1@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "a1b319b8"
+            },
+            "created_at": {
+                "N": "133576"
+            },
+            "role": {
+                "S": "user"
+            },
+            "email": {
+                "S": "mohamedsorour1998+f@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "NewPass12"
+            },
+            "user_id": {
+                "S": "6f238350"
+            },
+            "created_at": {
+                "N": "133166"
+            },
+            "role": {
+                "S": "user"
+            },
+            "email": {
+                "S": "newuser@example.com"
+            },
+            "name": {
+                "S": "New User"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "created_at": {
+                "N": "277583"
+            },
+            "lab_week_start": {
+                "N": "1775433600"
+            },
+            "labs": {
+                "L": []
+            },
+            "active_lab": {
+                "NULL": true
+            },
+            "email": {
+                "S": "mohamedsorour1998+test@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            },
+            "lab_week_minutes": {
+                "N": "387"
+            },
+            "updated_at": {
+                "N": "149977"
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "de048d49"
+            },
+            "role": {
+                "S": "admin"
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    },
+                                    "2": {
+                                        "BOOL": true
+                                    },
+                                    "3": {
+                                        "BOOL": true
+                                    },
+                                    "4": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "lab_started_at": {
+                "NULL": true
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "77322efa"
+            },
+            "created_at": {
+                "N": "133801"
+            },
+            "role": {
+                "S": "user"
+            },
+            "email": {
+                "S": "mohamedsorour1998+fff@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            }
+        },
+        {
+            "updated_at": {
+                "N": "127397"
+            },
+            "metadata": {
+                "M": {}
+            },
+            "user_id": {
+                "S": "e42e450c"
+            },
+            "created_at": {
+                "N": "5386"
+            },
+            "role": {
+                "S": "user"
+            },
+            "labs": {
+                "L": [
+                    {
+                        "S": "lab-8c2a0d9e"
+                    }
+                ]
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    },
+                                    "2": {
+                                        "BOOL": true
+                                    },
+                                    "4": {
+                                        "BOOL": true
+                                    },
+                                    "6": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "active_lab": {
+                "S": "lab-8c2a0d9e"
+            },
+            "email": {
+                "S": "ddd@gmai.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            }
+        },
+        {
+            "updated_at": {
+                "N": "134511"
+            },
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "5305a6e1"
+            },
+            "created_at": {
+                "N": "134289"
+            },
+            "role": {
+                "S": "user"
+            },
+            "labs": {
+                "L": [
+                    {
+                        "S": "lab-7227cb8a"
+                    }
+                ]
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "4": {
+                                        "BOOL": true
+                                    },
+                                    "2": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "active_lab": {
+                "S": "lab-7227cb8a"
+            },
+            "email": {
+                "S": "mohamedsorour1998+fhf@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            }
+        },
+        {
+            "lab_started": {
+                "N": "29"
+            },
+            "updated_at": {
+                "N": "1776086851"
+            },
+            "user_id": {
+                "S": "STATS#global"
+            },
+            "question_attempted": {
+                "N": "23"
+            },
+            "chat_message": {
+                "N": "126"
+            }
+        },
+        {
+            "updated_at": {
+                "N": "273592"
+            },
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "723efad6"
+            },
+            "created_at": {
+                "N": "268366"
+            },
+            "role": {
+                "S": "user"
+            },
+            "labs": {
+                "L": []
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    },
+                                    "2": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "active_lab": {
+                "NULL": true
+            },
+            "email": {
+                "S": "mohamedsorour1998+fxf@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "ProbePass1"
+            },
+            "user_id": {
+                "S": "3ea86b3e"
+            },
+            "created_at": {
+                "N": "133018"
+            },
+            "role": {
+                "S": "user"
+            },
+            "email": {
+                "S": "probe@example.com"
+            },
+            "name": {
+                "S": "Probe"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "created_at": {
+                "N": "127097"
+            },
+            "lab_week_start": {
+                "N": "1775433600"
+            },
+            "labs": {
+                "L": []
+            },
+            "active_lab": {
+                "NULL": true
+            },
+            "email": {
+                "S": "nehalhdev@gmail.com"
+            },
+            "name": {
+                "S": "Nehal mohamed "
+            },
+            "lab_week_minutes": {
+                "N": "6"
+            },
+            "updated_at": {
+                "N": "127631"
+            },
+            "password": {
+                "S": "Nono@12345"
+            },
+            "user_id": {
+                "S": "fddc0362"
+            },
+            "role": {
+                "S": "user"
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "lab_started_at": {
+                "NULL": true
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "created_at": {
+                "N": "239824"
+            },
+            "lab_week_start": {
+                "N": "1775433600"
+            },
+            "labs": {
+                "L": []
+            },
+            "active_lab": {
+                "NULL": true
+            },
+            "email": {
+                "S": "moazgamal1011@gmail.com"
+            },
+            "name": {
+                "S": "moaaz gamal zainalabdeen"
+            },
+            "lab_week_minutes": {
+                "N": "60"
+            },
+            "updated_at": {
+                "N": "243768"
+            },
+            "password": {
+                "S": "MOAZgamal12345!!"
+            },
+            "user_id": {
+                "S": "a9b49bd0"
+            },
+            "role": {
+                "S": "user"
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "lab_started_at": {
+                "NULL": true
+            }
+        },
+        {
+            "updated_at": {
+                "N": "20227"
+            },
+            "metadata": {
+                "M": {}
+            },
+            "user_id": {
+                "S": "68b058b7"
+            },
+            "created_at": {
+                "N": "20213"
+            },
+            "role": {
+                "S": "user"
+            },
+            "progress": {
+                "M": {
+                    "test-module-001": {
+                        "M": {
+                            "test-lesson-001": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "email": {
+                "S": "testuser2@rosettacloud.app"
+            },
+            "name": {
+                "S": "Test User 2"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "!m}GX!W5cbxL=s>2mK)f"
+            },
+            "user_id": {
+                "S": "02dda369"
+            },
+            "created_at": {
+                "N": "506795"
+            },
+            "role": {
+                "S": "user"
+            },
+            "email": {
+                "S": "asamirzaky@gmail.com"
+            },
+            "name": {
+                "S": "Ahmed"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "c0f4d214"
+            },
+            "created_at": {
+                "N": "133233"
+            },
+            "role": {
+                "S": "user"
+            },
+            "email": {
+                "S": "mohamedsorour1998+x@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "3a009e76"
+            },
+            "created_at": {
+                "N": "133738"
+            },
+            "role": {
+                "S": "user"
+            },
+            "email": {
+                "S": "mohamedsorour1998+ff@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "created_at": {
+                "N": "150271"
+            },
+            "lab_week_start": {
+                "N": "1775433600"
+            },
+            "labs": {
+                "L": [
+                    {
+                        "S": "lab-4d28e02f"
+                    }
+                ]
+            },
+            "active_lab": {
+                "S": "lab-4d28e02f"
+            },
+            "email": {
+                "S": "mohamedtalal326@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Talal"
+            },
+            "lab_week_minutes": {
+                "N": "22"
+            },
+            "updated_at": {
+                "N": "152047"
+            },
+            "password": {
+                "S": "mohamedtlaal@M4"
+            },
+            "user_id": {
+                "S": "3fc1ebeb"
+            },
+            "role": {
+                "S": "user"
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "lab_started_at": {
+                "N": "1775942476"
+            }
+        },
+        {
+            "metadata": {
+                "M": {}
+            },
+            "user_id": {
+                "S": "b6dfcc85"
+            },
+            "created_at": {
+                "N": "17381"
+            },
+            "email": {
+                "S": "test@rosettacloud.app"
+            },
+            "role": {
+                "S": "user"
+            },
+            "name": {
+                "S": "Test User"
+            }
+        },
+        {
+            "ai_week_messages": {
+                "N": "3"
+            },
+            "lab_week_start": {
+                "N": "1776038400"
+            },
+            "labs": {
+                "L": []
+            },
+            "active_lab": {
+                "NULL": true
+            },
+            "email": {
+                "S": "mohamedsorour1998+ff@gmail.com"
+            },
+            "name": {
+                "S": "Mohamed Sorour"
+            },
+            "lab_week_minutes": {
+                "N": "35"
+            },
+            "updated_at": {
+                "N": "296410"
+            },
+            "user_id": {
+                "S": "84083408-b001-7058-5f81-7fe76e61218f"
+            },
+            "role": {
+                "S": "user"
+            },
+            "ai_week_start": {
+                "N": "1776038400"
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "1": {
+                                        "BOOL": true
+                                    },
+                                    "2": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "lab_started_at": {
+                "NULL": true
+            }
+        },
+        {
+            "updated_at": {
+                "N": "191134"
+            },
+            "metadata": {
+                "M": {}
+            },
+            "password": {
+                "S": "Mfh_1998"
+            },
+            "user_id": {
+                "S": "fd01639a"
+            },
+            "created_at": {
+                "N": "190950"
+            },
+            "role": {
+                "S": "user"
+            },
+            "labs": {
+                "L": []
+            },
+            "progress": {
+                "M": {
+                    "linux-docker-k8s-101": {
+                        "M": {
+                            "intro-lesson-01": {
+                                "M": {
+                                    "2": {
+                                        "BOOL": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "active_lab": {
+                "NULL": true
+            },
+            "email": {
+                "S": "mohamedsorour1998+fxxf@gmail.com"
+            },
+            "name": {
+                "S": "mohamedsorour1998+fxxf@gmail.com"
+            }
+        }
+    ],
+    "Count": 20,
+    "ScannedCount": 20,
+    "ConsumedCapacity": null
+}
