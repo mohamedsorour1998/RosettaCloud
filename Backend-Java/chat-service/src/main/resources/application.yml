@@ -1,0 +1,46 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: chat-service
+  threads:
+    virtual:
+      enabled: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${COGNITO_ISSUER_URL:}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+rosettacloud:
+  aws:
+    region: ${AWS_REGION:us-east-1}
+  security:
+    audience: ${COGNITO_CLIENT_ID:}
+  chat:
+    invoker: ${CHAT_INVOKER:agentcore}          # agentcore | bedrock-direct
+    agent-runtime-arn: ${AGENT_RUNTIME_ARN:}
+    model-id: ${NOVA_MODEL_ID:us.amazon.nova-2-lite-v1:0}
+    session-ttl-seconds: 14400
+    history-max-messages: 40
+    rate-limit-per-hour: 30
+  clients:
+    user-service-base-url: ${USER_SERVICE_URL:http://user-service.dev.svc.cluster.local:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

@@ -1,0 +1,37 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+  threads:
+    virtual:
+      enabled: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${COGNITO_ISSUER_URL:}
+
+rosettacloud:
+  aws:
+    region: ${AWS_REGION:us-east-1}
+    dynamodb:
+      endpoint-override: ${DYNAMODB_ENDPOINT_URL:}
+  security:
+    audience: ${COGNITO_CLIENT_ID:}
+  users:
+    table-name: ${USERS_TABLE_NAME:rosettacloud-users}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

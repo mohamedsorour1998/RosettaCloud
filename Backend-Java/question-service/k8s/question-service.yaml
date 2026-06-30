@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: question-service-config
+  namespace: dev
+data:
+  AWS_REGION: "us-east-1"
+  COGNITO_ISSUER_URL: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I"
+  COGNITO_CLIENT_ID: "i5ilqkdrsl714trat6qkt0al0"
+  S3_BUCKET_NAME: "rosettacloud-shared-interactive-labs"
+  LAB_K8S_NAMESPACE: "dev"
+  USER_SERVICE_URL: "http://user-service.dev.svc.cluster.local:8081"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rosettacloud-question-service
+  namespace: dev
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::339712964409:role/rosettacloud-question-service-irsa
+---
+# In-pod exec into lab pods (setup/check) requires pods/exec.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rosettacloud-question-pod-exec
+  namespace: dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rosettacloud-question-pod-exec
+  namespace: dev
+subjects:
+  - kind: ServiceAccount
+    name: rosettacloud-question-service
+    namespace: dev
+roleRef:
+  kind: Role
+  name: rosettacloud-question-pod-exec
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rosettacloud-question-service
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rosettacloud-question-service
+  template:
+    metadata:
+      labels:
+        app: rosettacloud-question-service
+    spec:
+      serviceAccountName: rosettacloud-question-service
+      containers:
+        - name: question-service
+          image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-question-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: question-service-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: question-service
+  namespace: dev
+spec:
+  selector:
+    app: rosettacloud-question-service
+  ports:
+    - protocol: TCP
+      port: 8083
+      targetPort: 8083
+  type: ClusterIP

@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lab-service-config
+  namespace: dev
+data:
+  COGNITO_ISSUER_URL: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I"
+  COGNITO_CLIENT_ID: "i5ilqkdrsl714trat6qkt0al0"
+  LAB_K8S_NAMESPACE: "dev"
+  LAB_POD_IMAGE: "339712964409.dkr.ecr.us-east-1.amazonaws.com/interactive-labs:latest"
+  LAB_WILDCARD_DOMAIN: "labs.dev.rosettacloud.app"
+  LAB_ISTIO_GATEWAY: "rosettacloud-gateway"
+  LAB_POD_TTL_SECS: "3600"
+  USER_SERVICE_URL: "http://user-service.dev.svc.cluster.local:8081"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rosettacloud-lab-service
+  namespace: dev
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rosettacloud-lab-manager
+  namespace: dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/status", "services"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices"]
+    verbs: ["create", "get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rosettacloud-lab-manager
+  namespace: dev
+subjects:
+  - kind: ServiceAccount
+    name: rosettacloud-lab-service
+    namespace: dev
+roleRef:
+  kind: Role
+  name: rosettacloud-lab-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rosettacloud-lab-service
+  namespace: dev
+spec:
+  # Single replica: lab state is held in-memory (recovered from K8s on restart).
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: rosettacloud-lab-service
+  template:
+    metadata:
+      labels:
+        app: rosettacloud-lab-service
+    spec:
+      serviceAccountName: rosettacloud-lab-service
+      containers:
+        - name: lab-service
+          image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-lab-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: lab-service-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-service
+  namespace: dev
+spec:
+  selector:
+    app: rosettacloud-lab-service
+  ports:
+    - protocol: TCP
+      port: 8082
+      targetPort: 8082
+  type: ClusterIP
