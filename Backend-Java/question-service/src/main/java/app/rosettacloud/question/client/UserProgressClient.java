@@ -18,7 +18,10 @@ public class UserProgressClient {
     private final RestClient http;
 
     public UserProgressClient(@Value("${rosettacloud.clients.user-service-base-url:http://user-service.dev.svc.cluster.local:8081}") String baseUrl) {
-        this.http = RestClient.builder().baseUrl(baseUrl).build();
+        var factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(java.time.Duration.ofSeconds(2));
+        factory.setReadTimeout(java.time.Duration.ofSeconds(5));
+        this.http = RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
     }
 
     public void trackProgress(String userId, String moduleUuid, String lessonUuid, int questionNumber, String bearer) {

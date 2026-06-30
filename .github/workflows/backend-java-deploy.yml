@@ -1,0 +1,63 @@
+name: Backend Java Deploy
+
+# Per-service build -> ECR -> EKS rollout, with a MANDATORY test gate (mvnw verify) before any push.
+# Manual dispatch (ECR repos + IRSA are provisioned by DevSecOps/Terraform/.../backend-java.tf).
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag
+        default: latest
+        type: string
+
+env:
+  AWS_ACCOUNT_ID: "339712964409"
+  IAM_ROLE: github-actions-role
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [user-service, lab-service, question-service, chat-service, analytics-service]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: "25"
+          cache: maven
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: TEST GATE (mvnw verify)
+        working-directory: Backend-Java
+        run: ./mvnw -B -ntp -pl ${{ matrix.service }} -am verify
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push image
+        run: |
+          REG=${{ steps.login.outputs.registry }}
+          IMG=$REG/rosettacloud-${{ matrix.service }}
+          docker build -t "$IMG:${{ inputs.image_tag }}" -t "$IMG:${GITHUB_SHA::8}" \
+            -f Backend-Java/${{ matrix.service }}/Dockerfile Backend-Java
+          docker push "$IMG:${{ inputs.image_tag }}"
+          docker push "$IMG:${GITHUB_SHA::8}"
+
+      - name: Roll out to EKS
+        run: |
+          aws eks update-kubeconfig --name rosettacloud-eks --region ${{ env.AWS_REGION }}
+          kubectl rollout restart deploy/rosettacloud-${{ matrix.service }} -n dev
+          kubectl rollout status deploy/rosettacloud-${{ matrix.service }} -n dev --timeout=180s
