@@ -80,9 +80,10 @@ jobs:
           docker build -q -t rosettacloud-lab-stub:e2e e2e/lab-stub
           docker save rosettacloud-lab-stub:e2e | sudo k3s ctr -n k8s.io images import -
 
-      - name: Install Istio VirtualService CRDs (lab-service needs them)
+      - name: Install Istio VirtualService CRD (lab-service needs it)
         run: |
-          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.29/manifests/charts/base/crds/crd-all.gen.yaml
+          kubectl apply -f Backend-Java/e2e/k8s/istio-crd.yaml
+          kubectl wait --for condition=established --timeout=60s crd/virtualservices.networking.istio.io
 
       - name: Create AWS creds secret (from assumed OIDC role) for the services
         run: |
