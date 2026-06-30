@@ -1,0 +1,5 @@
+# Runtime image for e2e: expects a prebuilt app.jar in the build context.
+FROM amazoncorretto:25
+WORKDIR /app
+COPY app.jar /app/app.jar
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

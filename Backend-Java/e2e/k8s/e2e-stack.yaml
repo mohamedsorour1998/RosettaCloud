@@ -1,0 +1,192 @@
+# Full-stack e2e overlay (namespace dev). Images are built in-runner and imported to k3s
+# (imagePullPolicy: Never). AWS creds (from the assumed OIDC role) are injected as the
+# aws-creds secret by the workflow: real Bedrock Nova Lite 2 for chat; ignored by LocalStack.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+---
+# ── LocalStack (DynamoDB) ──────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: localstack, namespace: dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: localstack } }
+  template:
+    metadata: { labels: { app: localstack } }
+    spec:
+      containers:
+        - name: localstack
+          image: localstack/localstack:3
+          ports: [{ containerPort: 4566 }]
+          env:
+            - { name: SERVICES, value: "dynamodb" }
+          readinessProbe:
+            httpGet: { path: /_localstack/health, port: 4566 }
+            initialDelaySeconds: 8
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata: { name: localstack, namespace: dev }
+spec:
+  selector: { app: localstack }
+  ports: [{ port: 4566, targetPort: 4566 }]
+---
+# ── Redis ──────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: redis, namespace: dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: redis } }
+  template:
+    metadata: { labels: { app: redis } }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports: [{ containerPort: 6379 }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: redis, namespace: dev }
+spec:
+  selector: { app: redis }
+  ports: [{ port: 6379, targetPort: 6379 }]
+---
+# ── Mock OIDC issuer (Cognito stand-in) ────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: mock-oidc, namespace: dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: mock-oidc } }
+  template:
+    metadata: { labels: { app: mock-oidc } }
+    spec:
+      containers:
+        - name: mock-oidc
+          image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+          ports: [{ containerPort: 8080 }]
+          env:
+            - { name: SERVER_PORT, value: "8080" }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: mock-oidc, namespace: dev }
+spec:
+  selector: { app: mock-oidc }
+  ports: [{ port: 8080, targetPort: 8080 }]
+---
+# ── user-service ───────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: user-service, namespace: dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: user-service } }
+  template:
+    metadata: { labels: { app: user-service } }
+    spec:
+      containers:
+        - name: user-service
+          image: rosettacloud-user-service:e2e
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8081 }]
+          envFrom:
+            - secretRef: { name: aws-creds }
+          env:
+            - { name: AWS_REGION, value: "us-east-1" }
+            - { name: DYNAMODB_ENDPOINT_URL, value: "http://localstack:4566" }
+            - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
+            - { name: COGNITO_CLIENT_ID, value: "" }
+            - { name: USERS_TABLE_NAME, value: "rosettacloud-users" }
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8081 }
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 30
+---
+apiVersion: v1
+kind: Service
+metadata: { name: user-service, namespace: dev }
+spec:
+  selector: { app: user-service }
+  ports: [{ port: 8081, targetPort: 8081 }]
+---
+# ── chat-service (real Nova Lite 2 via bedrock-direct) ─────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: chat-service, namespace: dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: chat-service } }
+  template:
+    metadata: { labels: { app: chat-service } }
+    spec:
+      containers:
+        - name: chat-service
+          image: rosettacloud-chat-service:e2e
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8084 }]
+          envFrom:
+            - secretRef: { name: aws-creds }
+          env:
+            - { name: AWS_REGION, value: "us-east-1" }
+            - { name: CHAT_INVOKER, value: "bedrock-direct" }
+            - { name: NOVA_MODEL_ID, value: "us.amazon.nova-2-lite-v1:0" }
+            - { name: REDIS_HOST, value: "redis" }
+            - { name: REDIS_PORT, value: "6379" }
+            - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
+            - { name: COGNITO_CLIENT_ID, value: "" }
+            - { name: USER_SERVICE_URL, value: "http://user-service:8081" }
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8084 }
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 30
+---
+apiVersion: v1
+kind: Service
+metadata: { name: chat-service, namespace: dev }
+spec:
+  selector: { app: chat-service }
+  ports: [{ port: 8084, targetPort: 8084 }]
+---
+# ── analytics-service ──────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: analytics-service, namespace: dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: analytics-service } }
+  template:
+    metadata: { labels: { app: analytics-service } }
+    spec:
+      containers:
+        - name: analytics-service
+          image: rosettacloud-analytics-service:e2e
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8085 }]
+          envFrom:
+            - secretRef: { name: aws-creds }
+          env:
+            - { name: AWS_REGION, value: "us-east-1" }
+            - { name: DYNAMODB_ENDPOINT_URL, value: "http://localstack:4566" }
+            - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
+            - { name: COGNITO_CLIENT_ID, value: "" }
+            - { name: USERS_TABLE_NAME, value: "rosettacloud-users" }
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8085 }
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 30
+---
+apiVersion: v1
+kind: Service
+metadata: { name: analytics-service, namespace: dev }
+spec:
+  selector: { app: analytics-service }
+  ports: [{ port: 8085, targetPort: 8085 }]
