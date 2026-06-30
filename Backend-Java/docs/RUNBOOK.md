@@ -47,7 +47,15 @@ Once each prefix has run on the Java service in production for ≥7 days with no
 
 ## Remaining enhancements (non-blocking)
 - WP-60: replace RestClient inter-service calls with Spring Boot 4 `@HttpExchange` + `@ImportHttpServices`;
-  wire SNS/SQS event consumers in analytics-service (topic/queue defined in Terraform); add Resilience4j.
-- WP-80: extend e2e to lab/question pod-lifecycle on a full cluster (needs Istio CRDs + a lab-stub image);
-  current e2e covers user/chat/analytics + real Nova Lite 2. lab/question logic is covered by unit tests.
-- Per-service ECR build+deploy workflows (depend on the Terraform ECR repos) — the test-gate CI is in place.
+  full Resilience4j circuit breakers (timeouts are already configured on all inter-service clients).
+- WP-80: extend e2e to lab/question pod-lifecycle on a full cluster (DONE — the e2e now covers all 5 services
+  via a lab-stub pod + minimal VirtualService CRD).
+- Per-service ECR build+deploy workflow: DONE (`.github/workflows/backend-java-deploy.yml`, test-gated, manual).
+
+## Event backbone (implemented)
+SNS topic `rosettacloud-events` + SQS `rosettacloud-analytics` (Terraform). Services publish domain events
+via shared-lib `DomainEventPublisher` (no-op unless `rosettacloud.events.topic-arn` is set): `user.created`
+(user-service), `lab.started`/`lab.terminated` (lab-service), `question.attempted`/`question.correct`
+(question-service), `chat.message` (chat-service). analytics-service `SqsEventConsumer` (active when
+`rosettacloud.events.queue-url` is set) polls the queue and increments the durable `STATS#global` counters
+surfaced by `/public/stats` and `/admin/metrics`. Observability: Prometheus at `/actuator/prometheus`.

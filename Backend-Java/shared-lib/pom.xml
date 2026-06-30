@@ -57,6 +57,11 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sts</artifactId>
         </dependency>
+        <!-- SNS for domain-event publishing (no-op unless a topic ARN is configured) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sns</artifactId>
+        </dependency>
 
         <!-- Generates configuration metadata for @ConfigurationProperties -->
         <dependency>

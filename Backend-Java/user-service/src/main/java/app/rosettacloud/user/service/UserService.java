@@ -22,10 +22,13 @@ public class UserService {
 
     private final UserRepository repository;
     private final CognitoService cognitoService;
+    private final app.rosettacloud.shared.events.DomainEventPublisher events;
 
-    public UserService(UserRepository repository, CognitoService cognitoService) {
+    public UserService(UserRepository repository, CognitoService cognitoService,
+                       app.rosettacloud.shared.events.DomainEventPublisher events) {
         this.repository = repository;
         this.cognitoService = cognitoService;
+        this.events = events;
     }
 
     public UserItem create(CreateUserRequest req) {
@@ -41,6 +44,7 @@ public class UserService {
         u.setMetadata(req.metadata());
         repository.create(u);
         cognitoService.backfillUserId(req.email(), u.getUserId());
+        events.publish("user.created", u.getUserId());
         return u;
     }
 

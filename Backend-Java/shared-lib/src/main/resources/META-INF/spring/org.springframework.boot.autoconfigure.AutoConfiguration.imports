@@ -1,3 +1,4 @@
 app.rosettacloud.shared.config.RosettaCloudWebAutoConfiguration
 app.rosettacloud.shared.config.RosettaCloudAwsAutoConfiguration
 app.rosettacloud.shared.config.RosettaCloudSecurityAutoConfiguration
+app.rosettacloud.shared.config.RosettaCloudEventsAutoConfiguration
