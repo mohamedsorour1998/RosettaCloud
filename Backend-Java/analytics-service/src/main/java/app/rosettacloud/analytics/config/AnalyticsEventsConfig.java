@@ -15,10 +15,14 @@ public class AnalyticsEventsConfig {
     @Bean
     @ConditionalOnProperty(prefix = "rosettacloud.events", name = "queue-url")
     @ConditionalOnMissingBean
-    public SqsClient sqsClient(AwsProperties props) {
-        return SqsClient.builder()
+    public SqsClient sqsClient(AwsProperties props,
+                               app.rosettacloud.shared.events.EventsProperties events) {
+        var builder = SqsClient.builder()
                 .region(Region.of(props.getRegion()))
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
+                .credentialsProvider(DefaultCredentialsProvider.create());
+        if (events.getEndpointOverride() != null && !events.getEndpointOverride().isBlank()) {
+            builder.endpointOverride(java.net.URI.create(events.getEndpointOverride()));
+        }
+        return builder.build();
     }
 }

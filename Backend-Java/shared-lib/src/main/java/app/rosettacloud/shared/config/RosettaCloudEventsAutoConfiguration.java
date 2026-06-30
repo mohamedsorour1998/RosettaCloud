@@ -22,11 +22,14 @@ public class RosettaCloudEventsAutoConfiguration {
     @Bean
     @ConditionalOnProperty(prefix = "rosettacloud.events", name = "topic-arn")
     @ConditionalOnMissingBean(SnsClient.class)
-    public SnsClient snsClient(AwsProperties props) {
-        return SnsClient.builder()
+    public SnsClient snsClient(AwsProperties props, EventsProperties events) {
+        var builder = SnsClient.builder()
                 .region(Region.of(props.getRegion()))
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
+                .credentialsProvider(DefaultCredentialsProvider.create());
+        if (events.getEndpointOverride() != null && !events.getEndpointOverride().isBlank()) {
+            builder.endpointOverride(java.net.URI.create(events.getEndpointOverride()));
+        }
+        return builder.build();
     }
 
     @Bean

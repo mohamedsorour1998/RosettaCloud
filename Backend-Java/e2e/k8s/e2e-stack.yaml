@@ -21,7 +21,7 @@ spec:
           image: localstack/localstack:3
           ports: [{ containerPort: 4566 }]
           env:
-            - { name: SERVICES, value: "dynamodb,s3" }
+            - { name: SERVICES, value: "dynamodb,s3,sns,sqs" }
           readinessProbe:
             httpGet: { path: /_localstack/health, port: 4566 }
             initialDelaySeconds: 8
@@ -103,6 +103,7 @@ spec:
             - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
             - { name: COGNITO_CLIENT_ID, value: "" }
             - { name: USERS_TABLE_NAME, value: "rosettacloud-users" }
+            - { name: SPRING_APPLICATION_JSON, value: '{"rosettacloud":{"events":{"topic-arn":"arn:aws:sns:us-east-1:000000000000:rosettacloud-events","endpoint-override":"http://localstack:4566"}}}' }
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: 8081 }
             initialDelaySeconds: 15
@@ -142,6 +143,7 @@ spec:
             - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
             - { name: COGNITO_CLIENT_ID, value: "" }
             - { name: USER_SERVICE_URL, value: "http://user-service:8081" }
+            - { name: SPRING_APPLICATION_JSON, value: '{"rosettacloud":{"events":{"topic-arn":"arn:aws:sns:us-east-1:000000000000:rosettacloud-events","endpoint-override":"http://localstack:4566"}}}' }
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: 8084 }
             initialDelaySeconds: 15
@@ -178,6 +180,7 @@ spec:
             - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
             - { name: COGNITO_CLIENT_ID, value: "" }
             - { name: USERS_TABLE_NAME, value: "rosettacloud-users" }
+            - { name: SPRING_APPLICATION_JSON, value: '{"rosettacloud":{"events":{"queue-url":"http://localstack:4566/000000000000/rosettacloud-analytics","endpoint-override":"http://localstack:4566","poll-ms":2000}}}' }
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: 8085 }
             initialDelaySeconds: 15
@@ -235,6 +238,7 @@ spec:
             - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
             - { name: COGNITO_CLIENT_ID, value: "" }
             - { name: USER_SERVICE_URL, value: "http://user-service:8081" }
+            - { name: SPRING_APPLICATION_JSON, value: '{"rosettacloud":{"events":{"topic-arn":"arn:aws:sns:us-east-1:000000000000:rosettacloud-events","endpoint-override":"http://localstack:4566"}}}' }
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: 8082 }
             initialDelaySeconds: 15
@@ -273,7 +277,7 @@ spec:
             - { name: COGNITO_CLIENT_ID, value: "" }
             - { name: USER_SERVICE_URL, value: "http://user-service:8081" }
             # S3 -> LocalStack (relaxed-binding-safe via SPRING_APPLICATION_JSON)
-            - { name: SPRING_APPLICATION_JSON, value: '{"rosettacloud":{"aws":{"s3":{"endpoint-override":"http://localstack:4566"}}}}' }
+            - { name: SPRING_APPLICATION_JSON, value: '{"rosettacloud":{"aws":{"s3":{"endpoint-override":"http://localstack:4566"}},"events":{"topic-arn":"arn:aws:sns:us-east-1:000000000000:rosettacloud-events","endpoint-override":"http://localstack:4566"}}}' }
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: 8083 }
             initialDelaySeconds: 15

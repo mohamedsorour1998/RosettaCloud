@@ -8,6 +8,15 @@ public class EventsProperties {
 
     private String topicArn = "";
     private String queueUrl = "";
+    private String endpointOverride = "";
+
+    public String getEndpointOverride() {
+        return endpointOverride;
+    }
+
+    public void setEndpointOverride(String endpointOverride) {
+        this.endpointOverride = endpointOverride;
+    }
 
     public String getTopicArn() {
         return topicArn;

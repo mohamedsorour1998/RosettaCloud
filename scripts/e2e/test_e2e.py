@@ -90,7 +90,14 @@ def seed():
     except Exception:
         pass
     s3.put_object(Bucket=BUCKET, Key=f"{MODULE}/{LESSON}/q1.sh", Body=Q1_SH.encode())
-    print("[setup] DynamoDB table + S3 question seeded")
+    # Event backbone: SNS topic -> SQS queue (raw delivery so the body is our JSON)
+    sns, sqs = aws("sns"), aws("sqs")
+    topic_arn = sns.create_topic(Name="rosettacloud-events")["TopicArn"]
+    queue_url = sqs.create_queue(QueueName="rosettacloud-analytics")["QueueUrl"]
+    queue_arn = sqs.get_queue_attributes(QueueUrl=queue_url, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+    sns.subscribe(TopicArn=topic_arn, Protocol="sqs", Endpoint=queue_arn,
+                  Attributes={"RawMessageDelivery": "true"})
+    print(f"[setup] DynamoDB + S3 + SNS/SQS event backbone seeded ({topic_arn})")
     return ddb
 
 
@@ -170,6 +177,20 @@ def main():
     check("GET /public/stats -> 200", r.status_code == 200, f"({r.status_code})")
     r = httpx.get(f"{ANALYTICS}/admin/metrics", headers=auth, timeout=15)
     check("GET /admin/metrics non-admin -> 403", r.status_code == 403, f"({r.status_code})")
+
+    # ── event backbone: live stats reflect the actions above (async via SQS poller) ──
+    live = False
+    for _ in range(20):
+        try:
+            s = httpx.get(f"{ANALYTICS}/public/stats", timeout=10).json()
+            if s.get("labs_launched", 0) >= 1 and s.get("questions_answered", 0) >= 1 and s.get("ai_messages", 0) >= 1:
+                live = True
+                break
+        except Exception:
+            pass
+        time.sleep(3)
+    check("live stats incremented via SNS/SQS events", live,
+          str(httpx.get(f"{ANALYTICS}/public/stats", timeout=10).json()))
 
     # ── terminate lab ──
     if lab_id:
