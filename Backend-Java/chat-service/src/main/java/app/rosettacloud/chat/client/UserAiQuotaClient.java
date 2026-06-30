@@ -1,5 +1,6 @@
 package app.rosettacloud.chat.client;
 
+import app.rosettacloud.shared.resilience.HttpRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,7 +28,8 @@ public class UserAiQuotaClient {
     /** Returns the quota snapshot (snake-case keys) or a permissive default on failure. */
     public Map<String, Object> aiQuota(String userId) {
         try {
-            Map<?, ?> m = http.get().uri("/internal/users/{u}/ai-quota", userId).retrieve().body(Map.class);
+            Map<?, ?> m = HttpRetry.withRetry(2, 150,
+                    () -> http.get().uri("/internal/users/{u}/ai-quota", userId).retrieve().body(Map.class));
             Map<String, Object> out = new HashMap<>();
             if (m != null) {
                 m.forEach((k, v) -> out.put(String.valueOf(k), v));
@@ -44,7 +46,8 @@ public class UserAiQuotaClient {
 
     public void increment(String userId) {
         try {
-            http.post().uri("/internal/users/{u}/ai/increment", userId).retrieve().toBodilessEntity();
+            HttpRetry.withRetry(2, 150,
+                    () -> http.post().uri("/internal/users/{u}/ai/increment", userId).retrieve().toBodilessEntity());
         } catch (Exception e) {
             log.warn("ai increment failed for {}: {}", userId, e.getMessage());
         }

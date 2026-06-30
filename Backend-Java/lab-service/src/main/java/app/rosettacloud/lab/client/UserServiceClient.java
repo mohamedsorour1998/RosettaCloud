@@ -1,5 +1,6 @@
 package app.rosettacloud.lab.client;
 
+import app.rosettacloud.shared.resilience.HttpRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,7 +27,8 @@ public class UserServiceClient {
 
     public long remainingLabMinutes(String userId) {
         try {
-            Map<?, ?> m = http.get().uri("/internal/users/{u}/lab-quota", userId).retrieve().body(Map.class);
+            Map<?, ?> m = HttpRetry.withRetry(2, 150,
+                    () -> http.get().uri("/internal/users/{u}/lab-quota", userId).retrieve().body(Map.class));
             Object v = m == null ? null : m.get("minutes_remaining");
             return v instanceof Number n ? n.longValue() : 0;
         } catch (Exception e) {
@@ -37,7 +39,8 @@ public class UserServiceClient {
 
     public Optional<String> activeLab(String userId) {
         try {
-            Map<?, ?> m = http.get().uri("/internal/users/{u}/active-lab", userId).retrieve().body(Map.class);
+            Map<?, ?> m = HttpRetry.withRetry(2, 150,
+                    () -> http.get().uri("/internal/users/{u}/active-lab", userId).retrieve().body(Map.class));
             Object v = m == null ? null : m.get("active_lab");
             return Optional.ofNullable(v == null ? null : v.toString());
         } catch (Exception e) {
@@ -47,13 +50,15 @@ public class UserServiceClient {
     }
 
     public void setActiveLab(String userId, String labId) {
-        http.post().uri("/internal/users/{u}/active-lab/{l}", userId, labId).retrieve().toBodilessEntity();
+        HttpRetry.withRetry(2, 150,
+                () -> http.post().uri("/internal/users/{u}/active-lab/{l}", userId, labId).retrieve().toBodilessEntity());
     }
 
     public long closeLabSession(String userId) {
         try {
-            Map<?, ?> m = http.post().uri("/internal/users/{u}/close-lab-session", userId)
-                    .retrieve().body(Map.class);
+            Map<?, ?> m = HttpRetry.withRetry(2, 150,
+                    () -> http.post().uri("/internal/users/{u}/close-lab-session", userId)
+                            .retrieve().body(Map.class));
             Object v = m == null ? null : m.get("minutes_recorded");
             return v instanceof Number n ? n.longValue() : 0;
         } catch (Exception e) {
@@ -64,7 +69,8 @@ public class UserServiceClient {
 
     public void linkLab(String userId, String labId) {
         try {
-            http.post().uri("/internal/users/{u}/labs/{l}", userId, labId).retrieve().toBodilessEntity();
+            HttpRetry.withRetry(2, 150,
+                    () -> http.post().uri("/internal/users/{u}/labs/{l}", userId, labId).retrieve().toBodilessEntity());
         } catch (Exception e) {
             log.warn("linkLab failed: {}", e.getMessage());
         }
@@ -72,7 +78,8 @@ public class UserServiceClient {
 
     public void unlinkLab(String userId, String labId) {
         try {
-            http.delete().uri("/internal/users/{u}/labs/{l}", userId, labId).retrieve().toBodilessEntity();
+            HttpRetry.withRetry(2, 150,
+                    () -> http.delete().uri("/internal/users/{u}/labs/{l}", userId, labId).retrieve().toBodilessEntity());
         } catch (Exception e) {
             log.warn("unlinkLab failed: {}", e.getMessage());
         }

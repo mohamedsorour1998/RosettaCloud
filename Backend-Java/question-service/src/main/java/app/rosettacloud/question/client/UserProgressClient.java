@@ -1,5 +1,6 @@
 package app.rosettacloud.question.client;
 
+import app.rosettacloud.shared.resilience.HttpRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,7 +27,7 @@ public class UserProgressClient {
 
     public void trackProgress(String userId, String moduleUuid, String lessonUuid, int questionNumber, String bearer) {
         try {
-            http.post()
+            HttpRetry.withRetry(2, 150, () -> http.post()
                     .uri("/internal/users/{u}/progress/{m}/{l}/{n}", userId, moduleUuid, lessonUuid, questionNumber)
                     .headers(h -> {
                         if (bearer != null && !bearer.isBlank()) {
@@ -36,7 +37,7 @@ public class UserProgressClient {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("completed", true))
                     .retrieve()
-                    .toBodilessEntity();
+                    .toBodilessEntity());
         } catch (Exception e) {
             log.warn("Failed to record progress for user {} q{}: {}", userId, questionNumber, e.getMessage());
         }

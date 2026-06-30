@@ -46,11 +46,23 @@ Once each prefix has run on the Java service in production for ≥7 days with no
    it is invoked by chat-service and is out of scope for the Java migration.
 
 ## Remaining enhancements (non-blocking)
-- WP-60: replace RestClient inter-service calls with Spring Boot 4 `@HttpExchange` + `@ImportHttpServices`;
-  full Resilience4j circuit breakers (timeouts are already configured on all inter-service clients).
-- WP-80: extend e2e to lab/question pod-lifecycle on a full cluster (DONE — the e2e now covers all 5 services
-  via a lab-stub pod + minimal VirtualService CRD).
-- Per-service ECR build+deploy workflow: DONE (`.github/workflows/backend-java-deploy.yml`, test-gated, manual).
+- WP-60: `@HttpExchange` + `@ImportHttpServices` declarative-client refactor is deferred — the RestClient
+  clients are functional and now carry connect/read timeouts, transient-retry, and fail-open fallbacks
+  (converting to bare `@HttpExchange` proxies would forfeit the fail-open behavior without a wrapper).
+- WP-80: full-cluster lab/question pod-lifecycle e2e — DONE (lab-stub pod + minimal VirtualService CRD).
+- Per-service ECR build+deploy workflow — DONE (`.github/workflows/backend-java-deploy.yml`, test-gated).
+
+## Resilience posture (inter-service calls)
+All inter-service clients (chat→user AI-quota, lab→user lab/session, question→user progress) have:
+- **Timeouts**: 2s connect / 5s read.
+- **Transient retry**: `shared-lib` `HttpRetry.withRetry(attempts, delayMs, op)` retries only `ResourceAccessException`
+  (connection-refused / read-timeout — the common case during rolling deploys); HTTP 4xx/5xx propagate immediately.
+- **Fail-open fallbacks**: permissive AI-quota default, `0` lab-minutes, best-effort progress/link — a degraded
+  user-service never hard-fails the calling request.
+
+Full **circuit breakers** are intentionally NOT added yet: Resilience4j has no Spring Boot 4 release
+(resilience4j/resilience4j#2351), and Spring Framework 7 core ships `@Retryable`/`@ConcurrencyLimit` but no
+circuit-breaker. Revisit once Resilience4j publishes a Boot 4 starter or Spring Cloud CircuitBreaker GA's on Boot 4.
 
 ## Event backbone (implemented)
 SNS topic `rosettacloud-events` + SQS `rosettacloud-analytics` (Terraform). Services publish domain events
