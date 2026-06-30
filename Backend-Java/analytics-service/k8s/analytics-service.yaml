@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-service-config
+  namespace: dev
+data:
+  AWS_REGION: "us-east-1"
+  COGNITO_ISSUER_URL: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I"
+  COGNITO_CLIENT_ID: "i5ilqkdrsl714trat6qkt0al0"
+  USERS_TABLE_NAME: "rosettacloud-users"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rosettacloud-analytics-service
+  namespace: dev
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::339712964409:role/rosettacloud-analytics-service-irsa
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rosettacloud-analytics-service
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rosettacloud-analytics-service
+  template:
+    metadata:
+      labels:
+        app: rosettacloud-analytics-service
+    spec:
+      serviceAccountName: rosettacloud-analytics-service
+      containers:
+        - name: analytics-service
+          image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-analytics-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: analytics-service-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8085
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-service
+  namespace: dev
+spec:
+  selector:
+    app: rosettacloud-analytics-service
+  ports:
+    - protocol: TCP
+      port: 8085
+      targetPort: 8085
+  type: ClusterIP

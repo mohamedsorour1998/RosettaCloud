@@ -1,0 +1,42 @@
+name: Backend Java CI
+
+# Mandatory test gate for the Spring Boot 4 backend: every push/PR runs the full
+# multi-module test suite (unit + web slices + Testcontainers integration tests).
+on:
+  push:
+    branches: [main, spring-boot-migration]
+    paths:
+      - "Backend-Java/**"
+      - ".github/workflows/backend-java-ci.yml"
+  pull_request:
+    paths:
+      - "Backend-Java/**"
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: build + test (JDK 25, all modules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Corretto)
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: "25"
+          cache: maven
+
+      - name: Build + test (mvnw verify)
+        working-directory: Backend-Java
+        run: ./mvnw -B -ntp verify
+
+      - name: Publish test summary
+        if: always()
+        working-directory: Backend-Java
+        run: |
+          echo "### Test results" >> "$GITHUB_STEP_SUMMARY"
+          grep -rh "Tests run" */target/surefire-reports/*.txt 2>/dev/null \
+            | awk -F'[ ,]+' '{r+=$3; f+=$5; e+=$7; s+=$9} END {printf "Tests=%d Failures=%d Errors=%d Skipped=%d\n", r,f,e,s}' \
+            >> "$GITHUB_STEP_SUMMARY" || true

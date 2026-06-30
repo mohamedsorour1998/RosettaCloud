@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-service-config
+  namespace: dev
+data:
+  AWS_REGION: "us-east-1"
+  COGNITO_ISSUER_URL: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I"
+  COGNITO_CLIENT_ID: "i5ilqkdrsl714trat6qkt0al0"
+  CHAT_INVOKER: "agentcore"
+  AGENT_RUNTIME_ARN: "arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy"
+  NOVA_MODEL_ID: "us.amazon.nova-2-lite-v1:0"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  USER_SERVICE_URL: "http://user-service.dev.svc.cluster.local:8081"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rosettacloud-chat-service
+  namespace: dev
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::339712964409:role/rosettacloud-chat-service-irsa
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rosettacloud-chat-service
+  namespace: dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rosettacloud-chat-service
+  template:
+    metadata:
+      labels:
+        app: rosettacloud-chat-service
+    spec:
+      serviceAccountName: rosettacloud-chat-service
+      containers:
+        - name: chat-service
+          image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-chat-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: chat-service-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8084
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: dev
+spec:
+  selector:
+    app: rosettacloud-chat-service
+  ports:
+    - protocol: TCP
+      port: 8084
+      targetPort: 8084
+  type: ClusterIP
