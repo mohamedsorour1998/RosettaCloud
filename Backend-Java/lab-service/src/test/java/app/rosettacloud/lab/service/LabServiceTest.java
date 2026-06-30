@@ -22,7 +22,8 @@ class LabServiceTest {
     private final LabProvisioner provisioner = mock(LabProvisioner.class);
     private final UserServiceClient userClient = mock(UserServiceClient.class);
     private final LabProperties props = new LabProperties();
-    private final LabService service = new LabService(registry, provisioner, userClient, props);
+    private final LabService service = new LabService(registry, provisioner, userClient, props,
+            new app.rosettacloud.shared.events.NoOpDomainEventPublisher());
 
     @Test
     void launchSucceedsWithinQuota() {

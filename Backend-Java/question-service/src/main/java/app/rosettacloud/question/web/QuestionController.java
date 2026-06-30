@@ -58,11 +58,12 @@ public class QuestionController {
                                         @Valid @RequestBody QuestionRequest req,
                                         @RequestHeader(value = "Authorization", required = false) String authorization,
                                         @AuthenticationPrincipal Jwt jwt) {
-        boolean ok = questionService.executeCheck(req.podName(), moduleUuid, lessonUuid, questionNumber);
+        String userId = resolvedId(jwt);
+        boolean ok = questionService.executeCheck(userId, req.podName(), moduleUuid, lessonUuid, questionNumber);
         if (ok) {
             String bearer = (authorization != null && authorization.startsWith("Bearer "))
                     ? authorization.substring(7) : null;
-            progressClient.trackProgress(resolvedId(jwt), moduleUuid, lessonUuid, questionNumber, bearer);
+            progressClient.trackProgress(userId, moduleUuid, lessonUuid, questionNumber, bearer);
             return new QuestionActionResponse("success",
                     "Question " + questionNumber + " completed successfully", true);
         }

@@ -6,6 +6,7 @@ import app.rosettacloud.lab.domain.LabInfo;
 import app.rosettacloud.lab.domain.LabNaming;
 import app.rosettacloud.shared.error.ConflictException;
 import app.rosettacloud.shared.error.QuotaExceededException;
+import app.rosettacloud.shared.events.DomainEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -21,13 +22,15 @@ public class LabService {
     private final LabProvisioner provisioner;
     private final UserServiceClient userClient;
     private final LabProperties props;
+    private final DomainEventPublisher events;
 
     public LabService(LabRegistry registry, LabProvisioner provisioner,
-                      UserServiceClient userClient, LabProperties props) {
+                      UserServiceClient userClient, LabProperties props, DomainEventPublisher events) {
         this.registry = registry;
         this.provisioner = provisioner;
         this.userClient = userClient;
         this.props = props;
+        this.events = events;
     }
 
     public String launch(String userId) {
@@ -47,6 +50,7 @@ public class LabService {
         registry.record(labId, podName, userId, Instant.now().getEpochSecond(), ttl);
         userClient.setActiveLab(userId, labId);
         userClient.linkLab(userId, labId);
+        events.publish("lab.started", userId);
         return labId;
     }
 
@@ -83,6 +87,7 @@ public class LabService {
         if (deleted && userId != null && !userId.isBlank()) {
             userClient.closeLabSession(userId);
             userClient.unlinkLab(userId, labId);
+            events.publish("lab.terminated", userId);
         }
         return deleted;
     }

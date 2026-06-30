@@ -72,7 +72,7 @@ class QuestionControllerTest {
 
     @Test
     void checkSuccessRecordsProgress() throws Exception {
-        when(questionService.executeCheck(anyString(), eq("m1"), eq("l1"), eq(1))).thenReturn(true);
+        when(questionService.executeCheck(anyString(), anyString(), eq("m1"), eq("l1"), eq(1))).thenReturn(true);
         mvc.perform(post("/questions/m1/l1/1/check")
                         .with(jwt().jwt(j -> j.claim("custom:user_id", "u1").subject("u1")))
                         .contentType(MediaType.APPLICATION_JSON)

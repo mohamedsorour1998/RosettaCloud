@@ -16,7 +16,8 @@ class QuestionServiceTest {
 
     private final S3QuestionStore store = mock(S3QuestionStore.class);
     private final PodExecutor executor = mock(PodExecutor.class);
-    private final QuestionService service = new QuestionService(store, executor);
+    private final QuestionService service = new QuestionService(store, executor,
+            new app.rosettacloud.shared.events.NoOpDomainEventPublisher());
 
     private static final String SHELL = """
             # Question Number: 1
@@ -48,13 +49,13 @@ class QuestionServiceTest {
     @Test
     void checkReturnsFalseWhenShellMissing() {
         when(store.getShell("m", "l", 9)).thenReturn(Optional.empty());
-        assertThat(service.executeCheck("pod-1", "m", "l", 9)).isFalse();
+        assertThat(service.executeCheck("u1", "pod-1", "m", "l", 9)).isFalse();
     }
 
     @Test
     void checkRunsExtractedCheckBlock() {
         when(store.getShell("m", "l", 1)).thenReturn(Optional.of(SHELL));
         when(executor.runScript(eq("pod-1"), anyString())).thenReturn(true);
-        assertThat(service.executeCheck("pod-1", "m", "l", 1)).isTrue();
+        assertThat(service.executeCheck("u1", "pod-1", "m", "l", 1)).isTrue();
     }
 }

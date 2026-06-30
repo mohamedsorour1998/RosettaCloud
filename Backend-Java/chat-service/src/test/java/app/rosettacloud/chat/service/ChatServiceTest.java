@@ -30,7 +30,8 @@ class ChatServiceTest {
 
     @BeforeEach
     void setup() {
-        service = new ChatService(invoker, sessionStore, rateLimiter, quotaClient, imageValidator);
+        service = new ChatService(invoker, sessionStore, rateLimiter, quotaClient, imageValidator,
+                new app.rosettacloud.shared.events.NoOpDomainEventPublisher());
         when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
         when(invoker.invoke(any())).thenReturn(new AgentInvoker.Reply("Hello!", "tutor"));
         when(quotaClient.aiQuota(anyString())).thenReturn(Map.of("messages_remaining", 50, "messages_limit", 50));
