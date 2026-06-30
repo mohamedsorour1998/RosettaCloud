@@ -21,7 +21,7 @@ spec:
           image: localstack/localstack:3
           ports: [{ containerPort: 4566 }]
           env:
-            - { name: SERVICES, value: "dynamodb" }
+            - { name: SERVICES, value: "dynamodb,s3" }
           readinessProbe:
             httpGet: { path: /_localstack/health, port: 4566 }
             initialDelaySeconds: 8
@@ -190,3 +190,99 @@ metadata: { name: analytics-service, namespace: dev }
 spec:
   selector: { app: analytics-service }
   ports: [{ port: 8085, targetPort: 8085 }]
+---
+# RBAC for the default SA so lab-service can manage Pods/Services/VirtualServices and
+# question-service can exec into lab pods (e2e cluster is ephemeral).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: e2e-lab-manager, namespace: dev }
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/status", "pods/exec", "services"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["virtualservices"]
+    verbs: ["create", "get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: e2e-lab-manager, namespace: dev }
+subjects:
+  - { kind: ServiceAccount, name: default, namespace: dev }
+roleRef: { kind: Role, name: e2e-lab-manager, apiGroup: rbac.authorization.k8s.io }
+---
+# ── lab-service ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: lab-service, namespace: dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: lab-service } }
+  template:
+    metadata: { labels: { app: lab-service } }
+    spec:
+      containers:
+        - name: lab-service
+          image: rosettacloud-lab-service:e2e
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8082 }]
+          env:
+            - { name: LAB_K8S_NAMESPACE, value: "dev" }
+            - { name: LAB_POD_IMAGE, value: "rosettacloud-lab-stub:e2e" }
+            - { name: LAB_ISTIO_GATEWAY, value: "rosettacloud-gateway" }
+            - { name: LAB_WILDCARD_DOMAIN, value: "labs.dev.rosettacloud.app" }
+            - { name: LAB_POD_TTL_SECS, value: "3600" }
+            - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
+            - { name: COGNITO_CLIENT_ID, value: "" }
+            - { name: USER_SERVICE_URL, value: "http://user-service:8081" }
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8082 }
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 30
+---
+apiVersion: v1
+kind: Service
+metadata: { name: lab-service, namespace: dev }
+spec:
+  selector: { app: lab-service }
+  ports: [{ port: 8082, targetPort: 8082 }]
+---
+# ── question-service ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: question-service, namespace: dev }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: question-service } }
+  template:
+    metadata: { labels: { app: question-service } }
+    spec:
+      containers:
+        - name: question-service
+          image: rosettacloud-question-service:e2e
+          imagePullPolicy: Never
+          ports: [{ containerPort: 8083 }]
+          envFrom:
+            - secretRef: { name: aws-creds }
+          env:
+            - { name: AWS_REGION, value: "us-east-1" }
+            - { name: S3_BUCKET_NAME, value: "rosettacloud-shared-interactive-labs" }
+            - { name: LAB_K8S_NAMESPACE, value: "dev" }
+            - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
+            - { name: COGNITO_CLIENT_ID, value: "" }
+            - { name: USER_SERVICE_URL, value: "http://user-service:8081" }
+            # S3 -> LocalStack (relaxed-binding-safe via SPRING_APPLICATION_JSON)
+            - { name: SPRING_APPLICATION_JSON, value: '{"rosettacloud":{"aws":{"s3":{"endpoint-override":"http://localstack:4566"}}}}' }
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8083 }
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 30
+---
+apiVersion: v1
+kind: Service
+metadata: { name: question-service, namespace: dev }
+spec:
+  selector: { app: question-service }
+  ports: [{ port: 8083, targetPort: 8083 }]
