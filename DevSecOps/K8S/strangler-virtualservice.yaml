@@ -1,0 +1,67 @@
+# Strangler-fig routing: cut endpoints over from FastAPI (rosettacloud-backend) to the Java
+# microservices one prefix at a time. Apply, verify, and remove a prefix's fallback only once stable.
+# /internal/** is intentionally NOT routed here, so cluster-internal endpoints are never reachable
+# from the public API Gateway. Rollback = revert this VirtualService.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: rosettacloud-backend-strangler
+  namespace: dev
+spec:
+  hosts:
+    - "api.dev.rosettacloud.app"
+  gateways:
+    - rosettacloud-gateway
+  http:
+    - match:
+        - uri: { prefix: /users }
+      route:
+        - destination: { host: user-service.dev.svc.cluster.local, port: { number: 8081 } }
+    - match:
+        - uri: { prefix: /labs }
+      route:
+        - destination: { host: lab-service.dev.svc.cluster.local, port: { number: 8082 } }
+    - match:
+        - uri: { prefix: /questions }
+      route:
+        - destination: { host: question-service.dev.svc.cluster.local, port: { number: 8083 } }
+    - match:
+        - uri: { prefix: /chat }
+      route:
+        - destination: { host: chat-service.dev.svc.cluster.local, port: { number: 8084 } }
+    - match:
+        - uri: { prefix: /admin/metrics }
+        - uri: { prefix: /public/stats }
+      route:
+        - destination: { host: analytics-service.dev.svc.cluster.local, port: { number: 8085 } }
+    # Default: everything not yet migrated still goes to the FastAPI backend.
+    - route:
+        - destination: { host: rosettacloud-backend-service.dev.svc.cluster.local, port: { number: 80 } }
+---
+# Restrict the cluster-internal endpoints (L3/L4): only the Java service pods may call user-service.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-service-internal-allowlist
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: rosettacloud-user-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - rosettacloud-lab-service
+                  - rosettacloud-question-service
+                  - rosettacloud-chat-service
+                  - rosettacloud-analytics-service
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - { protocol: TCP, port: 8081 }

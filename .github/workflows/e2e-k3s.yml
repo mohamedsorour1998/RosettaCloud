@@ -11,7 +11,10 @@ on:
   push:
     branches: [spring-boot-migration]
     paths:
-      - "Backend-Java/**"
+      - "Backend-Java/*/src/**"
+      - "Backend-Java/*/pom.xml"
+      - "Backend-Java/pom.xml"
+      - "Backend-Java/e2e/**"
       - "scripts/e2e/**"
       - ".github/workflows/e2e-k3s.yml"
 
