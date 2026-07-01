@@ -1,7 +1,8 @@
 name: Backend Java Deploy
 
-# Per-service build -> ECR -> EKS rollout, with a MANDATORY test gate (mvnw verify) before any push.
-# Manual dispatch (ECR repos + IRSA are provisioned by DevSecOps/Terraform/.../backend-java.tf).
+# Per-service build -> ECR (with a MANDATORY test gate), then DEPLOY the ECR images onto a k3s
+# cluster spun up inside the public GitHub runner and verify the rollout with a smoke probe.
+# No EKS / no persistent cloud infra. Manual dispatch.
 on:
   workflow_dispatch:
     inputs:
@@ -15,12 +16,13 @@ env:
   IAM_ROLE: rosettacloud-backend-deploy
   AWS_REGION: us-east-1
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-  deploy:
+  build_push:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -56,12 +58,94 @@ jobs:
           docker push "$IMG:${{ inputs.image_tag }}"
           docker push "$IMG:${GITHUB_SHA::8}"
 
-      - name: Roll out to EKS (skips gracefully if no cluster is provisioned)
+  # Deploy the freshly-pushed ECR images onto k3s (in-runner) and verify they roll out and serve.
+  deploy_k3s:
+    needs: build_push
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
         run: |
-          if aws eks describe-cluster --name rosettacloud-eks --region ${{ env.AWS_REGION }} >/dev/null 2>&1; then
-            aws eks update-kubeconfig --name rosettacloud-eks --region ${{ env.AWS_REGION }}
-            kubectl rollout restart deploy/rosettacloud-${{ matrix.service }} -n dev
-            kubectl rollout status deploy/rosettacloud-${{ matrix.service }} -n dev --timeout=180s
-          else
-            echo "::notice::EKS cluster 'rosettacloud-eks' not found — image built + pushed to ECR; skipping rollout (cluster decommissioned for cost)."
-          fi
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL || true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Install k3s (in-runner)
+        run: |
+          curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644 --disable traefik
+          sudo ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl
+          timeout 150 bash -c 'until kubectl get nodes | grep -q " Ready"; do sleep 3; done'
+          kubectl get nodes -o wide
+
+      - name: Pull ECR images + import into k3s (retagged to the :e2e ref the manifests use)
+        run: |
+          REG=${{ steps.login.outputs.registry }}
+          for s in user-service lab-service question-service chat-service analytics-service; do
+            docker pull "$REG/rosettacloud-$s:${{ inputs.image_tag }}"
+            docker tag  "$REG/rosettacloud-$s:${{ inputs.image_tag }}" rosettacloud-$s:e2e
+            docker save rosettacloud-$s:e2e | sudo k3s ctr -n k8s.io images import -
+          done
+          docker build -q -t rosettacloud-lab-stub:e2e Backend-Java/e2e/lab-stub
+          docker save rosettacloud-lab-stub:e2e | sudo k3s ctr -n k8s.io images import -
+
+      - name: Install Istio VirtualService CRD (lab-service needs it)
+        run: |
+          kubectl apply -f Backend-Java/e2e/k8s/istio-crd.yaml
+          kubectl wait --for condition=established --timeout=60s crd/virtualservices.networking.istio.io
+
+      - name: Namespace + placeholder creds secret (services target in-cluster LocalStack)
+        run: |
+          kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic aws-creds -n dev \
+            --from-literal=AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            --from-literal=AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy ECR images to k3s + wait for rollouts
+        run: |
+          kubectl apply -f Backend-Java/e2e/k8s/e2e-stack.yaml
+          for d in localstack redis mock-oidc user-service lab-service question-service chat-service analytics-service; do
+            kubectl rollout status deploy/$d -n dev --timeout=300s
+          done
+          echo "=== deployed images ==="
+          kubectl get deploy -n dev -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}'
+
+      - name: Port-forward
+        run: |
+          echo "127.0.0.1 mock-oidc" | sudo tee -a /etc/hosts
+          kubectl port-forward -n dev svc/user-service 8081:8081 &
+          kubectl port-forward -n dev svc/lab-service 8082:8082 &
+          kubectl port-forward -n dev svc/question-service 8083:8083 &
+          kubectl port-forward -n dev svc/chat-service 8084:8084 &
+          kubectl port-forward -n dev svc/analytics-service 8085:8085 &
+          kubectl port-forward -n dev svc/mock-oidc 8080:8080 &
+          kubectl port-forward -n dev svc/localstack 4566:4566 &
+          sleep 8
+
+      - name: Smoke test — proves the ECR images run on k3s (no Bedrock)
+        run: |
+          python -m pip install --quiet httpx boto3
+          SKIP_CHAT=1 python scripts/e2e/test_e2e.py
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -n dev -o wide || true
+          kubectl get events -n dev --sort-by=.lastTimestamp | tail -40 || true
+          for d in user-service lab-service question-service chat-service analytics-service mock-oidc localstack; do
+            echo "===== logs $d ====="
+            kubectl logs -n dev deploy/$d --tail=80 --all-containers 2>/dev/null || true
+          done

@@ -115,6 +115,7 @@ def jwt_sub(tok):
 
 
 def main():
+    skip_chat = __import__("os").environ.get("SKIP_CHAT") == "1"
     for n, b in [("user", USER), ("lab", LAB), ("question", QUESTION), ("chat", CHAT), ("analytics", ANALYTICS)]:
         wait_health(n, b)
     ddb = seed()
@@ -164,14 +165,18 @@ def main():
                         json={"pod_name": pod_name}, timeout=40)
         check("POST check -> completed", rc.status_code == 200 and rc.json().get("completed"), f"({rc.status_code})")
 
-    # ── chat-service: REAL Nova Lite 2 ──
-    r = httpx.post(f"{CHAT}/chat", headers=auth, timeout=60,
-                   json={"message": "In one short sentence, what is a Linux container?",
-                         "session_id": "e2e-sess-1", "type": "chat"})
-    ok = r.status_code == 200 and bool(r.json().get("response", "").strip())
-    check("POST /chat real Nova Lite 2", ok,
-          f"agent={r.json().get('agent') if r.status_code == 200 else r.status_code} "
-          f"reply='{r.json().get('response','')[:70] if r.status_code==200 else ''}'")
+    # ── chat-service: REAL Nova Lite 2 (skipped in the k3s deploy smoke — no Bedrock cost) ──
+    if not skip_chat:
+        r = httpx.post(f"{CHAT}/chat", headers=auth, timeout=60,
+                       json={"message": "In one short sentence, what is a Linux container?",
+                             "session_id": "e2e-sess-1", "type": "chat"})
+        ok = r.status_code == 200 and bool(r.json().get("response", "").strip())
+        check("POST /chat real Nova Lite 2", ok,
+              f"agent={r.json().get('agent') if r.status_code == 200 else r.status_code} "
+              f"reply='{r.json().get('response','')[:70] if r.status_code==200 else ''}'")
+    else:
+        # still exercise the deployed chat-service health so its pod readiness is proven
+        check("chat-service health (deploy smoke)", httpx.get(f"{CHAT}/actuator/health", timeout=15).status_code == 200)
 
     r = httpx.get(f"{ANALYTICS}/public/stats", timeout=15)
     check("GET /public/stats -> 200", r.status_code == 200, f"({r.status_code})")
@@ -183,7 +188,7 @@ def main():
     for _ in range(20):
         try:
             s = httpx.get(f"{ANALYTICS}/public/stats", timeout=10).json()
-            if s.get("labs_launched", 0) >= 1 and s.get("questions_answered", 0) >= 1 and s.get("ai_messages", 0) >= 1:
+            if s.get("labs_launched", 0) >= 1 and s.get("questions_answered", 0) >= 1 and (skip_chat or s.get("ai_messages", 0) >= 1):
                 live = True
                 break
         except Exception:
@@ -201,7 +206,8 @@ def main():
     if failures:
         print("FAILED:", failures)
         sys.exit(1)
-    print("ALL E2E CHECKS PASSED (5 microservices + real Nova Lite 2)")
+    print("ALL E2E CHECKS PASSED (5 microservices"
+          + (", ECR images on k3s runner)" if skip_chat else " + real Nova Lite 2)"))
 
 
 if __name__ == "__main__":
