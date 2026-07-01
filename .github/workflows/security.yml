@@ -39,13 +39,14 @@ jobs:
 
       - name: Trivy report (HIGH+CRITICAL — informational)
         run: |
-          trivy fs --scanners vuln,secret,misconfig \
-            --severity HIGH,CRITICAL --exit-code 0 --no-progress Backend-Java DevSecOps
+          trivy fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 0 --no-progress Backend-Java
+          trivy fs --scanners secret,misconfig --severity HIGH,CRITICAL --exit-code 0 --no-progress DevSecOps
 
       - name: Trivy gate (fail on fixable CRITICAL vuln or any secret)
         run: |
           echo "== secret gate (any committed secret fails) =="
-          trivy fs --scanners secret --exit-code 1 --no-progress Backend-Java DevSecOps
+          trivy fs --scanners secret --exit-code 1 --no-progress Backend-Java
+          trivy fs --scanners secret --exit-code 1 --no-progress DevSecOps
           echo "== CVE gate (fixable CRITICAL fails) =="
           trivy fs --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 --no-progress Backend-Java
 
