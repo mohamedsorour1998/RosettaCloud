@@ -118,6 +118,25 @@ jobs:
           python -m pip install --quiet httpx boto3
           python scripts/e2e/test_e2e.py
 
+      - name: Load test (k6, informational — CI-tuned for a 2-core runner)
+        continue-on-error: true
+        run: |
+          K6_VER=$(curl -s https://api.github.com/repos/grafana/k6/releases/latest | jq -r .tag_name)
+          echo "k6 $K6_VER"
+          curl -sL "https://github.com/grafana/k6/releases/download/${K6_VER}/k6-${K6_VER}-linux-amd64.tar.gz" | tar xz
+          sudo mv "k6-${K6_VER}-linux-amd64/k6" /usr/local/bin/k6
+          TOKEN=$(curl -s -X POST http://mock-oidc:8080/default/token \
+            -d grant_type=client_credentials -d client_id=e2e-user-1 -d client_secret=x -d scope=openid \
+            | jq -r '.access_token // empty')
+          USER_ID=loadtest-user
+          if [ -n "$TOKEN" ]; then
+            USER_ID=$(python3 -c "import base64,json; p='${TOKEN}'.split('.')[1]; p+='='*(-len(p)%4); print(json.loads(base64.urlsafe_b64decode(p)).get('sub','loadtest-user'))")
+          fi
+          echo "k6 target user=$USER_ID token=$([ -n "$TOKEN" ] && echo present || echo none)"
+          BASE_URL=http://localhost:8081 ANALYTICS_URL=http://localhost:8085 TOKEN="$TOKEN" USER_ID="$USER_ID" \
+            VUS_PEAK=30 P95_MS=1500 ERR_RATE=0.05 \
+            k6 run --summary-trend-stats="avg,p(90),p(95),max" Backend-Java/loadtest/backend-load.js
+
       - name: Diagnostics on failure
         if: failure()
         run: |

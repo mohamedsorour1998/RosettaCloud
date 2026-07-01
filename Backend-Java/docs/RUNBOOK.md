@@ -45,12 +45,28 @@ Once each prefix has run on the Java service in production for ≥7 days with no
 3. Keep the Python AI/RAG plane (AgentCore runtime + `document_indexer`/`agent_tools` Lambdas + LanceDB) —
    it is invoked by chat-service and is out of scope for the Java migration.
 
+## Provisioned AWS resources (real, us-east-1, acct 339712964409)
+Created out-of-band to match `backend-java.tf` (EKS-independent; low-cost + reversible):
+- **ECR ×5**: `rosettacloud-{user,lab,question,chat,analytics}-service` — scan-on-push, MUTABLE, keep-last-10.
+- **Event backbone**: SNS `rosettacloud-events` → SQS `rosettacloud-analytics` (RawMessageDelivery=true, queue
+  policy allows the topic). Validated: publish → raw JSON body received → `SqsEventConsumer` regex parses `type`.
+- **e2e OIDC role**: `rosettacloud-e2e-tester` (Bedrock Nova Lite 2 + AgentCore invoke).
+Reverse with: `aws ecr delete-repository --repository-name … --force`, `aws sns delete-topic`, `aws sqs delete-queue`.
+
+## Load test (k6)
+`Backend-Java/loadtest/backend-load.js` runs in the e2e workflow against the k3s stack (informational stage,
+CI-tuned VUs/thresholds via env). Against a real staged target: `BASE_URL=… ANALYTICS_URL=… TOKEN=<jwt> k6 run …`.
+
+## Blocked on a live cluster (needs EKS — decommissioned for cost)
+- **Per-service IRSA roles** (`backend-java.tf`): trust policy references the EKS OIDC provider, which does not
+  exist. Create the EKS cluster, then `terraform apply` reconciles ECR/SNS/SQS (import first) and adds IRSA.
+- **`backend-java-deploy.yml` EKS rollout**: `aws eks update-kubeconfig --name rosettacloud-eks` + `kubectl rollout`
+  requires the cluster. The TEST-GATE + ECR build/push halves are ready; only the rollout step needs EKS.
+
 ## Remaining enhancements (non-blocking)
 - WP-60: `@HttpExchange` + `@ImportHttpServices` declarative-client refactor is deferred — the RestClient
   clients are functional and now carry connect/read timeouts, transient-retry, and fail-open fallbacks
   (converting to bare `@HttpExchange` proxies would forfeit the fail-open behavior without a wrapper).
-- WP-80: full-cluster lab/question pod-lifecycle e2e — DONE (lab-stub pod + minimal VirtualService CRD).
-- Per-service ECR build+deploy workflow — DONE (`.github/workflows/backend-java-deploy.yml`, test-gated).
 
 ## Resilience posture (inter-service calls)
 All inter-service clients (chat→user AI-quota, lab→user lab/session, question→user progress) have:
