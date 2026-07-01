@@ -95,6 +95,42 @@
                                 <goal>report</goal>
                             </goals>
                         </execution>
+                        <execution>
+                            <id>check</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <configuration>
+                                <!-- Exclude non-unit-testable code from the gate: framework glue, DTOs,
+                                     and infra adapters that are covered by integration/e2e tests instead
+                                     (repositories, Redis stores, RestClient clients, AWS/K8s invokers). -->
+                                <excludes>
+                                    <exclude>**/*Application.*</exclude>
+                                    <exclude>**/config/**</exclude>
+                                    <exclude>**/*Properties.*</exclude>
+                                    <exclude>**/web/dto/**</exclude>
+                                    <exclude>**/client/**</exclude>
+                                    <exclude>**/persistence/**</exclude>
+                                    <exclude>**/*Invoker.*</exclude>
+                                    <exclude>**/Fabric8*.*</exclude>
+                                    <exclude>**/*Janitor.*</exclude>
+                                    <exclude>**/*Redis*.*</exclude>
+                                </excludes>
+                                <rules>
+                                    <rule>
+                                        <element>BUNDLE</element>
+                                        <limits>
+                                            <limit>
+                                                <counter>LINE</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.40</minimum>
+                                            </limit>
+                                        </limits>
+                                    </rule>
+                                </rules>
+                            </configuration>
+                        </execution>
                     </executions>
                 </plugin>
             </plugins>
