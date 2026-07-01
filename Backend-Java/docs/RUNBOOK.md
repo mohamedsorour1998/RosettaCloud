@@ -68,10 +68,22 @@ No EKS, ever. Deploys are validated on k3s-on-runner. The per-service IRSA roles
 dormant template only (they reference an EKS OIDC provider that does not exist); in-cluster services receive
 AWS credentials via the `aws-creds` secret.
 
+## CI quality gates (all enforced on every push to main)
+- **Test gate** — `backend-java-ci.yml` runs `mvnw verify`: **101 tests**, 0 failures (unit + Testcontainers ITs).
+- **Coverage gate** — JaCoCo `check` fails the build under **40% line coverage** per module, excluding
+  framework glue / DTOs / infra adapters covered by ITs+e2e (repositories, Redis stores, RestClient clients,
+  AWS/K8s invokers, Fabric8 provisioner). shared-lib 51% / user-service 62%+ line at last measure.
+- **Security scan** — `security.yml`: Trivy gates on any committed secret + fixable CRITICAL dependency CVE;
+  Semgrep SAST (informational). ECR repos also scan-on-push.
+
 ## Remaining enhancements (non-blocking)
-- WP-60: `@HttpExchange` + `@ImportHttpServices` declarative-client refactor is deferred — the RestClient
-  clients are functional and now carry connect/read timeouts, transient-retry, and fail-open fallbacks
-  (converting to bare `@HttpExchange` proxies would forfeit the fail-open behavior without a wrapper).
+- WP-60: `@HttpExchange` + `@ImportHttpServices` declarative-client refactor is deferred. The RestClient
+  clients are functional and carry connect/read timeouts + transient-retry + fail-open fallbacks. Beyond the
+  fail-open concern, the inter-service clients are mocked in unit tests, so the declarative wiring could only
+  be validated by the (slow, real-Bedrock) e2e — not worth risking a green, resilient, e2e-verified path for
+  a stylistic change. Revisit if/when it can be unit-verified cheaply.
+- Optional hardening surfaced by Trivy: add pod `securityContext` (runAsNonRoot, drop caps, seccomp) to the
+  production manifests.
 
 ## Resilience posture (inter-service calls)
 All inter-service clients (chat→user AI-quota, lab→user lab/session, question→user progress) have:
