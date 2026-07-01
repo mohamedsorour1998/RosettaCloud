@@ -123,9 +123,25 @@ resource "aws_sqs_queue" "analytics" {
 }
 
 resource "aws_sns_topic_subscription" "analytics" {
-  topic_arn = aws_sns_topic.events.arn
-  protocol  = "sqs"
-  endpoint  = aws_sqs_queue.analytics.arn
+  topic_arn            = aws_sns_topic.events.arn
+  protocol             = "sqs"
+  endpoint             = aws_sqs_queue.analytics.arn
+  raw_message_delivery = true # deliver the raw JSON body so SqsEventConsumer can parse "type"
+}
+
+# Allow the SNS topic to deliver to the analytics queue.
+resource "aws_sqs_queue_policy" "analytics" {
+  queue_url = aws_sqs_queue.analytics.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "sns.amazonaws.com" }
+      Action    = "sqs:SendMessage"
+      Resource  = aws_sqs_queue.analytics.arn
+      Condition = { ArnEquals = { "aws:SourceArn" = aws_sns_topic.events.arn } }
+    }]
+  })
 }
 
 ################################################################################
