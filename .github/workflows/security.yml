@@ -1,0 +1,61 @@
+name: Security Scan
+
+# Supply-chain + SAST scanning for the Java backend and IaC.
+#  - Trivy: dependency CVEs, committed secrets, IaC/Dockerfile misconfig.
+#  - Semgrep: static analysis of the Java sources (informational).
+on:
+  push:
+    branches: [main, spring-boot-migration]
+    paths:
+      - "Backend-Java/**"
+      - "DevSecOps/**"
+      - ".github/workflows/security.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1" # weekly Monday 05:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+      - name: Build jars (so Trivy sees resolved dependencies)
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: "25"
+          cache: maven
+      - working-directory: Backend-Java
+        run: ./mvnw -B -ntp -DskipTests package
+
+      - name: Trivy report (HIGH+CRITICAL — informational)
+        run: |
+          trivy fs --scanners vuln,secret,misconfig \
+            --severity HIGH,CRITICAL --exit-code 0 --no-progress Backend-Java DevSecOps
+
+      - name: Trivy gate (fail on fixable CRITICAL vuln or any secret)
+        run: |
+          echo "== secret gate (any committed secret fails) =="
+          trivy fs --scanners secret --exit-code 1 --no-progress Backend-Java DevSecOps
+          echo "== CVE gate (fixable CRITICAL fails) =="
+          trivy fs --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 --no-progress Backend-Java
+
+  semgrep:
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep SAST (informational)
+        continue-on-error: true
+        run: |
+          semgrep scan --config p/java --config p/security-audit --config p/secrets \
+            --metrics off --error --severity ERROR Backend-Java
