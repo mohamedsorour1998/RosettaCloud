@@ -48,20 +48,27 @@ Once each prefix has run on the Java service in production for ≥7 days with no
 ## Provisioned AWS resources (real, us-east-1, acct 339712964409)
 Created out-of-band to match `backend-java.tf` (EKS-independent; low-cost + reversible):
 - **ECR ×5**: `rosettacloud-{user,lab,question,chat,analytics}-service` — scan-on-push, MUTABLE, keep-last-10.
+  **All 5 images built + pushed** by `backend-java-deploy.yml` (tags: `latest` + commit SHA).
 - **Event backbone**: SNS `rosettacloud-events` → SQS `rosettacloud-analytics` (RawMessageDelivery=true, queue
   policy allows the topic). Validated: publish → raw JSON body received → `SqsEventConsumer` regex parses `type`.
-- **e2e OIDC role**: `rosettacloud-e2e-tester` (Bedrock Nova Lite 2 + AgentCore invoke).
-Reverse with: `aws ecr delete-repository --repository-name … --force`, `aws sns delete-topic`, `aws sqs delete-queue`.
+- **IAM roles**: `rosettacloud-e2e-tester` (Bedrock Nova Lite 2 + AgentCore invoke); `rosettacloud-backend-deploy`
+  (repo-scoped OIDC, ECR push + `eks:DescribeCluster`).
+Reverse with: `aws ecr delete-repository --repository-name … --force`, `aws sns delete-topic`, `aws sqs delete-queue`,
+`aws iam delete-role`.
 
-## Load test (k6)
-`Backend-Java/loadtest/backend-load.js` runs in the e2e workflow against the k3s stack (informational stage,
-CI-tuned VUs/thresholds via env). Against a real staged target: `BASE_URL=… ANALYTICS_URL=… TOKEN=<jwt> k6 run …`.
+## Deploy pipeline status
+`backend-java-deploy.yml` runs green end-to-end: TEST GATE (`mvnw verify`) → build image (per-service Dockerfile;
+build stage installs tar/gzip for mvnw) → push to ECR → rollout. The rollout step auto-detects the cluster via
+`eks:DescribeCluster` and **rolls out when EKS exists, or skips with a notice when it doesn't** (current state).
 
-## Blocked on a live cluster (needs EKS — decommissioned for cost)
-- **Per-service IRSA roles** (`backend-java.tf`): trust policy references the EKS OIDC provider, which does not
-  exist. Create the EKS cluster, then `terraform apply` reconciles ECR/SNS/SQS (import first) and adds IRSA.
-- **`backend-java-deploy.yml` EKS rollout**: `aws eks update-kubeconfig --name rosettacloud-eks` + `kubectl rollout`
-  requires the cluster. The TEST-GATE + ECR build/push halves are ready; only the rollout step needs EKS.
+## The ONE remaining step needs EKS (a cost decision, not a code task)
+The EKS cluster was **deliberately decommissioned for cost**. Standing it up (`terraform apply` of `main.tf`:
+control plane + node groups + NAT + LBs) is recurring spend, so it is intentionally NOT done unattended.
+Everything is staged so that the moment a cluster named `rosettacloud-eks` exists:
+1. `terraform apply` reconciles ECR/SNS/SQS (import first) and creates the per-service **IRSA roles** (they need the
+   EKS OIDC provider, absent today).
+2. Re-run `backend-java-deploy.yml` — the rollout step detects the cluster and performs the rolling restart.
+No further code changes required.
 
 ## Remaining enhancements (non-blocking)
 - WP-60: `@HttpExchange` + `@ImportHttpServices` declarative-client refactor is deferred — the RestClient
