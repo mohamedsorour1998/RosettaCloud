@@ -12,7 +12,7 @@ on:
 
 env:
   AWS_ACCOUNT_ID: "339712964409"
-  IAM_ROLE: github-actions-role
+  IAM_ROLE: rosettacloud-backend-deploy
   AWS_REGION: us-east-1
 
 jobs:
@@ -56,8 +56,12 @@ jobs:
           docker push "$IMG:${{ inputs.image_tag }}"
           docker push "$IMG:${GITHUB_SHA::8}"
 
-      - name: Roll out to EKS
+      - name: Roll out to EKS (skips gracefully if no cluster is provisioned)
         run: |
-          aws eks update-kubeconfig --name rosettacloud-eks --region ${{ env.AWS_REGION }}
-          kubectl rollout restart deploy/rosettacloud-${{ matrix.service }} -n dev
-          kubectl rollout status deploy/rosettacloud-${{ matrix.service }} -n dev --timeout=180s
+          if aws eks describe-cluster --name rosettacloud-eks --region ${{ env.AWS_REGION }} >/dev/null 2>&1; then
+            aws eks update-kubeconfig --name rosettacloud-eks --region ${{ env.AWS_REGION }}
+            kubectl rollout restart deploy/rosettacloud-${{ matrix.service }} -n dev
+            kubectl rollout status deploy/rosettacloud-${{ matrix.service }} -n dev --timeout=180s
+          else
+            echo "::notice::EKS cluster 'rosettacloud-eks' not found — image built + pushed to ECR; skipping rollout (cluster decommissioned for cost)."
+          fi
