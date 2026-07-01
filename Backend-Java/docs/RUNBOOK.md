@@ -57,18 +57,16 @@ Reverse with: `aws ecr delete-repository --repository-name … --force`, `aws sn
 `aws iam delete-role`.
 
 ## Deploy pipeline status
-`backend-java-deploy.yml` runs green end-to-end: TEST GATE (`mvnw verify`) → build image (per-service Dockerfile;
-build stage installs tar/gzip for mvnw) → push to ECR → rollout. The rollout step auto-detects the cluster via
-`eks:DescribeCluster` and **rolls out when EKS exists, or skips with a notice when it doesn't** (current state).
+`backend-java-deploy.yml` runs green end-to-end, targeting **k3s inside the GitHub public runner** (no EKS):
+1. `build_push` (matrix): TEST GATE (`mvnw verify`) → build per-service image → push to ECR (`latest` + SHA).
+2. `deploy_k3s`: install k3s in-runner → pull the ECR images + import → apply the stack → **wait for all 5
+   rollouts** → smoke probe (`SKIP_CHAT=1`, no Bedrock). Verified: all deployments `successfully rolled out`
+   running `rosettacloud-<svc>:e2e` (the ECR builds), smoke `ALL E2E CHECKS PASSED (… ECR images on k3s runner)`.
 
-## The ONE remaining step needs EKS (a cost decision, not a code task)
-The EKS cluster was **deliberately decommissioned for cost**. Standing it up (`terraform apply` of `main.tf`:
-control plane + node groups + NAT + LBs) is recurring spend, so it is intentionally NOT done unattended.
-Everything is staged so that the moment a cluster named `rosettacloud-eks` exists:
-1. `terraform apply` reconciles ECR/SNS/SQS (import first) and creates the per-service **IRSA roles** (they need the
-   EKS OIDC provider, absent today).
-2. Re-run `backend-java-deploy.yml` — the rollout step detects the cluster and performs the rolling restart.
-No further code changes required.
+## Out of scope (by direction): EKS
+No EKS, ever. Deploys are validated on k3s-on-runner. The per-service IRSA roles in `backend-java.tf` are a
+dormant template only (they reference an EKS OIDC provider that does not exist); in-cluster services receive
+AWS credentials via the `aws-creds` secret.
 
 ## Remaining enhancements (non-blocking)
 - WP-60: `@HttpExchange` + `@ImportHttpServices` declarative-client refactor is deferred — the RestClient

@@ -33,6 +33,9 @@ resource "aws_ecr_lifecycle_policy" "java_service" {
   })
 }
 
+# NOTE: this architecture uses NO EKS — deploys run on k3s inside the GitHub runner and services get
+# AWS creds via the `aws-creds` secret. The IRSA roles below are kept ONLY as a template for a future
+# EKS install and are NOT applied today (they reference an EKS OIDC provider that does not exist).
 # ── Per-service IRSA roles (least privilege) ────────────────────────────────────
 data "aws_iam_policy_document" "java_irsa_trust" {
   for_each = toset(local.java_services)
