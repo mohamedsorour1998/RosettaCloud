@@ -57,12 +57,20 @@ jobs:
 
       - name: Update backend ConfigMap with new image tag
         run: |
-          aws eks update-kubeconfig --name rosettacloud-eks --region us-east-1
-          kubectl patch configmap rosettacloud-backend-config -n dev \
-            --patch "{\"data\":{\"LAB_POD_IMAGE\":\"${{ steps.build.outputs.image_sha }}\"}}"
-          echo "ConfigMap LAB_POD_IMAGE updated to ${{ steps.build.outputs.image_sha }}"
+          if aws eks describe-cluster --name rosettacloud-eks --region us-east-1 >/dev/null 2>&1; then
+            aws eks update-kubeconfig --name rosettacloud-eks --region us-east-1
+            kubectl patch configmap rosettacloud-backend-config -n dev \
+              --patch "{\"data\":{\"LAB_POD_IMAGE\":\"${{ steps.build.outputs.image_sha }}\"}}"
+            echo "ConfigMap LAB_POD_IMAGE updated to ${{ steps.build.outputs.image_sha }}"
+          else
+            echo "::notice::rosettacloud-eks cluster not found — skipping ConfigMap update (NO-EKS mandate; no cluster)"
+          fi
 
       - name: Restart backend to pick up new ConfigMap
         run: |
-          kubectl rollout restart deployment/rosettacloud-backend -n dev
-          kubectl rollout status deployment/rosettacloud-backend -n dev --timeout=120s
+          if aws eks describe-cluster --name rosettacloud-eks --region us-east-1 >/dev/null 2>&1; then
+            kubectl rollout restart deployment/rosettacloud-backend -n dev
+            kubectl rollout status deployment/rosettacloud-backend -n dev --timeout=120s
+          else
+            echo "::notice::rosettacloud-eks cluster not found — skipping backend rollout (NO-EKS mandate; no cluster)"
+          fi

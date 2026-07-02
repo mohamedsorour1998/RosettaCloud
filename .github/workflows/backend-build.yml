@@ -1,3 +1,6 @@
+# SUPERSEDED + NO-EKS: manual-only; EKS rollout gated (no cluster)
+# Superseded by backend-java-* workflows. Trigger restricted to workflow_dispatch
+# so the Angular-22 merge cannot trigger this legacy build. EKS rollout gated below.
 name: Build & push backend image
 on:
   workflow_dispatch:
@@ -10,12 +13,6 @@ on:
         description: AWS Region
         default: us-east-1
         type: string
-  push:
-    branches: [main]
-    paths:
-      - "Backend/app/**"
-      - "Backend/Dockerfile"
-      - "Backend/requirements.txt"
 
 env:
   AWS_ACCOUNT_ID: "339712964409"
@@ -57,6 +54,10 @@ jobs:
 
       - name: Rollout restart backend on EKS
         run: |
-          aws eks update-kubeconfig --name rosettacloud-eks --region ${{ inputs.aws_region || 'us-east-1' }}
-          kubectl rollout restart deployment/rosettacloud-backend -n dev
-          kubectl rollout status deployment/rosettacloud-backend -n dev --timeout=120s
+          if aws eks describe-cluster --name rosettacloud-eks --region ${{ inputs.aws_region || 'us-east-1' }} >/dev/null 2>&1; then
+            aws eks update-kubeconfig --name rosettacloud-eks --region ${{ inputs.aws_region || 'us-east-1' }}
+            kubectl rollout restart deployment/rosettacloud-backend -n dev
+            kubectl rollout status deployment/rosettacloud-backend -n dev --timeout=120s
+          else
+            echo "::notice::rosettacloud-eks cluster not found — skipping EKS rollout (NO-EKS mandate; no cluster)"
+          fi
