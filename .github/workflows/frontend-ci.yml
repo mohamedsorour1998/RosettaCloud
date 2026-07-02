@@ -1,0 +1,80 @@
+name: Frontend CI
+
+# PR/push gate for the Angular 22 SPA: typecheck + production build + Vitest unit
+# tests, plus a dependency-vulnerability (npm audit) gate. Runs on Node 24
+# (Angular 22 floor is Node >= 24.15.0 / >= 22.22.3).
+on:
+  push:
+    branches: [main, frontend-angular22]
+    paths:
+      - "Frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  pull_request:
+    paths:
+      - "Frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: build + Vitest (Node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc -p tsconfig.app.json --noEmit
+
+      - name: Build (production)
+        run: npx ng build --configuration=production
+
+      - name: Unit tests (Vitest)
+        run: npx ng test --watch=false
+
+      - name: Test summary
+        if: always()
+        run: echo "Vitest unit suite executed on $(node -v) with Angular $(npx ng version 2>/dev/null | grep -m1 -i 'Angular CLI' || true)" >> "$GITHUB_STEP_SUMMARY"
+
+  security:
+    name: npm audit (high+)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (fail on high or critical)
+        run: npm audit --audit-level=high
+
+      - name: npm audit (full report, non-blocking)
+        if: always()
+        run: npm audit || true
