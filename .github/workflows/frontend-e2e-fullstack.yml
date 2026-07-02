@@ -1,0 +1,240 @@
+name: Frontend E2E (full-stack k3s)
+
+# Runs the Angular 22 PRODUCTION SPA against the LIVE k3s backend (the five
+# Spring Boot microservices from Backend-Java/e2e/k8s/e2e-stack.yaml) through a
+# CI "strangler" gateway that mirrors DevSecOps/K8S/strangler-virtualservice.yaml
+# onto one origin — so the SPA's single environment.apiUrl works unchanged.
+#
+# This is ADDITIVE to, and independent of, the deterministic mocked Playwright
+# suite in frontend-ci.yml (which needs no backend and gates every PR). This
+# full-stack run is HEAVY (k3s + JDK build + images + OIDC/AWS) so it is
+# manual + nightly ONLY — never per-PR. AWS creds come from the OIDC role
+# (secrets.E2E_AWS_ROLE_ARN), exactly like e2e-k3s.yml.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *" # nightly (offset from e2e-k3s.yml's 06:00)
+
+concurrency:
+  group: frontend-e2e-fullstack-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write # OIDC role assumption for AWS creds
+
+jobs:
+  fullstack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL || true
+          df -h / | tail -1
+
+      - name: Configure AWS (OIDC role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.E2E_AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Set up JDK 25 (Corretto)
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: "25"
+          cache: maven
+
+      - name: Build service jars
+        working-directory: Backend-Java
+        run: |
+          ./mvnw -B -ntp -pl user-service,lab-service,question-service,chat-service,analytics-service \
+                 -am -DskipTests package
+
+      - name: Install k3s (in-runner)
+        run: |
+          curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644 --disable traefik
+          sudo ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl
+          timeout 150 bash -c 'until kubectl get nodes | grep -q " Ready"; do sleep 3; done'
+          kubectl get nodes -o wide
+
+      - name: Build images and import into k3s containerd
+        working-directory: Backend-Java
+        run: |
+          for s in user-service lab-service question-service chat-service analytics-service; do
+            rm -rf /tmp/ctx-$s && mkdir -p /tmp/ctx-$s
+            cp $s/target/*.jar /tmp/ctx-$s/app.jar
+            docker build -q -t rosettacloud-$s:e2e -f e2e/Dockerfile.svc /tmp/ctx-$s
+            docker save rosettacloud-$s:e2e | sudo k3s ctr -n k8s.io images import -
+          done
+          # lab-stub: lightweight stand-in for the real interactive-labs pod.
+          docker build -q -t rosettacloud-lab-stub:e2e e2e/lab-stub
+          docker save rosettacloud-lab-stub:e2e | sudo k3s ctr -n k8s.io images import -
+
+      - name: Install Istio VirtualService CRD (lab-service needs it)
+        run: |
+          kubectl apply -f Backend-Java/e2e/k8s/istio-crd.yaml
+          kubectl wait --for condition=established --timeout=60s crd/virtualservices.networking.istio.io
+
+      - name: Create AWS creds secret (from assumed OIDC role) for the services
+        run: |
+          kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic aws-creds -n dev \
+            --from-literal=AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            --from-literal=AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy backend stack
+        run: |
+          kubectl apply -f Backend-Java/e2e/k8s/e2e-stack.yaml
+          for d in localstack redis mock-oidc user-service lab-service question-service chat-service analytics-service; do
+            kubectl rollout status deploy/$d -n dev --timeout=300s
+          done
+
+      - name: Deploy strangler gateway (single origin for the SPA)
+        run: |
+          # Applied AFTER the services exist so nginx resolves their DNS at start.
+          kubectl apply -f Frontend/e2e/fullstack/strangler-gateway.ci.yaml
+          kubectl rollout status deploy/strangler-gateway -n dev --timeout=180s
+
+      - name: Port-forward gateway + localstack + mock-oidc
+        run: |
+          echo "127.0.0.1 mock-oidc" | sudo tee -a /etc/hosts
+          # Single backend origin the SPA + Playwright talk to.
+          kubectl port-forward -n dev svc/strangler-gateway 8088:8088 &
+          # For seeding (boto3) and token minting.
+          kubectl port-forward -n dev svc/localstack 4566:4566 &
+          kubectl port-forward -n dev svc/mock-oidc 8080:8080 &
+          sleep 8
+          curl -sf http://localhost:8088/health-check && echo " <- gateway up"
+
+      - name: Seed backend + mint mock-OIDC token
+        run: |
+          python -m pip install --quiet boto3 httpx
+          python - <<'PY'
+          import base64, json, os, boto3, httpx
+
+          LOCALSTACK = "http://localhost:4566"
+          OIDC = "http://mock-oidc:8080/default"
+          TABLE = "rosettacloud-users"
+          BUCKET = "rosettacloud-shared-interactive-labs"
+          MODULE, LESSON = "linux-docker-k8s-101", "intro-lesson-01"
+          Q1_SH = (
+              "#!/bin/bash\n"
+              "# Question Number: 1\n"
+              "# Question: e2e smoke question\n"
+              "# Question Type: Check\n"
+              "# Question Difficulty: Easy\n"
+              'if [[ "$1" == "-q" ]]; then echo "setup ok"; exit 0; fi\n'
+              'if [[ "$1" == "-c" ]]; then echo "check ok"; exit 0; fi\n'
+          )
+
+          def aws(svc):
+              return boto3.client(svc, endpoint_url=LOCALSTACK, region_name="us-east-1",
+                                  aws_access_key_id="test", aws_secret_access_key="test")
+
+          # 1) mint a client_credentials JWT + extract its subject
+          tok = httpx.post(f"{OIDC}/token", data={
+              "grant_type": "client_credentials", "client_id": "e2e-user-1",
+              "client_secret": "x", "scope": "openid"}, timeout=20).json()["access_token"]
+          p = tok.split(".")[1]; p += "=" * (-len(p) % 4)
+          sub = json.loads(base64.urlsafe_b64decode(p))["sub"]
+
+          # 2) DynamoDB users table + the authenticated user (user_id == sub)
+          ddb = aws("dynamodb")
+          if TABLE not in ddb.list_tables().get("TableNames", []):
+              ddb.create_table(
+                  TableName=TABLE,
+                  AttributeDefinitions=[{"AttributeName": "user_id", "AttributeType": "S"},
+                                        {"AttributeName": "email", "AttributeType": "S"}],
+                  KeySchema=[{"AttributeName": "user_id", "KeyType": "HASH"}],
+                  GlobalSecondaryIndexes=[{"IndexName": "email-index",
+                                           "KeySchema": [{"AttributeName": "email", "KeyType": "HASH"}],
+                                           "Projection": {"ProjectionType": "ALL"}}],
+                  BillingMode="PAY_PER_REQUEST")
+              ddb.get_waiter("table_exists").wait(TableName=TABLE)
+          ddb.put_item(TableName=TABLE, Item={
+              "user_id": {"S": sub}, "email": {"S": "e2e@rc.app"},
+              "name": {"S": "E2E Student"}, "role": {"S": "user"}})
+
+          # 3) S3 question shell script (question-service parses from here)
+          s3 = aws("s3")
+          try:
+              s3.create_bucket(Bucket=BUCKET)
+          except Exception:
+              pass
+          s3.put_object(Bucket=BUCKET, Key=f"{MODULE}/{LESSON}/q1.sh", Body=Q1_SH.encode())
+
+          # 4) SNS->SQS event backbone so analytics-service's poller is happy
+          sns, sqs = aws("sns"), aws("sqs")
+          topic_arn = sns.create_topic(Name="rosettacloud-events")["TopicArn"]
+          queue_url = sqs.create_queue(QueueName="rosettacloud-analytics")["QueueUrl"]
+          queue_arn = sqs.get_queue_attributes(QueueUrl=queue_url,
+                       AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+          sns.subscribe(TopicArn=topic_arn, Protocol="sqs", Endpoint=queue_arn,
+                        Attributes={"RawMessageDelivery": "true"})
+
+          # 5) hand the identity + fixtures to the Playwright step
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"E2E_ID_TOKEN={tok}\n")
+              f.write(f"E2E_USER_ID={sub}\n")
+              f.write("E2E_USER_NAME=E2E Student\n")
+              f.write(f"E2E_MODULE={MODULE}\n")
+              f.write(f"E2E_LESSON={LESSON}\n")
+          print(f"[seed] user_id={sub}  module={MODULE}/{LESSON}  token=present")
+          PY
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies + Playwright chromium
+        working-directory: Frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Build SPA (production)
+        working-directory: Frontend
+        # apiUrl stays https://api.dev.rosettacloud.app; the Playwright network
+        # shim (support/live-backend.ts) re-targets that origin at the gateway.
+        run: npx ng build --configuration=production
+
+      - name: Run full-stack Playwright suite
+        working-directory: Frontend
+        env:
+          FULLSTACK_GATEWAY_URL: http://localhost:8088
+          FULLSTACK_LAB: "1" # exercise the lab-service launch→running→terminate flow
+        run: npx playwright test --config e2e/fullstack/playwright.fullstack.config.ts
+
+      - name: Upload Playwright traces/report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-fullstack-playwright
+          path: |
+            Frontend/e2e/fullstack/test-results-fullstack
+            Frontend/e2e/fullstack/playwright-report-fullstack
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -n dev -o wide || true
+          kubectl get events -n dev --sort-by=.lastTimestamp | tail -40 || true
+          for d in strangler-gateway user-service lab-service question-service chat-service analytics-service mock-oidc localstack; do
+            echo "===== logs $d ====="
+            kubectl logs -n dev deploy/$d --tail=80 --all-containers 2>/dev/null || true
+          done

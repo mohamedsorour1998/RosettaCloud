@@ -24,6 +24,11 @@ export default defineConfig({
   // Only *.spec.ts files are tests; helpers (support/, fixtures/) and the
   // static server are ignored by this pattern.
   testMatch: /.*\.spec\.ts$/,
+  // The full-stack, live-backend suite (e2e/fullstack/*.spec.ts) is a SEPARATE
+  // project run only by frontend-e2e-fullstack.yml via its own config
+  // (e2e/fullstack/playwright.fullstack.config.ts). Exclude it here so this
+  // default, backend-independent run stays identical (the mocked e2e/*.spec.ts).
+  testIgnore: '**/fullstack/**',
 
   fullyParallel: true,
   forbidOnly: isCI,

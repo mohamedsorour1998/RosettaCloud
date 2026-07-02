@@ -1,0 +1,165 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CI-only "strangler" gateway for the FULL-STACK Playwright e2e (Plan §9.3).
+#
+# WHAT IT IS
+#   A tiny nginx reverse-proxy that fronts the five Spring Boot microservices of
+#   the e2e-stack (Backend-Java/e2e/k8s/e2e-stack.yaml) on ONE origin, so the
+#   Angular SPA — which is built with a SINGLE `environment.apiUrl` — can talk to
+#   the whole backend through one host, exactly like production does through the
+#   Istio VirtualService.
+#
+# WHAT IT MIRRORS  (DevSecOps/K8S/strangler-virtualservice.yaml)
+#   prefix /users         -> user-service.dev.svc.cluster.local:8081
+#   prefix /labs          -> lab-service.dev.svc.cluster.local:8082
+#   prefix /questions     -> question-service.dev.svc.cluster.local:8083
+#   prefix /chat          -> chat-service.dev.svc.cluster.local:8084
+#   prefix /admin/metrics -> analytics-service.dev.svc.cluster.local:8085
+#   prefix /public/stats  -> analytics-service.dev.svc.cluster.local:8085
+#   (default)             -> rosettacloud-backend-service:80  (FastAPI)
+#
+# CI DEVIATION FROM THE REAL VS (documented, intentional):
+#   The e2e-stack is Java-only; there is NO FastAPI `rosettacloud-backend-service`
+#   in it. The real VS sends the default route (incl. /health-check and
+#   /feedback/*) to FastAPI. Here:
+#     • GET /health-check      -> synthetic 200 "ok" (matches UserService's
+#                                 text health probe so the SPA boots clean)
+#     • everything else default-> 404 JSON explaining the FastAPI fallback is
+#                                 not deployed in CI (so a stray call is loud,
+#                                 not silently wrong).
+#
+# SECURITY NOTE: this gateway performs NO authN/authZ itself — it is a pass-
+#   through proxy. That is intentional and safe here: (a) each Java service
+#   enforces its own Cognito/mock-OIDC JWT (verified by the 401/403 assertions
+#   in the e2e), and (b) this Service is ClusterIP only and reached exclusively
+#   via `kubectl port-forward` inside an ephemeral CI runner — never exposed.
+#   Do NOT reuse this manifest for any long-lived or internet-facing environment.
+#
+# DEPLOY ORDERING (required): apply AFTER e2e-stack.yaml and AFTER the service
+#   rollouts are Ready. nginx resolves the upstream Service names once at start
+#   via cluster DNS; the Services must already exist (they do, since e2e-stack
+#   creates them first).
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: strangler-gateway-conf
+  namespace: dev
+  labels: { app: strangler-gateway, tier: e2e-fullstack }
+data:
+  default.conf: |
+    # Mirrors DevSecOps/K8S/strangler-virtualservice.yaml onto a single origin.
+    # nginx prefix `location`s are longest-match, so /admin/metrics and
+    # /public/stats win over the catch-all `/`, exactly like the VS ordering.
+    server {
+      listen 8080;
+      server_name _;
+
+      # Modest client + proxy limits; lab launch can be slow (pod scheduling).
+      client_max_body_size 12m;               # room for Snap&Ask JPEG base64
+      proxy_connect_timeout 10s;
+      proxy_send_timeout    120s;
+      proxy_read_timeout    120s;
+      proxy_http_version    1.1;
+
+      # Standard forwarding. nginx forwards the client's Authorization header to
+      # the upstream by default; the Java resource servers validate the JWT.
+      proxy_set_header Host              $host;
+      proxy_set_header X-Real-IP         $remote_addr;
+      proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+
+      # ── /health-check : synthetic FastAPI-fallback shim (see header note) ──
+      location = /health-check {
+        default_type text/plain;
+        return 200 'ok';
+      }
+
+      # ── strangler prefixes (1:1 with the VirtualService) ──────────────────
+      # NOTE: no trailing slash / URI on proxy_pass => the FULL original path is
+      # forwarded unchanged (e.g. /users/{id}/lab-quota -> user-service intact).
+      location /users {
+        proxy_pass http://user-service.dev.svc.cluster.local:8081;
+      }
+      location /labs {
+        proxy_pass http://lab-service.dev.svc.cluster.local:8082;
+      }
+      location /questions {
+        proxy_pass http://question-service.dev.svc.cluster.local:8083;
+      }
+      location /chat {
+        proxy_pass http://chat-service.dev.svc.cluster.local:8084;
+      }
+      location /admin/metrics {
+        proxy_pass http://analytics-service.dev.svc.cluster.local:8085;
+      }
+      location /public/stats {
+        proxy_pass http://analytics-service.dev.svc.cluster.local:8085;
+      }
+
+      # ── default : the real VS routes here to FastAPI, absent in CI ─────────
+      location / {
+        default_type application/json;
+        return 404 '{"error":"no_fastapi_fallback_in_ci","detail":"strangler default route targets rosettacloud-backend-service:80 (FastAPI), which is not part of the Java-only e2e-stack"}';
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: strangler-gateway
+  namespace: dev
+  labels: { app: strangler-gateway, tier: e2e-fullstack }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: strangler-gateway } }
+  template:
+    metadata:
+      labels: { app: strangler-gateway, tier: e2e-fullstack }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: nginx
+          # Unprivileged nginx: runs as uid 101, listens on 8080, writes temp
+          # under /tmp — no root, no privileged port. Pinned digest-free tag is
+          # fine for an ephemeral CI image.
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          ports: [{ containerPort: 8080 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            runAsNonRoot: true
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - { name: conf, mountPath: /etc/nginx/conf.d/default.conf, subPath: default.conf, readOnly: true }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits:   { cpu: 250m, memory: 128Mi }
+          readinessProbe:
+            httpGet: { path: /health-check, port: 8080 }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 20
+          livenessProbe:
+            httpGet: { path: /health-check, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: conf
+          configMap:
+            name: strangler-gateway-conf
+            items: [{ key: default.conf, path: default.conf }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: strangler-gateway
+  namespace: dev
+  labels: { app: strangler-gateway, tier: e2e-fullstack }
+spec:
+  selector: { app: strangler-gateway }
+  # Port 8088 is the single origin the SPA + Playwright talk to (port-forwarded
+  # by the workflow). targetPort 8080 = the unprivileged nginx listen port.
+  ports: [{ name: http, port: 8088, targetPort: 8080 }]
