@@ -50,6 +50,38 @@ jobs:
           echo "== CVE gate (fixable CRITICAL fails) =="
           trivy fs --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 --no-progress Backend-Java
 
+      - name: Trivy misconfig regression gate (AVD-KSV-0118 must stay fixed)
+        run: |
+          set -uo pipefail
+          # REGRESSION GATE — AVD-KSV-0118 "No Default Security Context" (HIGH).
+          # Remediated per DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md: pod- and container-level
+          # securityContext (runAsNonRoot + runAsUser 1000, capabilities drop ALL,
+          # allowPrivilegeEscalation=false, readOnlyRootFilesystem, seccompProfile RuntimeDefault) was
+          # added to all five Spring Boot service Deployments. This gate FAILS the build if KSV-0118
+          # reappears on any of them, so the fix cannot silently regress.
+          # Scope = the five prod service manifests only. Documented exceptions that are NOT gated here:
+          #   * e2e test-infra pods (localstack / redis / mock-oidc) in Backend-Java/e2e/k8s
+          #   * runtime-created privileged interactive-lab pods (Fabric8LabProvisioner) — never scanned
+          # trivy 'config' accepts a single target per invocation, so we loop per service.
+          fail=0
+          for d in user-service lab-service question-service chat-service analytics-service; do
+            trivy config --quiet --format json -o "mc-$d.json" "Backend-Java/$d/k8s"
+            hits=$(jq -r '.Results[]?.Misconfigurations[]? | (.ID // "") + " " + (.AVDID // "")' "mc-$d.json" \
+                   | grep -Ec 'KSV-?0118' || true)
+            if [ "${hits:-0}" -ne 0 ]; then
+              echo "::error::AVD-KSV-0118 regressed in Backend-Java/$d/k8s ($hits finding(s))"
+              trivy config --quiet --severity HIGH "Backend-Java/$d/k8s" || true
+              fail=1
+            else
+              echo "OK: Backend-Java/$d/k8s is free of AVD-KSV-0118"
+            fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "Trivy misconfig regression gate FAILED — a remediated KSV-0118 finding reappeared."
+            exit 1
+          fi
+          echo "Trivy misconfig regression gate PASSED — all five service manifests retain a securityContext."
+
   semgrep:
     runs-on: ubuntu-latest
     container: semgrep/semgrep

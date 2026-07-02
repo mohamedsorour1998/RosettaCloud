@@ -90,14 +90,38 @@ spec:
   template:
     metadata: { labels: { app: user-service } }
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
       containers:
         - name: user-service
           image: rosettacloud-user-service:e2e
           imagePullPolicy: Never
           ports: [{ containerPort: 8081 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi, ephemeral-storage: 128Mi }
+            limits: { cpu: "1", memory: 640Mi, ephemeral-storage: 512Mi }
           envFrom:
             - secretRef: { name: aws-creds }
           env:
+            - { name: JAVA_TOOL_OPTIONS, value: "-Djava.io.tmpdir=/tmp" }
             - { name: AWS_REGION, value: "us-east-1" }
             - { name: DYNAMODB_ENDPOINT_URL, value: "http://localstack:4566" }
             - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
@@ -127,14 +151,38 @@ spec:
   template:
     metadata: { labels: { app: chat-service } }
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
       containers:
         - name: chat-service
           image: rosettacloud-chat-service:e2e
           imagePullPolicy: Never
           ports: [{ containerPort: 8084 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi, ephemeral-storage: 128Mi }
+            limits: { cpu: "1", memory: 640Mi, ephemeral-storage: 512Mi }
           envFrom:
             - secretRef: { name: aws-creds }
           env:
+            - { name: JAVA_TOOL_OPTIONS, value: "-Djava.io.tmpdir=/tmp" }
             - { name: AWS_REGION, value: "us-east-1" }
             - { name: CHAT_INVOKER, value: "bedrock-direct" }
             - { name: NOVA_MODEL_ID, value: "us.amazon.nova-2-lite-v1:0" }
@@ -167,14 +215,38 @@ spec:
   template:
     metadata: { labels: { app: analytics-service } }
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
       containers:
         - name: analytics-service
           image: rosettacloud-analytics-service:e2e
           imagePullPolicy: Never
           ports: [{ containerPort: 8085 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi, ephemeral-storage: 128Mi }
+            limits: { cpu: "1", memory: 640Mi, ephemeral-storage: 512Mi }
           envFrom:
             - secretRef: { name: aws-creds }
           env:
+            - { name: JAVA_TOOL_OPTIONS, value: "-Djava.io.tmpdir=/tmp" }
             - { name: AWS_REGION, value: "us-east-1" }
             - { name: DYNAMODB_ENDPOINT_URL, value: "http://localstack:4566" }
             - { name: COGNITO_ISSUER_URL, value: "http://mock-oidc:8080/default" }
@@ -224,14 +296,38 @@ spec:
   template:
     metadata: { labels: { app: lab-service } }
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
       containers:
         - name: lab-service
           image: rosettacloud-lab-service:e2e
           imagePullPolicy: Never
           ports: [{ containerPort: 8082 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi, ephemeral-storage: 128Mi }
+            limits: { cpu: "1", memory: 640Mi, ephemeral-storage: 512Mi }
           envFrom:
             - secretRef: { name: aws-creds }
           env:
+            - { name: JAVA_TOOL_OPTIONS, value: "-Djava.io.tmpdir=/tmp" }
             - { name: LAB_K8S_NAMESPACE, value: "dev" }
             - { name: LAB_POD_IMAGE, value: "rosettacloud-lab-stub:e2e" }
             - { name: LAB_ISTIO_GATEWAY, value: "rosettacloud-gateway" }
@@ -264,14 +360,38 @@ spec:
   template:
     metadata: { labels: { app: question-service } }
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: { type: RuntimeDefault }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
       containers:
         - name: question-service
           image: rosettacloud-question-service:e2e
           imagePullPolicy: Never
           ports: [{ containerPort: 8083 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi, ephemeral-storage: 128Mi }
+            limits: { cpu: "1", memory: 640Mi, ephemeral-storage: 512Mi }
           envFrom:
             - secretRef: { name: aws-creds }
           env:
+            - { name: JAVA_TOOL_OPTIONS, value: "-Djava.io.tmpdir=/tmp" }
             - { name: AWS_REGION, value: "us-east-1" }
             - { name: S3_BUCKET_NAME, value: "rosettacloud-shared-interactive-labs" }
             - { name: LAB_K8S_NAMESPACE, value: "dev" }

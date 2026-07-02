@@ -33,15 +33,40 @@ spec:
         app: rosettacloud-analytics-service
     spec:
       serviceAccountName: rosettacloud-analytics-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
       containers:
         - name: analytics-service
           image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-analytics-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8085
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
           envFrom:
             - configMapRef:
                 name: analytics-service-config
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Djava.io.tmpdir=/tmp"
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
@@ -52,8 +77,14 @@ spec:
             requests:
               cpu: 100m
               memory: 384Mi
+              ephemeral-storage: 128Mi
             limits:
+              cpu: "1"
               memory: 512Mi
+              ephemeral-storage: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
 ---
 apiVersion: v1
 kind: Service

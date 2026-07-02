@@ -1,5 +1,10 @@
 # Runtime image for e2e: expects a prebuilt app.jar in the build context.
 FROM amazoncorretto:25
+# --- hardening: run as a non-root user (uid/gid 1000), matching the per-service Dockerfiles ---
+RUN yum install -y shadow-utils >/dev/null 2>&1 || microdnf install -y shadow-utils >/dev/null 2>&1 || true
+RUN groupadd --system --gid 1000 spring \
+ && useradd  --system --uid 1000 --gid 1000 --home-dir /app --no-create-home --shell /sbin/nologin spring
 WORKDIR /app
 COPY app.jar /app/app.jar
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+USER 1000:1000
+ENTRYPOINT ["java", "-XX:+PerfDisableSharedMem", "-Djava.io.tmpdir=/tmp", "-jar", "/app/app.jar"]
