@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule, Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -14,7 +14,7 @@ interface Statistic {
 @Component({
   selector: 'app-main',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './main.component.html',
   styleUrls: ['./main.component.scss'],
 })

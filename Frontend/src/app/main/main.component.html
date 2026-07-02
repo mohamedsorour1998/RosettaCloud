@@ -65,10 +65,12 @@
 <!-- ═══ 2. STATS STRIP ═══ -->
 <section class="stats-strip">
   <div class="stats-strip-inner">
-    <div class="stat-cell" *ngFor="let stat of statistics">
-      <span class="stat-value">{{ stat.value }}</span>
-      <span class="stat-label">{{ stat.label }}</span>
-    </div>
+    @for (stat of statistics; track stat) {
+      <div class="stat-cell">
+        <span class="stat-value">{{ stat.value }}</span>
+        <span class="stat-label">{{ stat.label }}</span>
+      </div>
+    }
   </div>
   <div class="stats-footnote">Live stats from the platform</div>
 </section>

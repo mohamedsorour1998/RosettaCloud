@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
   selector: 'app-feedback-flow-diagram',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './feedback-flow-diagram.component.html',
   styleUrls: ['./feedback-flow-diagram.component.scss'],
 })

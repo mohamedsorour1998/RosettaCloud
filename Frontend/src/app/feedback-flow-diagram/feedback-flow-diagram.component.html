@@ -14,7 +14,7 @@
         <div
           class="flow-box client-box animated-box"
           (click)="toggleNodeDetails('angularFrontend')"
-        >
+          >
           <img src="assets/icons/angular.svg" alt="Angular" class="tech-icon" />
           <div class="box-title">Angular Frontend</div>
           <div class="box-content">
@@ -23,20 +23,24 @@
         </div>
       </div>
 
-      <div *ngIf="expandedNode === 'angularFrontend'" class="details-panel">
-        <h3 class="details-title">{{ nodeDetails.angularFrontend.title }}</h3>
-        <p class="details-subtitle">
-          {{ nodeDetails.angularFrontend.description }}
-        </p>
-        <ul class="details-list">
-          <li *ngFor="let detail of nodeDetails.angularFrontend.details">
-            {{ detail }}
-          </li>
-        </ul>
-        <div class="code-block">
-          <pre><code>{{ nodeDetails.angularFrontend.code }}</code></pre>
+      @if (expandedNode === 'angularFrontend') {
+        <div class="details-panel">
+          <h3 class="details-title">{{ nodeDetails.angularFrontend.title }}</h3>
+          <p class="details-subtitle">
+            {{ nodeDetails.angularFrontend.description }}
+          </p>
+          <ul class="details-list">
+            @for (detail of nodeDetails.angularFrontend.details; track detail) {
+              <li>
+                {{ detail }}
+              </li>
+            }
+          </ul>
+          <div class="code-block">
+            <pre><code>{{ nodeDetails.angularFrontend.code }}</code></pre>
+          </div>
         </div>
-      </div>
+      }
     </div>
 
     <!-- Connection arrows between sections -->
@@ -51,7 +55,7 @@
         <div
           class="flow-box lambda-box animated-box"
           (click)="toggleNodeDetails('tokenVending')"
-        >
+          >
           <img src="assets/icons/lambda.svg" alt="Lambda" class="tech-icon" />
           <div class="box-title">Momento Token Vending</div>
           <div class="box-content">
@@ -62,7 +66,7 @@
         <div
           class="flow-box lambda-box animated-box"
           (click)="toggleNodeDetails('feedbackRequest')"
-        >
+          >
           <img src="assets/icons/lambda.svg" alt="Lambda" class="tech-icon" />
           <div class="box-title">Feedback Request</div>
           <div class="box-content">
@@ -71,35 +75,43 @@
         </div>
       </div>
 
-      <div *ngIf="expandedNode === 'tokenVending'" class="details-panel">
-        <h3 class="details-title">{{ nodeDetails.tokenVending.title }}</h3>
-        <p class="details-subtitle">
-          {{ nodeDetails.tokenVending.description }}
-        </p>
-        <ul class="details-list">
-          <li *ngFor="let detail of nodeDetails.tokenVending.details">
-            {{ detail }}
-          </li>
-        </ul>
-        <div class="code-block">
-          <pre><code>{{ nodeDetails.tokenVending.code }}</code></pre>
+      @if (expandedNode === 'tokenVending') {
+        <div class="details-panel">
+          <h3 class="details-title">{{ nodeDetails.tokenVending.title }}</h3>
+          <p class="details-subtitle">
+            {{ nodeDetails.tokenVending.description }}
+          </p>
+          <ul class="details-list">
+            @for (detail of nodeDetails.tokenVending.details; track detail) {
+              <li>
+                {{ detail }}
+              </li>
+            }
+          </ul>
+          <div class="code-block">
+            <pre><code>{{ nodeDetails.tokenVending.code }}</code></pre>
+          </div>
         </div>
-      </div>
+      }
 
-      <div *ngIf="expandedNode === 'feedbackRequest'" class="details-panel">
-        <h3 class="details-title">{{ nodeDetails.feedbackRequest.title }}</h3>
-        <p class="details-subtitle">
-          {{ nodeDetails.feedbackRequest.description }}
-        </p>
-        <ul class="details-list">
-          <li *ngFor="let detail of nodeDetails.feedbackRequest.details">
-            {{ detail }}
-          </li>
-        </ul>
-        <div class="code-block">
-          <pre><code>{{ nodeDetails.feedbackRequest.code }}</code></pre>
+      @if (expandedNode === 'feedbackRequest') {
+        <div class="details-panel">
+          <h3 class="details-title">{{ nodeDetails.feedbackRequest.title }}</h3>
+          <p class="details-subtitle">
+            {{ nodeDetails.feedbackRequest.description }}
+          </p>
+          <ul class="details-list">
+            @for (detail of nodeDetails.feedbackRequest.details; track detail) {
+              <li>
+                {{ detail }}
+              </li>
+            }
+          </ul>
+          <div class="code-block">
+            <pre><code>{{ nodeDetails.feedbackRequest.code }}</code></pre>
+          </div>
         </div>
-      </div>
+      }
     </div>
 
     <!-- Connection arrows between sections -->
@@ -114,7 +126,7 @@
         <div
           class="flow-box pub-sub-box animated-box"
           (click)="toggleNodeDetails('momento')"
-        >
+          >
           <img src="assets/icons/momento.svg" alt="Momento" class="tech-icon" />
           <div class="box-title">Momento Pub/Sub</div>
           <div class="box-content">
@@ -123,20 +135,24 @@
         </div>
       </div>
 
-      <div *ngIf="expandedNode === 'momento'" class="details-panel">
-        <h3 class="details-title">{{ nodeDetails.momento.title }}</h3>
-        <p class="details-subtitle">
-          {{ nodeDetails.momento.description }}
-        </p>
-        <ul class="details-list">
-          <li *ngFor="let detail of nodeDetails.momento.details">
-            {{ detail }}
-          </li>
-        </ul>
-        <div class="code-block">
-          <pre><code>{{ nodeDetails.momento.code }}</code></pre>
+      @if (expandedNode === 'momento') {
+        <div class="details-panel">
+          <h3 class="details-title">{{ nodeDetails.momento.title }}</h3>
+          <p class="details-subtitle">
+            {{ nodeDetails.momento.description }}
+          </p>
+          <ul class="details-list">
+            @for (detail of nodeDetails.momento.details; track detail) {
+              <li>
+                {{ detail }}
+              </li>
+            }
+          </ul>
+          <div class="code-block">
+            <pre><code>{{ nodeDetails.momento.code }}</code></pre>
+          </div>
         </div>
-      </div>
+      }
     </div>
 
     <!-- Connection arrows between sections -->
@@ -151,31 +167,35 @@
         <div
           class="flow-box backend-box animated-box"
           (click)="toggleNodeDetails('feedbackService')"
-        >
+          >
           <img
             src="assets/icons/python.svg"
             alt="Python"
             class="tech-icon python-icon"
-          />
+            />
           <div class="box-title">Feedback Service</div>
           <div class="box-content">Processes feedback requests with AI</div>
         </div>
       </div>
 
-      <div *ngIf="expandedNode === 'feedbackService'" class="details-panel">
-        <h3 class="details-title">{{ nodeDetails.feedbackService.title }}</h3>
-        <p class="details-subtitle">
-          {{ nodeDetails.feedbackService.description }}
-        </p>
-        <ul class="details-list">
-          <li *ngFor="let detail of nodeDetails.feedbackService.details">
-            {{ detail }}
-          </li>
-        </ul>
-        <div class="code-block">
-          <pre><code>{{ nodeDetails.feedbackService.code }}</code></pre>
+      @if (expandedNode === 'feedbackService') {
+        <div class="details-panel">
+          <h3 class="details-title">{{ nodeDetails.feedbackService.title }}</h3>
+          <p class="details-subtitle">
+            {{ nodeDetails.feedbackService.description }}
+          </p>
+          <ul class="details-list">
+            @for (detail of nodeDetails.feedbackService.details; track detail) {
+              <li>
+                {{ detail }}
+              </li>
+            }
+          </ul>
+          <div class="code-block">
+            <pre><code>{{ nodeDetails.feedbackService.code }}</code></pre>
+          </div>
         </div>
-      </div>
+      }
     </div>
 
     <!-- Connection arrows between sections -->
@@ -190,7 +210,7 @@
         <div
           class="flow-box ai-box animated-box"
           (click)="toggleNodeDetails('aiService')"
-        >
+          >
           <img src="assets/icons/bedrock.svg" alt="AI" class="tech-icon" />
           <div class="box-title">AI Service</div>
           <div class="box-content">
@@ -199,20 +219,24 @@
         </div>
       </div>
 
-      <div *ngIf="expandedNode === 'aiService'" class="details-panel">
-        <h3 class="details-title">{{ nodeDetails.aiService.title }}</h3>
-        <p class="details-subtitle">
-          {{ nodeDetails.aiService.description }}
-        </p>
-        <ul class="details-list">
-          <li *ngFor="let detail of nodeDetails.aiService.details">
-            {{ detail }}
-          </li>
-        </ul>
-        <div class="code-block">
-          <pre><code>{{ nodeDetails.aiService.code }}</code></pre>
+      @if (expandedNode === 'aiService') {
+        <div class="details-panel">
+          <h3 class="details-title">{{ nodeDetails.aiService.title }}</h3>
+          <p class="details-subtitle">
+            {{ nodeDetails.aiService.description }}
+          </p>
+          <ul class="details-list">
+            @for (detail of nodeDetails.aiService.details; track detail) {
+              <li>
+                {{ detail }}
+              </li>
+            }
+          </ul>
+          <div class="code-block">
+            <pre><code>{{ nodeDetails.aiService.code }}</code></pre>
+          </div>
         </div>
-      </div>
+      }
     </div>
 
     <!-- Row 6: Display Component -->
@@ -221,44 +245,50 @@
         <div
           class="flow-box display-box animated-box"
           (click)="toggleNodeDetails('displayComponent')"
-        >
+          >
           <img src="assets/icons/ui.svg" alt="UI" class="tech-icon" />
           <div class="box-title">Feedback Display</div>
           <div class="box-content">Renders and manages feedback UI</div>
         </div>
       </div>
 
-      <div *ngIf="expandedNode === 'displayComponent'" class="details-panel">
-        <h3 class="details-title">{{ nodeDetails.displayComponent.title }}</h3>
-        <p class="details-subtitle">
-          {{ nodeDetails.displayComponent.description }}
-        </p>
-        <ul class="details-list">
-          <li *ngFor="let detail of nodeDetails.displayComponent.details">
-            {{ detail }}
-          </li>
-        </ul>
-        <div class="code-block">
-          <pre><code>{{ nodeDetails.displayComponent.code }}</code></pre>
+      @if (expandedNode === 'displayComponent') {
+        <div class="details-panel">
+          <h3 class="details-title">{{ nodeDetails.displayComponent.title }}</h3>
+          <p class="details-subtitle">
+            {{ nodeDetails.displayComponent.description }}
+          </p>
+          <ul class="details-list">
+            @for (detail of nodeDetails.displayComponent.details; track detail) {
+              <li>
+                {{ detail }}
+              </li>
+            }
+          </ul>
+          <div class="code-block">
+            <pre><code>{{ nodeDetails.displayComponent.code }}</code></pre>
+          </div>
         </div>
-      </div>
+      }
     </div>
   </div>
 
   <div class="process-steps">
     <h2 class="steps-title">Complete Flow Process</h2>
     <ol class="steps-list">
-      <li *ngFor="let step of steps" class="step-item">
-        <div class="step-number">{{ step.number }}</div>
-        <div class="step-content">
-          <p class="step-description">{{ step.description }}</p>
-          <div class="step-flow">
-            <span class="flow-from">{{ step.from }}</span>
-            <i class="bi bi-arrow-right"></i>
-            <span class="flow-to">{{ step.to }}</span>
+      @for (step of steps; track step) {
+        <li class="step-item">
+          <div class="step-number">{{ step.number }}</div>
+          <div class="step-content">
+            <p class="step-description">{{ step.description }}</p>
+            <div class="step-flow">
+              <span class="flow-from">{{ step.from }}</span>
+              <i class="bi bi-arrow-right"></i>
+              <span class="flow-to">{{ step.to }}</span>
+            </div>
           </div>
-        </div>
-      </li>
+        </li>
+      }
     </ol>
   </div>
   <div class="key-info">

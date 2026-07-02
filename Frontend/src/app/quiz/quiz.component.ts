@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule } from '@angular/router';
 
 interface Question {
@@ -12,7 +12,7 @@ interface Question {
 @Component({
   selector: 'app-quiz',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './quiz.component.html',
   styleUrls: ['./quiz.component.scss'],
 })

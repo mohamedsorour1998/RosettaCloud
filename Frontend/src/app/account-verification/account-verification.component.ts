@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { UserService } from '../services/user.service';
 import { switchMap, catchError, of, finalize } from 'rxjs';
@@ -7,7 +7,7 @@ import { switchMap, catchError, of, finalize } from 'rxjs';
 @Component({
   selector: 'app-account-verification',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './account-verification.component.html',
   styleUrls: ['./account-verification.component.scss'],
 })

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
-import { NgIf } from '@angular/common';
+
 import { FooterComponent } from './footer/footer.component';
 import { NavbarComponent } from './navbar/navbar.component';
 import { ThemeService } from './services/theme.service';
@@ -9,7 +9,7 @@ import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, FooterComponent, NavbarComponent, NgIf],
+  imports: [RouterOutlet, FooterComponent, NavbarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })

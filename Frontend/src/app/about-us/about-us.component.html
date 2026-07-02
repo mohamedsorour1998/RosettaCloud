@@ -51,7 +51,7 @@
           alt="RosettaCloud team members collaborating in our Cairo office"
           class="about-image"
           onError="this.onerror=null; this.src='assets/about/fallback-image.jpg';"
-        />
+          />
         <div class="about-image-caption">
           Our team at the Cairo headquarters
         </div>
@@ -63,13 +63,15 @@
   <div class="about-stats py-5 my-5 text-center rounded animate-on-scroll">
     <h2 class="section-title text-center mb-5">Our Impact</h2>
     <div class="row">
-      <div *ngFor="let stat of stats" class="col-6 col-md-3 mb-4 mb-md-0">
-        <div class="stat-item">
-          <i class="bi {{ stat.icon }} stat-icon"></i>
-          <div class="stat-number">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.label }}</div>
+      @for (stat of stats; track stat) {
+        <div class="col-6 col-md-3 mb-4 mb-md-0">
+          <div class="stat-item">
+            <i class="bi {{ stat.icon }} stat-icon"></i>
+            <div class="stat-number">{{ stat.value }}</div>
+            <div class="stat-label">{{ stat.label }}</div>
+          </div>
         </div>
-      </div>
+      }
     </div>
   </div>
 
@@ -77,15 +79,17 @@
   <div class="core-values mb-5 animate-on-scroll">
     <h2 class="section-title text-center mb-5">Our Core Values</h2>
     <div class="row g-4">
-      <div *ngFor="let value of coreValues" class="col-md-6 col-lg-4">
-        <div class="value-card h-100">
-          <div class="value-icon">
-            <i class="bi {{ value.icon }}"></i>
+      @for (value of coreValues; track value) {
+        <div class="col-md-6 col-lg-4">
+          <div class="value-card h-100">
+            <div class="value-icon">
+              <i class="bi {{ value.icon }}"></i>
+            </div>
+            <h3 class="value-title">{{ value.title }}</h3>
+            <p class="value-description">{{ value.description }}</p>
           </div>
-          <h3 class="value-title">{{ value.title }}</h3>
-          <p class="value-description">{{ value.description }}</p>
         </div>
-      </div>
+      }
     </div>
   </div>
 
@@ -94,25 +98,26 @@
     <h2 class="section-title text-center mb-5">Our Journey</h2>
     <div class="timeline-container">
       <div class="timeline">
-        <div
-          *ngFor="let milestone of milestones; let odd = odd; let even = even"
-          class="timeline-item"
-          [class.left]="even"
-          [class.right]="odd"
-        >
-          <div class="timeline-content">
-            <div class="timeline-date">
-              <span>{{ milestone.year }}</span>
-            </div>
-            <div class="timeline-marker">
-              <i class="bi {{ milestone.icon }}"></i>
-            </div>
-            <div class="timeline-body">
-              <h3 class="timeline-title">{{ milestone.title }}</h3>
-              <p class="timeline-text">{{ milestone.description }}</p>
+        @for (milestone of milestones; track milestone; let odd = $odd; let even = $even) {
+          <div
+            class="timeline-item"
+            [class.left]="even"
+            [class.right]="odd"
+            >
+            <div class="timeline-content">
+              <div class="timeline-date">
+                <span>{{ milestone.year }}</span>
+              </div>
+              <div class="timeline-marker">
+                <i class="bi {{ milestone.icon }}"></i>
+              </div>
+              <div class="timeline-body">
+                <h3 class="timeline-title">{{ milestone.title }}</h3>
+                <p class="timeline-text">{{ milestone.description }}</p>
+              </div>
             </div>
           </div>
-        </div>
+        }
       </div>
     </div>
   </div>
@@ -121,65 +126,73 @@
   <div class="leadership-team mb-5 animate-on-scroll">
     <h2 class="section-title text-center mb-5">Our Leadership</h2>
     <div class="row g-5">
-      <div *ngFor="let member of leadershipTeam" class="col-md-4">
-        <div class="team-card h-100">
-          <div class="team-img-container">
-            <img
-              [src]="member.imageUrl"
-              [alt]="member.name"
-              class="team-img"
-              (error)="handleImageError($event, member)"
-            />
-          </div>
-          <div class="team-body">
-            <h3 class="team-name">{{ member.name }}</h3>
-            <p class="team-role text-primary">{{ member.role }}</p>
-            <p class="team-bio">{{ member.bio }}</p>
-            <div class="social-links mt-3" *ngIf="member.socialLinks">
-              <a
-                *ngIf="member.socialLinks.twitter"
-                [href]="member.socialLinks.twitter"
-                class="social-icon"
-                target="_blank"
-                rel="noopener"
-                aria-label="Twitter"
-              >
-                <i class="bi bi-twitter"></i>
-              </a>
-              <a
-                *ngIf="member.socialLinks.linkedin"
-                [href]="member.socialLinks.linkedin"
-                class="social-icon"
-                target="_blank"
-                rel="noopener"
-                aria-label="LinkedIn"
-              >
-                <i class="bi bi-linkedin"></i>
-              </a>
-              <a
-                *ngIf="member.socialLinks.github"
-                [href]="member.socialLinks.github"
-                class="social-icon"
-                target="_blank"
-                rel="noopener"
-                aria-label="GitHub"
-              >
-                <i class="bi bi-github"></i>
-              </a>
-              <a
-                *ngIf="member.socialLinks.website"
-                [href]="member.socialLinks.website"
-                class="social-icon"
-                target="_blank"
-                rel="noopener"
-                aria-label="Website"
-              >
-                <i class="bi bi-globe"></i>
-              </a>
+      @for (member of leadershipTeam; track member) {
+        <div class="col-md-4">
+          <div class="team-card h-100">
+            <div class="team-img-container">
+              <img
+                [src]="member.imageUrl"
+                [alt]="member.name"
+                class="team-img"
+                (error)="handleImageError($event, member)"
+                />
+            </div>
+            <div class="team-body">
+              <h3 class="team-name">{{ member.name }}</h3>
+              <p class="team-role text-primary">{{ member.role }}</p>
+              <p class="team-bio">{{ member.bio }}</p>
+              @if (member.socialLinks) {
+                <div class="social-links mt-3">
+                  @if (member.socialLinks.twitter) {
+                    <a
+                      [href]="member.socialLinks.twitter"
+                      class="social-icon"
+                      target="_blank"
+                      rel="noopener"
+                      aria-label="Twitter"
+                      >
+                      <i class="bi bi-twitter"></i>
+                    </a>
+                  }
+                  @if (member.socialLinks.linkedin) {
+                    <a
+                      [href]="member.socialLinks.linkedin"
+                      class="social-icon"
+                      target="_blank"
+                      rel="noopener"
+                      aria-label="LinkedIn"
+                      >
+                      <i class="bi bi-linkedin"></i>
+                    </a>
+                  }
+                  @if (member.socialLinks.github) {
+                    <a
+                      [href]="member.socialLinks.github"
+                      class="social-icon"
+                      target="_blank"
+                      rel="noopener"
+                      aria-label="GitHub"
+                      >
+                      <i class="bi bi-github"></i>
+                    </a>
+                  }
+                  @if (member.socialLinks.website) {
+                    <a
+                      [href]="member.socialLinks.website"
+                      class="social-icon"
+                      target="_blank"
+                      rel="noopener"
+                      aria-label="Website"
+                      >
+                      <i class="bi bi-globe"></i>
+                    </a>
+                  }
+                </div>
+              }
             </div>
           </div>
         </div>
-      </div>
+      }
     </div>
   </div>
 
@@ -213,35 +226,35 @@
           src="assets/partners/partner1.png"
           alt="Partner logo"
           onError="this.style.display='none'"
-        />
+          />
       </div>
       <div class="partner-logo">
         <img
           src="assets/partners/partner2.png"
           alt="Partner logo"
           onError="this.style.display='none'"
-        />
+          />
       </div>
       <div class="partner-logo">
         <img
           src="assets/partners/partner3.png"
           alt="Partner logo"
           onError="this.style.display='none'"
-        />
+          />
       </div>
       <div class="partner-logo">
         <img
           src="assets/partners/partner4.png"
           alt="Partner logo"
           onError="this.style.display='none'"
-        />
+          />
       </div>
       <div class="partner-logo">
         <img
           src="assets/partners/partner5.png"
           alt="Partner logo"
           onError="this.style.display='none'"
-        />
+          />
       </div>
     </div>
   </div>

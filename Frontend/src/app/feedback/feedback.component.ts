@@ -4,14 +4,14 @@ import {
   Output,
   EventEmitter,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ChatbotService } from '../services/chatbot.service';
 import { UserService } from '../services/user.service';
 
 @Component({
   selector: 'app-feedback',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './feedback.component.html',
   styleUrls: ['./feedback.component.scss'],
 })

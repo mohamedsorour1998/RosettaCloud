@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule } from '@angular/router';
 
 interface TeamMember {
@@ -32,7 +32,7 @@ interface ValueItem {
 @Component({
   selector: 'app-about-us',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './about-us.component.html',
   styleUrl: './about-us.component.scss',
 })

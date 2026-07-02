@@ -65,7 +65,7 @@ export class NavbarComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * Close search overlay on escape key
    */
-  @HostListener('document:keydown.escape', ['$event'])
+  @HostListener('document:keydown.escape')
   onKeydownHandler() {
     if (this.isSearchActive) {
       this.isSearchActive = false;

@@ -24,15 +24,17 @@
     </div>
 
     <div class="row g-4">
-      <div *ngFor="let feature of features" class="col-md-6 col-lg-4">
-        <div class="feature-card h-100">
-          <div class="feature-icon">
-            <i class="bi" [ngClass]="feature.icon"></i>
+      @for (feature of features; track feature) {
+        <div class="col-md-6 col-lg-4">
+          <div class="feature-card h-100">
+            <div class="feature-icon">
+              <i class="bi" [ngClass]="feature.icon"></i>
+            </div>
+            <h3 class="feature-title">{{ feature.title }}</h3>
+            <p class="feature-description">{{ feature.description }}</p>
           </div>
-          <h3 class="feature-title">{{ feature.title }}</h3>
-          <p class="feature-description">{{ feature.description }}</p>
         </div>
-      </div>
+      }
     </div>
   </section>
 
@@ -95,15 +97,17 @@
     </div>
 
     <div class="row justify-content-center g-4">
-      <div *ngFor="let feature of keyFeatures" class="col-md-4">
-        <div class="key-feature-card text-center h-100">
-          <div class="key-feature-icon">
-            <i class="bi" [ngClass]="feature.icon"></i>
+      @for (feature of keyFeatures; track feature) {
+        <div class="col-md-4">
+          <div class="key-feature-card text-center h-100">
+            <div class="key-feature-icon">
+              <i class="bi" [ngClass]="feature.icon"></i>
+            </div>
+            <h3 class="key-feature-title">{{ feature.title }}</h3>
+            <p class="key-feature-description">{{ feature.description }}</p>
           </div>
-          <h3 class="key-feature-title">{{ feature.title }}</h3>
-          <p class="key-feature-description">{{ feature.description }}</p>
         </div>
-      </div>
+      }
     </div>
   </section>
 

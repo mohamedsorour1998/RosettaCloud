@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import {
   ReactiveFormsModule,
   FormBuilder,
@@ -23,7 +23,7 @@ interface OfficeLocation {
 @Component({
   selector: 'app-contact-us',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, SafeUrlPipe, FaqComponent],
+  imports: [ReactiveFormsModule, SafeUrlPipe, FaqComponent],
   templateUrl: './contact-us.component.html',
   styleUrl: './contact-us.component.scss',
 })

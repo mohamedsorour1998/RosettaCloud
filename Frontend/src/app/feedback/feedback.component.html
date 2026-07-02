@@ -1,39 +1,42 @@
 <!-- feedback.component.html -->
 <div class="feedback-wrapper">
   <!-- Request Feedback Button -->
-  <div
-    *ngIf="!feedbackRequested"
-    class="feedback-button-container animate-fade-in"
-  >
-    <button
-      class="btn-complete-lab"
-      (click)="requestFeedback()"
-      [disabled]="feedbackRequested"
-    >
-      <div class="btn-content">
-        <i class="bi bi-check-circle-fill"></i>
-        <span>Complete Lab & Get Feedback</span>
-      </div>
-      <div class="btn-shine"></div>
-    </button>
-    <div class="info-message">
-      <i class="bi bi-info-circle"></i>
-      <span
-        >Your feedback will appear in the AI Assistant chat panel on the
-        right.</span
+  @if (!feedbackRequested) {
+    <div
+      class="feedback-button-container animate-fade-in"
       >
-    </div>
-  </div>
-
-  <!-- After feedback requested -->
-  <div *ngIf="feedbackRequested" class="feedback-sent animate-fade-in">
-    <div class="feedback-sent-card">
-      <i class="bi bi-chat-dots-fill feedback-sent-icon"></i>
-      <p>Feedback is being generated in the chat panel.</p>
-      <button class="btn-terminate" (click)="terminateLabRequest.emit()">
-        <i class="bi bi-stop-circle"></i>
-        <span>Terminate Lab</span>
+      <button
+        class="btn-complete-lab"
+        (click)="requestFeedback()"
+        [disabled]="feedbackRequested"
+        >
+        <div class="btn-content">
+          <i class="bi bi-check-circle-fill"></i>
+          <span>Complete Lab & Get Feedback</span>
+        </div>
+        <div class="btn-shine"></div>
       </button>
-    </div>
+      <div class="info-message">
+        <i class="bi bi-info-circle"></i>
+        <span
+          >Your feedback will appear in the AI Assistant chat panel on the
+          right.</span
+          >
+        </div>
+      </div>
+    }
+
+    <!-- After feedback requested -->
+    @if (feedbackRequested) {
+      <div class="feedback-sent animate-fade-in">
+        <div class="feedback-sent-card">
+          <i class="bi bi-chat-dots-fill feedback-sent-icon"></i>
+          <p>Feedback is being generated in the chat panel.</p>
+          <button class="btn-terminate" (click)="terminateLabRequest.emit()">
+            <i class="bi bi-stop-circle"></i>
+            <span>Terminate Lab</span>
+          </button>
+        </div>
+      </div>
+    }
   </div>
-</div>

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule, ActivatedRoute } from '@angular/router';
 
 interface CompareRow {
@@ -21,7 +21,7 @@ interface Comparison {
 @Component({
   selector: 'app-compare',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './compare.component.html',
   styleUrls: ['./compare.component.scss'],
 })

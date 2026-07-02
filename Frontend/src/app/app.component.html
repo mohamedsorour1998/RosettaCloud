@@ -1,3 +1,7 @@
-<app-navbar *ngIf="!isLabRoute"></app-navbar>
+@if (!isLabRoute) {
+  <app-navbar></app-navbar>
+}
 <router-outlet></router-outlet>
-<app-footer *ngIf="!isLabRoute"></app-footer>
+@if (!isLabRoute) {
+  <app-footer></app-footer>
+}

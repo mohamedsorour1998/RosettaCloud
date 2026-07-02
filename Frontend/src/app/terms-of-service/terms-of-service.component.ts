@@ -1,5 +1,5 @@
 import { Component, OnInit, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule } from '@angular/router';
 import { ScrollService } from '../services/scroll.service';
 
@@ -19,7 +19,7 @@ interface TermsSection {
 @Component({
   selector: 'app-terms-of-service',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './terms-of-service.component.html',
   styleUrls: ['./terms-of-service.component.scss'],
 })
