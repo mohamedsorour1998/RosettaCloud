@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 
 import { RouterModule, Router } from '@angular/router';
 import { ScrollService } from '../services/scroll.service';
@@ -8,6 +8,7 @@ import { ScrollService } from '../services/scroll.service';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './footer.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './footer.component.scss',
 })
 export class FooterComponent {

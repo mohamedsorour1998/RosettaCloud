@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 
 import { RouterModule } from '@angular/router';
 
@@ -14,6 +14,7 @@ interface Question {
   standalone: true,
   imports: [RouterModule],
   templateUrl: './quiz.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./quiz.component.scss'],
 })
 export class QuizComponent {

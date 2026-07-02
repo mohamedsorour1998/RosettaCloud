@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -24,6 +24,7 @@ interface AccessibilityCategory {
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './accessibility.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./accessibility.component.scss'],
 })
 export class AccessibilityComponent implements OnInit {

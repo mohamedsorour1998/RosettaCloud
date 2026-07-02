@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import {
@@ -20,6 +20,7 @@ selector: 'app-profile-wizard',
 standalone: true,
 imports: [CommonModule, RouterModule, ReactiveFormsModule],
 templateUrl: './profile-wizard.component.html',
+changeDetection: ChangeDetectionStrategy.Eager,
 styleUrls: ['./profile-wizard.component.scss'],
 })
 export class ProfileWizardComponent implements OnInit {

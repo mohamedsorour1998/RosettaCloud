@@ -3,6 +3,7 @@ import {
   Input,
   Output,
   EventEmitter,
+  ChangeDetectionStrategy
 } from '@angular/core';
 
 import { ChatbotService } from '../services/chatbot.service';
@@ -13,6 +14,7 @@ import { UserService } from '../services/user.service';
   standalone: true,
   imports: [],
   templateUrl: './feedback.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./feedback.component.scss'],
 })
 export class FeedbackComponent {

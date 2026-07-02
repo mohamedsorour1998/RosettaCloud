@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 
 import { RouterModule } from '@angular/router';
 
@@ -7,6 +7,7 @@ import { RouterModule } from '@angular/router';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './instructors.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./instructors.component.scss'],
 })
 export class InstructorsComponent {}

@@ -5,6 +5,7 @@ import {
   HostListener,
   ElementRef,
   AfterViewInit,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -74,6 +75,7 @@ interface LabInfo {
   standalone: true,
   imports: [CommonModule, FormsModule, FeedbackComponent, ChatbotComponent],
   templateUrl: './lab.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./lab.component.scss'],
 })
 export class LabComponent implements OnInit, OnDestroy, AfterViewInit {

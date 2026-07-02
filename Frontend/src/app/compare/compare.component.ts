@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 
 import { RouterModule, ActivatedRoute } from '@angular/router';
 
@@ -23,6 +23,7 @@ interface Comparison {
   standalone: true,
   imports: [RouterModule],
   templateUrl: './compare.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./compare.component.scss'],
 })
 export class CompareComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -49,6 +49,7 @@ interface DifficultyLevel {
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './tutorials.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./tutorials.component.scss'],
 })
 export class TutorialsComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { UserService } from '../services/user.service';
@@ -9,6 +9,7 @@ import { switchMap, catchError, of, finalize } from 'rxjs';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './account-verification.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./account-verification.component.scss'],
 })
 export class AccountVerificationComponent implements OnInit {

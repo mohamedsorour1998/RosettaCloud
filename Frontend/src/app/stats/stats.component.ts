@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -18,6 +18,7 @@ interface StatsData {
   standalone: true,
   imports: [RouterModule],
   templateUrl: './stats.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./stats.component.scss'],
 })
 export class StatsComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 
 import { RouterModule } from '@angular/router';
 
@@ -34,6 +34,7 @@ interface ValueItem {
   standalone: true,
   imports: [RouterModule],
   templateUrl: './about-us.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './about-us.component.scss',
 })
 export class AboutUsComponent implements OnInit {

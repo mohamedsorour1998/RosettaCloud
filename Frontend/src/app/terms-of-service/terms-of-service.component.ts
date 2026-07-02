@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectionStrategy } from '@angular/core';
 
 import { RouterModule } from '@angular/router';
 import { ScrollService } from '../services/scroll.service';
@@ -21,6 +21,7 @@ interface TermsSection {
   standalone: true,
   imports: [RouterModule],
   templateUrl: './terms-of-service.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./terms-of-service.component.scss'],
 })
 export class TermsOfServiceComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 
 /**
@@ -12,7 +12,7 @@ import { provideRouter } from '@angular/router';
  * this one).  `provideRouter([])` supplies Router + ActivatedRoute.
  */
 export const commonTestProviders = [
-  provideHttpClient(),
+  provideHttpClient(withXhr()),
   // A catch-all router so components that navigate during a smoke test
   // (e.g. profile-wizard -> /login when unauthenticated) resolve silently
   // instead of throwing NG04002, which Vitest would surface as an unhandled

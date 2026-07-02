@@ -5,6 +5,7 @@ import {
   AfterViewInit,
   NgZone,
   ChangeDetectorRef,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -40,6 +41,7 @@ interface InstructorCourse {
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './my-teaching.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./my-teaching.component.scss'],
 })
 export class MyTeachingComponent implements OnInit, OnDestroy, AfterViewInit {

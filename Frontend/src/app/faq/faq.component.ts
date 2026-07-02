@@ -1,5 +1,5 @@
 // In src/app/faq/faq.component.ts
-import { Component, Input, OnInit, AfterViewInit } from '@angular/core';
+import { Component, Input, OnInit, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
 
 
 export interface FaqItem {
@@ -12,6 +12,7 @@ export interface FaqItem {
   standalone: true,
   imports: [],
   templateUrl: './faq.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./faq.component.scss'],
 })
 export class FaqComponent implements OnInit, AfterViewInit {

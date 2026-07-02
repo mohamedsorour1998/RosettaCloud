@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -34,6 +34,7 @@ interface BlogCategory {
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './learning-blog.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./learning-blog.component.scss'],
 })
 export class LearningBlogComponent implements OnInit {
