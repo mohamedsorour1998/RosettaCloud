@@ -10,8 +10,10 @@ stats -> admin 403 -> terminate lab. Exits non-zero on any failed assertion.
 """
 import base64
 import json
+import os
 import sys
 import time
+import uuid
 
 import boto3
 import httpx
@@ -114,8 +116,74 @@ def jwt_sub(tok):
     return json.loads(base64.urlsafe_b64decode(p)).get("sub")
 
 
+def agentcore_probe(runtime_arn):
+    """Opt-in Layer-1 AgentCore runtime probe — AGENTCORE-RESILIENCE4J-RUNTIME-PLAN.md §A.3.1.
+
+    Gated by the AGENTCORE_ARN env var (default OFF) so the standing bedrock-direct e2e is
+    byte-for-byte unchanged when the ARN is absent. Calls bedrock-agentcore:InvokeAgentRuntime
+    DIRECTLY (bypassing chat-service) with a tiny payload per agent type and asserts the runtime
+    returns a non-empty reply routed to the expected agent. This validates the *runtime* itself,
+    independent of the Java wiring. Keep it to a handful of invocations — a smoke, not a load test
+    (§A.3.3); Nova Lite 2 is cheap but the point is a signal, not throughput.
+    """
+    region = os.environ.get("AWS_REGION", "us-east-1")
+    client = boto3.client("bedrock-agentcore", region_name=region)
+    valid = {"tutor", "grader", "planner"}
+    # type -> (message, allowed agents). grade/session_start route deterministically in agent.py
+    # (_classify); chat falls to the Nova Lite classifier, so any valid agent is acceptable there.
+    cases = [
+        ("chat", "In one short sentence, what is a Linux container?", valid),
+        ("grade", "Please assess my progress on question 1.", {"grader"}),
+        ("session_start", "Begin my learning session.", {"planner"}),
+    ]
+    print(f"[mode] AgentCore direct-runtime probe (opt-in) -> {runtime_arn}")
+    for msg_type, message, allowed in cases:
+        # runtimeSessionId must be >= 33 chars (AgentCore requirement; AgentCoreInvoker pads short ids).
+        session_id = f"e2e-agentcore-{uuid.uuid4().hex}"
+        payload = {
+            "message": message,
+            "user_id": "e2e-agentcore",
+            "session_id": session_id,
+            "type": msg_type,
+            "conversation_history": [],
+        }
+        if msg_type == "grade":
+            payload["question_number"] = 1
+            payload["result"] = "ok"
+        try:
+            resp = client.invoke_agent_runtime(
+                agentRuntimeArn=runtime_arn,
+                runtimeSessionId=session_id,
+                payload=json.dumps(payload),
+                qualifier="DEFAULT",
+            )
+            body = json.loads(resp["response"].read())
+            agent = str(body.get("agent", ""))
+            reply = (body.get("response") or "").strip()
+            ok = bool(reply) and agent in allowed
+            check(f"agentcore invoke type={msg_type}", ok,
+                  f"agent={agent} reply='{reply[:60]}'")
+        except Exception as e:  # noqa: BLE001 — surface any SDK/runtime error as a failed assertion
+            check(f"agentcore invoke type={msg_type}", False, f"({type(e).__name__}: {e})")
+
+
 def main():
-    skip_chat = __import__("os").environ.get("SKIP_CHAT") == "1"
+    skip_chat = os.environ.get("SKIP_CHAT") == "1"
+    agentcore_arn = os.environ.get("AGENTCORE_ARN")
+
+    # Opt-in AgentCore validation (default OFF — AGENTCORE_ARN unset leaves this whole path dormant).
+    # With AGENTCORE_ONLY=1 run ONLY the cheap direct runtime probe (Layer 1) — no cluster / port-forwards
+    # required — and exit. This is how a CI job or an operator validates a freshly (re)deployed runtime
+    # in isolation from the five-service stack. See §A.3.1 / §A.3.3.
+    if agentcore_arn and os.environ.get("AGENTCORE_ONLY") == "1":
+        agentcore_probe(agentcore_arn)
+        print("\n==== E2E SUMMARY (agentcore-only) ====")
+        if failures:
+            print("FAILED:", failures)
+            sys.exit(1)
+        print("ALL AGENTCORE CHECKS PASSED (direct runtime probe)")
+        return
+
     for n, b in [("user", USER), ("lab", LAB), ("question", QUESTION), ("chat", CHAT), ("analytics", ANALYTICS)]:
         wait_health(n, b)
     ddb = seed()
@@ -177,6 +245,11 @@ def main():
     else:
         # still exercise the deployed chat-service health so its pod readiness is proven
         check("chat-service health (deploy smoke)", httpx.get(f"{CHAT}/actuator/health", timeout=15).status_code == 200)
+
+    # Opt-in: validate the live AgentCore runtime directly alongside the full stack (Layer 1). Default OFF;
+    # only runs when AGENTCORE_ARN is set, so the bedrock-direct chat assertions above stay unchanged.
+    if agentcore_arn:
+        agentcore_probe(agentcore_arn)
 
     r = httpx.get(f"{ANALYTICS}/public/stats", timeout=15)
     check("GET /public/stats -> 200", r.status_code == 200, f"({r.status_code})")

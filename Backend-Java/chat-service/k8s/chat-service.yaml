@@ -7,6 +7,18 @@ data:
   AWS_REGION: "us-east-1"
   COGNITO_ISSUER_URL: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I"
   COGNITO_CLIENT_ID: "i5ilqkdrsl714trat6qkt0al0"
+  # ── AI invoker toggle — AGENTCORE-RESILIENCE4J-RUNTIME-PLAN.md §A.2 / §A.4 ──
+  # agentcore      : prod default; IAM InvokeAgentRuntime -> managed Python Strands/Nova runtime (MCP tools + memory).
+  # bedrock-direct : graceful fallback; Nova Lite 2 Converse, same tutor/grader/planner prompts, no tools/memory.
+  #   Fail over in seconds (bean is @ConditionalOnProperty, so a rollout is required):
+  #     kubectl set env deploy/rosettacloud-chat-service -n dev CHAT_INVOKER=bedrock-direct   # fail back: =agentcore
+  # PRECONDITION (verified 2026-07-02, acct 339712964409): the runtime below is control-plane READY
+  # (endpoint DEFAULT, liveVersion 33, role rosettacloud-agentcore-runtime-role) BUT a direct InvokeAgentRuntime
+  # smoke returned HTTP 502 with no application logs since 2026-05-06 — its agent image repo
+  # (ECR bedrock-agentcore-rosettacloud_education_agent) was deleted, so cold starts cannot pull the container.
+  # Restoring it is a REBUILD (agentcore launch -> CodeBuild ARM64), DEFERRED pending approval (§A.1.5). Until the
+  # rebuild reports READY on a real invoke, run prod with CHAT_INVOKER=bedrock-direct; the ARN is retained as the
+  # canonical target so no ConfigMap change is needed once the rebuild completes (the registered ARN is unchanged).
   CHAT_INVOKER: "agentcore"
   AGENT_RUNTIME_ARN: "arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy"
   NOVA_MODEL_ID: "us.amazon.nova-2-lite-v1:0"
@@ -71,6 +83,14 @@ spec:
           envFrom:
             - configMapRef:
                 name: chat-service-config
+            # AgentCore path credentials (NO EKS => NO IRSA): the aws-creds secret supplies
+            # AWS_ACCESS_KEY_ID/SECRET/SESSION_TOKEN on k3s-in-runner / the interim persistent node so
+            # DefaultCredentialsProvider in AgentCoreInvoker can call bedrock-agentcore:InvokeAgentRuntime.
+            # optional=true => harmless once an EC2 instance profile supplies creds via IMDS (Part C §C.2.6).
+            # Only the agentcore invoker needs this; bedrock-direct also uses it for Converse. See §A.2.2.
+            - secretRef:
+                name: aws-creds
+                optional: true
           env:
             - name: JAVA_TOOL_OPTIONS
               value: "-Djava.io.tmpdir=/tmp"
