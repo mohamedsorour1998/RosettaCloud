@@ -123,6 +123,45 @@ jobs:
           echo "=== deployed images ==="
           kubectl get deploy -n dev -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}'
 
+      # Plan 2 / hardening-plan 7.2: runtime-hardening verification (read-only asserts + negative PSA probe)
+      - name: Assert hardened securityContext on services
+        run: |
+          # Prove the deployed services run under the restricted-profile securityContext baked into
+          # e2e-stack.yaml: container[0].readOnlyRootFilesystem AND pod.runAsNonRoot must both be
+          # true, else fail the job. Pure reads -- this does not mutate the cluster.
+          for d in user-service lab-service question-service chat-service analytics-service; do
+            ronly=$(kubectl -n dev get deploy $d -o jsonpath='{.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem}')
+            nonroot=$(kubectl -n dev get deploy $d -o jsonpath='{.spec.template.spec.securityContext.runAsNonRoot}')
+            echo "$d -> readOnlyRootFilesystem=${ronly:-unset} runAsNonRoot=${nonroot:-unset}"
+            if [ "$ronly" = "true" ] && [ "$nonroot" = "true" ]; then
+              echo "  OK: $d hardened"
+            else
+              echo "  FAIL: $d is NOT hardened (readOnlyRootFilesystem=$ronly runAsNonRoot=$nonroot)"; exit 1
+            fi
+          done
+          echo "All 5 services expose a hardened securityContext."
+
+      - name: PSA restricted is enforced on dev
+        run: |
+          # Label dev with the PSS 'restricted' profile, then prove enforcement with a NEGATIVE probe:
+          # a default busybox pod (root, no seccomp, caps not dropped) MUST be rejected at admission.
+          # PSA only gates NEW pods, so the already-running hardened service pods are unaffected.
+          #
+          # The current smoke test (next steps) launches a privileged + runAsUser:0 lab pod in THIS
+          # same 'dev' namespace (Fabric8LabProvisioner, LAB_K8S_NAMESPACE=dev), which 'restricted'
+          # would also reject. Per plan 5.5/7.2 the permanent fix relocates lab pods to a dedicated
+          # 'labs' namespace so dev can stay restricted; until that lands we lift the enforce label
+          # (EXIT trap, the documented 8.3 rollback) once enforcement is proven, so the existing
+          # smoke test still launches its lab pod.
+          trap 'kubectl -n dev delete pod psa-probe --ignore-not-found >/dev/null 2>&1 || true; kubectl label ns dev pod-security.kubernetes.io/enforce- >/dev/null 2>&1 || true' EXIT
+          kubectl label ns dev pod-security.kubernetes.io/enforce=restricted --overwrite
+          if kubectl -n dev run psa-probe --image=busybox --restart=Never --command -- sleep 1 2>/tmp/psa.err; then
+            echo "FAIL: PSA 'restricted' did NOT reject a default (root) pod"; exit 1
+          fi
+          echo "---- admission error ----"; cat /tmp/psa.err || true
+          grep -qi "violates PodSecurity" /tmp/psa.err
+          echo "OK: PSA 'restricted' is enforced on dev (root pod rejected)."
+
       - name: Port-forward
         run: |
           echo "127.0.0.1 mock-oidc" | sudo tee -a /etc/hosts
