@@ -1,13 +1,6 @@
 package app.rosettacloud.lab.client;
 
-import io.github.resilience4j.bulkhead.BulkheadRegistry;
-import io.github.resilience4j.bulkhead.ThreadPoolBulkheadRegistry;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.github.resilience4j.timelimiter.TimeLimiterRegistry;
 import org.junit.jupiter.api.Test;
-import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
-import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JConfigurationProperties;
-import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4jBulkheadProvider;
 
 import java.net.ServerSocket;
 import java.util.Optional;
@@ -29,24 +22,7 @@ class UserServiceClientTest {
         try (ServerSocket probe = new ServerSocket(0)) {
             freePort = probe.getLocalPort();
         } // socket closed here → the port is now free/closed, so connects are refused immediately
-        return new UserServiceClient("http://127.0.0.1:" + freePort, newCircuitBreakerFactory());
-    }
-
-    /**
-     * A real Spring Cloud {@link Resilience4JCircuitBreakerFactory} (Resilience4j backend) built with
-     * default policies — same type the autoconfiguration wires in production. Using the real factory
-     * (rather than a no-op) keeps these fail-open assertions honest: a connection refusal on a closed
-     * port is fast, so the default 1s TimeLimiter never fires and the breaker stays CLOSED across the
-     * handful of calls here.
-     */
-    static Resilience4JCircuitBreakerFactory newCircuitBreakerFactory() {
-        return new Resilience4JCircuitBreakerFactory(
-                CircuitBreakerRegistry.ofDefaults(),
-                TimeLimiterRegistry.ofDefaults(),
-                new Resilience4jBulkheadProvider(
-                        ThreadPoolBulkheadRegistry.ofDefaults(),
-                        BulkheadRegistry.ofDefaults(),
-                        new Resilience4JConfigurationProperties()));
+        return new UserServiceClient("http://127.0.0.1:" + freePort);
     }
 
     @Test
