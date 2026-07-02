@@ -1,0 +1,14 @@
+# Keep the Docker build context clean + reproducible. The deploy workflow runs
+# `npm ci` on the host runner (test gate) BEFORE `docker build`, so host
+# node_modules/dist/.angular MUST be excluded or the in-image `npm ci` would be
+# clobbered by `COPY . .`.
+node_modules
+dist
+.angular
+out-tsc
+coverage
+*.log
+.git
+.gitignore
+.editorconfig
+.vscode
