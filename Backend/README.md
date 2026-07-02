@@ -328,7 +328,7 @@ agentcore configure -e agent.py -n rosettacloud_education_agent \
   -rf requirements.txt -r us-east-1 -ni
 
 agentcore launch --auto-update-on-conflict \
-  --env BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory-evO1o3F0jN \
+  --env BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory_v2-vvC3mbAmra \
   --env GATEWAY_URL=$GATEWAY_URL
 
 agentcore status
@@ -336,7 +336,7 @@ agentcore status
 
 **Current Deployment:**
 - Runtime ARN: `arn:aws:bedrock-agentcore:us-east-1:339712964409:runtime/rosettacloud_education_agent-yebWcC9Yqy`
-- Memory ID: `rosettacloud_education_memory-evO1o3F0jN`
+- Memory ID: `rosettacloud_education_memory_v2-vvC3mbAmra`
 - Model: `amazon.nova-2-lite-v1:0` (all agents)
 - Region: `us-east-1`
 
@@ -823,7 +823,7 @@ kubectl get pods -n dev -w
 ```bash
 cd agents
 agentcore launch --auto-update-on-conflict \
-  --env BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory-evO1o3F0jN \
+  --env BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory_v2-vvC3mbAmra \
   --env GATEWAY_URL=$GATEWAY_URL
 
 # Update K8s ConfigMap with new ARN

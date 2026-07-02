@@ -68,4 +68,4 @@ Browser POST /chat {message, user_id, session_id, module_uuid, lesson_uuid}
 
 **No WebSockets** — purely synchronous HTTP POST. Session continuity maintained by:
 - **Within session:** in-process `_chat_histories` dict in FastAPI pod (keyed by `session_id`, max 40 msgs, 4h TTL)
-- **Cross session:** AgentCore Memory (`rosettacloud_education_memory-evO1o3F0jN`) via `AgentCoreMemorySessionManager`
+- **Cross session:** AgentCore Memory (`rosettacloud_education_memory_v2-vvC3mbAmra`) via `AgentCoreMemorySessionManager`

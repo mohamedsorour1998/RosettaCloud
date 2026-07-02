@@ -491,7 +491,7 @@ All workflows use **GitHub OIDC** — no static AWS credentials stored in secret
 | `LAB_K8S_NAMESPACE` | Kubernetes namespace for lab pods | No | `dev` |
 | `AGENT_RUNTIME_ARN` | AgentCore Runtime ARN (K8s ConfigMap) | ✅ (prod) | `arn:aws:bedrock-agentcore:us-east-1:...` |
 | `COGNITO_ISSUER_URL` | Cognito User Pool issuer URL for JWT validation | ✅ (prod) | `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_xxx` |
-| `BEDROCK_AGENTCORE_MEMORY_ID` | AgentCore Memory ID for cross-session persistence | No | `rosettacloud_education_memory-...` |
+| `BEDROCK_AGENTCORE_MEMORY_ID` | AgentCore Memory ID for cross-session persistence | No | `rosettacloud_education_memory_v2-...` |
 | `LANCEDB_S3_URI` | Vector database S3 location | ✅ | `s3://rosettacloud-shared-interactive-labs-vector` |
 | `KNOWLEDGE_BASE_ID` | LanceDB table name | ✅ | `shell-scripts-knowledge-base` |
 
