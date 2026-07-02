@@ -48,11 +48,11 @@ export class MyCoursesComponent implements OnInit, OnDestroy, AfterViewInit {
   // Courses filtering and display
   enrolledCourses: EnrolledCourse[] = [];
   filteredCourses: EnrolledCourse[] = [];
-  selectedFilter: string = 'all';
-  searchQuery: string = '';
+  selectedFilter = 'all';
+  searchQuery = '';
 
   // Loading states
-  isLoading: boolean = true;
+  isLoading = true;
 
   // Sort options
   sortOptions = [
@@ -60,7 +60,7 @@ export class MyCoursesComponent implements OnInit, OnDestroy, AfterViewInit {
     { value: 'progress', label: 'Progress (High to Low)' },
     { value: 'title', label: 'Title (A-Z)' },
   ];
-  selectedSort: string = 'recent';
+  selectedSort = 'recent';
 
   private subs: Subscription[] = [];
 

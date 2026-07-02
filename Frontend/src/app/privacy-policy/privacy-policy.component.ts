@@ -12,7 +12,7 @@ import { ScrollService } from '../services/scroll.service';
   styleUrls: ['./privacy-policy.component.scss'],
 })
 export class PrivacyPolicyComponent implements OnInit {
-  lastUpdated: string = 'May 10, 2024';
+  lastUpdated = 'May 10, 2024';
 
   constructor(private scrollService: ScrollService) {}
 

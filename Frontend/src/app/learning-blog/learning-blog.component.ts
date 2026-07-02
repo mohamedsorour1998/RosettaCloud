@@ -38,8 +38,8 @@ interface BlogCategory {
   styleUrls: ['./learning-blog.component.scss'],
 })
 export class LearningBlogComponent implements OnInit {
-  searchQuery: string = '';
-  selectedCategory: string = 'all';
+  searchQuery = '';
+  selectedCategory = 'all';
 
   // Blog posts data
   blogPosts: BlogPost[] = [

@@ -80,7 +80,7 @@ export class ScrollService {
    * @param elementId The ID of the element to scroll to
    * @param offset Optional offset from the top in pixels
    */
-  scrollToElement(elementId: string, offset: number = 0): void {
+  scrollToElement(elementId: string, offset = 0): void {
     setTimeout(() => {
       const element = document.getElementById(elementId);
       if (element) {

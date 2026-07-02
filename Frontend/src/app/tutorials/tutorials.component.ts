@@ -53,11 +53,11 @@ interface DifficultyLevel {
   styleUrls: ['./tutorials.component.scss'],
 })
 export class TutorialsComponent implements OnInit {
-  searchQuery: string = '';
-  selectedCategory: string = 'all';
-  selectedDifficulty: string = 'all';
+  searchQuery = '';
+  selectedCategory = 'all';
+  selectedDifficulty = 'all';
   sortBy: 'newest' | 'popular' | 'shortest' = 'newest';
-  isLoggedIn: boolean = false;
+  isLoggedIn = false;
 
   // Tutorials data
   tutorials: Tutorial[] = [

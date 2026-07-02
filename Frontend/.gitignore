@@ -40,3 +40,11 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Playwright e2e
+/test-results
+/playwright-report
+/playwright/.cache
+/e2e/.cache
+/blob-report
+/e2e/.out-tsc

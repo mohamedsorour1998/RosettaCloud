@@ -67,7 +67,7 @@ export class LabService {
   public apiUrl = environment.apiUrl || this.getApiUrl();
   private connectionStatus = new BehaviorSubject<boolean>(true);
   public connectionStatus$ = this.connectionStatus.asObservable();
-  private activeLabCache: { [userId: string]: string } = {};
+  private activeLabCache: Record<string, string> = {};
 
   constructor(private http: HttpClient, private userService: UserService) {
     try {

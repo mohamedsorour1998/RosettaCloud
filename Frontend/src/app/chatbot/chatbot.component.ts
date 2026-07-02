@@ -57,7 +57,7 @@ export class ChatbotComponent implements OnInit, AfterViewInit, OnDestroy, After
   tooltipY = 0;
   private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingImageFocusTimer: ReturnType<typeof setTimeout> | null = null;
-  messageRatings: Map<string, 'up' | 'down'> = new Map();
+  messageRatings = new Map<string, 'up' | 'down'>();
   aiQuota: AiQuota | null = null;
 
   get isQuotaExhausted(): boolean {

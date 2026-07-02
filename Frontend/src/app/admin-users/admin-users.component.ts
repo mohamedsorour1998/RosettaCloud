@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
 import { forkJoin, Subscription, throwError } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
 
-declare var bootstrap: any; // For Bootstrap modal
+declare let bootstrap: any; // For Bootstrap modal
 
 @Component({
   selector: 'app-admin-users',

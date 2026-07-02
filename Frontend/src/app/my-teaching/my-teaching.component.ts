@@ -51,11 +51,11 @@ export class MyTeachingComponent implements OnInit, OnDestroy, AfterViewInit {
   // Courses filtering and display
   instructorCourses: InstructorCourse[] = [];
   filteredCourses: InstructorCourse[] = [];
-  selectedFilter: string = 'all';
-  searchQuery: string = '';
+  selectedFilter = 'all';
+  searchQuery = '';
 
   // Loading states
-  isLoading: boolean = true;
+  isLoading = true;
 
   // Sort options
   sortOptions = [
@@ -65,12 +65,12 @@ export class MyTeachingComponent implements OnInit, OnDestroy, AfterViewInit {
     { value: 'engagement', label: 'Highest Engagement' },
     { value: 'revenue', label: 'Highest Revenue' },
   ];
-  selectedSort: string = 'recent';
+  selectedSort = 'recent';
 
   // Income summary
-  currentMonthRevenue: number = 0;
-  previousMonthRevenue: number = 0;
-  totalRevenue: number = 0;
+  currentMonthRevenue = 0;
+  previousMonthRevenue = 0;
+  totalRevenue = 0;
 
   // Teaching metrics card options
   selectedMetric: 'students' | 'engagement' | 'reviews' | 'questions' =

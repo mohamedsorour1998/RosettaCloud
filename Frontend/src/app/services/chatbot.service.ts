@@ -139,7 +139,7 @@ export class ChatbotService {
     this.pendingImageStagedSubject.next({ base64, defaultText });
   }
 
-  public sendImageMessage(base64: string, text: string = 'Help me understand what I see in my terminal'): void {
+  public sendImageMessage(base64: string, text = 'Help me understand what I see in my terminal'): void {
     this.addMessage({
       role: 'user',
       content: text,

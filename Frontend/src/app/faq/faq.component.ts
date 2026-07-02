@@ -17,8 +17,8 @@ export interface FaqItem {
 })
 export class FaqComponent implements OnInit, AfterViewInit {
   @Input() faqItems: FaqItem[] = [];
-  @Input() title: string = 'Frequently Asked Questions';
-  @Input() showTitle: boolean = true;
+  @Input() title = 'Frequently Asked Questions';
+  @Input() showTitle = true;
 
   expandedFaqIndex: number | null = null;
 

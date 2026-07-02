@@ -41,9 +41,9 @@ interface WebinarCategory {
   styleUrls: ['./webinars.component.scss'],
 })
 export class WebinarsComponent implements OnInit {
-  searchQuery: string = '';
-  selectedCategory: string = 'all';
-  showPastWebinars: boolean = false;
+  searchQuery = '';
+  selectedCategory = 'all';
+  showPastWebinars = false;
 
   // Webinars data
   webinars: Webinar[] = [

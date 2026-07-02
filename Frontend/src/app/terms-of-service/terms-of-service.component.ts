@@ -25,10 +25,10 @@ interface TermsSection {
   styleUrls: ['./terms-of-service.component.scss'],
 })
 export class TermsOfServiceComponent implements OnInit {
-  lastUpdated: string = 'May 10, 2024';
-  effectiveDate: string = 'June 1, 2024';
-  showBackToTop: boolean = false;
-  contactEmail: string = 'legal@rosettacloud.app';
+  lastUpdated = 'May 10, 2024';
+  effectiveDate = 'June 1, 2024';
+  showBackToTop = false;
+  contactEmail = 'legal@rosettacloud.app';
 
   // Table of contents items
   tocItems = [
@@ -196,21 +196,21 @@ export class TermsOfServiceComponent implements OnInit {
   ];
 
   // Hero content
-  heroTitle: string = 'Terms of Service';
-  heroSubtitle: string =
+  heroTitle = 'Terms of Service';
+  heroSubtitle =
     'Please read these terms carefully before using our platform and services.';
 
   // Contact section content
-  contactSectionTitle: string = 'Have Questions?';
-  contactSectionContent: string =
+  contactSectionTitle = 'Have Questions?';
+  contactSectionContent =
     "We're here to help! If you have any questions about our Terms of Service or need assistance, please reach out to our support team.";
 
   // Acceptance section content
-  acceptanceSectionTitle: string = 'Ready to Get Started?';
-  acceptanceSectionContent: string =
+  acceptanceSectionTitle = 'Ready to Get Started?';
+  acceptanceSectionContent =
     "By continuing to use our platform, you acknowledge that you've read and agree to these Terms of Service.";
-  acceptanceButtonText: string = 'Create an Account';
-  acceptanceButtonLink: string = '/register';
+  acceptanceButtonText = 'Create an Account';
+  acceptanceButtonLink = '/register';
 
   constructor(private scrollService: ScrollService) {}
 

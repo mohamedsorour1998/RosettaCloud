@@ -189,7 +189,7 @@ export class LabComponent implements OnInit, OnDestroy, AfterViewInit {
    * Used by quotaDisplay / quotaMinutesEffective to compute a live countdown
    * between server polls. Re-set every time fetchLabQuota lands a response.
    */
-  weeklyMinutesFetchedAt: number = 0;
+  weeklyMinutesFetchedAt = 0;
   weeklyMinutesLimit = 120;
   private quotaInterval: ReturnType<typeof setInterval> | null = null;
 

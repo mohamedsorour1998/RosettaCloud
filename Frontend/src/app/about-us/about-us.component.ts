@@ -39,7 +39,7 @@ interface ValueItem {
 })
 export class AboutUsComponent implements OnInit {
   // Company founding year for calculating years of service
-  foundingYear: number = 2015;
+  foundingYear = 2015;
   currentYear: number = new Date().getFullYear();
   yearsActive: number = this.currentYear - this.foundingYear;
 

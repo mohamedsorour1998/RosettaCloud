@@ -1,0 +1,22 @@
+{
+  // Dedicated tsconfig for the Playwright e2e suite. It extends the app's
+  // tsconfig so the specs share the project's strict settings, but is NOT part
+  // of the Angular build (tsconfig.app.json only includes src/**), so nothing
+  // here affects `ng build`.
+  //
+  // NOTE: @playwright/test types are provided through the module import
+  // (`import { test, expect } from '@playwright/test'`), resolved via
+  // moduleResolution "bundler". We intentionally do NOT list it in
+  // `compilerOptions.types`: the base tsconfig sets an explicit `typeRoots`
+  // (node_modules/@types), and `types` entries are resolved only against those
+  // roots — so a `@playwright/test` entry there would raise TS2688.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./.out-tsc",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["static-server.mjs", ".out-tsc"]
+}

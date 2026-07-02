@@ -29,10 +29,10 @@ interface AccessibilityCategory {
 })
 export class AccessibilityComponent implements OnInit {
   // Current font size (100% by default)
-  fontSize: number = 100;
+  fontSize = 100;
 
   // Store original body class for reset
-  originalBodyClass: string = '';
+  originalBodyClass = '';
 
   // Text direction options
   textDirection: 'ltr' | 'rtl' = 'ltr';
@@ -120,33 +120,33 @@ export class AccessibilityComponent implements OnInit {
   ];
 
   // Page content
-  pageTitle: string = 'Accessibility Settings';
-  pageDescription: string =
+  pageTitle = 'Accessibility Settings';
+  pageDescription =
     'Customize your experience to make our platform more accessible for your needs.';
 
   // Section content
-  fontSizeTitle: string = 'Font Size';
-  fontSizeDescription: string = 'Adjust the text size across the platform.';
+  fontSizeTitle = 'Font Size';
+  fontSizeDescription = 'Adjust the text size across the platform.';
 
-  textDirectionTitle: string = 'Text Direction';
-  textDirectionDescription: string =
+  textDirectionTitle = 'Text Direction';
+  textDirectionDescription =
     'Choose the reading direction for content.';
 
-  profileSectionTitle: string = 'Accessibility Profile';
-  profileSectionDescription: string =
+  profileSectionTitle = 'Accessibility Profile';
+  profileSectionDescription =
     'Save your preferences for future sessions.';
 
-  saveButtonText: string = 'Save Preferences';
-  resetButtonText: string = 'Reset to Default';
+  saveButtonText = 'Save Preferences';
+  resetButtonText = 'Reset to Default';
 
   // Status messages
-  settingsSavedMessage: string = 'Your accessibility settings have been saved.';
-  settingsResetMessage: string =
+  settingsSavedMessage = 'Your accessibility settings have been saved.';
+  settingsResetMessage =
     'Accessibility settings have been reset to default.';
 
   // Show status message
-  showStatusMessage: boolean = false;
-  statusMessage: string = '';
+  showStatusMessage = false;
+  statusMessage = '';
 
   constructor(private themeService: ThemeService) {}
 

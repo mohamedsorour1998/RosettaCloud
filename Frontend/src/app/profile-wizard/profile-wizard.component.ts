@@ -31,7 +31,7 @@ isSaving = false;
 errorMessage = '';
 
 // Track form submission attempts
-formSubmitted: { [key: number]: boolean } = {
+formSubmitted: Record<number, boolean> = {
   0: false,
   1: false,
   2: false,

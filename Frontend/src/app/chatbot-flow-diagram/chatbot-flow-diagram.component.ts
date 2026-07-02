@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./chatbot-flow-diagram.component.scss'],
 })
 export class ChatbotFlowDiagramComponent {
-  activeTab: string = 'platform';
+  activeTab = 'platform';
   expandedSection: string | null = null;
 
   setActiveTab(tab: string): void {
