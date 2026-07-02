@@ -6,6 +6,7 @@ import {
   ViewChild,
   ElementRef,
   AfterViewInit,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { Router, NavigationStart, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -22,6 +23,7 @@ import { I18nService, Lang } from '../services/i18n.service';
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './navbar.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./navbar.component.scss'],
 })
 export class NavbarComponent implements OnInit, OnDestroy, AfterViewInit {
@@ -65,7 +67,7 @@ export class NavbarComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * Close search overlay on escape key
    */
-  @HostListener('document:keydown.escape', ['$event'])
+  @HostListener('document:keydown.escape')
   onKeydownHandler() {
     if (this.isSearchActive) {
       this.isSearchActive = false;

@@ -7,6 +7,7 @@ import {
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { problemMessage } from '../core/problem-detail';
 import {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
@@ -64,8 +65,10 @@ export interface UserList {
   providedIn: 'root',
 })
 export class UserService {
-  listUsers(limit: number): Observable<any> {
-    return this.http.get<any>(`/api/users?limit=${limit}`);
+  listUsers(limit = 100): Observable<UserList> {
+    return this.http
+      .get<UserList>(`${this.apiUrl}/users?limit=${limit}`)
+      .pipe(catchError(this.handleError));
   }
 
   private apiUrl = environment.apiUrl;
@@ -361,30 +364,13 @@ export class UserService {
       .pipe(catchError(this.handleError));
   }
 
-  linkLabToUser(userId: string, labId: string): Observable<any> {
-    return this.http
-      .post<any>(`${this.apiUrl}/users/${userId}/labs/${labId}`, {})
-      .pipe(catchError(this.handleError));
-  }
-
-  unlinkLabFromUser(userId: string, labId: string): Observable<any> {
-    return this.http
-      .delete<any>(`${this.apiUrl}/users/${userId}/labs/${labId}`)
-      .pipe(catchError(this.handleError));
-  }
+  // linkLabToUser / unlinkLabFromUser were removed in the Java cutover (§8.5):
+  // lab linking/unlinking is now authoritative server-side — lab-service calls
+  // user-service /internal/** during launch()/terminate(). The old public
+  // POST/DELETE /users/{userId}/labs/{labId} have NO public Java handler (404).
 
   private handleError = (error: HttpErrorResponse) => {
-    let errorMessage = 'Something went wrong';
-    if (error.error instanceof ErrorEvent) {
-      errorMessage = `Error: ${error.error.message}`;
-    } else if (error.error && typeof error.error === 'object') {
-      errorMessage =
-        error.error.detail ||
-        error.error.message ||
-        `Error ${error.status}: ${error.statusText}`;
-    } else {
-      errorMessage = `Error ${error.status}: ${error.statusText}`;
-    }
+    const errorMessage = problemMessage(error);
     console.error('API Error:', error);
     return throwError(() => new Error(errorMessage));
   };

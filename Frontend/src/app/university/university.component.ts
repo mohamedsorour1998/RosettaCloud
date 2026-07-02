@@ -1,12 +1,13 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+
 import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-university',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './university.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./university.component.scss'],
 })
 export class UniversityComponent {

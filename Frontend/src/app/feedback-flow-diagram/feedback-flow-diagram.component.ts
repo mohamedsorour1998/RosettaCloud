@@ -1,11 +1,12 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+
 
 @Component({
   selector: 'app-feedback-flow-diagram',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './feedback-flow-diagram.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./feedback-flow-diagram.component.scss'],
 })
 export class FeedbackFlowDiagramComponent implements OnInit {

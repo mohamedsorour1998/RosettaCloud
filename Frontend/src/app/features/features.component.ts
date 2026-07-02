@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
@@ -13,6 +13,7 @@ interface Feature {
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './features.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./features.component.scss'],
 })
 export class FeaturesComponent {

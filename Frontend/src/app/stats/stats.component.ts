@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { catchError } from 'rxjs/operators';
@@ -16,8 +16,9 @@ interface StatsData {
 @Component({
   selector: 'app-stats',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './stats.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./stats.component.scss'],
 })
 export class StatsComponent implements OnInit {

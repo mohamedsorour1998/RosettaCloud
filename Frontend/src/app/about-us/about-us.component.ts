@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+
 import { RouterModule } from '@angular/router';
 
 interface TeamMember {
@@ -32,8 +32,9 @@ interface ValueItem {
 @Component({
   selector: 'app-about-us',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './about-us.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './about-us.component.scss',
 })
 export class AboutUsComponent implements OnInit {

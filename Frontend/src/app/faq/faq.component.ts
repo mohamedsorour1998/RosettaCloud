@@ -1,6 +1,6 @@
 // In src/app/faq/faq.component.ts
-import { Component, Input, OnInit, AfterViewInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, Input, OnInit, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
+
 
 export interface FaqItem {
   question: string;
@@ -10,8 +10,9 @@ export interface FaqItem {
 @Component({
   selector: 'app-faq',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './faq.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./faq.component.scss'],
 })
 export class FaqComponent implements OnInit, AfterViewInit {

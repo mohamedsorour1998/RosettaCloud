@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -29,6 +29,7 @@ interface MetricsResponse {
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './admin-metrics.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./admin-metrics.component.scss'],
 })
 export class AdminMetricsComponent implements OnInit, OnDestroy {

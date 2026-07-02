@@ -22,13 +22,15 @@
     </div>
   </div>
   <div class="row g-4 mb-5">
-    <div class="col-md-6 col-lg-4" *ngFor="let b of benefits">
-      <div class="benefit-card p-4 h-100 rounded-3 border">
-        <i class="bi {{ b.icon }} fs-2 text-primary mb-3 d-block"></i>
-        <h5 class="fw-bold">{{ b.title }}</h5>
-        <p class="text-muted mb-0">{{ b.desc }}</p>
+    @for (b of benefits; track b) {
+      <div class="col-md-6 col-lg-4">
+        <div class="benefit-card p-4 h-100 rounded-3 border">
+          <i class="bi {{ b.icon }} fs-2 text-primary mb-3 d-block"></i>
+          <h5 class="fw-bold">{{ b.title }}</h5>
+          <p class="text-muted mb-0">{{ b.desc }}</p>
+        </div>
       </div>
-    </div>
+    }
   </div>
 
   <!-- Pricing Table -->
@@ -39,13 +41,15 @@
     </div>
   </div>
   <div class="row g-3 justify-content-center mb-5">
-    <div class="col-md-4" *ngFor="let p of pricing">
-      <div class="pricing-card p-4 rounded-3 border text-center">
-        <div class="fw-bold fs-5 mb-2">{{ p.seats }}</div>
-        <div class="display-6 fw-bold text-primary">{{ p.price }}</div>
-        <div class="text-muted small">or {{ p.annual }}</div>
+    @for (p of pricing; track p) {
+      <div class="col-md-4">
+        <div class="pricing-card p-4 rounded-3 border text-center">
+          <div class="fw-bold fs-5 mb-2">{{ p.seats }}</div>
+          <div class="display-6 fw-bold text-primary">{{ p.price }}</div>
+          <div class="text-muted small">or {{ p.annual }}</div>
+        </div>
       </div>
-    </div>
+    }
   </div>
 
   <!-- Compare callout -->

@@ -13,14 +13,14 @@
           [class.active]="billingCycle === 'monthly'"
           (click)="toggleBillingCycle('monthly')"
           class="toggle-btn monthly"
-        >
+          >
           Monthly
         </button>
         <button
           [class.active]="billingCycle === 'annual'"
           (click)="toggleBillingCycle('annual')"
           class="toggle-btn annual"
-        >
+          >
           Annual <span class="save-badge">Save 20%</span>
         </button>
       </div>
@@ -38,58 +38,62 @@
 <div class="container py-5">
   <!-- Pricing Cards -->
   <div class="row justify-content-center g-4 mb-5">
-    <div *ngFor="let plan of pricingPlans" class="col-lg-4 col-md-6">
-      <div
-        class="pricing-table animate-on-scroll"
-        [class.featured]="plan.featured"
-      >
-        <div class="pricing-header">
-          <h3 class="plan-name">{{ plan.name }}</h3>
-          <div class="plan-price">
-            {{
+    @for (plan of pricingPlans; track plan) {
+      <div class="col-lg-4 col-md-6">
+        <div
+          class="pricing-table animate-on-scroll"
+          [class.featured]="plan.featured"
+          >
+          <div class="pricing-header">
+            <h3 class="plan-name">{{ plan.name }}</h3>
+            <div class="plan-price">
+              {{
               billingCycle === "monthly"
-                ? plan.price.monthly
-                : plan.price.annual
-            }}
-            <span
-              class="price-period"
-              *ngIf="
+              ? plan.price.monthly
+              : plan.price.annual
+              }}
+              @if (
                 plan.price.monthly !== 'Free' && plan.price.monthly !== 'Custom'
-              "
-            >
-              {{ billingCycle === "monthly" ? "/mo" : "/year" }}
-            </span>
+                ) {
+                <span
+                  class="price-period"
+                  >
+                  {{ billingCycle === "monthly" ? "/mo" : "/year" }}
+                </span>
+              }
+            </div>
+            <div class="plan-billing">{{ plan.description }}</div>
           </div>
-          <div class="plan-billing">{{ plan.description }}</div>
-        </div>
-        <div class="pricing-features">
-          <ul class="features-list">
-            <li
-              *ngFor="let feature of plan.features"
-              [class.excluded]="!feature.included"
-            >
-              <i
+          <div class="pricing-features">
+            <ul class="features-list">
+              @for (feature of plan.features; track feature) {
+                <li
+                  [class.excluded]="!feature.included"
+                  >
+                  <i
                 [ngClass]="{
                   'feature-icon': true,
                   'bi-check-circle-fill text-success': feature.included,
                   'bi-x-circle text-muted': !feature.included
                 }"
-              ></i>
-              <span>{{ feature.text }}</span>
-            </li>
-          </ul>
-        </div>
-        <div class="pricing-footer">
-          <a
-            [routerLink]="plan.buttonLink"
-            class="btn"
-            [ngClass]="plan.featured ? 'btn-primary' : 'btn-outline-primary'"
-          >
-            {{ plan.buttonText }}
-          </a>
+                  ></i>
+                  <span>{{ feature.text }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+          <div class="pricing-footer">
+            <a
+              [routerLink]="plan.buttonLink"
+              class="btn"
+              [ngClass]="plan.featured ? 'btn-primary' : 'btn-outline-primary'"
+              >
+              {{ plan.buttonText }}
+            </a>
+          </div>
         </div>
       </div>
-    </div>
+    }
   </div>
 
   <!-- Additional Features Section -->

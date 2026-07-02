@@ -12,18 +12,19 @@
           placeholder="Search articles, topics, or authors..."
           [(ngModel)]="searchQuery"
           name="searchQuery"
-        />
+          />
         <button type="submit" class="search-btn">
           <i class="bi bi-search"></i>
         </button>
-        <button
-          *ngIf="searchQuery"
-          type="button"
-          class="clear-btn"
-          (click)="clearSearch()"
-        >
-          <i class="bi bi-x-circle"></i>
-        </button>
+        @if (searchQuery) {
+          <button
+            type="button"
+            class="clear-btn"
+            (click)="clearSearch()"
+            >
+            <i class="bi bi-x-circle"></i>
+          </button>
+        }
       </form>
     </div>
   </div>
@@ -37,16 +38,18 @@
         <div class="categories-section">
           <h2>Categories</h2>
           <ul class="category-list">
-            <li *ngFor="let category of categories">
-              <a
-                [class.active]="selectedCategory === category.id"
-                (click)="setCategory(category.id)"
-              >
-                <i class="bi" [ngClass]="category.icon"></i>
-                <span>{{ category.name }}</span>
-                <span class="count">{{ category.count }}</span>
-              </a>
-            </li>
+            @for (category of categories; track category) {
+              <li>
+                <a
+                  [class.active]="selectedCategory === category.id"
+                  (click)="setCategory(category.id)"
+                  >
+                  <i class="bi" [ngClass]="category.icon"></i>
+                  <span>{{ category.name }}</span>
+                  <span class="count">{{ category.count }}</span>
+                </a>
+              </li>
+            }
           </ul>
         </div>
 
@@ -54,15 +57,17 @@
         <div class="sidebar-section authors-section">
           <h3>Featured Authors</h3>
           <div class="author-list">
-            <div *ngFor="let post of featuredPosts" class="author-item">
-              <div class="author-avatar">
-                <img [src]="post.authorAvatar" [alt]="post.authorName" />
+            @for (post of featuredPosts; track post) {
+              <div class="author-item">
+                <div class="author-avatar">
+                  <img [src]="post.authorAvatar" [alt]="post.authorName" />
+                </div>
+                <div class="author-details">
+                  <h4>{{ post.authorName }}</h4>
+                  <p>{{ post.authorRole }}</p>
+                </div>
               </div>
-              <div class="author-details">
-                <h4>{{ post.authorName }}</h4>
-                <p>{{ post.authorRole }}</p>
-              </div>
-            </div>
+            }
           </div>
         </div>
       </div>
@@ -71,21 +76,104 @@
     <!-- Main Content -->
     <div class="col-lg-9">
       <!-- Featured Posts -->
-      <div
-        *ngIf="selectedCategory === 'all' && !searchQuery"
-        class="featured-posts"
-      >
-        <h2 class="section-title">Featured Posts</h2>
-        <div class="row">
-          <div *ngFor="let post of featuredPosts" class="col-md-6">
-            <div class="featured-post-card">
+      @if (selectedCategory === 'all' && !searchQuery) {
+        <div
+          class="featured-posts"
+          >
+          <h2 class="section-title">Featured Posts</h2>
+          <div class="row">
+            @for (post of featuredPosts; track post) {
+              <div class="col-md-6">
+                <div class="featured-post-card">
+                  <div class="post-image">
+                    <img [src]="post.imageUrl" [alt]="post.title" />
+                    <div class="category-badge">
+                      {{ getCategoryName(post.category) }}
+                    </div>
+                  </div>
+                  <div class="post-content">
+                    <h3 class="post-title">{{ post.title }}</h3>
+                    <p class="post-excerpt">{{ post.excerpt }}</p>
+                    <div class="post-meta">
+                      <div class="author">
+                        <img [src]="post.authorAvatar" [alt]="post.authorName" />
+                        <span>{{ post.authorName }}</span>
+                      </div>
+                      <div class="date-time">
+                        <span class="date">{{ post.publishDate }}</span>
+                        <span class="dot">•</span>
+                        <span class="time">{{ post.readTime }} min read</span>
+                      </div>
+                    </div>
+                    <a [routerLink]="['/blog', post.id]" class="read-more"
+                      >Read More</a
+                      >
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Search Results Header (if searching) -->
+        @if (searchQuery) {
+          <div class="search-results-header">
+            <h2 class="section-title">Search Results for "{{ searchQuery }}"</h2>
+            @if (filteredPosts.length === 0) {
+              <p class="no-results">
+                No posts found matching your search. Try different keywords or
+                <a (click)="clearSearch()">clear your search</a>.
+              </p>
+            }
+            @if (filteredPosts.length > 0) {
+              <p class="results-count">
+                Found {{ filteredPosts.length }}
+                {{ filteredPosts.length === 1 ? "post" : "posts" }}
+              </p>
+            }
+          </div>
+        }
+
+        <!-- Category Header (if category selected) -->
+        @if (selectedCategory !== 'all' && !searchQuery) {
+          <div
+            class="category-header"
+            >
+            <h2 class="section-title">
+              {{ getCategoryName(selectedCategory) }}
+            </h2>
+            <p class="category-description">
+              {{ getCategoryDescription(selectedCategory) }}
+            </p>
+          </div>
+        }
+
+        <!-- All/Filtered Posts -->
+        <div class="posts-list">
+          @if (filteredPosts.length === 0 && !searchQuery) {
+            <div
+              class="no-posts"
+              >
+              <i class="bi bi-journal-x"></i>
+              <h3>No posts in this category yet</h3>
+              <p>Check back soon or explore other categories</p>
+              <button class="btn btn-primary" (click)="setCategory('all')">
+                View All Posts
+              </button>
+            </div>
+          }
+
+          @for (post of filteredPosts; track post) {
+            <div class="post-card">
               <div class="post-image">
                 <img [src]="post.imageUrl" [alt]="post.title" />
-                <div class="category-badge">
-                  {{ getCategoryName(post.category) }}
-                </div>
               </div>
               <div class="post-content">
+                <div class="post-category">
+                  <i class="bi" [ngClass]="getCategoryIcon(post.category)"></i>
+                  <span>{{ getCategoryName(post.category) }}</span>
+                </div>
                 <h3 class="post-title">{{ post.title }}</h3>
                 <p class="post-excerpt">{{ post.excerpt }}</p>
                 <div class="post-meta">
@@ -99,88 +187,20 @@
                     <span class="time">{{ post.readTime }} min read</span>
                   </div>
                 </div>
-                <a [routerLink]="['/blog', post.id]" class="read-more"
-                  >Read More</a
-                >
+                <div class="post-tags">
+                  @for (tag of post.tags; track tag) {
+                    <span class="tag">
+                      #{{ tag }}
+                    </span>
+                  }
+                </div>
+                <a [routerLink]="['/blog', post.id]" class="read-more">
+                  Read Article <i class="bi bi-arrow-right"></i>
+                </a>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Search Results Header (if searching) -->
-      <div *ngIf="searchQuery" class="search-results-header">
-        <h2 class="section-title">Search Results for "{{ searchQuery }}"</h2>
-        <p *ngIf="filteredPosts.length === 0" class="no-results">
-          No posts found matching your search. Try different keywords or
-          <a (click)="clearSearch()">clear your search</a>.
-        </p>
-        <p *ngIf="filteredPosts.length > 0" class="results-count">
-          Found {{ filteredPosts.length }}
-          {{ filteredPosts.length === 1 ? "post" : "posts" }}
-        </p>
-      </div>
-
-      <!-- Category Header (if category selected) -->
-      <div
-        *ngIf="selectedCategory !== 'all' && !searchQuery"
-        class="category-header"
-      >
-        <h2 class="section-title">
-          {{ getCategoryName(selectedCategory) }}
-        </h2>
-        <p class="category-description">
-          {{ getCategoryDescription(selectedCategory) }}
-        </p>
-      </div>
-
-      <!-- All/Filtered Posts -->
-      <div class="posts-list">
-        <div
-          *ngIf="filteredPosts.length === 0 && !searchQuery"
-          class="no-posts"
-        >
-          <i class="bi bi-journal-x"></i>
-          <h3>No posts in this category yet</h3>
-          <p>Check back soon or explore other categories</p>
-          <button class="btn btn-primary" (click)="setCategory('all')">
-            View All Posts
-          </button>
-        </div>
-
-        <div *ngFor="let post of filteredPosts" class="post-card">
-          <div class="post-image">
-            <img [src]="post.imageUrl" [alt]="post.title" />
-          </div>
-          <div class="post-content">
-            <div class="post-category">
-              <i class="bi" [ngClass]="getCategoryIcon(post.category)"></i>
-              <span>{{ getCategoryName(post.category) }}</span>
-            </div>
-            <h3 class="post-title">{{ post.title }}</h3>
-            <p class="post-excerpt">{{ post.excerpt }}</p>
-            <div class="post-meta">
-              <div class="author">
-                <img [src]="post.authorAvatar" [alt]="post.authorName" />
-                <span>{{ post.authorName }}</span>
-              </div>
-              <div class="date-time">
-                <span class="date">{{ post.publishDate }}</span>
-                <span class="dot">•</span>
-                <span class="time">{{ post.readTime }} min read</span>
-              </div>
-            </div>
-            <div class="post-tags">
-              <span *ngFor="let tag of post.tags" class="tag">
-                #{{ tag }}
-              </span>
-            </div>
-            <a [routerLink]="['/blog', post.id]" class="read-more">
-              Read Article <i class="bi bi-arrow-right"></i>
-            </a>
-          </div>
+          }
         </div>
       </div>
     </div>
   </div>
-</div>

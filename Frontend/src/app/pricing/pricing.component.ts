@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FaqComponent, FaqItem } from '../faq/faq.component';
 import { RouterModule } from '@angular/router';
@@ -8,6 +8,7 @@ import { RouterModule } from '@angular/router';
   standalone: true,
   imports: [CommonModule, FaqComponent, RouterModule],
   templateUrl: './pricing.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./pricing.component.scss'],
 })
 export class PricingComponent implements OnInit {

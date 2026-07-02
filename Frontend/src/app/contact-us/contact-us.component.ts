@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+
 import {
   ReactiveFormsModule,
   FormBuilder,
@@ -23,8 +23,9 @@ interface OfficeLocation {
 @Component({
   selector: 'app-contact-us',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, SafeUrlPipe, FaqComponent],
+  imports: [ReactiveFormsModule, SafeUrlPipe, FaqComponent],
   templateUrl: './contact-us.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './contact-us.component.scss',
 })
 export class ContactUsComponent implements OnInit {

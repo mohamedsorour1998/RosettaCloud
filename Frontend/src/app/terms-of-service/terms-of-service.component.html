@@ -21,69 +21,81 @@
       <div class="terms-toc">
         <h2>Contents</h2>
         <ul>
-          <li *ngFor="let item of tocItems">
-            <a
-              [href]="'#' + item.id"
-              (click)="scrollToSection(item.id); $event.preventDefault()"
-              >{{ item.title }}</a
-            >
-          </li>
-        </ul>
+          @for (item of tocItems; track item) {
+            <li>
+              <a
+                [href]="'#' + item.id"
+                (click)="scrollToSection(item.id); $event.preventDefault()"
+                >{{ item.title }}</a
+                >
+              </li>
+            }
+          </ul>
+        </div>
       </div>
-    </div>
 
-    <div class="col-lg-8">
-      <div class="terms-content">
-        <section
-          *ngFor="let section of termsSections"
-          [id]="section.id"
-          class="terms-section"
-        >
-          <h2>{{ section.title }}</h2>
+      <div class="col-lg-8">
+        <div class="terms-content">
+          @for (section of termsSections; track section) {
+            <section
+              [id]="section.id"
+              class="terms-section"
+              >
+              <h2>{{ section.title }}</h2>
+              @for (paragraph of section.content; track paragraph) {
+                <p>{{ paragraph }}</p>
+              }
+              @if (section.highlightedBox) {
+                <div class="highlighted-box">
+                  <p>{{ section.highlightedBox }}</p>
+                </div>
+              }
+              @for (subsection of section.subsections; track subsection) {
+                <div>
+                  <h3>{{ subsection.title }}</h3>
+                  @for (paragraph of subsection.content; track paragraph) {
+                    <p>{{ paragraph }}</p>
+                  }
+                  @if (subsection.isList) {
+                    <ul>
+                      @for (item of subsection.listItems; track item) {
+                        <li>{{ item }}</li>
+                      }
+                    </ul>
+                  }
+                </div>
+              }
+              <!-- Contact section at the end of the last section -->
+              @if (section.id === 'contact') {
+                <div class="contact-section">
+                  <h3>{{ contactSectionTitle }}</h3>
+                  <p>{{ contactSectionContent }}</p>
+                  <a [href]="'mailto:' + contactEmail" class="contact-email">{{
+                    contactEmail
+                  }}</a>
+                </div>
+              }
+            </section>
+          }
 
-          <p *ngFor="let paragraph of section.content">{{ paragraph }}</p>
-
-          <div *ngIf="section.highlightedBox" class="highlighted-box">
-            <p>{{ section.highlightedBox }}</p>
-          </div>
-
-          <div *ngFor="let subsection of section.subsections">
-            <h3>{{ subsection.title }}</h3>
-            <p *ngFor="let paragraph of subsection.content">{{ paragraph }}</p>
-
-            <ul *ngIf="subsection.isList">
-              <li *ngFor="let item of subsection.listItems">{{ item }}</li>
-            </ul>
-          </div>
-
-          <!-- Contact section at the end of the last section -->
-          <div *ngIf="section.id === 'contact'" class="contact-section">
-            <h3>{{ contactSectionTitle }}</h3>
-            <p>{{ contactSectionContent }}</p>
-            <a [href]="'mailto:' + contactEmail" class="contact-email">{{
-              contactEmail
-            }}</a>
-          </div>
-        </section>
-
-        <div class="acceptance-section">
-          <div class="container">
-            <h3>{{ acceptanceSectionTitle }}</h3>
-            <p>{{ acceptanceSectionContent }}</p>
-            <a [routerLink]="acceptanceButtonLink" class="btn">{{
-              acceptanceButtonText
-            }}</a>
+          <div class="acceptance-section">
+            <div class="container">
+              <h3>{{ acceptanceSectionTitle }}</h3>
+              <p>{{ acceptanceSectionContent }}</p>
+              <a [routerLink]="acceptanceButtonLink" class="btn">{{
+                acceptanceButtonText
+              }}</a>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<button
-  class="back-to-top"
-  [class.visible]="showBackToTop"
-  (click)="scrollToTop()"
->
-  <i class="bi bi-arrow-up"></i>
-</button>
+  <button
+    class="back-to-top"
+    [class.visible]="showBackToTop"
+    (click)="scrollToTop()"
+    >
+    <i class="bi bi-arrow-up"></i>
+  </button>

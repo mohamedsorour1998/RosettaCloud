@@ -1,5 +1,5 @@
 // help-center.component.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -27,6 +27,7 @@ interface HelpArticle {
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, FaqComponent],
   templateUrl: './help-center.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./help-center.component.scss'],
 })
 export class HelpCenterComponent implements OnInit {

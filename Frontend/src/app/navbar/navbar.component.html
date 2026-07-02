@@ -14,7 +14,7 @@
       aria-controls="rcCollapse"
       [attr.aria-expanded]="isMenuOpen"
       aria-label="Toggle navigation"
-    >
+      >
       <i class="bi" [ngClass]="isMenuOpen ? 'bi-x-lg' : 'bi-list'"></i>
     </button>
 
@@ -23,7 +23,7 @@
       class="navbar-collapse"
       [ngClass]="{ show: isMenuOpen }"
       id="rcCollapse"
-    >
+      >
       <ul class="navbar-nav">
         <!-- Main Navigation Links -->
         <li class="nav-item">
@@ -33,7 +33,7 @@
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }"
             (click)="isMenuOpen = false"
-          >
+            >
             <i class="bi bi-stars nav-icon"></i>
             <span>Features</span>
           </a>
@@ -45,7 +45,7 @@
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }"
             (click)="isMenuOpen = false"
-          >
+            >
             <i class="bi bi-journal-code nav-icon"></i>
             <span>Courses</span>
           </a>
@@ -57,7 +57,7 @@
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }"
             (click)="isMenuOpen = false"
-          >
+            >
             <i class="bi bi-mortarboard-fill nav-icon"></i>
             <span>Instructors</span>
           </a>
@@ -69,7 +69,7 @@
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }"
             (click)="isMenuOpen = false"
-          >
+            >
             <i class="bi bi-credit-card nav-icon"></i>
             <span>Pricing</span>
           </a>
@@ -81,7 +81,7 @@
             routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }"
             (click)="isMenuOpen = false"
-          >
+            >
             <i class="bi bi-building nav-icon"></i>
             <span>University</span>
           </a>
@@ -96,7 +96,7 @@
             class="search-toggle"
             (click)="toggleSearch()"
             aria-label="Search courses"
-          >
+            >
             <i class="bi bi-search"></i>
             <span class="d-lg-none ms-3">Search</span>
           </button>
@@ -108,7 +108,7 @@
             class="theme-toggle"
             (click)="toggleTheme()"
             aria-label="Toggle dark mode"
-          >
+            >
             <i
               class="bi"
               [ngClass]="{
@@ -118,23 +118,23 @@
             ></i>
             <span class="d-lg-none ms-3">
               {{
-                themeService.currentTheme() === "light"
-                  ? "Dark Mode"
-                  : "Light Mode"
+              themeService.currentTheme() === "light"
+              ? "Dark Mode"
+              : "Light Mode"
               }}
             </span>
           </button>
         </li>
 
         <!-- Guest Authentication Buttons -->
-        <ng-container *ngIf="!isLoggedIn">
+        @if (!isLoggedIn) {
           <div class="auth-buttons">
             <li class="nav-item">
               <a
                 class="btn btn-outline-primary"
                 routerLink="/login"
                 (click)="isMenuOpen = false"
-              >
+                >
                 <i
                   class="bi bi-box-arrow-in-right me-1 d-none d-sm-inline-block"
                 ></i>
@@ -146,104 +146,99 @@
                 class="btn btn-primary"
                 routerLink="/register"
                 (click)="isMenuOpen = false"
-              >
+                >
                 <i class="bi bi-person-plus me-1 d-none d-sm-inline-block"></i>
                 Sign Up
               </a>
             </li>
           </div>
-        </ng-container>
+        }
 
         <!-- Logged-in User Menu -->
-        <li *ngIf="isLoggedIn" class="nav-item dropdown">
-          <a
-            class="nav-link dropdown-toggle d-flex align-items-center"
-            href="#"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-            id="userDrop"
-          >
-            <div class="user-avatar">
-              <span>{{ initials }}</span>
-            </div>
-            <span class="ms-2 d-none d-sm-inline-block user-name">{{
-              userDisplayName
-            }}</span>
-            <span class="d-lg-none d-sm-none ms-2">{{
-              currentUser?.name
-            }}</span>
-          </a>
-
-          <ul
-            class="dropdown-menu dropdown-menu-end"
-            aria-labelledby="userDrop"
-          >
-            <!-- User Info Header -->
-            <li class="dropdown-header">
-              <strong>{{ currentUser?.name }}</strong>
-              <div class="text-muted small">{{ currentUser?.email }}</div>
-            </li>
-            <li><hr class="dropdown-divider" /></li>
-
-            <!-- Dashboard Link -->
-            <li>
-              <a
-                class="dropdown-item"
-                routerLink="/dashboard"
-                (click)="isMenuOpen = false"
+        @if (isLoggedIn) {
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle d-flex align-items-center"
+              href="#"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              id="userDrop"
               >
-                <i class="bi bi-speedometer2 me-2"></i>Dashboard
-              </a>
-            </li>
-
-            <!-- My Courses Link - New addition -->
-            <li>
-              <a
-                class="dropdown-item"
-                routerLink="/my-courses"
-                (click)="isMenuOpen = false"
+              <div class="user-avatar">
+                <span>{{ initials }}</span>
+              </div>
+              <span class="ms-2 d-none d-sm-inline-block user-name">{{
+                userDisplayName
+              }}</span>
+              <span class="d-lg-none d-sm-none ms-2">{{
+                currentUser?.name
+              }}</span>
+            </a>
+            <ul
+              class="dropdown-menu dropdown-menu-end"
+              aria-labelledby="userDrop"
               >
-                <i class="bi bi-journal-bookmark me-2"></i>My Courses
-              </a>
-            </li>
-
-            <!-- Profile Link -->
-            <li>
-              <a
-                class="dropdown-item"
-                routerLink="/profile"
-                (click)="isMenuOpen = false"
-              >
-                <i class="bi bi-person-circle me-2"></i>My Profile
-              </a>
-            </li>
-
-            <!-- Settings Link -->
-            <li>
-              <a
-                class="dropdown-item"
-                routerLink="/settings"
-                (click)="isMenuOpen = false"
-              >
-                <i class="bi bi-gear-fill me-2"></i>Settings
-              </a>
-            </li>
-
-            <li><hr class="dropdown-divider" /></li>
-
-            <!-- Logout Link -->
-            <li>
-              <a
-                class="dropdown-item logout-item"
-                href="#"
-                (click)="logout($event)"
-              >
-                <i class="bi bi-box-arrow-right me-2"></i>Logout
-              </a>
-            </li>
-          </ul>
-        </li>
+              <!-- User Info Header -->
+              <li class="dropdown-header">
+                <strong>{{ currentUser?.name }}</strong>
+                <div class="text-muted small">{{ currentUser?.email }}</div>
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <!-- Dashboard Link -->
+              <li>
+                <a
+                  class="dropdown-item"
+                  routerLink="/dashboard"
+                  (click)="isMenuOpen = false"
+                  >
+                  <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                </a>
+              </li>
+              <!-- My Courses Link - New addition -->
+              <li>
+                <a
+                  class="dropdown-item"
+                  routerLink="/my-courses"
+                  (click)="isMenuOpen = false"
+                  >
+                  <i class="bi bi-journal-bookmark me-2"></i>My Courses
+                </a>
+              </li>
+              <!-- Profile Link -->
+              <li>
+                <a
+                  class="dropdown-item"
+                  routerLink="/profile"
+                  (click)="isMenuOpen = false"
+                  >
+                  <i class="bi bi-person-circle me-2"></i>My Profile
+                </a>
+              </li>
+              <!-- Settings Link -->
+              <li>
+                <a
+                  class="dropdown-item"
+                  routerLink="/settings"
+                  (click)="isMenuOpen = false"
+                  >
+                  <i class="bi bi-gear-fill me-2"></i>Settings
+                </a>
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <!-- Logout Link -->
+              <li>
+                <a
+                  class="dropdown-item logout-item"
+                  href="#"
+                  (click)="logout($event)"
+                  >
+                  <i class="bi bi-box-arrow-right me-2"></i>Logout
+                </a>
+              </li>
+            </ul>
+          </li>
+        }
       </ul>
     </div>
   </div>
@@ -262,28 +257,31 @@
           [(ngModel)]="searchQuery"
           (keyup.enter)="performSearch()"
           #searchInput
-        />
+          />
         <button class="search-close" (click)="toggleSearch()">
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
-      <div class="search-suggestions" *ngIf="searchSuggestions.length > 0">
-        <div class="search-category">
-          <h6 class="search-category-title">Popular Searches</h6>
-          <div class="suggestion-list">
-            <a
-              *ngFor="let suggestion of searchSuggestions"
-              class="suggestion-item"
-              [routerLink]="['/courses']"
-              [queryParams]="{ q: suggestion }"
-              (click)="toggleSearch()"
-            >
-              <i class="bi bi-search me-2"></i>
-              <span>{{ suggestion }}</span>
-            </a>
+      @if (searchSuggestions.length > 0) {
+        <div class="search-suggestions">
+          <div class="search-category">
+            <h6 class="search-category-title">Popular Searches</h6>
+            <div class="suggestion-list">
+              @for (suggestion of searchSuggestions; track suggestion) {
+                <a
+                  class="suggestion-item"
+                  [routerLink]="['/courses']"
+                  [queryParams]="{ q: suggestion }"
+                  (click)="toggleSearch()"
+                  >
+                  <i class="bi bi-search me-2"></i>
+                  <span>{{ suggestion }}</span>
+                </a>
+              }
+            </div>
           </div>
         </div>
-      </div>
+      }
     </div>
   </div>
 </div>

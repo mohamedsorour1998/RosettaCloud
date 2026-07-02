@@ -7,6 +7,7 @@ import {
   ElementRef,
   AfterViewChecked,
   ChangeDetectorRef,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -26,6 +27,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
   templateUrl: './chatbot.component.html',
   styleUrls: ['./chatbot.component.scss'],
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [CommonModule, FormsModule, HttpClientModule],
 })
 export class ChatbotComponent implements OnInit, AfterViewInit, OnDestroy, AfterViewChecked {

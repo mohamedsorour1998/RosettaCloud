@@ -24,735 +24,708 @@
   </nav>
 
   <!-- ═══════════════════════════════════════════════════════
-       TAB: PLATFORM ARCHITECTURE
-       ═══════════════════════════════════════════════════════ -->
-  <div *ngIf="activeTab === 'platform'" class="doc-panel">
-
-    <!-- Section: Request Flows -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
-        Request Flows
+  TAB: PLATFORM ARCHITECTURE
+  ═══════════════════════════════════════════════════════ -->
+  @if (activeTab === 'platform') {
+    <div class="doc-panel">
+      <!-- Section: Request Flows -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+          Request Flows
+        </div>
+        <p class="block-sub">How traffic reaches each part of the platform</p>
+        <!-- Frontend Traffic -->
+        <div class="flow-card">
+          <div class="flow-card-label">
+            <span class="pill-badge pill-blue">Frontend</span>
+            <code class="flow-card-host">dev.rosettacloud.app</code>
+          </div>
+          <div class="flow-chain">
+            <div class="chain-node chain-node--cloud">
+              Browser
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--cloud">
+              Route 53
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--gateway">
+              CloudFront
+              <span class="chain-node-sub">d2rn486bpgcf7d</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--cloud">
+              ALB
+              <span class="chain-node-sub">EKS Auto Mode</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--istio">
+              Istio Ingress
+              <span class="chain-node-sub">target-type: ip</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--dest">
+              Frontend Pod
+              <span class="chain-node-sub">nginx + Angular SPA</span>
+            </div>
+          </div>
+        </div>
+        <!-- API Traffic -->
+        <div class="flow-card">
+          <div class="flow-card-label">
+            <span class="pill-badge pill-green">API</span>
+            <code class="flow-card-host">api.dev.rosettacloud.app</code>
+          </div>
+          <div class="flow-chain">
+            <div class="chain-node chain-node--cloud">
+              Browser
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--cloud">
+              Route 53
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--gateway">
+              API Gateway
+              <span class="chain-node-sub">HTTP API</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--auth">
+              JWT Authorizer
+              <span class="chain-node-sub">Cognito</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--cloud">
+              ALB
+              <span class="chain-node-sub">EKS Auto Mode</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--istio">
+              Istio Ingress
+              <span class="chain-node-sub">target-type: ip</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--dest">
+              FastAPI Pod
+              <span class="chain-node-sub">/chat /labs /users</span>
+            </div>
+          </div>
+          <div class="flow-card-note">
+            <span class="note-label">Public (no JWT):</span>
+            <code>GET /health-check</code>
+            <code>POST /users</code>
+            <code>OPTIONS /{{ '{' }}proxy+{{ '}' }}</code>
+          </div>
+        </div>
+        <!-- Lab Traffic -->
+        <div class="flow-card">
+          <div class="flow-card-label">
+            <span class="pill-badge pill-amber">Labs</span>
+            <code class="flow-card-host">*.labs.dev.rosettacloud.app</code>
+          </div>
+          <div class="flow-chain">
+            <div class="chain-node chain-node--cloud">
+              Browser
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--cloud">
+              Route 53
+              <span class="chain-node-sub">wildcard</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--gateway">
+              CloudFront
+              <span class="chain-node-sub">WebSocket pass-through</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--istio">
+              Istio VirtualService
+              <span class="chain-node-sub">matches lab_id hostname</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--dest">
+              Lab Pod
+              <span class="chain-node-sub">code-server + Kind</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <p class="block-sub">How traffic reaches each part of the platform</p>
-
-      <!-- Frontend Traffic -->
-      <div class="flow-card">
-        <div class="flow-card-label">
-          <span class="pill-badge pill-blue">Frontend</span>
-          <code class="flow-card-host">dev.rosettacloud.app</code>
+      <!-- Section: Infrastructure -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-server" aria-hidden="true"></i>
+          Infrastructure
         </div>
-        <div class="flow-chain">
-          <div class="chain-node chain-node--cloud">
-            Browser
+        <div class="grid-3">
+          <div class="spec-card spec-card--blue">
+            <div class="spec-card-head">
+              <i class="bi bi-cpu" aria-hidden="true"></i>
+              Compute
+            </div>
+            <ul class="spec-list">
+              <li><strong>EKS Auto Mode</strong> k8s 1.33, cluster <code>rosettacloud-eks</code></li>
+              <li><strong>Karpenter</strong> NodePool <code>rosettacloud-spot</code> — t3.xlarge, spot, max 1 node</li>
+              <li><strong>Istio</strong> service mesh, sidecar injection in <code>dev</code> namespace</li>
+              <li><strong>ECR</strong> — backend / frontend / interactive-labs images</li>
+            </ul>
           </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--cloud">
-            Route 53
+          <div class="spec-card spec-card--green">
+            <div class="spec-card-head">
+              <i class="bi bi-database" aria-hidden="true"></i>
+              Storage
+            </div>
+            <ul class="spec-list">
+              <li><strong>DynamoDB</strong> <code>rosettacloud-users</code> — user profiles + progress</li>
+              <li><strong>S3</strong> shell script questions + LanceDB vector store</li>
+              <li><strong>Redis</strong> ClusterIP — question cache (1h TTL) + lab state</li>
+              <li><strong>Terraform state</strong> S3 <code>rosettacloud-shared-terraform-backend</code></li>
+            </ul>
           </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--gateway">
-            CloudFront
-            <span class="chain-node-sub">d2rn486bpgcf7d</span>
+          <div class="spec-card spec-card--purple">
+            <div class="spec-card-head">
+              <i class="bi bi-globe" aria-hidden="true"></i>
+              Networking
+            </div>
+            <ul class="spec-list">
+              <li><strong>Route 53</strong> zone <code>rosettacloud.app</code></li>
+              <li><strong>CloudFront</strong> — SPA CDN + labs WebSocket</li>
+              <li><strong>API Gateway</strong> HTTP API — REST with JWT auth</li>
+              <li><strong>Cognito</strong> User Pool <code>us-east-1_jPds5WJ0I</code></li>
+            </ul>
           </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--cloud">
-            ALB
-            <span class="chain-node-sub">EKS Auto Mode</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--istio">
-            Istio Ingress
-            <span class="chain-node-sub">target-type: ip</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--dest">
-            Frontend Pod
-            <span class="chain-node-sub">nginx + Angular SPA</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- API Traffic -->
-      <div class="flow-card">
-        <div class="flow-card-label">
-          <span class="pill-badge pill-green">API</span>
-          <code class="flow-card-host">api.dev.rosettacloud.app</code>
-        </div>
-        <div class="flow-chain">
-          <div class="chain-node chain-node--cloud">
-            Browser
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--cloud">
-            Route 53
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--gateway">
-            API Gateway
-            <span class="chain-node-sub">HTTP API</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--auth">
-            JWT Authorizer
-            <span class="chain-node-sub">Cognito</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--cloud">
-            ALB
-            <span class="chain-node-sub">EKS Auto Mode</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--istio">
-            Istio Ingress
-            <span class="chain-node-sub">target-type: ip</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--dest">
-            FastAPI Pod
-            <span class="chain-node-sub">/chat /labs /users</span>
-          </div>
-        </div>
-        <div class="flow-card-note">
-          <span class="note-label">Public (no JWT):</span>
-          <code>GET /health-check</code>
-          <code>POST /users</code>
-          <code>OPTIONS /{{ '{' }}proxy+{{ '}' }}</code>
         </div>
       </div>
-
-      <!-- Lab Traffic -->
-      <div class="flow-card">
-        <div class="flow-card-label">
-          <span class="pill-badge pill-amber">Labs</span>
-          <code class="flow-card-host">*.labs.dev.rosettacloud.app</code>
+      <!-- Section: Authentication Flow (expandable) -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-shield-lock" aria-hidden="true"></i>
+          Authentication Flow
         </div>
-        <div class="flow-chain">
-          <div class="chain-node chain-node--cloud">
-            Browser
+        <div class="expand-box" role="button" tabindex="0"
+          (click)="toggleSection('auth')"
+          (keydown.enter)="toggleSection('auth')"
+          (keydown.space)="$event.preventDefault(); toggleSection('auth')"
+          [attr.aria-expanded]="expandedSection === 'auth'">
+          <div class="expand-box-trigger">
+            <span>Cognito + API Gateway JWT — click to expand</span>
+            <i class="bi" [ngClass]="expandedSection === 'auth' ? 'bi-chevron-up' : 'bi-chevron-down'" aria-hidden="true"></i>
           </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--cloud">
-            Route 53
-            <span class="chain-node-sub">wildcard</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--gateway">
-            CloudFront
-            <span class="chain-node-sub">WebSocket pass-through</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--istio">
-            Istio VirtualService
-            <span class="chain-node-sub">matches lab_id hostname</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--dest">
-            Lab Pod
-            <span class="chain-node-sub">code-server + Kind</span>
-          </div>
+          @if (expandedSection === 'auth') {
+            <div class="expand-box-body">
+              <div class="step-list">
+                <div class="step-item">
+                  <span class="step-badge">1</span>
+                  <div class="step-content">
+                    <strong>Register</strong> — Angular calls Cognito <code>SignUpCommand</code> (password min 8 chars)
+                  </div>
+                </div>
+                <div class="step-item">
+                  <span class="step-badge">2</span>
+                  <div class="step-content">
+                    <strong>Verify email</strong> — Cognito sends 6-digit code; Angular calls <code>ConfirmSignUpCommand</code>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <span class="step-badge">3</span>
+                  <div class="step-content">
+                    <strong>Sign in</strong> — Cognito returns ID token; Angular <code>AuthInterceptor</code> attaches <code>Authorization: Bearer &lt;token&gt;</code>
+                  </div>
+                </div>
+                <div class="step-item">
+                  <span class="step-badge">4</span>
+                  <div class="step-content">
+                    <strong>API Gateway</strong> JWT authorizer validates token against Cognito issuer URL
+                  </div>
+                </div>
+                <div class="step-item">
+                  <span class="step-badge">5</span>
+                  <div class="step-content">
+                    <strong>FastAPI</strong> receives claims — <code>custom:user_id</code> maps to DynamoDB; email fallback for first login
+                  </div>
+                </div>
+              </div>
+              <div class="claims-bar">
+                <span class="claims-label">Key JWT claims:</span>
+                <span class="claim-chip"><code>custom:user_id</code> → DynamoDB user_id</span>
+                <span class="claim-chip"><code>email</code> → fallback lookup</span>
+                <span class="claim-chip"><code>sub</code> → Cognito UUID</span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+      <!-- Section: CI/CD Pipelines -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-gear-wide-connected" aria-hidden="true"></i>
+          CI/CD Pipelines
+        </div>
+        <p class="block-sub">All workflows use GitHub OIDC → IAM role <code>github-actions-role</code> (no static credentials)</p>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Trigger</th>
+                <th>Workflow</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Backend/app/**</code></td>
+                <td><code>backend-build.yml</code></td>
+                <td>Docker build → ECR push → <code>kubectl rollout restart</code></td>
+              </tr>
+              <tr>
+                <td><code>Frontend/src/**</code></td>
+                <td><code>frontend-build.yml</code></td>
+                <td><code>ng build --configuration=production</code> → nginx image → ECR → rollout</td>
+              </tr>
+              <tr>
+                <td><code>Backend/agents/**</code></td>
+                <td><code>agent-deploy.yml</code></td>
+                <td><code>agentcore launch</code> (CodeBuild ARM64) → update ConfigMap ARN</td>
+              </tr>
+              <tr>
+                <td><code>Backend/serverless/Lambda/**</code></td>
+                <td><code>lambda-deploy.yml</code></td>
+                <td>Lambda container build + deploy</td>
+              </tr>
+              <tr>
+                <td><code>Backend/questions/**</code></td>
+                <td><code>questions-sync.yml</code></td>
+                <td>S3 sync → EventBridge → <code>document_indexer</code></td>
+              </tr>
+              <tr>
+                <td>Manual / <code>DevSecOps/interactive-labs/**</code></td>
+                <td><code>interactive-labs-build.yml</code></td>
+                <td>ECR push for lab container image</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-
-    <!-- Section: Infrastructure -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-server" aria-hidden="true"></i>
-        Infrastructure
-      </div>
-
-      <div class="grid-3">
-        <div class="spec-card spec-card--blue">
-          <div class="spec-card-head">
-            <i class="bi bi-cpu" aria-hidden="true"></i>
-            Compute
-          </div>
-          <ul class="spec-list">
-            <li><strong>EKS Auto Mode</strong> k8s 1.33, cluster <code>rosettacloud-eks</code></li>
-            <li><strong>Karpenter</strong> NodePool <code>rosettacloud-spot</code> — t3.xlarge, spot, max 1 node</li>
-            <li><strong>Istio</strong> service mesh, sidecar injection in <code>dev</code> namespace</li>
-            <li><strong>ECR</strong> — backend / frontend / interactive-labs images</li>
-          </ul>
-        </div>
-
-        <div class="spec-card spec-card--green">
-          <div class="spec-card-head">
-            <i class="bi bi-database" aria-hidden="true"></i>
-            Storage
-          </div>
-          <ul class="spec-list">
-            <li><strong>DynamoDB</strong> <code>rosettacloud-users</code> — user profiles + progress</li>
-            <li><strong>S3</strong> shell script questions + LanceDB vector store</li>
-            <li><strong>Redis</strong> ClusterIP — question cache (1h TTL) + lab state</li>
-            <li><strong>Terraform state</strong> S3 <code>rosettacloud-shared-terraform-backend</code></li>
-          </ul>
-        </div>
-
-        <div class="spec-card spec-card--purple">
-          <div class="spec-card-head">
-            <i class="bi bi-globe" aria-hidden="true"></i>
-            Networking
-          </div>
-          <ul class="spec-list">
-            <li><strong>Route 53</strong> zone <code>rosettacloud.app</code></li>
-            <li><strong>CloudFront</strong> — SPA CDN + labs WebSocket</li>
-            <li><strong>API Gateway</strong> HTTP API — REST with JWT auth</li>
-            <li><strong>Cognito</strong> User Pool <code>us-east-1_jPds5WJ0I</code></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: Authentication Flow (expandable) -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-shield-lock" aria-hidden="true"></i>
-        Authentication Flow
-      </div>
-
-      <div class="expand-box" role="button" tabindex="0"
-           (click)="toggleSection('auth')"
-           (keydown.enter)="toggleSection('auth')"
-           (keydown.space)="$event.preventDefault(); toggleSection('auth')"
-           [attr.aria-expanded]="expandedSection === 'auth'">
-        <div class="expand-box-trigger">
-          <span>Cognito + API Gateway JWT — click to expand</span>
-          <i class="bi" [ngClass]="expandedSection === 'auth' ? 'bi-chevron-up' : 'bi-chevron-down'" aria-hidden="true"></i>
-        </div>
-        <div *ngIf="expandedSection === 'auth'" class="expand-box-body">
-          <div class="step-list">
-            <div class="step-item">
-              <span class="step-badge">1</span>
-              <div class="step-content">
-                <strong>Register</strong> — Angular calls Cognito <code>SignUpCommand</code> (password min 8 chars)
-              </div>
-            </div>
-            <div class="step-item">
-              <span class="step-badge">2</span>
-              <div class="step-content">
-                <strong>Verify email</strong> — Cognito sends 6-digit code; Angular calls <code>ConfirmSignUpCommand</code>
-              </div>
-            </div>
-            <div class="step-item">
-              <span class="step-badge">3</span>
-              <div class="step-content">
-                <strong>Sign in</strong> — Cognito returns ID token; Angular <code>AuthInterceptor</code> attaches <code>Authorization: Bearer &lt;token&gt;</code>
-              </div>
-            </div>
-            <div class="step-item">
-              <span class="step-badge">4</span>
-              <div class="step-content">
-                <strong>API Gateway</strong> JWT authorizer validates token against Cognito issuer URL
-              </div>
-            </div>
-            <div class="step-item">
-              <span class="step-badge">5</span>
-              <div class="step-content">
-                <strong>FastAPI</strong> receives claims — <code>custom:user_id</code> maps to DynamoDB; email fallback for first login
-              </div>
-            </div>
-          </div>
-          <div class="claims-bar">
-            <span class="claims-label">Key JWT claims:</span>
-            <span class="claim-chip"><code>custom:user_id</code> → DynamoDB user_id</span>
-            <span class="claim-chip"><code>email</code> → fallback lookup</span>
-            <span class="claim-chip"><code>sub</code> → Cognito UUID</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: CI/CD Pipelines -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-gear-wide-connected" aria-hidden="true"></i>
-        CI/CD Pipelines
-      </div>
-      <p class="block-sub">All workflows use GitHub OIDC → IAM role <code>github-actions-role</code> (no static credentials)</p>
-
-      <div class="data-table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Trigger</th>
-              <th>Workflow</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>Backend/app/**</code></td>
-              <td><code>backend-build.yml</code></td>
-              <td>Docker build → ECR push → <code>kubectl rollout restart</code></td>
-            </tr>
-            <tr>
-              <td><code>Frontend/src/**</code></td>
-              <td><code>frontend-build.yml</code></td>
-              <td><code>ng build --configuration=production</code> → nginx image → ECR → rollout</td>
-            </tr>
-            <tr>
-              <td><code>Backend/agents/**</code></td>
-              <td><code>agent-deploy.yml</code></td>
-              <td><code>agentcore launch</code> (CodeBuild ARM64) → update ConfigMap ARN</td>
-            </tr>
-            <tr>
-              <td><code>Backend/serverless/Lambda/**</code></td>
-              <td><code>lambda-deploy.yml</code></td>
-              <td>Lambda container build + deploy</td>
-            </tr>
-            <tr>
-              <td><code>Backend/questions/**</code></td>
-              <td><code>questions-sync.yml</code></td>
-              <td>S3 sync → EventBridge → <code>document_indexer</code></td>
-            </tr>
-            <tr>
-              <td>Manual / <code>DevSecOps/interactive-labs/**</code></td>
-              <td><code>interactive-labs-build.yml</code></td>
-              <td>ECR push for lab container image</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-  </div>
+  }
 
   <!-- ═══════════════════════════════════════════════════════
-       TAB: INTERACTIVE LAB
-       ═══════════════════════════════════════════════════════ -->
-  <div *ngIf="activeTab === 'labs'" class="doc-panel">
-
-    <!-- Section: Create Lab Lifecycle -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-play-circle" aria-hidden="true"></i>
-        Create Lab Lifecycle
-      </div>
-      <p class="block-sub">Steps from clicking "Start Lab" to a running interactive environment</p>
-
-      <div class="step-list">
-        <div class="step-item">
-          <span class="step-badge">1</span>
-          <div class="step-content">
-            <strong>POST /labs <code>{{ '{' }}user_id{{ '}' }}</code></strong> — Frontend triggers lab creation
-          </div>
+  TAB: INTERACTIVE LAB
+  ═══════════════════════════════════════════════════════ -->
+  @if (activeTab === 'labs') {
+    <div class="doc-panel">
+      <!-- Section: Create Lab Lifecycle -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-play-circle" aria-hidden="true"></i>
+          Create Lab Lifecycle
         </div>
-        <div class="step-item">
-          <span class="step-badge">2</span>
-          <div class="step-content">
-            <strong>Verify &amp; gate</strong> — Backend checks user in DynamoDB; checks Redis <code>active_labs:{{ '{' }}user_id{{ '}' }}</code> — returns 400 if lab already active
+        <p class="block-sub">Steps from clicking "Start Lab" to a running interactive environment</p>
+        <div class="step-list">
+          <div class="step-item">
+            <span class="step-badge">1</span>
+            <div class="step-content">
+              <strong>POST /labs <code>{{ '{' }}user_id{{ '}' }}</code></strong> — Frontend triggers lab creation
+            </div>
           </div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">3</span>
-          <div class="step-content">
-            <strong>Generate <code>lab_id = lab-{{ '{' }}uuid8{{ '}' }}</code></strong> then create all K8s resources in parallel via <code>asyncio.gather</code>
-            <div class="step-chips">
-              <span class="status-chip status-amber">Pod <code>lab-{{ '{' }}lab_id{{ '}' }}</code></span>
-              <span class="status-chip status-amber">Service <code>{{ '{' }}lab_id{{ '}' }}-svc</code> (ClusterIP)</span>
-              <span class="status-chip status-amber">VirtualService <code>{{ '{' }}lab_id{{ '}' }}</code></span>
+          <div class="step-item">
+            <span class="step-badge">2</span>
+            <div class="step-content">
+              <strong>Verify &amp; gate</strong> — Backend checks user in DynamoDB; checks Redis <code>active_labs:{{ '{' }}user_id{{ '}' }}</code> — returns 400 if lab already active
+            </div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">3</span>
+            <div class="step-content">
+              <strong>Generate <code>lab_id = lab-{{ '{' }}uuid8{{ '}' }}</code></strong> then create all K8s resources in parallel via <code>asyncio.gather</code>
+              <div class="step-chips">
+                <span class="status-chip status-amber">Pod <code>lab-{{ '{' }}lab_id{{ '}' }}</code></span>
+                <span class="status-chip status-amber">Service <code>{{ '{' }}lab_id{{ '}' }}-svc</code> (ClusterIP)</span>
+                <span class="status-chip status-amber">VirtualService <code>{{ '{' }}lab_id{{ '}' }}</code></span>
+              </div>
+            </div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">4</span>
+            <div class="step-content">
+              <strong>Persist</strong> — Store <code>lab_id</code> in Redis + link to user in DynamoDB; return <code>{{ '{' }}lab_id{{ '}' }}</code> to frontend
+            </div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">5</span>
+            <div class="step-content">
+              <strong>Frontend polls</strong> <code>GET /labs/{{ '{' }}lab_id{{ '}' }}</code> — backend reads pod status from K8s
+              <div class="step-chips">
+                <span class="status-chip status-green">Running + Ready → "running"</span>
+                <span class="status-chip status-amber">Running + !Ready → "starting"</span>
+              </div>
+            </div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">6</span>
+            <div class="step-content">
+              <strong>Access</strong> — User opens <code>{{ '{' }}lab_id{{ '}' }}.labs.dev.rosettacloud.app</code> → CloudFront → Istio VirtualService → ClusterIP → pod port 80
+            </div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">7</span>
+            <div class="step-content">
+              <strong>End</strong> — User requests feedback (→ Planner AI agent) → lab terminates
             </div>
           </div>
         </div>
-        <div class="step-item">
-          <span class="step-badge">4</span>
-          <div class="step-content">
-            <strong>Persist</strong> — Store <code>lab_id</code> in Redis + link to user in DynamoDB; return <code>{{ '{' }}lab_id{{ '}' }}</code> to frontend
+      </div>
+      <!-- Section: Container Startup Sequence -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+          Container Startup Sequence
+        </div>
+        <p class="block-sub">What happens inside the lab pod after creation — readiness probe passes early so users aren't blocked</p>
+        <div class="phase-grid">
+          <div class="phase-card phase-card--green">
+            <div class="phase-label">Phase 1 — ~3-6s</div>
+            <div class="phase-name">Pod Ready</div>
+            <div class="phase-desc">code-server (port 8080) + Caddy (port 80 reverse proxy) start. Readiness probe <code>HTTP GET / :80</code> succeeds → pod marked Ready. User can open terminal.</div>
+          </div>
+          <div class="phase-card phase-card--blue">
+            <div class="phase-label">Phase 2 — ~5-15s</div>
+            <div class="phase-name">Docker Ready</div>
+            <div class="phase-desc">dockerd starts in background. Waits for <code>docker info</code> to succeed. No user impact — happens concurrently.</div>
+          </div>
+          <div class="phase-card phase-card--amber">
+            <div class="phase-label">Phase 3 — ~10-30s</div>
+            <div class="phase-name">Image Loaded</div>
+            <div class="phase-desc"><code>docker load -i /kind-node.tar</code> loads the 650 MB+ Kind node image. Background operation — terminal is already usable.</div>
+          </div>
+          <div class="phase-card phase-card--purple">
+            <div class="phase-label">Phase 4 — ~30-60s</div>
+            <div class="phase-name">Cluster Ready</div>
+            <div class="phase-desc"><code>kind create cluster</code> provisions a full Kubernetes cluster inside the pod. CPU-intensive. kubectl becomes available.</div>
           </div>
         </div>
-        <div class="step-item">
-          <span class="step-badge">5</span>
-          <div class="step-content">
-            <strong>Frontend polls</strong> <code>GET /labs/{{ '{' }}lab_id{{ '}' }}</code> — backend reads pod status from K8s
-            <div class="step-chips">
-              <span class="status-chip status-green">Running + Ready → "running"</span>
-              <span class="status-chip status-amber">Running + !Ready → "starting"</span>
+      </div>
+      <!-- Section: Kubernetes Resources per Lab -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-boxes" aria-hidden="true"></i>
+          Kubernetes Resources per Lab
+        </div>
+        <div class="grid-3">
+          <div class="spec-card spec-card--blue">
+            <div class="spec-card-head">
+              <i class="bi bi-box" aria-hidden="true"></i>
+              Pod <code>lab-{{ '{' }}lab_id{{ '}' }}</code>
             </div>
+            <ul class="spec-list">
+              <li>Image: <code>interactive-labs:latest</code> (ECR, 1.86 GB)</li>
+              <li><code>imagePullPolicy: IfNotPresent</code></li>
+              <li>Annotation: <code>sidecar.istio.io/inject: "false"</code></li>
+              <li>Privileged (required for dockerd + Kind)</li>
+              <li>Readiness: HTTP GET <code>/</code> :80, initial 3s, period 3s, threshold 40</li>
+            </ul>
           </div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">6</span>
-          <div class="step-content">
-            <strong>Access</strong> — User opens <code>{{ '{' }}lab_id{{ '}' }}.labs.dev.rosettacloud.app</code> → CloudFront → Istio VirtualService → ClusterIP → pod port 80
+          <div class="spec-card spec-card--teal">
+            <div class="spec-card-head">
+              <i class="bi bi-diagram-2" aria-hidden="true"></i>
+              Service <code>{{ '{' }}lab_id{{ '}' }}-svc</code>
+            </div>
+            <ul class="spec-list">
+              <li>Type: <code>ClusterIP</code></li>
+              <li>Selector: <code>lab-id: {{ '{' }}lab_id{{ '}' }}</code></li>
+              <li>Port 80 → containerPort 80</li>
+              <li>Scoped to <code>dev</code> namespace</li>
+            </ul>
           </div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">7</span>
-          <div class="step-content">
-            <strong>End</strong> — User requests feedback (→ Planner AI agent) → lab terminates
+          <div class="spec-card spec-card--purple">
+            <div class="spec-card-head">
+              <i class="bi bi-share" aria-hidden="true"></i>
+              VirtualService <code>{{ '{' }}lab_id{{ '}' }}</code>
+            </div>
+            <ul class="spec-list">
+              <li>Host: <code>{{ '{' }}lab_id{{ '}' }}.labs.dev.rosettacloud.app</code></li>
+              <li>Gateway: <code>rosettacloud-ingress</code></li>
+              <li>Route → <code>{{ '{' }}lab_id{{ '}' }}-svc:80</code></li>
+              <li>Matches by subdomain hostname</li>
+            </ul>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Section: Container Startup Sequence -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-hourglass-split" aria-hidden="true"></i>
-        Container Startup Sequence
-      </div>
-      <p class="block-sub">What happens inside the lab pod after creation — readiness probe passes early so users aren't blocked</p>
-
-      <div class="phase-grid">
-        <div class="phase-card phase-card--green">
-          <div class="phase-label">Phase 1 — ~3-6s</div>
-          <div class="phase-name">Pod Ready</div>
-          <div class="phase-desc">code-server (port 8080) + Caddy (port 80 reverse proxy) start. Readiness probe <code>HTTP GET / :80</code> succeeds → pod marked Ready. User can open terminal.</div>
-        </div>
-        <div class="phase-card phase-card--blue">
-          <div class="phase-label">Phase 2 — ~5-15s</div>
-          <div class="phase-name">Docker Ready</div>
-          <div class="phase-desc">dockerd starts in background. Waits for <code>docker info</code> to succeed. No user impact — happens concurrently.</div>
-        </div>
-        <div class="phase-card phase-card--amber">
-          <div class="phase-label">Phase 3 — ~10-30s</div>
-          <div class="phase-name">Image Loaded</div>
-          <div class="phase-desc"><code>docker load -i /kind-node.tar</code> loads the 650 MB+ Kind node image. Background operation — terminal is already usable.</div>
-        </div>
-        <div class="phase-card phase-card--purple">
-          <div class="phase-label">Phase 4 — ~30-60s</div>
-          <div class="phase-name">Cluster Ready</div>
-          <div class="phase-desc"><code>kind create cluster</code> provisions a full Kubernetes cluster inside the pod. CPU-intensive. kubectl becomes available.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: Kubernetes Resources per Lab -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-boxes" aria-hidden="true"></i>
-        Kubernetes Resources per Lab
-      </div>
-
-      <div class="grid-3">
-        <div class="spec-card spec-card--blue">
-          <div class="spec-card-head">
-            <i class="bi bi-box" aria-hidden="true"></i>
-            Pod <code>lab-{{ '{' }}lab_id{{ '}' }}</code>
-          </div>
-          <ul class="spec-list">
-            <li>Image: <code>interactive-labs:latest</code> (ECR, 1.86 GB)</li>
-            <li><code>imagePullPolicy: IfNotPresent</code></li>
-            <li>Annotation: <code>sidecar.istio.io/inject: "false"</code></li>
-            <li>Privileged (required for dockerd + Kind)</li>
-            <li>Readiness: HTTP GET <code>/</code> :80, initial 3s, period 3s, threshold 40</li>
-          </ul>
-        </div>
-
-        <div class="spec-card spec-card--teal">
-          <div class="spec-card-head">
-            <i class="bi bi-diagram-2" aria-hidden="true"></i>
-            Service <code>{{ '{' }}lab_id{{ '}' }}-svc</code>
-          </div>
-          <ul class="spec-list">
-            <li>Type: <code>ClusterIP</code></li>
-            <li>Selector: <code>lab-id: {{ '{' }}lab_id{{ '}' }}</code></li>
-            <li>Port 80 → containerPort 80</li>
-            <li>Scoped to <code>dev</code> namespace</li>
-          </ul>
-        </div>
-
-        <div class="spec-card spec-card--purple">
-          <div class="spec-card-head">
-            <i class="bi bi-share" aria-hidden="true"></i>
-            VirtualService <code>{{ '{' }}lab_id{{ '}' }}</code>
-          </div>
-          <ul class="spec-list">
-            <li>Host: <code>{{ '{' }}lab_id{{ '}' }}.labs.dev.rosettacloud.app</code></li>
-            <li>Gateway: <code>rosettacloud-ingress</code></li>
-            <li>Route → <code>{{ '{' }}lab_id{{ '}' }}-svc:80</code></li>
-            <li>Matches by subdomain hostname</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-  </div>
+  }
 
   <!-- ═══════════════════════════════════════════════════════
-       TAB: AI AGENT ARCHITECTURE
-       ═══════════════════════════════════════════════════════ -->
-  <div *ngIf="activeTab === 'agents'" class="doc-panel">
-
-    <!-- Section: Chatbot Request Flow -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-chat-dots-fill" aria-hidden="true"></i>
-        Chatbot Request Flow
-      </div>
-      <p class="block-sub">End-to-end path from Angular to AgentCore Runtime and back</p>
-
-      <div class="step-list">
-        <div class="step-item">
-          <span class="step-badge">1</span>
-          <div class="step-content">
-            <strong>Angular ChatbotComponent</strong> sends <code>POST /chat</code>
-            <div class="step-note">Body: <code>{{ '{' }}session_id, message, user_id, module_uuid, lesson_uuid, type{{ '}' }}</code></div>
-            <div class="step-note"><code>session_id</code> format: <code>"session-{{ '{' }}uuid{{ '}' }}-{{ '{' }}timestamp{{ '}' }}"</code> — must be ≥33 chars (AgentCore requirement)</div>
-          </div>
+  TAB: AI AGENT ARCHITECTURE
+  ═══════════════════════════════════════════════════════ -->
+  @if (activeTab === 'agents') {
+    <div class="doc-panel">
+      <!-- Section: Chatbot Request Flow -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-chat-dots-fill" aria-hidden="true"></i>
+          Chatbot Request Flow
         </div>
-        <div class="step-item">
-          <span class="step-badge">2</span>
-          <div class="step-content">
-            <strong>FastAPI <code>/chat</code> endpoint</strong> loads history from <code>_chat_histories[session_id]</code>
-            <div class="step-note">Max 40 messages, 4h TTL, 500 sessions in-process — single pod makes this fully consistent</div>
-          </div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">3</span>
-          <div class="step-content">
-            <strong>boto3</strong> calls <code>invoke_agent_runtime</code> on the AgentCore Runtime
-            <div class="step-note">Synchronous call via <code>bedrock-agentcore</code> service client</div>
-          </div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">4</span>
-          <div class="step-content">
-            <strong>AgentCore routes</strong> to the appropriate agent based on message intent
-            <div class="step-chips">
-              <span class="pill-badge pill-blue">Tutor</span>
-              <span class="pill-badge pill-green">Grader</span>
-              <span class="pill-badge pill-teal">Planner</span>
+        <p class="block-sub">End-to-end path from Angular to AgentCore Runtime and back</p>
+        <div class="step-list">
+          <div class="step-item">
+            <span class="step-badge">1</span>
+            <div class="step-content">
+              <strong>Angular ChatbotComponent</strong> sends <code>POST /chat</code>
+              <div class="step-note">Body: <code>{{ '{' }}session_id, message, user_id, module_uuid, lesson_uuid, type{{ '}' }}</code></div>
+              <div class="step-note"><code>session_id</code> format: <code>"session-{{ '{' }}uuid{{ '}' }}-{{ '{' }}timestamp{{ '}' }}"</code> — must be ≥33 chars (AgentCore requirement)</div>
             </div>
           </div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">5</span>
-          <div class="step-content">
-            <strong>Agent calls tools</strong> via AgentCore Gateway → Lambda <code>agent_tools</code>
-            <div class="step-note">MCP protocol: <code>education-tools___get-question-details</code> → agent normalizes name → Gateway strips prefix → Lambda dispatches</div>
+          <div class="step-item">
+            <span class="step-badge">2</span>
+            <div class="step-content">
+              <strong>FastAPI <code>/chat</code> endpoint</strong> loads history from <code>_chat_histories[session_id]</code>
+              <div class="step-note">Max 40 messages, 4h TTL, 500 sessions in-process — single pod makes this fully consistent</div>
+            </div>
           </div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">6</span>
-          <div class="step-content">
-            <strong>Response <code>{{ '{' }}response, agent, session_id{{ '}' }}</code></strong> returned to FastAPI
-            <div class="step-note">FastAPI saves updated history to <code>_chat_histories</code></div>
+          <div class="step-item">
+            <span class="step-badge">3</span>
+            <div class="step-content">
+              <strong>boto3</strong> calls <code>invoke_agent_runtime</code> on the AgentCore Runtime
+              <div class="step-note">Synchronous call via <code>bedrock-agentcore</code> service client</div>
+            </div>
           </div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">7</span>
-          <div class="step-content">
-            <strong>Angular renders</strong> markdown response; <code>agent</code> field identifies which agent responded
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: Agent Roles -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-people-fill" aria-hidden="true"></i>
-        Agent Roles
-      </div>
-
-      <div class="grid-3">
-        <div class="spec-card spec-card--blue">
-          <div class="spec-card-head">
-            <i class="bi bi-book-fill" aria-hidden="true"></i>
-            Tutor
-          </div>
-          <div class="agent-trigger">Triggered by content questions, "explain X", "how does Y work"</div>
-          <div class="spec-card-section">Tools</div>
-          <ul class="spec-list">
-            <li><code>search_knowledge_base</code> — LanceDB vector search (RAG)</li>
-            <li><code>get_question_details</code> — shell script content</li>
-            <li><code>get_question_metadata</code> — type, difficulty, choices</li>
-          </ul>
-        </div>
-
-        <div class="spec-card spec-card--green">
-          <div class="spec-card-head">
-            <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-            Grader
-          </div>
-          <div class="agent-trigger">Triggered by answer submission, "check my solution", grade requests</div>
-          <div class="spec-card-section">Tools</div>
-          <ul class="spec-list">
-            <li><code>get_question_details</code> — fetch question spec</li>
-            <li><code>get_user_progress</code> — current attempt history</li>
-            <li><code>get_attempt_result</code> — evaluate correctness</li>
-          </ul>
-        </div>
-
-        <div class="spec-card spec-card--teal">
-          <div class="spec-card-head">
-            <i class="bi bi-map-fill" aria-hidden="true"></i>
-            Planner
-          </div>
-          <div class="agent-trigger">Triggered by progress queries, "what next", feedback requests</div>
-          <div class="spec-card-section">Tools</div>
-          <ul class="spec-list">
-            <li><code>get_user_progress</code> — completed questions</li>
-            <li><code>list_available_modules</code> — course catalog</li>
-            <li><code>get_question_metadata</code> — difficulty/type info</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: Tool Dispatch Chain -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-diagram-3" aria-hidden="true"></i>
-        Tool Dispatch Chain
-      </div>
-
-      <div class="flow-card">
-        <div class="flow-card-label">
-          <span class="pill-badge pill-purple">MCP</span>
-          <code class="flow-card-host">Agent → Gateway → Lambda → AWS services</code>
-        </div>
-        <div class="flow-chain">
-          <div class="chain-node chain-node--cloud">
-            Agent
-            <span class="chain-node-sub">calls tool</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--gateway">
-            AgentCore Gateway
-            <span class="chain-node-sub">rosettacloud-education-tools</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--istio">
-            Lambda
-            <span class="chain-node-sub">agent_tools</span>
-          </div>
-          <span class="chain-arrow">→</span>
-          <div class="chain-node chain-node--dest">
-            DynamoDB / S3 / LanceDB
-          </div>
-        </div>
-        <div class="flow-card-note">
-          <span class="note-label">Tool name normalization:</span>
-          Gateway exposes <code>education-tools___get-question-details</code>
-          → agent normalizes to <code>get_question_details</code>
-          → MCP call uses original
-          → Lambda receives <code>get-question-details</code>
-          → Lambda normalizes to <code>get_question_details</code> for dispatch
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: Memory & Session -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-database" aria-hidden="true"></i>
-        Memory &amp; Session
-      </div>
-
-      <div class="expand-box" role="button" tabindex="0"
-           (click)="toggleSection('memory')"
-           (keydown.enter)="toggleSection('memory')"
-           (keydown.space)="$event.preventDefault(); toggleSection('memory')"
-           [attr.aria-expanded]="expandedSection === 'memory'">
-        <div class="expand-box-trigger">
-          <span>Two-layer session management — click to expand</span>
-          <i class="bi" aria-hidden="true" [ngClass]="expandedSection === 'memory' ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
-        </div>
-        <div *ngIf="expandedSection === 'memory'" class="expand-box-body">
-          <div class="grid-2">
-            <div class="spec-card spec-card--blue">
-              <div class="spec-card-head">
-                <i class="bi bi-lightning-fill" aria-hidden="true"></i>
-                In-Process (FastAPI)
+          <div class="step-item">
+            <span class="step-badge">4</span>
+            <div class="step-content">
+              <strong>AgentCore routes</strong> to the appropriate agent based on message intent
+              <div class="step-chips">
+                <span class="pill-badge pill-blue">Tutor</span>
+                <span class="pill-badge pill-green">Grader</span>
+                <span class="pill-badge pill-teal">Planner</span>
               </div>
-              <ul class="spec-list">
-                <li><code>_chat_histories</code> dict keyed by <code>session_id</code></li>
-                <li>Max 40 messages per session</li>
-                <li>4-hour TTL, 500 session cap</li>
-                <li>Single-replica pod — fully consistent</li>
-                <li>Lost on pod restart</li>
-              </ul>
             </div>
-            <div class="spec-card spec-card--teal">
-              <div class="spec-card-head">
-                <i class="bi bi-cloud-fill" aria-hidden="true"></i>
-                AgentCore Memory
-              </div>
-              <ul class="spec-list">
-                <li>ID: <code>rosettacloud_education_memory-evO1o3F0jN</code></li>
-                <li>Long-term cross-session persistence</li>
-                <li>Managed by <code>AgentCoreMemorySessionManager</code></li>
-                <li>Survives pod restarts and redeployments</li>
-                <li>Scoped by <code>actor_id = user_id</code></li>
-              </ul>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">5</span>
+            <div class="step-content">
+              <strong>Agent calls tools</strong> via AgentCore Gateway → Lambda <code>agent_tools</code>
+              <div class="step-note">MCP protocol: <code>education-tools___get-question-details</code> → agent normalizes name → Gateway strips prefix → Lambda dispatches</div>
+            </div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">6</span>
+            <div class="step-content">
+              <strong>Response <code>{{ '{' }}response, agent, session_id{{ '}' }}</code></strong> returned to FastAPI
+              <div class="step-note">FastAPI saves updated history to <code>_chat_histories</code></div>
+            </div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">7</span>
+            <div class="step-content">
+              <strong>Angular renders</strong> markdown response; <code>agent</code> field identifies which agent responded
             </div>
           </div>
         </div>
       </div>
+      <!-- Section: Agent Roles -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-people-fill" aria-hidden="true"></i>
+          Agent Roles
+        </div>
+        <div class="grid-3">
+          <div class="spec-card spec-card--blue">
+            <div class="spec-card-head">
+              <i class="bi bi-book-fill" aria-hidden="true"></i>
+              Tutor
+            </div>
+            <div class="agent-trigger">Triggered by content questions, "explain X", "how does Y work"</div>
+            <div class="spec-card-section">Tools</div>
+            <ul class="spec-list">
+              <li><code>search_knowledge_base</code> — LanceDB vector search (RAG)</li>
+              <li><code>get_question_details</code> — shell script content</li>
+              <li><code>get_question_metadata</code> — type, difficulty, choices</li>
+            </ul>
+          </div>
+          <div class="spec-card spec-card--green">
+            <div class="spec-card-head">
+              <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+              Grader
+            </div>
+            <div class="agent-trigger">Triggered by answer submission, "check my solution", grade requests</div>
+            <div class="spec-card-section">Tools</div>
+            <ul class="spec-list">
+              <li><code>get_question_details</code> — fetch question spec</li>
+              <li><code>get_user_progress</code> — current attempt history</li>
+              <li><code>get_attempt_result</code> — evaluate correctness</li>
+            </ul>
+          </div>
+          <div class="spec-card spec-card--teal">
+            <div class="spec-card-head">
+              <i class="bi bi-map-fill" aria-hidden="true"></i>
+              Planner
+            </div>
+            <div class="agent-trigger">Triggered by progress queries, "what next", feedback requests</div>
+            <div class="spec-card-section">Tools</div>
+            <ul class="spec-list">
+              <li><code>get_user_progress</code> — completed questions</li>
+              <li><code>list_available_modules</code> — course catalog</li>
+              <li><code>get_question_metadata</code> — difficulty/type info</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <!-- Section: Tool Dispatch Chain -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-diagram-3" aria-hidden="true"></i>
+          Tool Dispatch Chain
+        </div>
+        <div class="flow-card">
+          <div class="flow-card-label">
+            <span class="pill-badge pill-purple">MCP</span>
+            <code class="flow-card-host">Agent → Gateway → Lambda → AWS services</code>
+          </div>
+          <div class="flow-chain">
+            <div class="chain-node chain-node--cloud">
+              Agent
+              <span class="chain-node-sub">calls tool</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--gateway">
+              AgentCore Gateway
+              <span class="chain-node-sub">rosettacloud-education-tools</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--istio">
+              Lambda
+              <span class="chain-node-sub">agent_tools</span>
+            </div>
+            <span class="chain-arrow">→</span>
+            <div class="chain-node chain-node--dest">
+              DynamoDB / S3 / LanceDB
+            </div>
+          </div>
+          <div class="flow-card-note">
+            <span class="note-label">Tool name normalization:</span>
+            Gateway exposes <code>education-tools___get-question-details</code>
+            → agent normalizes to <code>get_question_details</code>
+            → MCP call uses original
+            → Lambda receives <code>get-question-details</code>
+            → Lambda normalizes to <code>get_question_details</code> for dispatch
+          </div>
+        </div>
+      </div>
+      <!-- Section: Memory & Session -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-database" aria-hidden="true"></i>
+          Memory &amp; Session
+        </div>
+        <div class="expand-box" role="button" tabindex="0"
+          (click)="toggleSection('memory')"
+          (keydown.enter)="toggleSection('memory')"
+          (keydown.space)="$event.preventDefault(); toggleSection('memory')"
+          [attr.aria-expanded]="expandedSection === 'memory'">
+          <div class="expand-box-trigger">
+            <span>Two-layer session management — click to expand</span>
+            <i class="bi" aria-hidden="true" [ngClass]="expandedSection === 'memory' ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+          </div>
+          @if (expandedSection === 'memory') {
+            <div class="expand-box-body">
+              <div class="grid-2">
+                <div class="spec-card spec-card--blue">
+                  <div class="spec-card-head">
+                    <i class="bi bi-lightning-fill" aria-hidden="true"></i>
+                    In-Process (FastAPI)
+                  </div>
+                  <ul class="spec-list">
+                    <li><code>_chat_histories</code> dict keyed by <code>session_id</code></li>
+                    <li>Max 40 messages per session</li>
+                    <li>4-hour TTL, 500 session cap</li>
+                    <li>Single-replica pod — fully consistent</li>
+                    <li>Lost on pod restart</li>
+                  </ul>
+                </div>
+                <div class="spec-card spec-card--teal">
+                  <div class="spec-card-head">
+                    <i class="bi bi-cloud-fill" aria-hidden="true"></i>
+                    AgentCore Memory
+                  </div>
+                  <ul class="spec-list">
+                    <li>ID: <code>rosettacloud_education_memory-evO1o3F0jN</code></li>
+                    <li>Long-term cross-session persistence</li>
+                    <li>Managed by <code>AgentCoreMemorySessionManager</code></li>
+                    <li>Survives pod restarts and redeployments</li>
+                    <li>Scoped by <code>actor_id = user_id</code></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+      <!-- Section: RAG Document Pipeline -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-file-earmark-code" aria-hidden="true"></i>
+          RAG Document Pipeline
+        </div>
+        <p class="block-sub">How shell script questions become searchable knowledge for the Tutor agent</p>
+        <div class="step-list">
+          <div class="step-item">
+            <span class="step-badge">1</span>
+            <div class="step-content">Shell scripts pushed to <code>Backend/questions/{{ '{' }}module{{ '}' }}/{{ '{' }}lesson{{ '}' }}/q{{ '{' }}N{{ '}' }}.sh</code></div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">2</span>
+            <div class="step-content"><code>questions-sync.yml</code> GitHub Actions syncs to <code>s3://rosettacloud-shared-interactive-labs/</code> with <code>--delete</code></div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">3</span>
+            <div class="step-content">S3 EventBridge notification triggers <code>document_indexer</code> Lambda</div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">4</span>
+            <div class="step-content">Lambda parses shell script headers — question text, type, difficulty, choices, correct answer</div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">5</span>
+            <div class="step-content">Amazon Bedrock generates Titan embeddings <code>amazon.titan-embed-text-v2:0</code></div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">6</span>
+            <div class="step-content">Vectors stored in LanceDB at <code>s3://rosettacloud-shared-interactive-labs-vector</code> (table: <code>shell-scripts-knowledge-base</code>)</div>
+          </div>
+          <div class="step-item">
+            <span class="step-badge">7</span>
+            <div class="step-content">Tutor agent queries LanceDB via <code>search_knowledge_base</code> tool on every content question</div>
+          </div>
+        </div>
+      </div>
+      <!-- Section: Feedback Flow -->
+      <div class="doc-block">
+        <div class="block-title">
+          <span class="block-title-accent"></span>
+          <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+          Feedback Flow
+        </div>
+        <div class="info-banner">
+          <i class="bi bi-info-circle-fill info-banner-icon" aria-hidden="true"></i>
+          <div class="info-banner-body">
+            <strong>Feedback uses the same AgentCore Runtime — no separate service or pub/sub.</strong>
+            <p>When the user requests end-of-lab feedback, Angular calls <code>ChatbotService.sendFeedbackRequest()</code> which sends <code>POST /chat</code> with <code>type: "feedback"</code>, the questions array, and user progress. The <strong>Planner</strong> agent generates educational feedback and returns it as a normal chat response.</p>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <!-- Section: RAG Document Pipeline -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-file-earmark-code" aria-hidden="true"></i>
-        RAG Document Pipeline
-      </div>
-      <p class="block-sub">How shell script questions become searchable knowledge for the Tutor agent</p>
-
-      <div class="step-list">
-        <div class="step-item">
-          <span class="step-badge">1</span>
-          <div class="step-content">Shell scripts pushed to <code>Backend/questions/{{ '{' }}module{{ '}' }}/{{ '{' }}lesson{{ '}' }}/q{{ '{' }}N{{ '}' }}.sh</code></div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">2</span>
-          <div class="step-content"><code>questions-sync.yml</code> GitHub Actions syncs to <code>s3://rosettacloud-shared-interactive-labs/</code> with <code>--delete</code></div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">3</span>
-          <div class="step-content">S3 EventBridge notification triggers <code>document_indexer</code> Lambda</div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">4</span>
-          <div class="step-content">Lambda parses shell script headers — question text, type, difficulty, choices, correct answer</div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">5</span>
-          <div class="step-content">Amazon Bedrock generates Titan embeddings <code>amazon.titan-embed-text-v2:0</code></div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">6</span>
-          <div class="step-content">Vectors stored in LanceDB at <code>s3://rosettacloud-shared-interactive-labs-vector</code> (table: <code>shell-scripts-knowledge-base</code>)</div>
-        </div>
-        <div class="step-item">
-          <span class="step-badge">7</span>
-          <div class="step-content">Tutor agent queries LanceDB via <code>search_knowledge_base</code> tool on every content question</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section: Feedback Flow -->
-    <div class="doc-block">
-      <div class="block-title">
-        <span class="block-title-accent"></span>
-        <i class="bi bi-chat-square-text" aria-hidden="true"></i>
-        Feedback Flow
-      </div>
-
-      <div class="info-banner">
-        <i class="bi bi-info-circle-fill info-banner-icon" aria-hidden="true"></i>
-        <div class="info-banner-body">
-          <strong>Feedback uses the same AgentCore Runtime — no separate service or pub/sub.</strong>
-          <p>When the user requests end-of-lab feedback, Angular calls <code>ChatbotService.sendFeedbackRequest()</code> which sends <code>POST /chat</code> with <code>type: "feedback"</code>, the questions array, and user progress. The <strong>Planner</strong> agent generates educational feedback and returns it as a normal chat response.</p>
-        </div>
-      </div>
-    </div>
-
-  </div>
+  }
 
 </div>

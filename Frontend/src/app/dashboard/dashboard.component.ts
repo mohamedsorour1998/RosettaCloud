@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { UserService, User } from '../services/user.service';
@@ -7,7 +7,6 @@ import { Subject, forkJoin, of, EMPTY } from 'rxjs';
 import {
   catchError,
   finalize,
-  switchMap,
   takeUntil,
   tap,
 } from 'rxjs/operators';
@@ -18,6 +17,7 @@ import { ThemeService } from '../services/theme.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './dashboard.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./dashboard.component.scss'],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
@@ -361,8 +361,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     const terminationRequests$ = this.userLabs.map((labId) => {
+      // Unlinking is authoritative server-side now: lab-service.terminate()
+      // calls user-service /internal. The client unlinkLabFromUser was removed
+      // in the Java cutover (§8.5) — it has no public Java handler (404).
       return this.labService.terminateLab(labId, userId).pipe(
-        switchMap(() => this.userService.unlinkLabFromUser(userId, labId)),
         catchError((error) => {
           console.error(`Error terminating lab ${labId}:`, error);
           return EMPTY;

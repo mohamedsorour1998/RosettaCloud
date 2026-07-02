@@ -9,6 +9,10 @@ export const environment = {
     seconds: 0,
   },
   pollingInterval: 30000,
+  // Strangler cutover flag. The SPA tolerates BOTH RFC7807 (Java problem+json)
+  // and legacy FastAPI error shapes via core/problem-detail; this documents the
+  // Java shape as the expected default during/after the bake. (Plan §8.4)
+  apiFlags: { useJavaProblemDetails: true },
   // Fill in after: terraform output -raw cognito_user_pool_id / cognito_user_pool_client_id
   cognito: {
     userPoolId: 'us-east-1_jPds5WJ0I',
