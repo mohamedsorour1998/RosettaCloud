@@ -114,14 +114,76 @@ jobs:
             --from-literal=AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # Plan 2 / hardening-plan §5.5 CUTOVER: isolate the PRIVILEGED interactive-lab pods in a
+      # dedicated `labs` namespace so `dev` can stay enforce=restricted while lab pods still run.
+      # Applied BEFORE e2e-stack.yaml because that manifest carries labs-scoped RBAC (Role/RoleBinding
+      # in `labs`) which needs the namespace to already exist.
+      - name: Create labs namespace (PSA privileged) + quota/limits + NetworkPolicies + RBAC
+        run: |
+          # labs-namespace.yaml -> Namespace(enforce=privileged) + ResourceQuota + LimitRange.
+          # networkpolicies-labs.yaml -> default-deny + istio-gateway ingress + kubelet-probe ingress
+          # (:80 from the k3s pod CIDR 10.42.0.0/16, so readiness works under default-deny) + egress
+          # guardrail (DNS + public 80/443, but BLOCK cluster RFC1918 and IMDS 169.254.169.254).
+          kubectl apply -f DevSecOps/K8S/labs-namespace.yaml
+          kubectl apply -f DevSecOps/K8S/networkpolicies-labs.yaml
+          # labs-scoped RBAC lives HERE (not in the shared Backend-Java/e2e/k8s/e2e-stack.yaml) so the
+          # sibling workflows that also apply e2e-stack.yaml (e2e-k3s.yml, frontend-e2e-fullstack.yml)
+          # — which do NOT create a `labs` namespace — are unaffected by this cutover. The e2e
+          # lab-service & question-service both run as the `default` SA in `dev`; grant that SA the
+          # manage/exec verbs IN `labs`: lab-service creates Pods/Services/VirtualServices;
+          # question-service execs (pods/exec) the -q/-c blocks into the lab pods. A RoleBinding in
+          # `labs` may reference a subject SA that lives in `dev` (§5.5 step 2).
+          kubectl apply -f - <<'EOF'
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          metadata: { name: e2e-lab-manager, namespace: labs }
+          rules:
+            - apiGroups: [""]
+              resources: ["pods", "pods/status", "pods/exec", "services"]
+              verbs: ["create", "get", "list", "watch", "delete"]
+            - apiGroups: ["networking.istio.io"]
+              resources: ["virtualservices"]
+              verbs: ["create", "get", "list", "delete"]
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata: { name: e2e-lab-manager, namespace: labs }
+          subjects:
+            - { kind: ServiceAccount, name: default, namespace: dev }
+          roleRef: { kind: Role, name: e2e-lab-manager, apiGroup: rbac.authorization.k8s.io }
+          EOF
+          echo "---- labs PSA labels ----"
+          kubectl get ns labs -o jsonpath='{.metadata.labels}' | tr ',' '\n' | grep pod-security || true
+          # labs MUST be enforce=privileged: the lab pod is privileged DinD (runAsUser:0); baseline
+          # and restricted would REJECT it at admission. Fail fast here if that ever regresses.
+          enforce=$(kubectl get ns labs -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce}')
+          if [ "$enforce" != "privileged" ]; then
+            echo "FAIL: labs enforce='$enforce' (must be 'privileged' to admit the privileged DinD lab pod)"; exit 1
+          fi
+          echo "---- labs NetworkPolicies ----"; kubectl get netpol -n labs
+          echo "---- labs RBAC ----"; kubectl get role,rolebinding -n labs
+          echo "OK: labs namespace ready (enforce=privileged) + NetworkPolicies + RBAC applied."
+
       - name: Deploy ECR images to k3s + wait for rollouts
         run: |
           kubectl apply -f Backend-Java/e2e/k8s/e2e-stack.yaml
+          # Plan 2 §5.5 CUTOVER: point the lab plane at the isolated `labs` namespace WITHOUT editing
+          # the shared e2e-stack.yaml (so the sibling workflows e2e-k3s.yml / frontend-e2e-fullstack.yml
+          # keep launching labs in `dev`). BOTH services read rosettacloud.lab.namespace <-
+          # LAB_K8S_NAMESPACE; question-service execs (pods/exec) there too, so BOTH must be flipped or
+          # setup/check would exec the wrong namespace. The VS now lives in `labs`, so reference the
+          # gateway by its (dev) namespace (§5.5 step 3; inert in e2e — no Istio routing). `set env`
+          # patches the pod template, so the rollout wait below lands the new (labs) generation before
+          # the smoke test runs.
+          kubectl set env deploy/lab-service deploy/question-service -n dev LAB_K8S_NAMESPACE=labs
+          kubectl set env deploy/lab-service -n dev LAB_ISTIO_GATEWAY=dev/rosettacloud-gateway
           for d in localstack redis mock-oidc user-service lab-service question-service chat-service analytics-service; do
             kubectl rollout status deploy/$d -n dev --timeout=300s
           done
           echo "=== deployed images ==="
           kubectl get deploy -n dev -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}{end}'
+          echo "=== lab plane LAB_K8S_NAMESPACE (post set-env; must be 'labs') ==="
+          kubectl -n dev get deploy lab-service question-service -o yaml | grep -A1 "LAB_K8S_NAMESPACE" || true
 
       # Plan 2 / hardening-plan 7.2: runtime-hardening verification (read-only asserts + negative PSA probe)
       - name: Assert hardened securityContext on services
@@ -141,26 +203,26 @@ jobs:
           done
           echo "All 5 services expose a hardened securityContext."
 
-      - name: PSA restricted is enforced on dev
+      - name: PSA restricted is enforced on dev (labs cutover — dev STAYS restricted)
         run: |
           # Label dev with the PSS 'restricted' profile, then prove enforcement with a NEGATIVE probe:
           # a default busybox pod (root, no seccomp, caps not dropped) MUST be rejected at admission.
           # PSA only gates NEW pods, so the already-running hardened service pods are unaffected.
           #
-          # The current smoke test (next steps) launches a privileged + runAsUser:0 lab pod in THIS
-          # same 'dev' namespace (Fabric8LabProvisioner, LAB_K8S_NAMESPACE=dev), which 'restricted'
-          # would also reject. Per plan 5.5/7.2 the permanent fix relocates lab pods to a dedicated
-          # 'labs' namespace so dev can stay restricted; until that lands we lift the enforce label
-          # (EXIT trap, the documented 8.3 rollback) once enforcement is proven, so the existing
-          # smoke test still launches its lab pod.
-          trap 'kubectl -n dev delete pod psa-probe --ignore-not-found >/dev/null 2>&1 || true; kubectl label ns dev pod-security.kubernetes.io/enforce- >/dev/null 2>&1 || true' EXIT
+          # Plan 2 §5.5/§7.2 CUTOVER: the smoke test's privileged + runAsUser:0 lab pod now launches in
+          # the dedicated `labs` namespace (enforce=privileged; LAB_K8S_NAMESPACE=labs on lab-service
+          # AND question-service), NOT in `dev`. So — unlike the pre-cutover flow — we LEAVE dev
+          # enforce=restricted ON for the rest of the job. This is the §7.2 end-state: dev=restricted
+          # and labs=privileged in force together while the smoke test launches/execs/terminates a lab
+          # in `labs`. The trap only cleans up the (rejected) probe pod; it no longer lifts the label.
+          trap 'kubectl -n dev delete pod psa-probe --ignore-not-found >/dev/null 2>&1 || true' EXIT
           kubectl label ns dev pod-security.kubernetes.io/enforce=restricted --overwrite
           if kubectl -n dev run psa-probe --image=busybox --restart=Never --command -- sleep 1 2>/tmp/psa.err; then
             echo "FAIL: PSA 'restricted' did NOT reject a default (root) pod"; exit 1
           fi
           echo "---- admission error ----"; cat /tmp/psa.err || true
           grep -qi "violates PodSecurity" /tmp/psa.err
-          echo "OK: PSA 'restricted' is enforced on dev (root pod rejected)."
+          echo "OK: PSA 'restricted' enforced on dev; the privileged lab pod runs in 'labs' (enforce=privileged)."
 
       - name: Port-forward
         run: |
@@ -184,6 +246,13 @@ jobs:
         run: |
           kubectl get pods -n dev -o wide || true
           kubectl get events -n dev --sort-by=.lastTimestamp | tail -40 || true
+          echo "===== labs namespace (Plan 2 §5.5 cutover) ====="
+          kubectl get ns labs --show-labels || true
+          kubectl get pods,svc,netpol,resourcequota,limitrange -n labs -o wide || true
+          kubectl get events -n labs --sort-by=.lastTimestamp | tail -40 || true
+          # If a lab never reached "running", the pod's readiness/probe/PSA/quota reason shows here
+          # (e.g. netpol dropped the kubelet probe -> Ready=false, or a quota/PSA admission reject).
+          kubectl describe pods -n labs -l app=interactive-labs 2>/dev/null | tail -100 || true
           for d in user-service lab-service question-service chat-service analytics-service mock-oidc localstack; do
             echo "===== logs $d ====="
             kubectl logs -n dev deploy/$d --tail=80 --all-containers 2>/dev/null || true

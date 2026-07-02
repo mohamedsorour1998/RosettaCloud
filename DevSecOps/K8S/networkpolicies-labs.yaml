@@ -78,3 +78,33 @@ spec:
       ports:
         - { protocol: TCP, port: 443 }
         - { protocol: TCP, port: 80 }
+---
+# KUBELET HEALTH-PROBE allowance (Plan 2 §5.5 cutover — REQUIRED for readiness under default-deny).
+#   LabService.info() reports a lab as "running" ONLY when the pod's Ready condition is true, and
+#   Ready depends on the kubelet HTTP readiness probe to lab-pod :80. That probe is issued by the
+#   kubelet from the NODE (host netns) — not from a pod/namespace — so `labs-allow-ingress-gateway`
+#   (istio-system only) does NOT cover it. Under `labs-default-deny` the node-sourced probe is
+#   dropped, the pod never turns Ready, and a lab launch never reaches "running" (smoke test fails).
+#
+#   k3s (e2e): the same-node kubelet probe is source-NAT'd to the cni0 bridge IP (10.42.0.1), which
+#   lives in the k3s pod CIDR 10.42.0.0/16 — so allowing TCP:80 ingress from that CIDR restores the
+#   probe WITHOUT exposing the pod to the public internet and WITHOUT weakening the egress
+#   IMDS/RFC1918 block (egress is a separate direction; probe replies ride the established conntrack).
+#   PRODUCTION/EKS: set this ipBlock to the cluster's pod/node CIDR (the VPC-CNI probe source), or
+#   confirm the CNI exempts node health-probe traffic (§6.2 CNI-enforcement caveat / §7.4).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: labs-allow-kubelet-probe
+  namespace: labs
+spec:
+  podSelector:
+    matchLabels:
+      app: interactive-labs
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.42.0.0/16   # k3s pod CIDR (cni0 SNAT source of same-node kubelet probes)
+      ports:
+        - { protocol: TCP, port: 80 }
