@@ -11,7 +11,18 @@ import org.springframework.web.client.RestClient;
 import java.util.Map;
 import java.util.Optional;
 
-/** Calls user-service cluster-internal endpoints for quota/active-lab/session bookkeeping. */
+/**
+ * Calls user-service cluster-internal endpoints for quota/active-lab/session bookkeeping.
+ *
+ * <p>Resilience (Part B §B.3.2/§B.3.3): every cross-boundary call is wrapped in a Spring Cloud
+ * CircuitBreaker (Resilience4j backend) so a <em>sustained</em> user-service outage fast-fails
+ * (instead of paying connect+read timeouts on every lab launch/terminate), while transient
+ * rolling-deploy blips are still absorbed by {@link HttpRetry} <em>inside</em> the breaker (retry
+ * and CB compose). Two per-id instances share the "user-*" policy vocabulary: reads use
+ * {@code "user-quota"} and session/lifecycle mutations use {@code "user-session"}. Crucially, every
+ * fallback returns the SAME fail-open value the previous try/catch returned, so the breaker changes
+ * only <em>when</em> we give up, never <em>what</em> we do on failure — the non-regression guarantee.
+ */
 @Component
 public class UserServiceClient {
 
@@ -31,27 +42,31 @@ public class UserServiceClient {
     }
 
     public long remainingLabMinutes(String userId) {
-        try {
-            Map<?, ?> m = HttpRetry.withRetry(2, 150,
-                    () -> http.get().uri("/internal/users/{u}/lab-quota", userId).retrieve().body(Map.class));
-            Object v = m == null ? null : m.get("minutes_remaining");
-            return v instanceof Number n ? n.longValue() : 0;
-        } catch (Exception e) {
-            log.warn("lab-quota lookup failed for {}: {}", userId, e.getMessage());
-            return 0;
-        }
+        return circuitBreakers.create("user-quota").run(
+                () -> {
+                    Map<?, ?> m = HttpRetry.withRetry(2, 150,
+                            () -> http.get().uri("/internal/users/{u}/lab-quota", userId).retrieve().body(Map.class));
+                    Object v = m == null ? null : m.get("minutes_remaining");
+                    return v instanceof Number n ? n.longValue() : 0L;
+                },
+                throwable -> {
+                    log.warn("lab-quota lookup failed for {}: {}", userId, throwable.getMessage());
+                    return 0L;
+                });
     }
 
     public Optional<String> activeLab(String userId) {
-        try {
-            Map<?, ?> m = HttpRetry.withRetry(2, 150,
-                    () -> http.get().uri("/internal/users/{u}/active-lab", userId).retrieve().body(Map.class));
-            Object v = m == null ? null : m.get("active_lab");
-            return Optional.ofNullable(v == null ? null : v.toString());
-        } catch (Exception e) {
-            log.warn("active-lab lookup failed for {}: {}", userId, e.getMessage());
-            return Optional.empty();
-        }
+        return circuitBreakers.create("user-session").run(
+                () -> {
+                    Map<?, ?> m = HttpRetry.withRetry(2, 150,
+                            () -> http.get().uri("/internal/users/{u}/active-lab", userId).retrieve().body(Map.class));
+                    Object v = m == null ? null : m.get("active_lab");
+                    return Optional.ofNullable(v == null ? null : v.toString());
+                },
+                throwable -> {
+                    log.warn("active-lab lookup failed for {}: {}", userId, throwable.getMessage());
+                    return Optional.<String>empty();
+                });
     }
 
     public void setActiveLab(String userId, String labId) {
@@ -77,33 +92,43 @@ public class UserServiceClient {
     }
 
     public long closeLabSession(String userId) {
-        try {
-            Map<?, ?> m = HttpRetry.withRetry(2, 150,
-                    () -> http.post().uri("/internal/users/{u}/close-lab-session", userId)
-                            .retrieve().body(Map.class));
-            Object v = m == null ? null : m.get("minutes_recorded");
-            return v instanceof Number n ? n.longValue() : 0;
-        } catch (Exception e) {
-            log.warn("close-lab-session failed for {}: {}", userId, e.getMessage());
-            return 0;
-        }
+        return circuitBreakers.create("user-session").run(
+                () -> {
+                    Map<?, ?> m = HttpRetry.withRetry(2, 150,
+                            () -> http.post().uri("/internal/users/{u}/close-lab-session", userId)
+                                    .retrieve().body(Map.class));
+                    Object v = m == null ? null : m.get("minutes_recorded");
+                    return v instanceof Number n ? n.longValue() : 0L;
+                },
+                throwable -> {
+                    log.warn("close-lab-session failed for {}: {}", userId, throwable.getMessage());
+                    return 0L;
+                });
     }
 
     public void linkLab(String userId, String labId) {
-        try {
-            HttpRetry.withRetry(2, 150,
-                    () -> http.post().uri("/internal/users/{u}/labs/{l}", userId, labId).retrieve().toBodilessEntity());
-        } catch (Exception e) {
-            log.warn("linkLab failed: {}", e.getMessage());
-        }
+        circuitBreakers.create("user-session").run(
+                () -> {
+                    HttpRetry.withRetry(2, 150,
+                            () -> http.post().uri("/internal/users/{u}/labs/{l}", userId, labId).retrieve().toBodilessEntity());
+                    return Boolean.TRUE;
+                },
+                throwable -> {
+                    log.warn("linkLab failed: {}", throwable.getMessage());
+                    return Boolean.FALSE;
+                });
     }
 
     public void unlinkLab(String userId, String labId) {
-        try {
-            HttpRetry.withRetry(2, 150,
-                    () -> http.delete().uri("/internal/users/{u}/labs/{l}", userId, labId).retrieve().toBodilessEntity());
-        } catch (Exception e) {
-            log.warn("unlinkLab failed: {}", e.getMessage());
-        }
+        circuitBreakers.create("user-session").run(
+                () -> {
+                    HttpRetry.withRetry(2, 150,
+                            () -> http.delete().uri("/internal/users/{u}/labs/{l}", userId, labId).retrieve().toBodilessEntity());
+                    return Boolean.TRUE;
+                },
+                throwable -> {
+                    log.warn("unlinkLab failed: {}", throwable.getMessage());
+                    return Boolean.FALSE;
+                });
     }
 }

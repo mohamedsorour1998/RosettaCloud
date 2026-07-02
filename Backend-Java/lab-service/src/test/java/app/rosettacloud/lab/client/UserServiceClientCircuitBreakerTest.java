@@ -102,6 +102,26 @@ class UserServiceClientCircuitBreakerTest {
     }
 
     @Test
+    void readCallsStayFailOpenAndTripTheUserQuotaBreaker() throws Exception {
+        Resilience4JCircuitBreakerFactory factory = tunedFactory();
+        UserServiceClient client = new UserServiceClient(closedPortBaseUrl(), factory);
+
+        // remainingLabMinutes uses the "user-quota" breaker (§B.3.2); every failing call returns the
+        // fail-open 0, exactly as the pre-circuit-breaker try/catch did.
+        for (int i = 0; i < 12; i++) {
+            assertThat(client.remainingLabMinutes("u1")).isZero();
+        }
+
+        CircuitBreaker quota = factory.getCircuitBreakerRegistry().circuitBreaker("user-quota");
+        assertThat(quota.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+
+        // OPEN → still the same fail-open 0 (fallback preserves semantics; only *when* changes).
+        assertThat(client.remainingLabMinutes("u1")).isZero();
+        // The other lab->user reads/mutations remain fail-open too (activeLab -> empty).
+        assertThat(client.activeLab("u1")).isEmpty();
+    }
+
+    @Test
     void openBreakerFastFailsWithoutInvokingSupplier() {
         Resilience4JCircuitBreakerFactory factory = tunedFactory();
         AtomicInteger supplierInvocations = new AtomicInteger();
