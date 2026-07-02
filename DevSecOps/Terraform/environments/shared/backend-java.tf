@@ -33,85 +33,88 @@ resource "aws_ecr_lifecycle_policy" "java_service" {
   })
 }
 
-# NOTE: this architecture uses NO EKS — deploys run on k3s inside the GitHub runner and services get
-# AWS creds via the `aws-creds` secret. The IRSA roles below are kept ONLY as a template for a future
-# EKS install and are NOT applied today (they reference an EKS OIDC provider that does not exist).
-# ── Per-service IRSA roles (least privilege) ────────────────────────────────────
-data "aws_iam_policy_document" "java_irsa_trust" {
-  for_each = toset(local.java_services)
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    principals {
-      type        = "Federated"
-      identifiers = [local.eks_oidc_provider_arn]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "${local.eks_oidc_issuer}:sub"
-      values   = ["system:serviceaccount:dev:rosettacloud-${each.key}"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "${local.eks_oidc_issuer}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-  }
-}
+# NOTE: this architecture uses NO EKS (no-EKS-ever mandate) — deploys run on k3s inside the GitHub
+# runner and services get AWS creds via the `aws-creds` secret. The per-service IRSA roles below are
+# COMMENTED OUT under the mandate: their trust policy federates against the EKS OIDC provider, which
+# has been removed from main.tf (module.eks + the eks_oidc_* locals). With no EKS cluster (verified:
+# `aws eks list-clusters` -> []) these roles can never be assumed. Retained here (commented) only as a
+# historical least-privilege reference for each service's AWS needs.
+# ── Per-service IRSA roles (least privilege) — REMOVED: no-EKS-ever mandate ──────
+# data "aws_iam_policy_document" "java_irsa_trust" {
+#   for_each = toset(local.java_services)
+#   statement {
+#     actions = ["sts:AssumeRoleWithWebIdentity"]
+#     principals {
+#       type        = "Federated"
+#       identifiers = [local.eks_oidc_provider_arn]
+#     }
+#     condition {
+#       test     = "StringEquals"
+#       variable = "${local.eks_oidc_issuer}:sub"
+#       values   = ["system:serviceaccount:dev:rosettacloud-${each.key}"]
+#     }
+#     condition {
+#       test     = "StringEquals"
+#       variable = "${local.eks_oidc_issuer}:aud"
+#       values   = ["sts.amazonaws.com"]
+#     }
+#   }
+# }
+#
+# resource "aws_iam_role" "java_irsa" {
+#   for_each           = toset(local.java_services)
+#   name               = "rosettacloud-${each.key}-irsa"
+#   assume_role_policy = data.aws_iam_policy_document.java_irsa_trust[each.key].json
+#   tags               = local.tags
+# }
 
-resource "aws_iam_role" "java_irsa" {
-  for_each           = toset(local.java_services)
-  name               = "rosettacloud-${each.key}-irsa"
-  assume_role_policy = data.aws_iam_policy_document.java_irsa_trust[each.key].json
-  tags               = local.tags
-}
-
-# user-service + analytics-service: DynamoDB (+ Cognito backfill for user-service)
-resource "aws_iam_role_policy" "user_service" {
-  name = "perms"
-  role = aws_iam_role.java_irsa["user-service"].id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      { Sid = "Dynamo", Effect = "Allow",
-        Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan"],
-        Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/rosettacloud-*", "arn:aws:dynamodb:us-east-1:${local.account_id}:table/rosettacloud-*/index/*"] },
-      { Sid = "Cognito", Effect = "Allow", Action = ["cognito-idp:AdminUpdateUserAttributes"], Resource = ["arn:aws:cognito-idp:us-east-1:${local.account_id}:userpool/*"] }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy" "analytics_service" {
-  name = "perms"
-  role = aws_iam_role.java_irsa["analytics-service"].id
-  policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{ Sid = "Dynamo", Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"], Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/rosettacloud-users"] }]
-  })
-}
-
-# question-service: S3 read
-resource "aws_iam_role_policy" "question_service" {
-  name = "perms"
-  role = aws_iam_role.java_irsa["question-service"].id
-  policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{ Sid = "S3", Effect = "Allow", Action = ["s3:GetObject", "s3:ListBucket"], Resource = ["arn:aws:s3:::rosettacloud-shared-interactive-labs", "arn:aws:s3:::rosettacloud-shared-interactive-labs/*"] }]
-  })
-}
-
-# chat-service: Bedrock Nova Lite 2 + AgentCore invoke
-resource "aws_iam_role_policy" "chat_service" {
-  name = "perms"
-  role = aws_iam_role.java_irsa["chat-service"].id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      { Sid = "Bedrock", Effect = "Allow", Action = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:Converse", "bedrock:ConverseStream"],
-        Resource = ["arn:aws:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0", "arn:aws:bedrock:us-east-1:${local.account_id}:inference-profile/us.amazon.nova-2-lite-v1:0"] },
-      { Sid = "AgentCore", Effect = "Allow", Action = ["bedrock-agentcore:InvokeAgentRuntime"], Resource = ["arn:aws:bedrock-agentcore:us-east-1:${local.account_id}:runtime/*"] }
-    ]
-  })
-}
+# # user-service + analytics-service: DynamoDB (+ Cognito backfill for user-service)
+# resource "aws_iam_role_policy" "user_service" {
+#   name = "perms"
+#   role = aws_iam_role.java_irsa["user-service"].id
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       { Sid = "Dynamo", Effect = "Allow",
+#         Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan"],
+#         Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/rosettacloud-*", "arn:aws:dynamodb:us-east-1:${local.account_id}:table/rosettacloud-*/index/*"] },
+#       { Sid = "Cognito", Effect = "Allow", Action = ["cognito-idp:AdminUpdateUserAttributes"], Resource = ["arn:aws:cognito-idp:us-east-1:${local.account_id}:userpool/*"] }
+#     ]
+#   })
+# }
+#
+# resource "aws_iam_role_policy" "analytics_service" {
+#   name = "perms"
+#   role = aws_iam_role.java_irsa["analytics-service"].id
+#   policy = jsonencode({
+#     Version   = "2012-10-17"
+#     Statement = [{ Sid = "Dynamo", Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"], Resource = ["arn:aws:dynamodb:us-east-1:${local.account_id}:table/rosettacloud-users"] }]
+#   })
+# }
+#
+# # question-service: S3 read
+# resource "aws_iam_role_policy" "question_service" {
+#   name = "perms"
+#   role = aws_iam_role.java_irsa["question-service"].id
+#   policy = jsonencode({
+#     Version   = "2012-10-17"
+#     Statement = [{ Sid = "S3", Effect = "Allow", Action = ["s3:GetObject", "s3:ListBucket"], Resource = ["arn:aws:s3:::rosettacloud-shared-interactive-labs", "arn:aws:s3:::rosettacloud-shared-interactive-labs/*"] }]
+#   })
+# }
+#
+# # chat-service: Bedrock Nova Lite 2 + AgentCore invoke
+# resource "aws_iam_role_policy" "chat_service" {
+#   name = "perms"
+#   role = aws_iam_role.java_irsa["chat-service"].id
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       { Sid = "Bedrock", Effect = "Allow", Action = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:Converse", "bedrock:ConverseStream"],
+#         Resource = ["arn:aws:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0", "arn:aws:bedrock:us-east-1:${local.account_id}:inference-profile/us.amazon.nova-2-lite-v1:0"] },
+#       { Sid = "AgentCore", Effect = "Allow", Action = ["bedrock-agentcore:InvokeAgentRuntime"], Resource = ["arn:aws:bedrock-agentcore:us-east-1:${local.account_id}:runtime/*"] }
+#     ]
+#   })
+# }
 # lab-service: uses the in-cluster SA token for the K8s API (no AWS perms required).
 
 # ── Event backbone (WP-60): progress/metrics fan-out ───────────────────────────
@@ -175,7 +178,7 @@ resource "aws_iam_role_policy" "e2e_tester" {
     Version = "2012-10-17"
     Statement = [
       { Sid = "BedrockNovaLite2", Effect = "Allow", Action = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:Converse", "bedrock:ConverseStream"],
-        Resource = ["arn:aws:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0", "arn:aws:bedrock:us-east-1:${local.account_id}:inference-profile/us.amazon.nova-2-lite-v1:0"] },
+      Resource = ["arn:aws:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0", "arn:aws:bedrock:us-east-1:${local.account_id}:inference-profile/us.amazon.nova-2-lite-v1:0"] },
       { Sid = "AgentCoreInvoke", Effect = "Allow", Action = ["bedrock-agentcore:InvokeAgentRuntime"], Resource = "arn:aws:bedrock-agentcore:us-east-1:${local.account_id}:runtime/*" }
     ]
   })

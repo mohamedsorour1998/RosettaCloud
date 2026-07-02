@@ -8,7 +8,10 @@ output "github_oidc_role_arns" {
 
 ################################################################################
 # EKS
+# REMOVED: no-EKS-ever mandate — module.eks is removed (see main.tf), so these
+# outputs have no source.
 ################################################################################
+/*
 output "eks_cluster_endpoint" {
   value       = module.eks.cluster_endpoints["rosettacloud"]
   description = "EKS cluster API endpoint"
@@ -23,6 +26,7 @@ output "eks_cluster_arn" {
   value       = module.eks.cluster_arns["rosettacloud"]
   description = "EKS cluster ARN"
 }
+*/
 
 ################################################################################
 # Route53
@@ -68,11 +72,15 @@ output "interactive_labs_vector_bucket_name" {
 
 ################################################################################
 # IRSA
+# REMOVED: no-EKS-ever mandate — aws_iam_role.backend_irsa is commented out in
+# main.tf (its trust depends on the removed EKS OIDC provider).
 ################################################################################
+/*
 output "backend_irsa_role_arn" {
   value       = aws_iam_role.backend_irsa.arn
   description = "IAM role ARN for backend service account (IRSA)"
 }
+*/
 
 ################################################################################
 # DynamoDB

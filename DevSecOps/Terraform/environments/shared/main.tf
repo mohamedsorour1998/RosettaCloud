@@ -10,8 +10,11 @@ locals {
 
   azs = slice(data.aws_availability_zones.available.names, 0, 3)
 
-  eks_oidc_provider_arn = module.eks.oidc_provider_arns["rosettacloud"]
-  eks_oidc_issuer       = replace(local.eks_oidc_provider_arn, "/^arn:aws[^:]*:iam::\\d+:oidc-provider\\//", "")
+  # REMOVED: no-EKS-ever mandate — EKS OIDC provider locals.
+  # These were consumed ONLY by IRSA trust policies (backend_irsa here + java_irsa in
+  # backend-java.tf), which are themselves commented out below / in backend-java.tf.
+  # eks_oidc_provider_arn = module.eks.oidc_provider_arns["rosettacloud"]
+  # eks_oidc_issuer       = replace(local.eks_oidc_provider_arn, "/^arn:aws[^:]*:iam::\\d+:oidc-provider\\//", "")
 
   tags = {
     Terraform   = "true"
@@ -67,7 +70,12 @@ module "iam" {
 
 ################################################################################
 # EKS Module
+# REMOVED: no-EKS-ever mandate. This architecture runs on k3s (see backend-java.tf
+# NOTE); no EKS cluster is provisioned. Verified there is no live cluster
+# (`aws eks list-clusters` -> []). All dependents (IRSA trust, EKS access entries,
+# eks_* outputs) are commented out alongside this block.
 ################################################################################
+/*
 module "eks" {
   source = "../../modules/eks"
 
@@ -92,6 +100,7 @@ module "eks" {
     }
   }
 }
+*/
 
 ################################################################################
 # Route53 Module
@@ -406,7 +415,11 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "interactive_labs_
 
 ################################################################################
 # IRSA – Backend Service Account IAM Role
+# REMOVED: no-EKS-ever mandate — the IRSA trust below federates against the
+# (now-removed) EKS OIDC provider. With no EKS cluster, this role can never be
+# assumed; backend AWS access is provided out-of-cluster (k3s + aws-creds secret).
 ################################################################################
+/*
 data "aws_iam_policy_document" "backend_irsa_trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -485,6 +498,7 @@ resource "aws_iam_role_policy" "backend_irsa_permissions" {
     ]
   })
 }
+*/
 
 ################################################################################
 # DynamoDB – SessionTable (legacy ai_chatbot chat history, kept for data)
@@ -684,7 +698,11 @@ resource "aws_lambda_permission" "eventbridge_document_indexer" {
 
 ################################################################################
 # EKS Access Entry – github-actions-role (for kubectl rollout restart in CI)
+# REMOVED: no-EKS-ever mandate — no EKS cluster exists, so CI does not perform
+# kubectl rollouts against EKS. These blocks reference the removed module.eks
+# (access entry/association) and an EKS cluster ARN (inline policy).
 ################################################################################
+/*
 resource "aws_iam_role_policy" "github_actions_eks" {
   name = "github-actions-eks-access"
   role = "github-actions-role"
@@ -715,6 +733,7 @@ resource "aws_eks_access_policy_association" "github_actions_admin" {
     type = "cluster"
   }
 }
+*/
 
 ################################################################################
 # API Gateway + Cognito
