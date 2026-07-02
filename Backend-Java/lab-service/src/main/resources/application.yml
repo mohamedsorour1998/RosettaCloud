@@ -37,3 +37,25 @@ management:
     health:
       probes:
         enabled: true
+
+# Circuit breaker tuning (Part B §B.3.2). The Spring Cloud CircuitBreaker factory delegates config
+# resolution to the resilience4j registry's named "default" configuration, so with the
+# resilience4j-spring-boot3 starter on the classpath these properties (NOT a Spring Cloud
+# Customizer bean) are the effective way to tune the breaker. create("user-session") uses group
+# "default", so configs.default applies to lab-service's cross-boundary breaker.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+  timelimiter:
+    configs:
+      default:
+        # Headroom over the client's 5s read timeout so a slow-but-successful user-service response is
+        # not falsely counted as a timeout (overrides Spring Cloud's 1s default TimeLimiter).
+        timeout-duration: 6s

@@ -25,6 +25,21 @@
             <artifactId>kubernetes-client</artifactId>
         </dependency>
 
+        <!-- Spring Cloud CircuitBreaker (Resilience4j backend) — Part B §B.3.
+             Rolling-window failure-rate breaker + TimeLimiter + Micrometer meters on Boot 4. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+        <!-- Bulkhead is <optional> in the CircuitBreaker starter POM, so it is not pulled
+             transitively; add it explicitly so the Resilience4j factory's ThreadPool/Bulkhead
+             support autoconfigures (needed by Resilience4jBulkheadProvider; enables the per-id
+             Bulkhead the target design calls for in §B.3.2). Version from resilience4j-bom. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-bulkhead</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
