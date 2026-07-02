@@ -45,6 +45,101 @@ Once each prefix has run on the Java service in production for ≥7 days with no
 3. Keep the Python AI/RAG plane (AgentCore runtime + `document_indexer`/`agent_tools` Lambdas + LanceDB) —
    it is invoked by chat-service and is out of scope for the Java migration.
 
+## AgentCore chat path — Part A readiness (verified 2026-07-02, acct 339712964409)
+
+`chat-service` defaults to `CHAT_INVOKER=agentcore` and targets the managed Python AgentCore runtime
+(`AgentCoreInvoker` → `bedrock-agentcore:InvokeAgentRuntime`). Pre-flight inventory of that plane:
+
+| Component | State | Evidence |
+|-----------|-------|----------|
+| Runtime `rosettacloud_education_agent-yebWcC9Yqy` | **READY in control plane but NOT invocable** | `list-agent-runtimes` → `READY`; 2× `agentcore invoke` → `RuntimeClientError: Runtime initialization time exceeded (120s)` |
+| Runtime container image | **DELETED** | runtime artifact `containerUri = …/bedrock-agentcore-rosettacloud_education_agent:20260411-233818-959`; `ecr describe-repositories` on that repo → `RepositoryNotFoundException` |
+| Execution role `rosettacloud-agentcore-runtime-role` | **EXISTS** | `iam get-role` (last used 2026-05-06) |
+| Memory `rosettacloud_education_memory_v2-vvC3mbAmra` | **ACTIVE** | `list-memories` — the ID injected by `agent-deploy.yml` (canonical) |
+| Memory `rosettacloud_education_memory-evO1o3F0jN` | **ACTIVE** | `list-memories` — the older README/flow.MD ID (both survive) |
+| `agent_tools` Lambda | **EXISTS** (idle) | `lambda get-function` (image `rosettacloud-agent_tools-lambda:latest`) |
+| MCP Gateway `rosettacloud-education-tools` | **READY** (`authorizerType=NONE`) | `list-gateways` |
+| `GATEWAY_URL` GitHub var | **SET** | `…-chuvlytfxx.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp` |
+| CodeBuild `…-agent-builder` + source bucket | **EXIST** | `codebuild batch-get-projects`, `s3api head-bucket` |
+
+**Verdict: everything survived decommission EXCEPT the runtime's ECR image.** The runtime reports `READY` but
+fails every cold-start (the managed service cannot re-pull the deleted image); last successful run 2026-05-06.
+This is **not** a `chat-service` wiring bug — the ConfigMap ARN, `CHAT_INVOKER`, and the
+`AGENT_RUNTIME_ARN` → `rosettacloud.chat.agent-runtime-arn` binding are all correct.
+
+### Why redeploy was FLAGGED, not executed
+Restoring the runtime requires an **`agentcore launch` → CodeBuild ARM64 image rebuild** — i.e. rebuilding a
+deliberately-decommissioned plane. Per the owner mandate (recurring-cost / decommissioned infra is flagged,
+not silently provisioned) this is left for an explicit owner go. Cost is low (CodeBuild ≈ a few ¢/build;
+AgentCore runtime bills per-invocation, ~$0 idle) but the decision is the owner's. The green chat path does
+**not** depend on it: e2e uses `CHAT_INVOKER=bedrock-direct` (real Nova Lite 2, same tutor/grader/planner
+prompts) — a true graceful fallback (loses MCP tools + cross-session memory, still answers).
+
+### Exact redeploy sequence (owner runs this to reactivate the AgentCore path)
+Prereq that currently BLOCKS both this and `agent-deploy.yml`: the agent ECR repo is gone and
+`.bedrock_agentcore.yaml` has `ecr_auto_create: false`, so a launch fails until the repo is recreated:
+```bash
+# 0) Recreate the agent image repo (one-time) — unblocks agentcore launch / agent-deploy.yml
+aws ecr create-repository --repository-name bedrock-agentcore-rosettacloud_education_agent \
+  --image-scanning-configuration scanOnPush=true --region us-east-1
+
+# 1) Build + push + deploy (ARM64 via CodeBuild — NO local Docker needed)
+cd Backend/agents
+agentcore configure -e agent.py -n rosettacloud_education_agent \
+  -er arn:aws:iam::339712964409:role/rosettacloud-agentcore-runtime-role -rf requirements.txt -r us-east-1 -ni
+agentcore launch --auto-update-on-conflict \
+  --env BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory_v2-vvC3mbAmra \
+  --env GATEWAY_URL="https://rosettacloud-education-tools-chuvlytfxx.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp" \
+  --env NOVA_MODEL_ID=us.amazon.nova-2-lite-v1:0
+agentcore status                      # wait for READY; capture the (possibly NEW) agent ARN
+
+# 2) Verify against the live runtime
+agentcore invoke '{"message":"What is Docker?","type":"chat","session_id":"verify-1234567890abcdef1234567890xyz"}'
+# expect {"agent":"tutor|grader|planner","response":"…"}
+
+# 3) If agentcore minted a NEW ARN, update AGENT_RUNTIME_ARN in chat-service/k8s/chat-service.yaml then rollout.
+```
+Readiness checklist before flipping prod chat to `agentcore`: [ ] runtime READY **and** `agentcore invoke`
+returns non-empty; [ ] `AGENT_RUNTIME_ARN` in the ConfigMap == live ARN; [ ] pod holds `InvokeAgentRuntime`
+creds (EC2 instance profile on the persistent node, or the `aws-creds` secret on k3s-in-runner); [ ]
+`agent-deploy.yml` re-run green (or ECR repo pre-created as above).
+
+### Failover (first-class switch — no code change)
+```bash
+kubectl set env deploy/rosettacloud-chat-service -n dev CHAT_INVOKER=bedrock-direct   # AgentCore → direct Nova
+kubectl rollout status deploy/rosettacloud-chat-service -n dev
+kubectl set env deploy/rosettacloud-chat-service -n dev CHAT_INVOKER=agentcore        # fail back
+```
+Hardening shipped with this note: `AgentCoreInvoker.parseReply` now **fails open** (empty/garbled runtime body
+→ friendly HTTP 200 reply, unit-tested in `AgentCoreInvokerTest`) so a runtime hiccup no longer 500s `/chat`
+(§A.2.4). A **thrown** SDK error (e.g. the current init-timeout) is still surfaced until the chat→AI-plane
+circuit breaker lands (Part B, sequenced after the runtime is live). The chat SA's dormant IRSA annotation was
+removed (NO-EKS; creds resolve via instance profile / `aws-creds`).
+
+## Persistent runtime WITHOUT EKS — Part C recommendation + COST FLAG (assessment only)
+
+**Not provisioned.** Part C is design-only here; standing up persistent compute is recurring-cost infra and
+requires explicit owner approval (full decision matrix in `AGENTCORE-RESILIENCE4J-RUNTIME-PLAN.md` §C.1).
+
+**Recommendation:** persistent **single-node k3s on one EC2** (t3.small→medium, Amazon Linux 2023, gp3
+30–50 GB, Elastic IP, EC2 **instance profile** in lieu of IRSA), Istio ingress on NodePort 80 behind the
+existing CloudFront/API-GW origin (`node_public_dns:istio_http_nodeport=80`). Reuses 100% of the current
+manifests/Istio/ECR — the same runtime CI already validates on k3s-in-runner — growable to 3-server HA later.
+Rejected: EKS (owner mandate + ~$73/mo control-plane floor); ECS/App Runner/Nomad (break Istio VS + the
+lab-service Fabric8 in-cluster pod model).
+
+**COST FLAG (recurring, us-east-1, approximate):**
+- EC2 t3.small on-demand ≈ **$15/mo** (t3.medium ≈ $30/mo); spot ≈ half.
+- gp3 40 GB ≈ **$3–4/mo**; attached Elastic IP = $0.
+- No NAT gateway (node egresses via public IP) — preserves the current ~$32/mo/AZ saving.
+- **Steady-state ≈ $20–35/mo infra** + usage-based Bedrock/AgentCore (gated by the 50-msg/wk AI quota +
+  30/hr chat limit). Far below EKS.
+
+**High-impact caveat (R-C1):** `main.tf` still instantiates an **EKS module**; removing it will plan the
+**destruction** of that cluster. Before any `terraform apply`: `terraform state list | grep eks` and
+`terraform state pull > backup.tfstate`, do it off-hours, and confirm nothing else references it. Owner-gated —
+not performed here.
+
 ## Provisioned AWS resources (real, us-east-1, acct 339712964409)
 Created out-of-band to match `backend-java.tf` (EKS-independent; low-cost + reversible):
 - **ECR ×5**: `rosettacloud-{user,lab,question,chat,analytics}-service` — scan-on-push, MUTABLE, keep-last-10.

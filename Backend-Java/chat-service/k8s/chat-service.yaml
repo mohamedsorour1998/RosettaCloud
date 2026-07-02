@@ -19,8 +19,10 @@ kind: ServiceAccount
 metadata:
   name: rosettacloud-chat-service
   namespace: dev
-  annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::339712964409:role/rosettacloud-chat-service-irsa
+  # NO-EKS mandate: credentials come from the EC2 instance profile (persistent node, Part C) or the
+  # `aws-creds` secret (k3s-in-runner), resolved by DefaultCredentialsProvider — NOT IRSA. The former
+  # eks.amazonaws.com/role-arn annotation was dormant (it referenced an OIDC provider that does not
+  # exist) and is removed to avoid confusion. See AGENTCORE-RESILIENCE4J-RUNTIME-PLAN.md §A.2.2 / §C.2.6.
 ---
 apiVersion: apps/v1
 kind: Deployment
