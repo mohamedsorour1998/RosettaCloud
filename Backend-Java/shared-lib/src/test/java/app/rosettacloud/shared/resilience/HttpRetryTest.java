@@ -55,4 +55,22 @@ class HttpRetryTest {
         })).isInstanceOf(HttpClientErrorException.class);
         assertThat(calls.get()).isEqualTo(1);
     }
+
+    @Test
+    void backoffStaysWithinTargetAndHardCap() {
+        // Full jitter stays within [0, target] for a sub-cap target (the clients' (2,150) case)...
+        for (int i = 0; i < 2000; i++) {
+            assertThat(HttpRetry.backoffMillis(150, 1)).isBetween(0L, 150L);
+        }
+        // ...and can never exceed the hard cap, even for a large base delay and attempt number.
+        for (int i = 0; i < 2000; i++) {
+            assertThat(HttpRetry.backoffMillis(10_000, 5)).isBetween(0L, HttpRetry.MAX_BACKOFF_MS);
+        }
+    }
+
+    @Test
+    void backoffIsZeroForNonPositiveTarget() {
+        assertThat(HttpRetry.backoffMillis(0, 3)).isZero();
+        assertThat(HttpRetry.backoffMillis(150, 0)).isZero();
+    }
 }
