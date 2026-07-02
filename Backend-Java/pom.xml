@@ -28,6 +28,16 @@
         <aws.sdk.version>2.46.18</aws.sdk.version>
         <fabric8.version>7.8.0</fabric8.version>
         <testcontainers.version>1.21.4</testcontainers.version>
+        <!-- Spring Cloud release train (Oakwood, GA 2025-11-25): SF7 / Boot 4, all modules 5.0.0.
+             Brings Spring Cloud CircuitBreaker 5.0.x (Resilience4j backend) for Part B (B.3). -->
+        <spring-cloud.version>2025.1.0</spring-cloud.version>
+        <!-- Resilience4j: aligned with the version Spring Cloud CircuitBreaker 5.0.0 wraps
+             (resilience4j-core 2.3.0). Only needed to supply resilience4j-bulkhead, which the
+             CircuitBreaker starter marks <optional> so it is not pulled transitively (B.3.1). -->
+        <resilience4j.version>2.3.0</resilience4j.version>
+        <!-- CVE-2025-14813 fix: force the transitive bcprov-jdk18on (from spring-cloud-context) to the
+             1.81.1 patch. 1.81 is flagged CRITICAL (fixed in 1.80.2 / 1.81.1 / 1.84 per NVD/Trivy). -->
+        <bouncycastle.version>1.81.1</bouncycastle.version>
 
         <!-- Build plugin versions (JaCoCo is not in the Spring Boot BOM) -->
         <jacoco.version>0.8.13</jacoco.version>
@@ -69,6 +79,39 @@
                 <version>${fabric8.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- Spring Cloud release train BOM (Oakwood 2025.1.0). Imported last so it only supplies
+                 versions the Boot/AWS/Fabric8 BOMs above do not already manage. Provides
+                 spring-cloud-starter-circuitbreaker-resilience4j (Circuit Breaker, Part B §B.3). -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Resilience4j BOM — pins every resilience4j module to one version (spring-cloud-dependencies
+                 does NOT manage resilience4j). Lets modules add the <optional> resilience4j-bulkhead
+                 without a hard-coded version, aligned with the 2.3.0 the CircuitBreaker starter wraps. -->
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-bom</artifactId>
+                <version>${resilience4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- SECURITY (CVE-2025-14813, CRITICAL): spring-cloud-context 5.0.0 transitively pulls
+                 org.bouncycastle:bcprov-jdk18on:1.81 (GOSTCTR flaw). It is the ONLY BouncyCastle
+                 artifact on the classpath and is used only by spring-cloud-context for {cipher}
+                 config decryption, which no service uses. Pin to the 1.81.1 patch (fixed per NVD)
+                 to clear the Trivy CRITICAL gate while keeping the crypto provider available. -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
