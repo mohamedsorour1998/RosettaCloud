@@ -11,6 +11,9 @@ public class LabProperties {
     private String istioGateway = "rosettacloud-gateway";
     private long podTtlSeconds = 3600;
 
+    /** Resource requests/limits for the lab pod (T4 — noisy-neighbour bound; §5.3). */
+    private Resources resources = new Resources();
+
     public String getNamespace() {
         return namespace;
     }
@@ -49,5 +52,76 @@ public class LabProperties {
 
     public void setPodTtlSeconds(long podTtlSeconds) {
         this.podTtlSeconds = podTtlSeconds;
+    }
+
+    public Resources getResources() {
+        return resources;
+    }
+
+    public void setResources(Resources resources) {
+        this.resources = resources;
+    }
+
+    /**
+     * Lab-pod resource envelope, tunable without a rebuild via
+     * {@code rosettacloud.lab.resources.*}. Defaults track §5.3 of the hardening plan
+     * (privileged DinD/Kind needs headroom), with an explicit ephemeral-storage *request*
+     * so the pod stays schedulable even outside the {@code labs} LimitRange.
+     */
+    public static class Resources {
+        private String requestsCpu = "500m";
+        private String requestsMemory = "1Gi";
+        private String requestsEphemeralStorage = "2Gi";
+        private String limitsCpu = "2";
+        private String limitsMemory = "3Gi";
+        private String limitsEphemeralStorage = "8Gi";
+
+        public String getRequestsCpu() {
+            return requestsCpu;
+        }
+
+        public void setRequestsCpu(String requestsCpu) {
+            this.requestsCpu = requestsCpu;
+        }
+
+        public String getRequestsMemory() {
+            return requestsMemory;
+        }
+
+        public void setRequestsMemory(String requestsMemory) {
+            this.requestsMemory = requestsMemory;
+        }
+
+        public String getRequestsEphemeralStorage() {
+            return requestsEphemeralStorage;
+        }
+
+        public void setRequestsEphemeralStorage(String requestsEphemeralStorage) {
+            this.requestsEphemeralStorage = requestsEphemeralStorage;
+        }
+
+        public String getLimitsCpu() {
+            return limitsCpu;
+        }
+
+        public void setLimitsCpu(String limitsCpu) {
+            this.limitsCpu = limitsCpu;
+        }
+
+        public String getLimitsMemory() {
+            return limitsMemory;
+        }
+
+        public void setLimitsMemory(String limitsMemory) {
+            this.limitsMemory = limitsMemory;
+        }
+
+        public String getLimitsEphemeralStorage() {
+            return limitsEphemeralStorage;
+        }
+
+        public void setLimitsEphemeralStorage(String limitsEphemeralStorage) {
+            this.limitsEphemeralStorage = limitsEphemeralStorage;
+        }
     }
 }

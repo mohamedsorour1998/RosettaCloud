@@ -1,0 +1,40 @@
+# Plan 2 — Phase 5 (observe stage) — Pod Security Admission labels.
+# Ref: DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md §6.1, §9.2
+#
+# WHY warn/audit=restricted and NOT enforce (KEEP GREEN — this is the important part):
+#   `warn` and `audit` NEVER block admission — they only surface a client warning and an
+#   audit-log annotation. `enforce=restricted`, by contrast, would REJECT any pod that
+#   isn't restricted-compliant. The `dev` namespace still hosts UNHARDENED workloads that
+#   would be rejected by enforce:
+#     • the e2e test-infra (localstack / redis / mock-oidc — root, no securityContext),
+#     • the legacy FastAPI `rosettacloud-backend` and (pre-swap) Angular frontend.
+#   Turning on enforce now would break the e2e stack and the legacy pods. So enforce is
+#   left OFF and deferred to a later GATED step (§6.1 Phase B), to be flipped only AFTER
+#   the legacy be/fe are hardened/relocated and the e2e infra is either hardened or moved.
+#
+# HOW TO APPLY WITHOUT CLOBBERING existing labels:
+#   `kubectl apply` merges labels — it only manages the fields in this manifest, so the
+#   live `dev` labels it does not list (e.g. istio-injection=enabled) are preserved.
+#   Equivalent imperative form:
+#     kubectl label ns dev pod-security.kubernetes.io/warn=restricted \
+#                          pod-security.kubernetes.io/audit=restricted --overwrite
+#
+#   The `labs` namespace's PSA labels (also warn/audit=restricted, no enforce) live in
+#   labs-namespace.yaml — the single definition of the `labs` Namespace object — so they
+#   are NOT redefined here (that would be a duplicate object). Together the two files give
+#   "dev + labs = warn=restricted + audit=restricted, no enforce".
+#
+# Later GATED step (do NOT enable here):
+#   dev  -> pod-security.kubernetes.io/enforce: restricted (+ enforce-version: latest)
+#   labs -> pod-security.kubernetes.io/enforce: privileged
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    # pod-security.kubernetes.io/enforce: restricted          # LATER, gated (§6.1 Phase B)
+    # pod-security.kubernetes.io/enforce-version: latest

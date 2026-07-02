@@ -1,3 +1,20 @@
+# Plan 2 — §8 (adjacent scope) — STATIC hardening of the frontend Deployment.
+# Ref: DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md §8, §3.2
+#
+# ⚠️ INTEGRATOR FLAG (image): per §8 the image below is the canonical unprivileged nginx
+#    base `nginxinc/nginx-unprivileged:alpine` (listens :8080, non-root). That STOCK image
+#    serves nginx's default page, NOT the RosettaCloud SPA. The REAL production image
+#    `…/rosettacloud-frontend` is ALREADY a hardened non-root nginx on :8080
+#    (Frontend/Dockerfile: nginx:1.27-alpine, USER 1000, RO-rootfs-ready) and is what the
+#    ACTIVE pipeline (frontend-deploy.yml) deploys and SPA-smoke-tests. Before any real EKS
+#    apply, swap the image to `…/rosettacloud-frontend:<sha>` — it already satisfies this
+#    exact securityContext. This file is NOT applied by any CI pipeline (staged).
+#
+# Hardening added (clears Trivy KSV-0118/0012/0001/0003/0014/0030/0011/0106; `:alpine`
+# also avoids the KSV-0013 ":latest" finding): pod+container restricted securityContext,
+# drop ALL caps, RO-rootfs with writable emptyDirs (/tmp, /var/cache/nginx), seccomp
+# RuntimeDefault, full CPU/mem/ephemeral requests+limits. Service `port` stays 80
+# (ingress/VirtualService routing unchanged); only targetPort moves to 8080.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,12 +30,50 @@ spec:
       labels:
         app: rosettacloud-frontend
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: rosettacloud-frontend
-          image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-frontend:latest
+          image: nginxinc/nginx-unprivileged:alpine   # INTEGRATOR: swap to …/rosettacloud-frontend:<sha> for a real deploy (see header)
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: { path: /, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi, ephemeral-storage: 256Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: nginx-cache, mountPath: /var/cache/nginx }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+        - name: nginx-cache
+          emptyDir: { sizeLimit: 64Mi }
 
 ---
 apiVersion: v1
@@ -31,6 +86,6 @@ spec:
     app: rosettacloud-frontend
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 80
+      port: 80          # cluster-facing port unchanged (ingress/VirtualService route here)
+      targetPort: 8080  # container now listens on unprivileged :8080
   type: ClusterIP

@@ -1,3 +1,13 @@
+# Plan 2 — §8 (adjacent scope) — STATIC hardening of the legacy FastAPI backend Deployment.
+# Ref: DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md §8, §3.2
+#
+# INTEGRATOR FLAG: the image historically runs `uvicorn … --port 80` as ROOT and bundles
+# kubectl + sudo. This manifest now forces non-root uid 1000 on :8080 with a restricted
+# securityContext (RO-rootfs + drop ALL caps). Validate on a real cluster before enforce:
+# the FastAPI app must not need to write outside /tmp (HOME=/tmp is provided) and any
+# in-container kubectl calls must tolerate a read-only rootfs. NOT applied by any CI
+# pipeline (staged). Service `port` stays 80 so ingress/VirtualService/strangler routing
+# is unchanged; only targetPort moves to 8080.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -32,13 +42,28 @@ spec:
         app: rosettacloud-backend
     spec:
       serviceAccountName: rosettacloud-backend
+      # SA token stays mounted (default) — this service calls the K8s API for lab mgmt.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: rosettacloud-backend
-          image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-backend:latest
+          image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-backend:latest   # pin to :<sha> in CI (KSV013)
           imagePullPolicy: Always
+          # Image CMD runs `uvicorn … --port 80` as root; override to non-root :8080
+          # (dropping ALL caps removes NET_BIND_SERVICE, so binding a <1024 port is impossible).
+          command: ["uvicorn"]
+          args: ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]
           ports:
-            - containerPort: 80
+            - containerPort: 8080
           env:
+            - name: HOME                 # writable HOME for uvicorn/kubectl caches under RO-rootfs
+              value: /tmp
             - name: LAB_IMAGE_PULL_SECRET
               valueFrom:
                 configMapKeyRef:
@@ -84,6 +109,28 @@ spec:
                 configMapKeyRef:
                   name: rosettacloud-backend-config
                   key: COGNITO_ISSUER_URL
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          readinessProbe:
+            httpGet: { path: /health-check, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 384Mi, ephemeral-storage: 128Mi }
+            limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 512Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
 
 ---
 apiVersion: v1
@@ -96,6 +143,6 @@ spec:
     app: rosettacloud-backend
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 80
+      port: 80          # cluster-facing port unchanged (ingress/VirtualService/strangler route here)
+      targetPort: 8080  # container now listens on unprivileged :8080
   type: ClusterIP

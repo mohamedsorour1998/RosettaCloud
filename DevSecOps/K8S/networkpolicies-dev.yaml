@@ -1,0 +1,138 @@
+# Plan 2 — Phase 4 — default-deny + explicit allow-lists for the `dev` namespace.
+# Ref: DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md §6.2  (threat T5)
+#
+# KEEP GREEN — the default-deny policies ship TOGETHER with the allow-lists in this same
+# file, so applying it never black-holes required traffic:
+#   • DNS         — allow-dns-egress (every pod → kube-dns 53/UDP+TCP)
+#   • ingress     — allow-istio-to-services (Istio gateway → each service port)
+#   • inter-svc   — services-egress → user-service:8081 ; redis-allow-chat / →redis:6379
+#   • egress 443  — services-egress → 0.0.0.0/0:443  (AWS DynamoDB/Bedrock/S3/SQS/STS
+#                   *and* the EKS API server used by lab-service/question-service)
+#
+# NOTE (no duplicate object): `user-service-internal-allowlist` already exists in
+# DevSecOps/K8S/strangler-virtualservice.yaml and is additive to these policies, so it is
+# intentionally NOT redefined here (a second copy in this dir would be a duplicate object
+# on `kubectl apply -f DevSecOps/K8S/`). `allow-istio-to-services` still covers
+# user-service ingress from the gateway.
+#
+# NOT applied by any CI pipeline (staged). Requires a policy-enforcing CNI to take effect
+# (k3s kube-router enforces; EKS needs VPC-CNI NetworkPolicy enabled or Calico/Cilium —
+# see §6.2 caveat + §7.4). Until enforced these are safe no-ops.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: dev
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# DNS must be allowed for every pod or all name resolution breaks under default-deny.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: dev
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# Public traffic path: the Istio ingress gateway may reach each service's port.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-istio-to-services
+  namespace: dev
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - rosettacloud-user-service
+          - rosettacloud-lab-service
+          - rosettacloud-question-service
+          - rosettacloud-chat-service
+          - rosettacloud-analytics-service
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+---
+# chat-service -> Redis:6379 (ingress half, on the redis pod).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-allow-chat
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: rosettacloud-chat-service
+      ports:
+        - { protocol: TCP, port: 6379 }
+---
+# App-tier egress: DNS + inter-service + Redis + AWS APIs/EKS API server (443).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: services-egress
+  namespace: dev
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - rosettacloud-user-service
+          - rosettacloud-lab-service
+          - rosettacloud-question-service
+          - rosettacloud-chat-service
+          - rosettacloud-analytics-service
+  policyTypes: [Egress]
+  egress:
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # inter-service -> user-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: rosettacloud-user-service
+      ports:
+        - { protocol: TCP, port: 8081 }
+    # chat -> redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - { protocol: TCP, port: 6379 }
+    # AWS DynamoDB/Bedrock/S3/SQS/STS + EKS API server (tighten to VPC-endpoint CIDRs later)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - { protocol: TCP, port: 443 }

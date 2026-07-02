@@ -1,0 +1,80 @@
+# Plan 2 — Phase 3/4 — default-deny + allow-lists for the `labs` namespace.
+# Ref: DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md §5.5  (threats T2, T3, T5)
+#      Acceptance criterion #5: a lab pod cannot reach 169.254.169.254 or cluster RFC1918.
+#
+# KEEP GREEN — default-deny ships WITH its allow-lists so lab pods keep working:
+#   • DNS      — labs-egress-guardrail rule 1 (interactive-labs → kube-dns 53)
+#   • ingress  — labs-allow-ingress-gateway (Istio gateway → lab pod :80)
+#   • egress   — labs-egress-guardrail rule 2 (internet 80/443 for docker pull / apt)
+#
+# ISOLATION (the whole point): the egress guardrail permits the public internet but
+# EXCLUDES cluster RFC1918 (10/8, 172.16/12, 192.168/16) and the IMDS link-local
+# 169.254.169.254/32 — so a hostile lab pod can neither pivot to in-cluster services (T2)
+# nor steal the node IAM role via IMDS (T3). Pair with node-level IMDSv2 hop-limit=1
+# (Terraform, §5.5) because not every CNI enforces egress to link-local addresses.
+#
+# Apply order: labs-namespace.yaml (creates ns `labs`) is applied before this file
+# (alphabetical). Not applied by any CI pipeline (staged); needs a policy-enforcing CNI.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: labs-default-deny
+  namespace: labs
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# Ingress: only the Istio ingress gateway may reach lab pods on :80.
+# (Lab pods have sidecar injection disabled — annotation sidecar.istio.io/inject=false.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: labs-allow-ingress-gateway
+  namespace: labs
+spec:
+  podSelector:
+    matchLabels:
+      app: interactive-labs
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - { protocol: TCP, port: 80 }
+---
+# Egress: DNS + public internet (docker/apt), but BLOCK cluster RFC1918 and IMDS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: labs-egress-guardrail
+  namespace: labs
+spec:
+  podSelector:
+    matchLabels:
+      app: interactive-labs
+  policyTypes: [Egress]
+  egress:
+    # 1) DNS to kube-dns (kube-system runs on RFC1918, so it must be allowed explicitly;
+    #    NetworkPolicy egress rules are additive so this is not undone by rule 2).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # 2) Public internet only — exclude cluster-internal RFC1918 (T2) and IMDS (T3).
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.169.254/32
+      ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: 80 }

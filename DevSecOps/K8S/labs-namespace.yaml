@@ -1,0 +1,72 @@
+# Plan 2 — Phase 3 — dedicated `labs` namespace for the privileged interactive-lab pods.
+# Ref: DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md §5.5
+#
+# WHY A SEPARATE NAMESPACE
+#   Lab pods run privileged Docker-in-Docker + Kind and CANNOT satisfy PSS `restricted`
+#   (or even `baseline`). Isolating them in their own namespace is what lets `dev` become
+#   `restricted` later without evicting the labs (§5.2, §5.5).
+#
+# POD SECURITY ADMISSION — warn/audit only, NO enforce (KEEP GREEN)
+#   `enforce` is intentionally omitted here and deferred to a later *gated* step
+#   (§6.1 Phase 5). With no enforce label the cluster default (`privileged` on EKS/k3s)
+#   admits the privileged lab pods, so nothing is blocked today. `warn/audit=restricted`
+#   give visibility without gating. The §5.5 end-state is `enforce=privileged` for labs
+#   (privileged is the most-permissive level and never blocks) applied together with
+#   `dev enforce=restricted` — see the commented line below.
+#
+# NOT YET WIRED (separate gated change)
+#   The provisioner still targets LAB_K8S_NAMESPACE (= `dev` today). Actually moving labs
+#   here also needs the labs-scoped RBAC + a namespaced Istio gateway ref (§5.5 steps 1-4).
+#   This file only *creates* the isolated namespace + its quota/limits; it does not move
+#   any traffic on its own.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: labs
+  labels:
+    # Visibility now; gating later. See header + §6.1.
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    # pod-security.kubernetes.io/enforce: privileged   # ENABLE in the later gated step (§6.1 Phase 5)
+---
+# Namespace-wide ceiling so a runaway fleet of labs cannot exhaust the cluster (T4).
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: labs-quota
+  namespace: labs
+spec:
+  hard:
+    pods: "50"
+    requests.cpu: "25"
+    requests.memory: 50Gi
+    limits.cpu: "100"
+    limits.memory: 150Gi
+    requests.ephemeral-storage: 200Gi
+---
+# Per-container defaults + caps. `default`/`defaultRequest` are applied to any lab pod
+# that omits resources, so the ResourceQuota above always has values to count. `max`
+# caps a single lab. The defaultRequest (ephemeral 2Gi) matches the explicit request the
+# provisioner now sets (§5.3) so a lab pod is schedulable even without the LimitRange.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: labs-defaults
+  namespace: labs
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "2"
+        memory: 3Gi
+        ephemeral-storage: 8Gi
+      defaultRequest:
+        cpu: 500m
+        memory: 1Gi
+        ephemeral-storage: 2Gi
+      max:
+        cpu: "4"
+        memory: 6Gi
+        ephemeral-storage: 16Gi

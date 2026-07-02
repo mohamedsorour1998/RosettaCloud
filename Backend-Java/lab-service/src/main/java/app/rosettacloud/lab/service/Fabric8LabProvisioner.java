@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -65,6 +66,7 @@ public class Fabric8LabProvisioner implements LabProvisioner {
 
     private void createPod(String labId) {
         String ns = props.getNamespace();
+        LabProperties.Resources res = props.getResources();
         Pod pod = new PodBuilder()
                 .withNewMetadata()
                     .withName(LabNaming.podName(labId))
@@ -75,12 +77,30 @@ public class Fabric8LabProvisioner implements LabProvisioner {
                 .endMetadata()
                 .withNewSpec()
                     .withRestartPolicy("Always")
+                    // (T2) a privileged pod must NOT hold a usable API token, and should not
+                    // leak sibling Service env vars into the untrusted lab shell.
+                    .withAutomountServiceAccountToken(false)
+                    .withEnableServiceLinks(false)
                     .addNewContainer()
                         .withName("lab")
                         .withImage(props.getPodImage())
                         .withImagePullPolicy("IfNotPresent")
                         .addNewPort().withContainerPort(80).endPort()
-                        .withNewSecurityContext().withPrivileged(true).withRunAsUser(0L).endSecurityContext()
+                        // dockerd genuinely needs privileged until sysbox/gVisor (§5.4); keep it
+                        // but make privilege explicit, and bound the blast radius via resources (T4).
+                        .withNewSecurityContext()
+                            .withPrivileged(true)
+                            .withRunAsUser(0L)
+                            .withAllowPrivilegeEscalation(true)
+                        .endSecurityContext()
+                        .withNewResources()
+                            .addToRequests("cpu", new Quantity(res.getRequestsCpu()))
+                            .addToRequests("memory", new Quantity(res.getRequestsMemory()))
+                            .addToRequests("ephemeral-storage", new Quantity(res.getRequestsEphemeralStorage()))
+                            .addToLimits("cpu", new Quantity(res.getLimitsCpu()))
+                            .addToLimits("memory", new Quantity(res.getLimitsMemory()))
+                            .addToLimits("ephemeral-storage", new Quantity(res.getLimitsEphemeralStorage()))
+                        .endResources()
                         .withNewReadinessProbe()
                             .withNewHttpGet().withPath("/").withNewPort(80).endHttpGet()
                             .withInitialDelaySeconds(3).withPeriodSeconds(3)
