@@ -56,7 +56,7 @@ Once each prefix has run on the Java service in production for ≥7 days with no
 | Runtime container image | **DELETED** | runtime artifact `containerUri = …/bedrock-agentcore-rosettacloud_education_agent:20260411-233818-959`; `ecr describe-repositories` on that repo → `RepositoryNotFoundException` |
 | Execution role `rosettacloud-agentcore-runtime-role` | **EXISTS** | `iam get-role` (last used 2026-05-06) |
 | Memory `rosettacloud_education_memory_v2-vvC3mbAmra` | **ACTIVE** | `list-memories` — the ID injected by `agent-deploy.yml` (canonical) |
-| Memory `rosettacloud_education_memory-evO1o3F0jN` | **ACTIVE** | `list-memories` — the older README/flow.MD ID (both survive) |
+| Memory `rosettacloud_education_memory-evO1o3F0jN` | **ACTIVE (legacy — reconciled)** | `list-memories` — older ID still present in AWS but **no longer referenced by any doc/code** (README, `flow.MD`, and Frontend all now point to the canonical v2 ID above); safe to delete out-of-band |
 | `agent_tools` Lambda | **EXISTS** (idle) | `lambda get-function` (image `rosettacloud-agent_tools-lambda:latest`) |
 | MCP Gateway `rosettacloud-education-tools` | **READY** (`authorizerType=NONE`) | `list-gateways` |
 | `GATEWAY_URL` GitHub var | **SET** | `…-chuvlytfxx.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp` |
@@ -135,10 +135,12 @@ lab-service Fabric8 in-cluster pod model).
 - **Steady-state ≈ $20–35/mo infra** + usage-based Bedrock/AgentCore (gated by the 50-msg/wk AI quota +
   30/hr chat limit). Far below EKS.
 
-**High-impact caveat (R-C1):** `main.tf` still instantiates an **EKS module**; removing it will plan the
-**destruction** of that cluster. Before any `terraform apply`: `terraform state list | grep eks` and
-`terraform state pull > backup.tfstate`, do it off-hours, and confirm nothing else references it. Owner-gated —
-not performed here.
+**Resolved caveat (R-C1):** the **EKS module in `main.tf` is now removed** — the `module "eks"` block (and its
+dependent `aws_eks_access_*` entries and `local.eks_oidc_*` IRSA references) is commented out under a
+`REMOVED: no-EKS-ever mandate` header, so **no EKS cluster is provisioned**. Verified there is no live cluster
+(`aws eks list-clusters` → `[]`), so there is nothing to destroy. If a future change ever re-enables an EKS
+block, first run `terraform state list | grep eks` and `terraform state pull > backup.tfstate` off-hours before
+any `terraform apply`.
 
 ## Provisioned AWS resources (real, us-east-1, acct 339712964409)
 Created out-of-band to match `backend-java.tf` (EKS-independent; low-cost + reversible):

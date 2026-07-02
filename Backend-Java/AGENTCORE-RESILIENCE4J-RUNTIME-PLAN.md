@@ -47,10 +47,10 @@ Three independently-shippable tracks, each with design → build → test → ro
 | Gateway/tools | `Backend/agents/setup_gateway.py`, `serverless/Lambda/agent_tools/handler.py`, `serverless/flow.MD` | MCP Gateway `rosettacloud-education-tools`, `authorizerType=NONE`, target→`agent_tools` Lambda; 6 tools; `GATEWAY_URL` stored as GitHub var. |
 | Agent CI/CD | `.github/workflows/agent-deploy.yml` | push→`main` on `Backend/agents/**`; OIDC `github-actions-role`; `agentcore launch --auto-update-on-conflict --env BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory_v2-vvC3mbAmra --env GATEWAY_URL=…`. |
 | Resilience helper | `shared-lib/.../resilience/HttpRetry.java` | `withRetry(maxAttempts, delayMs, op)` — linear back-off, retries **only** `ResourceAccessException`; 4xx/5xx propagate. |
-| Inter-svc clients | `chat/client/UserAiQuotaClient.java`, `lab/client/UserServiceClient.java`, `question/client/UserProgressClient.java` | 2s connect / 5s read; wrapped in `HttpRetry(2,150)`; fail-open (quota→50, minutes→0, best-effort). **Gap:** `UserServiceClient.setActiveLab` has no fallback → propagates. |
+| Inter-svc clients | `chat/client/UserAiQuotaClient.java`, `lab/client/UserServiceClient.java`, `question/client/UserProgressClient.java` | 2s connect / 5s read; wrapped in `HttpRetry(2,150)`; fail-open (quota→50, minutes→0, best-effort). `UserServiceClient.setActiveLab` is now **retry-wrapped + fail-open** too (log + swallow, consistent with `linkLab`) — the former gap is closed. |
 | Runbook posture | `Backend-Java/docs/RUNBOOK.md` | "Full circuit breakers intentionally NOT added yet (r4j#2351)"; AgentCore path stays Python; NO EKS; creds via `aws-creds` secret. |
 | CI/CD (Java) | `.github/workflows/backend-java-deploy.yml`, `e2e-k3s.yml` | build→ECR (test gate) then deploy onto **k3s-in-runner**; e2e uses `CHAT_INVOKER=bedrock-direct` (real Nova); AgentCore path never hits a live runtime. |
-| Infra | `DevSecOps/Terraform/environments/shared/{main.tf,backend-java.tf,variables.tf,terraform.tfvars}`, `modules/{ec2,sg,iam}` | `main.tf` still instantiates an **EKS module** (contradiction with the no-EKS mandate); `node_public_dns`+`istio_http_nodeport(=80)` already feed CloudFront/API-GW origin; reusable `ec2`+`sg` modules exist; VPC has public subnets, **no NAT**. |
+| Infra | `DevSecOps/Terraform/environments/shared/{main.tf,backend-java.tf,variables.tf,terraform.tfvars}`, `modules/{ec2,sg,iam}` | the **EKS module in `main.tf` is now removed** (commented out under a `REMOVED: no-EKS-ever mandate` header — no cluster provisioned, `aws eks list-clusters` → `[]`); `node_public_dns`+`istio_http_nodeport(=80)` already feed CloudFront/API-GW origin; reusable `ec2`+`sg` modules exist; VPC has public subnets, **no NAT**. |
 | Edge/cutover | `DevSecOps/K8S/strangler-virtualservice.yaml` | Istio VS routes `api.dev` by prefix to the 5 services, default→FastAPI; `/internal/**` never routed; NetworkPolicy locks user-service. |
 
 ### 0.4 Verified external facts (web-checked 2026-07-02)
@@ -145,9 +145,11 @@ derived from what `agent.py`/`tools.py` actually call:
 > data only through the MCP Gateway. Keep that separation.
 
 ### A.1.3 Memory
-`agent-deploy.yml` injects `BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory_v2-vvC3mbAmra`, but
-`serverless/flow.MD`/README reference `rosettacloud_education_memory-evO1o3F0jN`. **These disagree.**
-Action:
+`agent-deploy.yml` injects `BEDROCK_AGENTCORE_MEMORY_ID=rosettacloud_education_memory_v2-vvC3mbAmra`, and
+`serverless/flow.MD`, README, and the Frontend now all reference the **same canonical**
+`rosettacloud_education_memory_v2-vvC3mbAmra` **(reconciled)** — the older `rosettacloud_education_memory-evO1o3F0jN`
+is no longer referenced by any doc/code.
+Resolution (completed — retained for the record):
 1. `aws bedrock-agentcore-control list-memories` to find which (if any) exists.
 2. If neither exists, create one and record the ID as the single source of truth:
    `agentcore memory create --name rosettacloud_education_memory_v2` (or the control-plane `create-memory`).
@@ -420,9 +422,9 @@ This is what to ship **before/independent of** the CB dependency, hardening toda
   These preserve UX when user-service is degraded and **must be preserved verbatim** as the CB fallbacks in B.3.
 
 ### B.2.2 Gaps to fix in the interim (small, no new deps)
-1. **`UserServiceClient.setActiveLab` has no try/catch** → a user-service blip propagates and can fail a lab
-   launch. Give it a fallback consistent with its siblings (log + swallow, or surface a typed
-   `ServiceUnavailable` the caller already tolerates). *This is the one place today that is not fail-open.*
+1. **`UserServiceClient.setActiveLab` — DONE (reconciled):** now wrapped in `HttpRetry(2,150)` + a fail-open
+   try/catch (log + swallow), consistent with its siblings (`linkLab`/`unlinkLab`). A user-service blip no
+   longer propagates or fails an otherwise-successful lab launch. *No call site is fail-closed anymore.*
 2. **`chat→Bedrock/AgentCore` has no app-level resilience** — only SDK-internal timeouts/retries. It is the
    most latency-variable dependency and the prime CB candidate (B.3).
 3. **No metrics** on client outcomes (added generically in B.3.4 / A.4.2).
@@ -444,7 +446,7 @@ isn't one):
 |---|---|---|---|---|
 | **chat → Bedrock/AgentCore** | `AgentCoreInvoker`/`BedrockDirectInvoker` via `ChatService` | slow/timeout/throttle/runtime-down | **YES — highest priority** | friendly "tutor temporarily unavailable" text (A.2.4); *consider* auto-switch signal to bedrock-direct |
 | **chat → user-service** (AI quota) | `UserAiQuotaClient.aiQuota/increment` | user-svc down during deploy | **YES** | `{messages_remaining:50}`; increment best-effort |
-| **lab → user-service** (quota/session) | `UserServiceClient.*` | user-svc down | **YES** | minutes→0, activeLab→empty, session→0, link best-effort; **fix `setActiveLab`** |
+| **lab → user-service** (quota/session) | `UserServiceClient.*` | user-svc down | **YES** | minutes→0, activeLab→empty, session→0, link best-effort; `setActiveLab` now fail-open (done) |
 | **question → user-service** (progress) | `UserProgressClient.trackProgress` | user-svc down | **YES (low)** | best-effort (already swallows) |
 | lab → **K8s API** (Fabric8) | lab-service provisioner | API blip | maybe (later) | out of scope here; K8s client has its own retry |
 > Priority order: **chat→AI-plane** first (most variable, user-facing), then **chat→quota** and
@@ -580,10 +582,10 @@ runner job ends** — nothing serves users between runs. The edge is already bui
 `terraform.tfvars` sets `node_public_dns` + `istio_http_nodeport = 80`, and `main.tf`'s CloudFront/API-GW
 origin points at exactly that host:port. We need a box that *stays up* at that address.
 
-**Contradiction to resolve.** `main.tf` still instantiates an **EKS module** (`rosettacloud-eks`, 1.33, Auto
-Mode) and wires `github_actions` EKS access entries + dormant IRSA. This violates the mandate and must be
-removed/replaced as part of C.2. The `modules/ec2` + `modules/sg` building blocks already exist for the
-replacement.
+**Contradiction resolved.** The **EKS module in `main.tf` is now removed** — the `module "eks"` block, the
+`github_actions` EKS access entries, and the `local.eks_oidc_*` IRSA references are all commented out under a
+`REMOVED: no-EKS-ever mandate` header (`aws eks list-clusters` → `[]`, no cluster provisioned). The remaining
+C.2 work is to stand up the replacement k3s node from the existing `modules/ec2` + `modules/sg` building blocks.
 
 ## C.1 Decision matrix — no-EKS options
 
@@ -910,7 +912,7 @@ pods use the instance profile (no static AWS secret); EBS snapshots scheduled; d
 | R-B2 | CB false-trips on normal ~1–2 s Nova latency | Med | Spurious fallback text | Tune `ai-plane` TimeLimiter (~10s) + failure-rate window against real AgentCore (B.4.2 step 4) |
 | R-B3 | CB changes fallback *value* (regression) | Low | Behavior drift | Fallbacks == current fail-open values verbatim; asserted in B.4.1 tests |
 | R-B4 | resilience4j never ships a Boot 4 starter (#2351) | Med | No annotation ergonomics | Immaterial — SCCB 5.0.x is the path; annotations are optional (B.1.2) |
-| R-C1 | Removing `module.eks` destroys a live EKS cluster | Med | Outage / lost resources | C.2.2 state check + backup; off-hours; confirm nothing references it |
+| R-C1 | Removing `module.eks` destroys a live EKS cluster | **Resolved** | Outage / lost resources | `module.eks` already commented out + `aws eks list-clusters` → `[]` (no live cluster to destroy); keep the C.2.2 state-check + backup discipline for any future re-enable |
 | R-C2 | Single node = SPOF (AZ/node loss) | High (eventually) | Full outage until rebuild | Dev-tier SLA accepted; EBS snapshots + IaC rebuild; documented HA path (C.2.7 → 3-server) |
 | R-C3 | Single node role coarser than per-service IRSA | Med | Broader blast radius per pod | Least-privilege by resource; document; per-pod scoping later; still better than static keys |
 | R-C4 | 6443 exposed to the internet for CI | Med | API-server attack surface | Prefer SSM (C.3.4); else lock SG to GitHub egress + scoped SA token |
