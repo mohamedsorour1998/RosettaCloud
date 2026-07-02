@@ -1,4 +1,15 @@
 export const environment = {
+  production: false,
+  apiUrl: 'https://api.dev.rosettacloud.app',
+  feedbackApiUrl: 'https://feedback.dev.rosettacloud.app',
+  chatbotApiUrl: 'https://api.dev.rosettacloud.app/chat',
+  labDefaultTimeout: {
+    hours: 1,
+    minutes: 0,
+    seconds: 0,
+  },
+  pollingInterval: 10000,
+  apiFlags: { useJavaProblemDetails: true },
   cognito: {
     userPoolId: 'us-east-1_jPds5WJ0I',
     userPoolClientId: 'i5ilqkdrsl714trat6qkt0al0',

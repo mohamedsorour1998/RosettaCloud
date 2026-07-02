@@ -7,6 +7,7 @@ import {
 import { Observable, throwError, of, BehaviorSubject } from 'rxjs';
 import { catchError, map, tap, retry, timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { problemMessage } from '../core/problem-detail';
 import { UserService } from './user.service';
 
 export interface LabCreationResponse {
@@ -293,24 +294,10 @@ export class LabService {
       )
       .pipe(
         tap((response) => {
-          if (response.status === 'success' && response.completed) {
-            this.userService
-              .updateUserProgress(
-                userId,
-                moduleUuid,
-                lessonUuid,
-                questionNumber,
-                true
-              )
-              .subscribe(
-                () =>
-                  console.log(
-                    `User progress updated for question ${questionNumber}`
-                  ),
-                (error) =>
-                  console.error(`Failed to update user progress: ${error}`)
-              );
-          }
+          // Progress is tracked SERVER-SIDE now: question-service.check() calls
+          // user-service progress via /internal on success. The former
+          // client-side updateUserProgress here was a redundant/racy
+          // double-write and is removed in the Java cutover (§8.5).
           console.log(`Check Question ${questionNumber} Response:`, response);
         }),
         catchError(this.handleError)
@@ -318,20 +305,7 @@ export class LabService {
   }
 
   private handleError = (error: HttpErrorResponse) => {
-    let errorMessage = 'An unknown error occurred';
-
-    if (error.error instanceof ErrorEvent) {
-      errorMessage = `Client Error: ${error.error.message}`;
-    } else {
-      errorMessage = `Server Error: ${error.status} - ${error.message}`;
-      if (error.error && typeof error.error === 'object') {
-        if ('detail' in error.error) {
-          errorMessage = error.error.detail;
-        } else if ('message' in error.error) {
-          errorMessage = error.error.message;
-        }
-      }
-    }
+    const errorMessage = problemMessage(error);
     console.error('API Error:', {
       message: errorMessage,
       status: error.status,

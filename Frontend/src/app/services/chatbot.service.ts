@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, Subject, throwError, timer } from 'rxjs';
 import { map, catchError, retry } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { problemCode, problemMessage, problemPayload } from '../core/problem-detail';
 
 export interface AiQuota {
   messages_used: number;
@@ -123,24 +124,7 @@ export class ChatbotService {
           this.loadingSubject.next(false);
           this.loadAiQuota();
         },
-        error: (err) => {
-          if (err.status === 403 && err.error?.detail?.code === 'AI_QUOTA_EXHAUSTED') {
-            const quota: AiQuota = err.error.detail.quota;
-            this.aiQuotaSubject.next(quota);
-            this.addMessage({
-              role: 'error',
-              content: `You've used all ${quota.messages_limit} free AI messages for this week. Your quota resets on ${new Date(quota.week_resets_at * 1000).toLocaleDateString()}.`,
-              timestamp: new Date(),
-            });
-          } else {
-            this.addMessage({
-              role: 'error',
-              content: `Agent error: ${err.message ?? 'Unknown error'}`,
-              timestamp: new Date(),
-            });
-          }
-          this.loadingSubject.next(false);
-        },
+        error: (err) => this.handleChatError(err, 'Agent error'),
       });
   }
 
@@ -184,24 +168,7 @@ export class ChatbotService {
           this.loadingSubject.next(false);
           this.loadAiQuota();
         },
-        error: (err) => {
-          if (err.status === 403 && err.error?.detail?.code === 'AI_QUOTA_EXHAUSTED') {
-            const quota: AiQuota = err.error.detail.quota;
-            this.aiQuotaSubject.next(quota);
-            this.addMessage({
-              role: 'error',
-              content: `You've used all ${quota.messages_limit} free AI messages for this week. Your quota resets on ${new Date(quota.week_resets_at * 1000).toLocaleDateString()}.`,
-              timestamp: new Date(),
-            });
-          } else {
-            this.addMessage({
-              role: 'error',
-              content: `Analysis error: ${err.message ?? 'Unknown error'}`,
-              timestamp: new Date(),
-            });
-          }
-          this.loadingSubject.next(false);
-        },
+        error: (err) => this.handleChatError(err, 'Analysis error'),
       });
   }
 
@@ -229,14 +196,7 @@ export class ChatbotService {
           });
           this.loadingSubject.next(false);
         },
-        error: (err) => {
-          this.addMessage({
-            role: 'error',
-            content: `Hint error: ${err.message ?? 'Unknown error'}`,
-            timestamp: new Date(),
-          });
-          this.loadingSubject.next(false);
-        },
+        error: (err) => this.handleChatError(err, 'Hint error'),
       });
   }
 
@@ -314,14 +274,7 @@ export class ChatbotService {
           });
           this.loadingSubject.next(false);
         },
-        error: (err) => {
-          this.addMessage({
-            role: 'error',
-            content: `Grade error: ${err.message ?? 'Unknown error'}`,
-            timestamp: new Date(),
-          });
-          this.loadingSubject.next(false);
-        },
+        error: (err) => this.handleChatError(err, 'Grade error'),
       });
   }
 
@@ -372,14 +325,7 @@ export class ChatbotService {
           });
           this.loadingSubject.next(false);
         },
-        error: (err) => {
-          this.addMessage({
-            role: 'error',
-            content: `Feedback error: ${err.message ?? 'Unknown error'}`,
-            timestamp: new Date(),
-          });
-          this.loadingSubject.next(false);
-        },
+        error: (err) => this.handleChatError(err, 'Feedback error'),
       });
   }
 
@@ -391,6 +337,36 @@ export class ChatbotService {
         timestamp: new Date(),
       },
     ]);
+  }
+
+  /**
+   * Unified chat error handler. Recognizes the AI-quota 403
+   * (code AI_QUOTA_EXHAUSTED) in both the RFC7807 (Java: top-level code+payload)
+   * and legacy FastAPI (nested detail.code/detail.quota) shapes and shows a
+   * friendly quota message; otherwise surfaces the normalized problem message.
+   */
+  private handleChatError(err: unknown, label: string): void {
+    const status = (err as { status?: number })?.status;
+    if (status === 403 && problemCode(err) === 'AI_QUOTA_EXHAUSTED') {
+      const quota = problemPayload<AiQuota>(err);
+      if (quota) this.aiQuotaSubject.next(quota);
+      const q = quota ?? this.aiQuotaSubject.value ?? undefined;
+      const resets = q?.week_resets_at
+        ? ` Your quota resets on ${new Date(q.week_resets_at * 1000).toLocaleDateString()}.`
+        : '';
+      this.addMessage({
+        role: 'error',
+        content: `You've used all ${q?.messages_limit ?? 'your'} free AI messages for this week.${resets}`,
+        timestamp: new Date(),
+      });
+    } else {
+      this.addMessage({
+        role: 'error',
+        content: `${label}: ${problemMessage(err)}`,
+        timestamp: new Date(),
+      });
+    }
+    this.loadingSubject.next(false);
   }
 
   private addMessage(message: ChatMessage): void {
