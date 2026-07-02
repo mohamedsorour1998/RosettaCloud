@@ -48,8 +48,20 @@ jobs:
       - name: Build (production)
         run: npx ng build --configuration=production
 
-      - name: Unit tests (Vitest)
-        run: npx ng test --watch=false
+      - name: Unit tests (Vitest) + coverage
+        run: npx ng test --watch=false --coverage
+
+      - name: Coverage baseline gate (§9.5 / A2)
+        run: node scripts/check-coverage.mjs
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: Frontend/coverage
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Test summary
         if: always()

@@ -122,7 +122,8 @@
             "tsConfig": "tsconfig.spec.json",
             "buildTarget": "::development",
             "runner": "vitest",
-            "providersFile": "src/testing/vitest-providers.ts"
+            "providersFile": "src/testing/vitest-providers.ts",
+            "coverageReporters": ["text", "json-summary", "lcov"]
           }
         },
         "lint": {

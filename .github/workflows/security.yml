@@ -50,37 +50,58 @@ jobs:
           echo "== CVE gate (fixable CRITICAL fails) =="
           trivy fs --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 --no-progress Backend-Java
 
-      - name: Trivy misconfig regression gate (AVD-KSV-0118 must stay fixed)
+      - name: Trivy misconfig regression gate (8 remediated KSV IDs from Plan 2 §7.3 must stay fixed)
         run: |
           set -uo pipefail
-          # REGRESSION GATE — AVD-KSV-0118 "No Default Security Context" (HIGH).
-          # Remediated per DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md: pod- and container-level
-          # securityContext (runAsNonRoot + runAsUser 1000, capabilities drop ALL,
-          # allowPrivilegeEscalation=false, readOnlyRootFilesystem, seccompProfile RuntimeDefault) was
-          # added to all five Spring Boot service Deployments. This gate FAILS the build if KSV-0118
-          # reappears on any of them, so the fix cannot silently regress.
-          # Scope = the five prod service manifests only. Documented exceptions that are NOT gated here:
+          # REGRESSION GATE — the eight Kubernetes-security checks remediated in Plan 2 §7.3
+          # (DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md). Pod- and container-level securityContext
+          # (runAsNonRoot + runAsUser/GID 1000, capabilities drop ALL, allowPrivilegeEscalation=false,
+          # readOnlyRootFilesystem, seccompProfile RuntimeDefault, fsGroup) plus CPU limits were added to
+          # all five Spring Boot service Deployments. This gate FAILS the build if ANY of these remediated
+          # findings reappears on any of the five prod manifests, so the fixes cannot silently regress.
+          #
+          # Gated IDs — ALL eight were EMPIRICALLY confirmed 0-findings on the five service manifests
+          # (trivy config, v0.72.0) when this gate was expanded, so it is GREEN today and turns RED only
+          # on a genuine regression:
+          #   KSV-0118  Default security context configured                        (HIGH)
+          #   KSV-0012  Runs as root user                                          (MEDIUM)
+          #   KSV-0001  Can elevate its own privileges                             (MEDIUM)
+          #   KSV-0003  Default capabilities: some containers do not drop all      (LOW)
+          #   KSV-0014  Root file system is not read-only                          (HIGH)
+          #   KSV-0030  Runtime/Default Seccomp profile not set                    (LOW)
+          #   KSV-0011  CPU not limited                                            (LOW)
+          #   KSV-0106  Container capabilities must only include NET_BIND_SERVICE  (LOW)
+          # Intentionally NOT gated: NONE of the eight §7.3 FIXED IDs were excluded — every one is
+          # currently 0-findings. Other checks that DO still fire on these dirs are pre-existing / by
+          # design and remain OUT of this regression gate (they stay in the informational report above):
+          #   KSV-0013 (":latest" image tag), KSV-0020 / KSV-0021 (UID/GID <= 10000),
+          #   KSV-0048 (manage workloads RBAC), KSV-0053 (exec into pods), KSV-0056 (manage networking),
+          #   KSV-01010 (ConfigMap with sensitive content).
+          #
+          # Scope = the five prod service manifests only. Documented exceptions that are NOT scanned:
           #   * e2e test-infra pods (localstack / redis / mock-oidc) in Backend-Java/e2e/k8s
           #   * runtime-created privileged interactive-lab pods (Fabric8LabProvisioner) — never scanned
-          # trivy 'config' accepts a single target per invocation, so we loop per service.
+          # trivy 'config' accepts a single target per invocation, so we loop per service. The anchored,
+          # whole-token regex tolerates the optional "AVD-" prefix and the "KSV-"/"KSV" dash variants.
+          gated_re='^(AVD-)?KSV-?(0118|0012|0001|0003|0014|0030|0011|0106)$'
           fail=0
           for d in user-service lab-service question-service chat-service analytics-service; do
             trivy config --quiet --format json -o "mc-$d.json" "Backend-Java/$d/k8s"
-            hits=$(jq -r '.Results[]?.Misconfigurations[]? | (.ID // "") + " " + (.AVDID // "")' "mc-$d.json" \
-                   | grep -Ec 'KSV-?0118' || true)
-            if [ "${hits:-0}" -ne 0 ]; then
-              echo "::error::AVD-KSV-0118 regressed in Backend-Java/$d/k8s ($hits finding(s))"
+            hits=$(jq -r '.Results[]?.Misconfigurations[]? | (.ID // empty), (.AVDID // empty)' "mc-$d.json" \
+                   | grep -E "$gated_re" | sort -u || true)
+            if [ -n "$hits" ]; then
+              echo "::error::Remediated KSV finding(s) regressed in Backend-Java/$d/k8s: $(echo "$hits" | paste -sd',' -)"
               trivy config --quiet --severity HIGH "Backend-Java/$d/k8s" || true
               fail=1
             else
-              echo "OK: Backend-Java/$d/k8s is free of AVD-KSV-0118"
+              echo "OK: Backend-Java/$d/k8s retains all eight Plan 2 §7.3 remediations"
             fi
           done
           if [ "$fail" -ne 0 ]; then
-            echo "Trivy misconfig regression gate FAILED — a remediated KSV-0118 finding reappeared."
+            echo "Trivy misconfig regression gate FAILED — a remediated KSV finding reappeared."
             exit 1
           fi
-          echo "Trivy misconfig regression gate PASSED — all five service manifests retain a securityContext."
+          echo "Trivy misconfig regression gate PASSED — all five service manifests retain the eight Plan 2 §7.3 remediations."
 
   semgrep:
     runs-on: ubuntu-latest
