@@ -86,16 +86,40 @@ AWS credentials via the `aws-creds` secret.
   production manifests.
 
 ## Resilience posture (inter-service calls)
-All inter-service clients (chat→user AI-quota, lab→user lab/session, question→user progress) have:
-- **Timeouts**: 2s connect / 5s read.
-- **Transient retry**: `shared-lib` `HttpRetry.withRetry(attempts, delayMs, op)` retries only `ResourceAccessException`
+All inter-service clients (chat→user AI-quota, lab→user lab/session, question→user progress) have **all three**
+of the following on **every** call site (audited across `UserAiQuotaClient`, `UserServiceClient`,
+`UserProgressClient` — the only inter-service HTTP clients; no `WebClient`/`RestTemplate` elsewhere):
+- **Timeouts**: 2s connect / 5s read (`SimpleClientHttpRequestFactory`).
+- **Transient retry**: `shared-lib` `HttpRetry.withRetry(2, 150, op)` retries only `ResourceAccessException`
   (connection-refused / read-timeout — the common case during rolling deploys); HTTP 4xx/5xx propagate immediately.
-- **Fail-open fallbacks**: permissive AI-quota default, `0` lab-minutes, best-effort progress/link — a degraded
-  user-service never hard-fails the calling request.
+- **Fail-open fallbacks**: permissive AI-quota default (`messages_remaining=50`), `0` lab-minutes, empty
+  active-lab, `0` recorded minutes, best-effort progress/link/unlink — a degraded user-service never
+  hard-fails the calling request. `lab→user setActiveLab` was the **one** call that previously propagated;
+  it is now fail-open (log + swallow) like its siblings, so a user-service blip during the post-provisioning
+  bookkeeping step can no longer fail an otherwise-successful lab launch (covered by `UserServiceClientTest`).
 
-Full **circuit breakers** are intentionally NOT added yet: Resilience4j has no Spring Boot 4 release
-(resilience4j/resilience4j#2351), and Spring Framework 7 core ships `@Retryable`/`@ConcurrencyLimit` but no
-circuit-breaker. Revisit once Resilience4j publishes a Boot 4 starter or Spring Cloud CircuitBreaker GA's on Boot 4.
+### Circuit breakers — adoption trigger
+Full **circuit breakers** are intentionally **NOT** added yet, and no CB dependency is on the classpath:
+- **Resilience4j** has **no Spring Boot 4 release** (`resilience4j/resilience4j#2351`) — its annotation-driven
+  starter is Boot 3 only.
+- **Spring Cloud CircuitBreaker** is **not Boot 4-compatible** on this stack today, so
+  `spring-cloud-starter-circuitbreaker-*` is deliberately not added.
+- **Spring Framework 7 core** ships `@Retryable`/`@ConcurrencyLimit`/`RetryTemplate` (verified present in the
+  resolved SF **7.0.8**) but **no circuit breaker**.
+
+> **Adoption trigger (single, explicit):** adopt real circuit breakers **when Resilience4j publishes a Spring
+> Boot 4 release** (i.e. `resilience4j/resilience4j#2351` ships a `resilience4j-spring-boot4` starter). At that
+> point, wrap the existing retry+fail-open call sites with `@CircuitBreaker`, keeping each fallback value
+> byte-for-byte identical to today's fail-open value (the CB changes *when* we fall back, never *what* to).
+> Until then, the timeout + transient-retry + fail-open posture above is the resilience contract.
+
+**`@ConcurrencyLimit` (SF 7 bulkhead-lite) — deferred, not wired.** The plan flags SF 7's native
+`@ConcurrencyLimit` as an optional per-pod bulkhead for the chat→AI-plane call (relevant under
+`spring.threads.virtual.enabled=true`). It compiles on this stack (SF 7.0.8), but it is intentionally **not
+wired** yet: the plan sequences chat→AI-plane resilience to be tuned against a **live** AgentCore runtime
+(Part A, not yet live), and adding an AOP concurrency gate to the exact path the real-Nova nightly e2e
+exercises would risk the currently-green signal for no present load benefit. Revisit alongside the Part A
+runtime bring-up.
 
 ## Event backbone (implemented)
 SNS topic `rosettacloud-events` + SQS `rosettacloud-analytics` (Terraform). Services publish domain events

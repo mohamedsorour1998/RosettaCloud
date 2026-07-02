@@ -50,8 +50,14 @@ public class UserServiceClient {
     }
 
     public void setActiveLab(String userId, String labId) {
-        HttpRetry.withRetry(2, 150,
-                () -> http.post().uri("/internal/users/{u}/active-lab/{l}", userId, labId).retrieve().toBodilessEntity());
+        // Fail-open: this runs AFTER the pod is provisioned and tracked in LabService.launch(); a
+        // user-service blip must not fail an otherwise-successful launch (consistent with linkLab below).
+        try {
+            HttpRetry.withRetry(2, 150,
+                    () -> http.post().uri("/internal/users/{u}/active-lab/{l}", userId, labId).retrieve().toBodilessEntity());
+        } catch (Exception e) {
+            log.warn("setActiveLab failed for {} -> {}: {}", userId, labId, e.getMessage());
+        }
     }
 
     public long closeLabSession(String userId) {
