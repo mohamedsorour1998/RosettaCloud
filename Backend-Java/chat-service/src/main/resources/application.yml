@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: chat-service
+  cloud:
+    # The Part B CircuitBreaker starter pulls Spring Cloud 2025.1.0, whose CompatibilityVerifier
+    # validates only Spring Boot 4.0.x and would abort startup on our Boot 4.1.0 (CrashLoopBackOff).
+    # The resilience4j adapter works on 4.1.0 (CB tests + full-stack e2e prove it), so disable the
+    # conservative version guard — identical fix to lab-service.
+    compatibility-verifier:
+      enabled: false
   threads:
     virtual:
       enabled: true
@@ -44,3 +51,29 @@ management:
     health:
       probes:
         enabled: true
+
+# Circuit-breaker tuning (Part B §B.3.2) for the "ai-plane" breaker in ChatService. The Spring Cloud
+# CircuitBreaker factory resolves create(id) against the resilience4j registry's "default"
+# configuration, so these configs.default values apply to the ai-plane breaker (the only breaker in
+# chat-service). Design notes:
+#   * minimum-number-of-calls: 20 — the breaker never evaluates the failure rate (never trips) until it
+#     has seen 20 calls, so a low-volume/e2e run cannot open it; the breaker only protects against a
+#     SUSTAINED outage under real traffic.
+#   * TimeLimiter timeout-duration: 60s — deliberately generous. A real AgentCore/Nova reply can take
+#     many seconds; the limiter must NOT cut off a slow-but-successful call (which would falsely degrade
+#     a healthy turn to the "tutor unavailable" fallback and break the real-Bedrock e2e). The
+#     failure-rate breaker is the primary protection; the limiter only guards against a true hang.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 60s

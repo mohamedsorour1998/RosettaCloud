@@ -5,8 +5,15 @@ import app.rosettacloud.chat.web.dto.ChatRequest;
 import app.rosettacloud.chat.web.dto.ChatResponse;
 import app.rosettacloud.shared.error.QuotaExceededException;
 import app.rosettacloud.shared.error.TooManyRequestsException;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
+import io.github.resilience4j.bulkhead.ThreadPoolBulkheadRegistry;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.timelimiter.TimeLimiterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
+import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JConfigurationProperties;
+import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4jBulkheadProvider;
 
 import java.util.Map;
 
@@ -28,10 +35,26 @@ class ChatServiceTest {
     private final ImageValidator imageValidator = new ImageValidator();
     private ChatService service;
 
+    /**
+     * A real Spring Cloud {@link Resilience4JCircuitBreakerFactory} (defaults) — same type the
+     * autoconfiguration wires in production. Using the real factory keeps these assertions honest:
+     * the "ai-plane" breaker stays CLOSED across the handful of calls here, and the fallback fires
+     * only when the guarded invoke actually throws.
+     */
+    static Resilience4JCircuitBreakerFactory newCircuitBreakerFactory() {
+        return new Resilience4JCircuitBreakerFactory(
+                CircuitBreakerRegistry.ofDefaults(),
+                TimeLimiterRegistry.ofDefaults(),
+                new Resilience4jBulkheadProvider(
+                        ThreadPoolBulkheadRegistry.ofDefaults(),
+                        BulkheadRegistry.ofDefaults(),
+                        new Resilience4JConfigurationProperties()));
+    }
+
     @BeforeEach
     void setup() {
         service = new ChatService(invoker, sessionStore, rateLimiter, quotaClient, imageValidator,
-                new app.rosettacloud.shared.events.NoOpDomainEventPublisher());
+                new app.rosettacloud.shared.events.NoOpDomainEventPublisher(), newCircuitBreakerFactory());
         when(rateLimiter.tryAcquire(anyString())).thenReturn(true);
         when(invoker.invoke(any())).thenReturn(new AgentInvoker.Reply("Hello!", "tutor"));
         when(quotaClient.aiQuota(anyString())).thenReturn(Map.of("messages_remaining", 50, "messages_limit", 50));
@@ -77,5 +100,20 @@ class ChatServiceTest {
     void gradeTypeDoesNotConsumeAiQuota() {
         service.handle("u1", chat("grade"));
         verify(quotaClient, never()).increment(anyString());
+    }
+
+    @Test
+    void aiPlaneFailureReturnsFriendlyReplyAndDoesNotChargeQuotaOrHistory() {
+        // A model-plane transport failure (AgentCore/Bedrock down or slow) must degrade gracefully:
+        // the "ai-plane" breaker fallback returns a friendly HTTP-200 reply instead of a 500, and the
+        // failed turn must NOT consume the user's weekly AI quota, be recorded in history, or emit an event.
+        when(invoker.invoke(any())).thenThrow(new RuntimeException("bedrock unavailable"));
+
+        ChatResponse res = service.handle("u1", chat("chat"));
+
+        assertThat(res.response()).containsIgnoringCase("temporarily unavailable");
+        assertThat(res.agent()).isEqualTo("tutor");
+        verify(quotaClient, never()).increment(anyString());
+        verify(sessionStore, never()).append(anyString(), any(), any());
     }
 }

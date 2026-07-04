@@ -33,6 +33,21 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- Spring Cloud CircuitBreaker (Resilience4j backend) — Part B §B.3 "ai-plane" breaker around
+             the AgentCore/Bedrock model call. Rolling-window failure-rate breaker + TimeLimiter +
+             Micrometer meters on Boot 4. Versions from the parent's spring-cloud-dependencies BOM. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+        <!-- Bulkhead is <optional> in the CircuitBreaker starter POM; add it explicitly so the
+             Resilience4j factory's ThreadPool/Bulkhead support autoconfigures (caps concurrent model
+             calls per pod). Version from the parent's resilience4j-bom. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-bulkhead</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
