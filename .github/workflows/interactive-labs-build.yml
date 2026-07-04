@@ -55,22 +55,24 @@ jobs:
           curl -LO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
           chmod +x kubectl && sudo mv kubectl /usr/local/bin/
 
-      - name: Update backend ConfigMap with new image tag
+      - name: Update lab-service ConfigMap with new image tag
         run: |
           if aws eks describe-cluster --name rosettacloud-eks --region us-east-1 >/dev/null 2>&1; then
             aws eks update-kubeconfig --name rosettacloud-eks --region us-east-1
-            kubectl patch configmap rosettacloud-backend-config -n dev \
+            kubectl patch configmap lab-service-config -n dev \
               --patch "{\"data\":{\"LAB_POD_IMAGE\":\"${{ steps.build.outputs.image_sha }}\"}}"
             echo "ConfigMap LAB_POD_IMAGE updated to ${{ steps.build.outputs.image_sha }}"
           else
-            echo "::notice::rosettacloud-eks cluster not found — skipping ConfigMap update (NO-EKS mandate; no cluster)"
+            echo "::notice::rosettacloud-eks cluster not found — skipping ConfigMap update (NO-EKS mandate; deploy via backend-java-deploy.yml to k3s-on-runner)"
           fi
 
-      - name: Restart backend to pick up new ConfigMap
+      # LAB_POD_IMAGE is consumed by lab-service (the Java lab provisioner) — the FastAPI
+      # rosettacloud-backend was decommissioned. This EKS rollout is skipped under the NO-EKS mandate.
+      - name: Restart lab-service to pick up new ConfigMap
         run: |
           if aws eks describe-cluster --name rosettacloud-eks --region us-east-1 >/dev/null 2>&1; then
-            kubectl rollout restart deployment/rosettacloud-backend -n dev
-            kubectl rollout status deployment/rosettacloud-backend -n dev --timeout=120s
+            kubectl rollout restart deployment/lab-service -n dev
+            kubectl rollout status deployment/lab-service -n dev --timeout=120s
           else
-            echo "::notice::rosettacloud-eks cluster not found — skipping backend rollout (NO-EKS mandate; no cluster)"
+            echo "::notice::rosettacloud-eks cluster not found — skipping lab-service rollout (NO-EKS mandate; no cluster)"
           fi

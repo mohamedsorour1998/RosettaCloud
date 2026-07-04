@@ -684,7 +684,7 @@ export const AdminGuard: CanActivateFn = (route, state) => {
 
 Attaches the Cognito **ID token** as `Authorization: Bearer <token>` to all requests destined for `environment.apiUrl` (the API Gateway endpoint). Uses ID token (not access token) because:
 - It contains the `aud` claim (= client ID) required by the API Gateway JWT authorizer
-- It carries `custom:user_id` which the FastAPI auth middleware reads
+- It carries `custom:user_id` which the backend's JWT auth (now the Backend-Java resource-server / Cognito JWT converter) reads
 
 ### Auth Interceptor (`interceptors/auth.interceptor.ts`) — details
 
@@ -1087,7 +1087,7 @@ console.log('API URL:', environment.chatbotApiUrl);
 - Ensure session ID is 33+ characters
 - Verify backend is running: `curl https://api.dev.rosettacloud.app/health-check`
 - Check AGENT_RUNTIME_ARN is set in backend
-- Review backend logs: `kubectl logs -f deployment/rosettacloud-backend -n dev`
+- Review backend logs (per-service Java deployments): `kubectl logs -f deployment/chat-service -n dev` (or `user-service`, `lab-service`, `question-service`, `analytics-service`)
 
 **3. Polling not stopping after lab ready**
 
@@ -1448,7 +1448,8 @@ ng generate service services/my-feature
 - [RxJS Documentation](https://rxjs.dev/)
 
 ### Related Files
-- `../Backend/` — FastAPI backend
+- `../Backend-Java/` — Spring Boot 4 / Java 25 microservices (the API)
+- `../Backend/` — AgentCore agent + Lambdas + questions (FastAPI app removed)
 - `../DevSecOps/K8S/` — Kubernetes manifests
 - `../CLAUDE.md` — Technical implementation guide
 - `../README.md` — Project overview

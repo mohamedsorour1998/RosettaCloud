@@ -277,7 +277,7 @@ sequenceDiagram
 ![dev rosettacloud app_register(High Res)](https://github.com/user-attachments/assets/4d46db80-687d-4e4f-a1eb-0a9fcddc070a)
 
 ### Backend & API Development
-- **FastAPI** for high-performance, auto-documented APIs
+- **Spring Boot 4** on **Java 25** — REST microservices, one service per domain (user/lab/question/chat/analytics)
 - **Python 3.12+** with async/await patterns for concurrency
 - **LanceDB** vector database for AI/ML workloads
 - **Strands Agents** for multi-agent AI orchestration (AWS open-source)
@@ -337,7 +337,7 @@ Comprehensive technical documentation is available for each major component:
 
 | Component | Documentation | Description |
 |-----------|--------------|-------------|
-| **Backend** | [`Backend/README.md`](Backend/README.md) | FastAPI application, AI agents, Kubernetes lab management, service/backend architecture (1,168 lines) |
+| **Backend** | [`Backend/README.md`](Backend/README.md) | Spring Boot 4 / Java 25 REST microservices under `Backend-Java/` (user/lab/question/chat/analytics); `Backend/` retains the AgentCore agent, Lambda functions, and questions |
 | **Frontend** | [`Frontend/README.md`](Frontend/README.md) | Angular 19 SPA, chatbot UI, lab interface, HTTP-based chat, multimodal support (1,464 lines) |
 | **DevSecOps** | [`DevSecOps/README.md`](DevSecOps/README.md) | Terraform IaC, EKS cluster, Istio service mesh, CI/CD pipelines, IRSA (1,554 lines) |
 | **Technical Guide** | [`CLAUDE.md`](CLAUDE.md) | Implementation details, deployment procedures, troubleshooting guide |
@@ -395,11 +395,11 @@ cd Frontend
 npm install
 ng serve
 
-# Backend API server (port 8000, separate terminal)
-cd Backend
-pip install -r requirements.txt --break-system-packages
-REDIS_HOST=localhost LAB_K8S_NAMESPACE=dev \
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Backend API — Spring Boot 4 / Java 25 microservices under Backend-Java/
+# Run a service with the Maven wrapper (repeat per service you need):
+cd Backend-Java
+./mvnw -pl user-service spring-boot:run   # user-service → :8081
+# lab-service → :8082 · question-service → :8083 · chat-service → :8084 · analytics-service → :8085
 ```
 
 **3. Environment Configuration**
@@ -467,14 +467,15 @@ agentcore status   # wait for READY
 - [Frontend Deployment](Frontend/README.md#production-build)
 
 **CI/CD Pipeline:**
-Six GitHub Actions workflows handle all automated deployments:
+Seven GitHub Actions workflows cover the platform's CI/CD automation:
 
 | Workflow | Trigger | Action | Documentation |
 |----------|---------|--------|---------------|
-| **Agent Deploy** | push → `Backend/agents/**` | `agentcore launch` via CodeBuild (ARM64) + update K8s ConfigMap | [Details](DevSecOps/README.md#1-backend-build-githubworkflowsbackend-buildyml) |
+| **Agent Deploy** | push → `Backend/agents/**` | `agentcore launch` via CodeBuild (ARM64) + update K8s ConfigMap | [Details](DevSecOps/README.md#3-agent-deploy-githubworkflowsagent-deployyml) |
 | **Lambda Deploy** | push → `Backend/serverless/Lambda/**` | Build & push containers → update Lambda | [Details](DevSecOps/README.md#4-lambda-deploy-githubworkflowslambda-deployyml) |
 | **Questions Sync** | push → `Backend/questions/**` | Sync to S3 → triggers EventBridge → indexing | [Details](DevSecOps/README.md#5-questions-sync-githubworkflowsquestions-syncyml) |
-| **Backend Build** | push → `Backend/app/**` | Build image → ECR push → EKS rolling restart | [Details](DevSecOps/README.md#1-backend-build-githubworkflowsbackend-buildyml) |
+| **Backend Java CI** | push → `Backend-Java/**` | JDK 25 `./mvnw verify` — multi-module unit + Testcontainers test gate | [Details](DevSecOps/README.md#cicd-pipelines) |
+| **Backend Java Deploy** | manual (`workflow_dispatch`) | Build 5 service images (test gate) → ECR → deploy to in-runner k3s + smoke test (no EKS) | [Details](DevSecOps/README.md#cicd-pipelines) |
 | **Frontend Build** | push → `Frontend/src/**` | Build image → ECR push → EKS rolling restart | [Details](DevSecOps/README.md#2-frontend-build-githubworkflowsfrontend-buildyml) |
 | **Interactive Labs** | push → `DevSecOps/interactive-labs/**` | Build & push lab container image to ECR | [Details](DevSecOps/README.md#6-interactive-labs-build-githubworkflowsinteractive-labs-buildyml) |
 
@@ -706,7 +707,7 @@ pip install -r requirements.txt
 ```bash
 # Kubernetes pod issues
 kubectl describe pod <pod-name> -n dev
-kubectl logs -f deployment/rosettacloud-backend -n dev
+kubectl logs -f deployment/user-service -n dev   # or lab-service / question-service / chat-service / analytics-service
 
 # AWS service connectivity
 aws sts get-caller-identity  # Verify AWS credentials

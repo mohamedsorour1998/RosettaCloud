@@ -277,9 +277,9 @@
             </thead>
             <tbody>
               <tr>
-                <td><code>Backend/app/**</code></td>
-                <td><code>backend-build.yml</code></td>
-                <td>Docker build → ECR push → <code>kubectl rollout restart</code></td>
+                <td><code>Backend-Java/**</code></td>
+                <td><code>backend-java-deploy.yml</code></td>
+                <td>Build 5 service images → ECR push → deploy to in-runner k3s + smoke test</td>
               </tr>
               <tr>
                 <td><code>Frontend/src/**</code></td>

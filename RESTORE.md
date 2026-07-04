@@ -60,14 +60,16 @@ Push a dummy commit to main touching each service, or run workflows manually:
 
 ```bash
 # From GitHub Actions UI → run each workflow manually:
-# - backend-build.yml
+# - backend-java-ci.yml       # build + test the Backend-Java microservices
+# - backend-java-deploy.yml   # build + deploy microservices to k3s-on-runner
 # - frontend-build.yml
 # - interactive-labs-build.yml
 ```
 
 Or trigger via CLI:
 ```bash
-gh workflow run backend-build.yml
+gh workflow run backend-java-ci.yml
+gh workflow run backend-java-deploy.yml
 gh workflow run frontend-build.yml
 gh workflow run interactive-labs-build.yml
 ```
@@ -112,8 +114,9 @@ After launch, update the backend K8s ConfigMap with the new Runtime ARN:
 kubectl edit configmap rosettacloud-config -n dev
 # Set AGENT_RUNTIME_ARN to the new ARN
 
-# Restart backend to pick it up
-kubectl rollout restart deployment/rosettacloud-backend -n dev
+# Restart the consumer to pick it up — the AgentCore runtime is now consumed by chat-service
+# (the FastAPI rosettacloud-backend was decommissioned; services deploy to k3s-on-runner via backend-java-deploy.yml)
+kubectl rollout restart deployment/rosettacloud-chat-service -n dev
 ```
 
 ---

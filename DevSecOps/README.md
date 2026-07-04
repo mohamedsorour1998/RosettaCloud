@@ -39,7 +39,7 @@ DevSecOps/
 │       ├── sg/                      # Security groups
 │       └── [ecr, s3]/              # Other modules
 ├── K8S/
-│   ├── be-deployment.yaml           # Backend deployment + service
+│   ├── (single backend manifest removed — Java backend now per-service in Backend-Java/*/k8s + e2e/k8s/e2e-stack.yaml)
 │   ├── fe-deployment.yaml           # Frontend deployment + service
 │   ├── backend-serviceaccount.yaml  # IRSA service account
 │   ├── istio-gateway.yaml           # Istio Gateway
@@ -121,7 +121,8 @@ kubectl get pods -n istio-system
 ```bash
 cd K8S
 kubectl apply -f backend-serviceaccount.yaml
-kubectl apply -f be-deployment.yaml
+# Backend now deploys as the Java microservices (on in-runner k3s via backend-java-deploy.yml):
+#   kubectl apply -f ../Backend-Java/e2e/k8s/e2e-stack.yaml
 kubectl apply -f fe-deployment.yaml
 kubectl apply -f istio-gateway.yaml
 kubectl apply -f istio-virtualservices.yaml
@@ -572,64 +573,9 @@ api_gateway_endpoint        = https://oq2tgavm72.execute-api.us-east-1.amazonaws
 
 ### 2. Kubernetes Manifests (`K8S/`)
 
-**Backend Deployment (`be-deployment.yaml`):**
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: rosettacloud-backend-config
-  namespace: dev
-data:
-  LAB_IMAGE_PULL_SECRET: "ecr-creds"
-  LAB_K8S_NAMESPACE: "dev"
-  LAB_POD_IMAGE: "339712964409.dkr.ecr.us-east-1.amazonaws.com/interactive-labs:latest"
-  AWS_REGION: "us-east-1"
-  REDIS_HOST: "redis-service"
-  REDIS_PORT: "6379"
-  AGENT_RUNTIME_ARN: "arn:aws:bedrock-agentcore:us-east-1:ACCOUNT_ID:runtime/rosettacloud_education_agent-yebWcC9Yqy"
+**Backend Deployment (Java microservices — `Backend-Java/*/k8s`, `Backend-Java/e2e/k8s/e2e-stack.yaml`):**
 
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: rosettacloud-backend
-  namespace: dev
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: rosettacloud-backend
-  template:
-    metadata:
-      labels:
-        app: rosettacloud-backend
-    spec:
-      serviceAccountName: rosettacloud-backend  # IRSA
-      containers:
-        - name: rosettacloud-backend
-          image: 339712964409.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-backend:latest
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 80
-          envFrom:
-            - configMapRef:
-                name: rosettacloud-backend-config
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: rosettacloud-backend-service
-  namespace: dev
-spec:
-  selector:
-    app: rosettacloud-backend
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-  type: ClusterIP
-```
+> **SUPERSEDED:** the FastAPI backend and its single backend Kubernetes manifest were removed. The API now runs as five Spring Boot 4 / Java 25 microservices — `user-service`, `lab-service`, `question-service`, `chat-service`, `analytics-service`. Each ships its own manifest (ConfigMap + Deployment + Service) at `Backend-Java/<service>/k8s/<service>.yaml`, combined for end-to-end runs in `Backend-Java/e2e/k8s/e2e-stack.yaml`, and is deployed by `backend-java-deploy.yml` (build 5 images → ECR → in-runner k3s). Naming convention: Deployments are `rosettacloud-<service>`, Services are `<service>`, ConfigMaps are `<service>-config`. See those manifests for the current definitions.
 
 **Backend Service Account (`backend-serviceaccount.yaml`):**
 ```yaml
@@ -887,53 +833,14 @@ docker push 339712964409.dkr.ecr.us-east-1.amazonaws.com/interactive-labs:latest
 
 ### GitHub Actions Workflows
 
-**1. Backend Build (`.github/workflows/backend-build.yml`):**
-```yaml
-name: Backend Build and Deploy
+**1. Backend Java CI (`.github/workflows/backend-java-ci.yml`) & Deploy (`.github/workflows/backend-java-deploy.yml`):**
 
-on:
-  push:
-    branches: [main]
-    paths:
-      - 'Backend/app/**'
-      - 'Backend/Dockerfile'
-      - 'Backend/requirements.txt'
+> **SUPERSEDED:** the FastAPI `backend-build` workflow was removed together with the FastAPI monolith. The REST API is now the Spring Boot 4 / Java 25 microservices under `Backend-Java/` — `user-service`, `lab-service`, `question-service`, `chat-service`, `analytics-service`.
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::ACCOUNT_ID:role/github-actions-role
-          aws-region: us-east-1
-      
-      - name: Login to ECR
-        run: |
-          aws ecr get-login-password --region us-east-1 | \
-          docker login --username AWS --password-stdin ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
-      
-      - name: Build and Push
-        run: |
-          cd Backend
-          docker build -t rosettacloud-backend:${{ github.sha }} .
-          docker tag rosettacloud-backend:${{ github.sha }} \
-            ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-backend:latest
-          docker push ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/rosettacloud-backend:latest
-      
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name rosettacloud-eks --region us-east-1
-      
-      - name: Rollout Restart
-        run: kubectl rollout restart deployment/rosettacloud-backend -n dev
-```
+- **`backend-java-ci.yml`** — CI test gate for changes under `Backend-Java/**`: runs `./mvnw verify` (compile + unit/integration tests) as the merge gate.
+- **`backend-java-deploy.yml`** — on merge to `main`: builds the 5 service container images, pushes them to ECR, deploys them to an **in-runner k3s** cluster (no live EKS), and runs smoke checks against the deployed services.
+
+Both authenticate via **GitHub OIDC** — no static AWS credentials.
 
 **2. Frontend Build (`.github/workflows/frontend-build.yml`):**
 - Similar to backend
@@ -986,7 +893,8 @@ jobs:
       
       - name: Update ConfigMap
         run: |
-          kubectl set env deployment/rosettacloud-backend \
+          # AGENT_RUNTIME_ARN is consumed by chat-service (deployment: rosettacloud-chat-service)
+          kubectl set env deployment/rosettacloud-chat-service \
             AGENT_RUNTIME_ARN=${{ steps.arn.outputs.arn }} -n dev
 ```
 
@@ -1095,29 +1003,32 @@ terraform apply -var-file="terraform.tfvars"
 
 ### Kubernetes ConfigMap Updates
 
-`be-deployment.yaml` ConfigMap — key values:
+> **SUPERSEDED:** the FastAPI backend and its single backend Kubernetes manifest were removed; configuration now lives with each Java microservice under `Backend-Java/<service>/k8s` (combined in `Backend-Java/e2e/k8s/e2e-stack.yaml`), deployed via `backend-java-deploy.yml`. `AGENT_RUNTIME_ARN` is now consumed by `chat-service` (ConfigMap `chat-service-config`).
+
+Example `chat-service-config` ConfigMap — key values:
 ```yaml
 COGNITO_ISSUER_URL: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_jPds5WJ0I"
 AGENT_RUNTIME_ARN:  "arn:aws:bedrock-agentcore:..."
 ```
-After editing, apply with `kubectl apply -f DevSecOps/K8S/be-deployment.yaml` and restart: `kubectl rollout restart deployment/rosettacloud-backend -n dev`.
+After editing, apply the chat-service manifest with `kubectl apply -f Backend-Java/chat-service/k8s/chat-service.yaml` and restart it: `kubectl rollout restart deployment/rosettacloud-chat-service -n dev`.
 
 ### Kubernetes ConfigMap Updates — detail
 
-**Update Agent Runtime ARN:**
+**Update Agent Runtime ARN (chat-service):**
 ```bash
 # After agentcore launch
 NEW_ARN=$(agentcore status | grep "Runtime ARN" | awk '{print $3}')
 
-# Update ConfigMap
-kubectl edit configmap rosettacloud-backend-config -n dev
+# AGENT_RUNTIME_ARN is consumed by chat-service
+kubectl edit configmap chat-service-config -n dev
 # Or
-kubectl set env deployment/rosettacloud-backend AGENT_RUNTIME_ARN=$NEW_ARN -n dev
+kubectl set env deployment/rosettacloud-chat-service AGENT_RUNTIME_ARN=$NEW_ARN -n dev
 ```
 
-**Update Lab Image:**
+**Update Lab Image (lab-service):**
 ```bash
-kubectl set env deployment/rosettacloud-backend \
+# LAB_POD_IMAGE is consumed by lab-service (ConfigMap lab-service-config)
+kubectl set env deployment/rosettacloud-lab-service \
   LAB_POD_IMAGE=339712964409.dkr.ecr.us-east-1.amazonaws.com/interactive-labs:v2.0 \
   -n dev
 ```
@@ -1340,8 +1251,10 @@ kubectl create secret docker-registry ecr-creds \
 kubectl top nodes
 kubectl describe node NODE_NAME | grep -A 5 "Allocated resources"
 
-# Scale down other pods if needed
-kubectl scale deployment/rosettacloud-backend --replicas=0 -n dev
+# Scale down other pods if needed (per-service Java deployments; repeat as required)
+# e.g. rosettacloud-user-service, rosettacloud-lab-service, rosettacloud-question-service,
+#      rosettacloud-chat-service, rosettacloud-analytics-service
+kubectl scale deployment/rosettacloud-<service> --replicas=0 -n dev
 ```
 
 **5. CloudFront Cache Issues**
@@ -1392,8 +1305,8 @@ aws iam get-role --role-name rosettacloud-backend-irsa \
 kubectl delete sa rosettacloud-backend -n dev
 kubectl apply -f K8S/backend-serviceaccount.yaml
 
-# Restart deployment
-kubectl rollout restart deployment/rosettacloud-backend -n dev
+# Restart the affected service deployment (per-service; one of the five rosettacloud-<service> deployments)
+kubectl rollout restart deployment/rosettacloud-<service> -n dev
 ```
 
 ## 📊 Monitoring & Observability
@@ -1424,8 +1337,9 @@ aws logs tail /aws/eks/rosettacloud-eks/cluster --follow
 
 **Pod Logs:**
 ```bash
-# Backend
-kubectl logs -f deployment/rosettacloud-backend -n dev
+# Backend (per-service — pick the relevant Java microservice deployment)
+kubectl logs -f deployment/rosettacloud-user-service -n dev
+# also: rosettacloud-lab-service, rosettacloud-question-service, rosettacloud-chat-service, rosettacloud-analytics-service
 
 # Frontend
 kubectl logs -f deployment/rosettacloud-frontend -n dev
@@ -1504,11 +1418,11 @@ kubectl get events -n dev --watch
 
 ### Application Updates
 
-**Backend:**
-- [ ] Make code changes in `Backend/app/`
-- [ ] Commit and push to `main` branch
-- [ ] GitHub Actions builds and deploys automatically
-- [ ] Verify: `kubectl get pods -n dev -l app=rosettacloud-backend`
+**Backend (Java microservices):**
+- [ ] Make code changes in `Backend-Java/<service>/src` (user/lab/question/chat/analytics-service)
+- [ ] Commit and push to `main` — `backend-java-ci.yml` runs the `mvnw verify` test gate
+- [ ] Deploy via `backend-java-deploy.yml` (build images → ECR → in-runner k3s + smoke; no EKS)
+- [ ] Verify: `kubectl get pods -n dev -l app=rosettacloud-<service>`
 
 **Frontend:**
 - [ ] Make code changes in `Frontend/src/`
@@ -1541,7 +1455,7 @@ kubectl get events -n dev --watch
 - [ ] Commit and push to `main` branch
 - [ ] GitHub Actions builds and pushes to ECR
 - [ ] Update ConfigMap if image tag changed
-- [ ] Restart backend: `kubectl rollout restart deployment/rosettacloud-backend -n dev`
+- [ ] Restart lab-service (consumes `LAB_POD_IMAGE`): `kubectl rollout restart deployment/rosettacloud-lab-service -n dev`
 
 ## 📚 Additional Resources
 
@@ -1560,7 +1474,8 @@ kubectl get events -n dev --watch
 - [AWS Certificate Manager](https://docs.aws.amazon.com/acm/)
 
 ### Related Files
-- `../Backend/` — FastAPI backend
+- `../Backend/` — AgentCore agent, Lambdas, and question content (FastAPI monolith removed)
+- `../Backend-Java/` — Spring Boot 4 / Java 25 REST microservices (user, lab, question, chat, analytics)
 - `../Frontend/` — Angular frontend
 - `../CLAUDE.md` — Technical implementation guide
 - `../README.md` — Project overview

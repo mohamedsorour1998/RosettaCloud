@@ -71,10 +71,11 @@ pip install -r requirements.txt --break-system-packages
 sudo apt install redis-server
 sudo service redis start
 
-# Run development server
-REDIS_HOST=localhost \
-LAB_K8S_NAMESPACE=dev \
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Run development server — the FastAPI app was removed; the API is now the Backend-Java microservices.
+# Run a service with the Maven wrapper (repeat per service you need):
+cd ../Backend-Java
+REDIS_HOST=localhost LAB_K8S_NAMESPACE=dev \
+  ./mvnw -pl chat-service spring-boot:run   # chat :8084 (user :8081 · lab :8082 · question :8083 · analytics :8085)
 ```
 
 **Environment Variables (Local Dev):**
@@ -96,6 +97,11 @@ fuser -k 8000/tcp
 
 ### Production Deployment
 
+> **SUPERSEDED** — the FastAPI app was removed; the API now runs as the Backend-Java microservices
+> (`user`/`lab`/`question`/`chat`/`analytics-service`), built and deployed to k3s-on-runner by
+> `backend-java-ci.yml` and `backend-java-deploy.yml`. The `rosettacloud-backend` build/deploy steps
+> below are retained for historical reference only.
+
 **Docker Build:**
 ```bash
 docker build -t rosettacloud-backend:latest .
@@ -111,7 +117,12 @@ kubectl get pods -n dev
 ```
 
 **CI/CD:**
-GitHub Actions workflow `.github/workflows/backend-build.yml` automatically builds and deploys on push to `Backend/app/**`, `Backend/Dockerfile`, or `Backend/requirements.txt`.
+> **SUPERSEDED** — the FastAPI app was removed, and the former FastAPI app's dedicated build-and-deploy
+> CI workflow was removed with it. The API now runs as the Backend-Java microservices, built and
+> deployed by `backend-java-ci.yml` (build + test) and `backend-java-deploy.yml` (build + deploy to
+> k3s-on-runner). The Python that remains under `Backend/` is deployed by its own workflows:
+> `agents/` via `agent-deploy.yml`, `serverless/Lambda/` via `lambda-deploy.yml`, and `questions/`
+> via `questions-sync.yml`.
 
 ## 📊 Core Components
 
@@ -802,7 +813,8 @@ aws logs tail /aws/lambda/agent_tools --follow --region us-east-1
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| **Backend Build** | Push to `Backend/app/**`, `Backend/Dockerfile`, `Backend/requirements.txt` | Build Docker image → ECR push → EKS rolling restart |
+| **Backend Java CI** | Push to `Backend-Java/**` | JDK 25 `./mvnw verify` — multi-module unit + Testcontainers test gate |
+| **Backend Java Deploy** | manual (`workflow_dispatch`) | Build 5 service images (test gate) → ECR → deploy to in-runner k3s + smoke test (no EKS) |
 | **Agent Deploy** | Push to `Backend/agents/**` | `agentcore launch` via CodeBuild (ARM64) → update K8s ConfigMap with new ARN |
 | **Lambda Deploy** | Push to `Backend/serverless/Lambda/**` | Build & push `document_indexer` and `agent_tools` containers → update Lambda |
 | **Questions Sync** | Push to `Backend/questions/**` | Sync shell scripts to S3 → triggers EventBridge → document indexing |
@@ -816,6 +828,9 @@ All workflows use **GitHub OIDC** — no static AWS credentials stored in secret
 ### Manual Deployment
 
 **Backend:**
+> **SUPERSEDED** — the FastAPI app was removed; the API now runs as the Backend-Java microservices.
+> Build and deploy them to k3s-on-runner via `backend-java-deploy.yml`. The `rosettacloud-backend`
+> steps below are retained for historical reference only.
 ```bash
 # Build and push
 docker build -t rosettacloud-backend:latest .
@@ -836,8 +851,9 @@ agentcore launch --auto-update-on-conflict \
   --env GATEWAY_URL=$GATEWAY_URL
 
 # Update K8s ConfigMap with new ARN
+# NOTE: the AgentCore runtime is now consumed by chat-service (the FastAPI rosettacloud-backend was removed).
 NEW_ARN=$(agentcore status | grep "Runtime ARN" | awk '{print $3}')
-kubectl set env deployment/rosettacloud-backend AGENT_RUNTIME_ARN=$NEW_ARN -n dev
+kubectl set env deployment/rosettacloud-chat-service AGENT_RUNTIME_ARN=$NEW_ARN -n dev
 ```
 
 **Lambda:**
@@ -860,6 +876,10 @@ aws s3 sync questions/ s3://rosettacloud-shared-interactive-labs/ --delete
 ### Logging
 
 **Application Logs:**
+> **SUPERSEDED** — the FastAPI app was removed; the API now runs as the Backend-Java microservices.
+> Tail logs from the per-service deployments, e.g. `kubectl logs -f deployment/rosettacloud-chat-service -n dev`
+> (also `rosettacloud-user-service`, `-lab-service`, `-question-service`, `-analytics-service`). The
+> `rosettacloud-backend` commands below are retained for historical reference only.
 ```bash
 # Backend pod logs
 kubectl logs -f deployment/rosettacloud-backend -n dev
