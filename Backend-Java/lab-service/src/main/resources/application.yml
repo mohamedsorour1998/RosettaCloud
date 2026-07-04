@@ -4,6 +4,15 @@ server:
 spring:
   application:
     name: lab-service
+  cloud:
+    # B.3 regression fix: Spring Cloud 2025.1.0 (the CircuitBreaker starter's release train) validates
+    # only against Spring Boot 4.0.x, but this project runs Boot 4.1.0. Its runtime CompatibilityVerifier
+    # therefore aborts startup ("Spring Boot [4.1.0] is not compatible with this Spring Cloud release
+    # train ... [4.0.x]") -> CrashLoopBackOff. The spring-cloud-circuitbreaker-resilience4j adapter is a
+    # thin, stable wrapper that works correctly on 4.1.0 (proven by the CB unit tests and the full-stack
+    # e2e), so disable the conservative version guard rather than pinning Spring Boot back to 4.0.x.
+    compatibility-verifier:
+      enabled: false
   threads:
     virtual:
       enabled: true
