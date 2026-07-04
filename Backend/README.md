@@ -1,6 +1,15 @@
 # RosettaCloud Backend
 
-Production-ready FastAPI backend for the RosettaCloud learning platform, featuring event-driven architecture, AI-powered chatbot with multi-agent orchestration, and Kubernetes-based interactive lab management.
+> **Note (migration complete):** the FastAPI monolith that used to live in `Backend/app/` has been
+> **removed** — its REST API (users, labs, questions, chat, metrics) is now served by the Spring Boot 4 /
+> Java 25 microservices under [`Backend-Java/`](../Backend-Java/). What remains in `Backend/` is the
+> still-live Python: the **AgentCore agent** (`agents/`, deployed by `agent-deploy.yml`), the **Lambda
+> functions** (`serverless/Lambda/`, deployed by `lambda-deploy.yml`), and the **question content**
+> (`questions/`, synced by `questions-sync.yml`). Sections below that describe the old FastAPI
+> service/backend layers are retained only for historical reference.
+
+Python components for the RosettaCloud learning platform: the AI multi-agent system (Amazon Bedrock
+AgentCore), serverless Lambda functions, and question content.
 
 ## 🏗️ Architecture Overview
 

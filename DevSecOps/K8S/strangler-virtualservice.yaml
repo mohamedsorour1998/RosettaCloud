@@ -34,9 +34,9 @@ spec:
         - uri: { prefix: /public/stats }
       route:
         - destination: { host: analytics-service.dev.svc.cluster.local, port: { number: 8085 } }
-    # Default: everything not yet migrated still goes to the FastAPI backend.
-    - route:
-        - destination: { host: rosettacloud-backend-service.dev.svc.cluster.local, port: { number: 80 } }
+    # Strangler COMPLETE: the FastAPI monolith (rosettacloud-backend) has been fully migrated to the
+    # Java microservices above and decommissioned, so there is no default fallback route any more.
+    # Every public prefix is served by a Java service; anything unmatched returns 404 at the gateway.
 ---
 # Restrict the cluster-internal endpoints (L3/L4): only the Java service pods may call user-service.
 apiVersion: networking.k8s.io/v1

@@ -14,22 +14,14 @@ spec:
   tls:
     - hosts:
         - dev.rosettacloud.app
-        - api.dev.rosettacloud.app
       secretName: rosettacloud-tls
     - hosts:
         - "*.labs.dev.rosettacloud.app"
       secretName: rosettacloud-labs-tls
   rules:
-    - host: api.dev.rosettacloud.app
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: rosettacloud-backend-service
-                port:
-                  number: 80
+    # api.dev.rosettacloud.app is served by the API Gateway + Istio strangler (path-based, to the Java
+    # microservices); the legacy nginx route to the decommissioned FastAPI backend was removed, so this
+    # ingress now only fronts the frontend host.
     - host: dev.rosettacloud.app
       http:
         paths:

@@ -14,20 +14,6 @@ spec:
             host: rosettacloud-frontend-service.dev.svc.cluster.local
             port:
               number: 80
----
-apiVersion: networking.istio.io/v1
-kind: VirtualService
-metadata:
-  name: rosettacloud-backend
-  namespace: dev
-spec:
-  hosts:
-    - "api.dev.rosettacloud.app"
-  gateways:
-    - rosettacloud-gateway
-  http:
-    - route:
-        - destination:
-            host: rosettacloud-backend-service.dev.svc.cluster.local
-            port:
-              number: 80
+# The api.dev.rosettacloud.app routing now lives in strangler-virtualservice.yaml (path-based, to the
+# Java microservices). The legacy `rosettacloud-backend` VirtualService that routed the whole api host
+# to the FastAPI monolith was removed when that backend was decommissioned.
