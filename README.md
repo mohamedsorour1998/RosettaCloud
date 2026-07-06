@@ -1,803 +1,382 @@
-# RosettaCloud: Event-Driven Learning Platform Integration
+# RosettaCloud — Event-Driven Interactive Learning Platform
 
 [![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
-[![Angular](https://img.shields.io/badge/Angular-DD0031?style=for-the-badge&logo=angular&logoColor=white)](https://angular.io/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Angular](https://img.shields.io/badge/Angular_22-DD0031?style=for-the-badge&logo=angular&logoColor=white)](https://angular.dev/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot_4-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java_25-437291?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Amazon Bedrock](https://img.shields.io/badge/Bedrock_AgentCore-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/bedrock/)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-326ce5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
-[![Docker](https://img.shields.io/badge/docker-0db7ed?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Terraform](https://img.shields.io/badge/terraform-623CE4?style=for-the-badge&logo=terraform&logoColor=white)](https://terraform.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
-RosettaCloud is a production-ready, event-driven learning platform that enhances existing Learning Management Systems with hands-on lab environments, AI-powered assistance, and real-time feedback. Built with modern DevOps practices and cloud-native architecture, it demonstrates enterprise-level platform engineering while solving real educational challenges.
+RosettaCloud is a production-grade, cloud-native learning platform that gives every student a **real, disposable cloud environment in the browser** — VS Code, a Docker daemon, and a Kubernetes cluster — paired with an **AI multi-agent tutor** that teaches, grades, and plans. It targets the skills that get people *hired* (Linux, Docker, Kubernetes, cloud engineering), not just certified.
 
-![Platform](https://github.com/user-attachments/assets/6dea8e4e-e2d8-4bad-8115-07db44d01cba)
+> **This is not a simulation.** Labs run as isolated Kubernetes pods; the AI runs entirely on **AWS-native models** (Amazon Nova via Bedrock AgentCore) — no third-party LLMs in the request path.
 
+🎥 **Demo:** https://youtu.be/EzsJ9wofGOo
 
-## 🚀 Demo Video
+---
 
-[![RosettaCloud Demo](https://img.youtube.com/vi/EzsJ9wofGOo/maxresdefault.jpg)](https://youtu.be/EzsJ9wofGOo)
+## Table of Contents
 
-## 🎯 What Problem Does It Solve?
+- [What It Solves](#what-it-solves)
+- [Core Functionality](#core-functionality)
+- [Platform Architecture](#platform-architecture)
+- [Microservices](#microservices)
+- [AI Multi-Agent System (Bedrock AgentCore)](#ai-multi-agent-system-bedrock-agentcore)
+- [Interactive Lab Environments](#interactive-lab-environments)
+- [Data Layer](#data-layer)
+- [Resilience & Reliability](#resilience--reliability)
+- [Security](#security)
+- [Deployment Model & CI/CD](#deployment-model--cicd)
+- [Technology Stack](#technology-stack)
+- [Repository Structure](#repository-structure)
+- [Getting Started](#getting-started)
+- [Performance](#performance)
+- [Documentation Map](#documentation-map)
+- [Author & License](#author--license)
 
-Traditional learning platforms struggle with three key challenges:
-- **Scalability bottlenecks** during peak usage (course launches, exam periods)
-- **Limited hands-on practice** due to complex environment setup
-- **Delayed feedback loops** that slow down learning progress
+---
 
-RosettaCloud addresses these with a cloud-native, event-driven architecture that delivers:
-- **60% cost reduction** through spot instances and optimized infrastructure
-- **~6-10 second lab provisioning** (pod ready) vs traditional 5-10 minute VM setups
-- **Real-time AI assistance** with context-aware chatbot and instant feedback (1-2s response time)
+## What It Solves
 
-## ✨ Core Features
+Traditional learning platforms hit three walls:
 
-### 🔬 Interactive Lab Environment
-Built with enterprise-grade container orchestration to provide isolated, scalable learning environments.
+- **Setup friction** — "install Docker/kubectl/an IDE" loses learners before they start.
+- **Content ≠ competence** — videos and quizzes don't build the muscle memory of running real commands against real infrastructure.
+- **Slow, generic feedback** — learners wait, and get feedback that doesn't know what they actually did.
 
-**Key Capabilities:**
-- **Containerized Tools**: Code-Server with Docker-in-Docker for realistic development environments
-- **Resource Isolation**: Each lab runs in separate Kubernetes namespaces with resource limits
-- **Real-time Verification**: Automated shell scripts validate student progress instantly
-- **Auto-provisioning**: On-demand creation — pod ready in ~6-10s (code-server + Caddy); full Kind K8s cluster available in ~60-90s in the background
+RosettaCloud answers each with a cloud-native, event-driven design:
 
-**DevOps Implementation:**
-- Kubernetes HPA for automatic scaling based on demand
-- Resource quotas and network policies for security
-- Persistent volume claims for stateful workloads
-- Custom operators for lab lifecycle management
+- **~6–10 second** lab provisioning (pod ready) instead of multi-minute VM setups.
+- **Real infrastructure per student** — a Dockerized VS Code plus a Kubernetes-in-Docker cluster, isolated per namespace.
+- **Context-aware AI** — a tutor that gives hints (not answers), a grader that assesses actual work, and a planner that sequences the next steps — with cross-session memory.
 
-### 🤖 AI-Powered Chatbot with RAG
-Advanced conversational AI system that provides context-aware assistance using Retrieval-Augmented Generation.
+---
 
-**RAG Architecture:**
-- **Vector Database**: LanceDB with S3 backend storing document embeddings
-- **Document Processing**: Automated indexing of shell scripts and course materials
-- **Embeddings**: Amazon Titan embeddings for semantic similarity search
-- **Conversational Memory**: In-process session dict (within-session) + AgentCore Memory (cross-session)
+## Core Functionality
 
-**Technical Implementation:**
-```python
-# Multi-agent routing in AgentCore Runtime (Strands Agents SDK)
-# agent.py — simplified
-def _classify(message: str, msg_type: str) -> str:
-    if msg_type == "grade":   return "grader"
-    if msg_type == "hint":    return "tutor"
-    if msg_type == "session_start": return "planner"
-    # Falls back to Nova Lite classifier for free-form chat
-    return nova_lite_classify(message)
+### 🔬 Interactive Labs
+On-demand, isolated **code-server (VS Code) + Docker-in-Docker + Kind (Kubernetes)** environments, provisioned as Kubernetes pods and reached over an auto-generated per-lab subdomain. Automated shell-script checks verify student progress in-pod.
 
-def invoke(payload, context=None):
-    agent_name = _classify(payload["message"], payload["type"])
-    agent = Agent(
-        model=BedrockModel("amazon.nova-2-lite-v1:0"),
-        system_prompt=AGENT_CONFIGS[agent_name].prompt,
-        tools=AGENT_CONFIGS[agent_name].tools,
-        session_manager=AgentCoreMemorySessionManager(config),  # long-term memory
-    )
-    return agent(f"Student: {payload['message']}")
-```
+### 🤖 AI Multi-Agent Tutor
+An Amazon **Bedrock AgentCore** runtime routes each message to the right specialist agent — **Tutor** (hint-first help), **Grader** (assesses attempts), **Planner** (session/next-step planning) — all reasoning on **Amazon Nova**, with **AgentCore Memory** for cross-session continuity.
 
-**Chatbot Features:**
-- **HTTP/REST**: Synchronous POST to `/chat` — no WebSocket complexity
-- **Educational Prompting**: "Hint-first" approach encouraging critical thinking
-- **Source Attribution**: Transparent references to retrieved documentation
-- **Session Management**: Persistent conversation history across sessions
-- **Rate Limiting**: Fair resource usage with queue management
+### 📚 Retrieval-Augmented Generation (RAG)
+Course material and lab shell-scripts are embedded with **Amazon Titan** and stored in **LanceDB on S3**; the tutor retrieves relevant context so answers are grounded in the actual curriculum.
 
-### 📊 Event-Driven Feedback System
-Intelligent feedback generation that scales with user activity while maintaining security and performance.
+### 📸 Multimodal "Snap & Ask"
+Students capture their screen in-browser; the image is sent to a vision-capable Nova model for visual troubleshooting ("why is my pod stuck in `Pending`?").
 
-**Architecture Highlights:**
-- **Asynchronous Processing**: Non-blocking feedback generation via AgentCore multi-agent runtime
-- **Pattern Analysis**: AI-powered assessment across multiple exercises
-- **Session History**: In-process conversation history keyed by session_id for contextual responses
+### 📊 Event-Driven Feedback & Analytics
+Lab/question/chat activity emits domain events (SNS/SQS) consumed by the analytics service for progress tracking, quotas, and pilot metrics — asynchronous, so it never blocks the learning loop.
 
-**Feedback Flow:**
-```mermaid
-graph LR
-    A[User Requests Feedback] --> B[POST /chat with type=grade]
-    B --> C[FastAPI routes to AgentCore]
-    C --> D[Grader Agent generates feedback]
-    D --> E[Response returned to user]
-```
+### 🔐 Accounts, Quotas & Fair Use
+Amazon **Cognito** authentication (email verification, JWT), with weekly free-tier quotas (lab minutes + AI messages) and per-user rate limiting.
 
-**Implementation Details:**
-```python
-# Feedback request via HTTP POST to /chat (uses type=grade)
-async def handle_feedback_request(data):
-    session_id = data["session_id"]
+---
 
-    # Build progress summary prompt
-    prompt = build_feedback_prompt(data)
+## Platform Architecture
 
-    # Invoke AgentCore multi-agent runtime via boto3
-    response = invoke_agent_runtime(
-        payload={"message": prompt, "type": "grade", "session_id": session_id}
-    )
-    return response
-```
-
-## 🏗️ Platform Architecture
-
-### System Overview
+RosettaCloud is a **strangler-fig microservices** system: an Angular SPA behind CloudFront, a JWT-authorized API Gateway, an Istio path-router fanning out to one Spring Boot service per domain, an AgentCore AI plane, and Kubernetes-provisioned lab pods.
 
 ```mermaid
 graph TB
     subgraph Client["Browser"]
-        UI[Angular 19 SPA]
+        UI[Angular 22 SPA]
     end
 
-    subgraph CDN["AWS Edge"]
+    subgraph Edge["AWS Edge / Auth"]
         CF[CloudFront]
-        R53[Route 53]
         AGW[API Gateway HTTP API<br/>JWT authorizer]
-        Cognito[Amazon Cognito<br/>User Pool]
+        COG[Amazon Cognito<br/>User Pool]
     end
 
-    subgraph K8S["EKS Cluster — dev namespace"]
-        Istio[Istio Ingress]
-        FE[Frontend Pod]
-        BE[Backend Pod<br/>FastAPI]
-        Redis[Redis Pod]
-        Lab[Lab Pod<br/>code-server + Kind K8s]
+    subgraph Mesh["Kubernetes — dev namespace (Istio)"]
+        VS[Strangler VirtualService<br/>path-based routing]
+        USER[user-service :8081]
+        LAB[lab-service :8082]
+        Q[question-service :8083]
+        CHAT[chat-service :8084]
+        AN[analytics-service :8085]
+    end
+
+    subgraph Labs["labs namespace (isolated)"]
+        POD[Lab Pod<br/>code-server + DinD + Kind]
     end
 
     subgraph AI["Amazon Bedrock AgentCore"]
-        Router{Agent Router}
-        Tutor[Tutor Agent]
-        Grader[Grader Agent]
-        Planner[Planner Agent]
-        Memory[AgentCore Memory]
-        Nova[Nova 2 Lite]
+        RT{Agent Router}
+        TUT[Tutor]
+        GRD[Grader]
+        PLN[Planner]
+        MEM[AgentCore Memory]
+        NOVA[Amazon Nova]
     end
 
-    subgraph Data["Data Layer"]
-        DDB[(DynamoDB<br/>Users + Progress)]
-        S3Q[(S3<br/>Questions)]
-        S3V[(S3<br/>LanceDB Vectors)]
+    subgraph Data["Data & Events"]
+        DDB[(DynamoDB<br/>users · progress)]
+        S3Q[(S3<br/>questions)]
+        S3V[(S3<br/>LanceDB vectors)]
+        REDIS[(Redis<br/>sessions · quota)]
+        SQS[[SNS/SQS<br/>domain events]]
     end
 
-    UI -->|HTTPS| CF
-    CF --> ALB[ALB<br/>EKS Auto Mode]
-    CF -->|api.*| AGW
-    AGW -->|JWT verified| ALB
-    ALB --> Istio
-    Istio --> FE
-    Istio --> BE
-    UI -->|SignUp/SignIn| Cognito
-    AGW -->|JWT validation| Cognito
-    BE -->|boto3| Router
-    BE <--> Redis
-    BE <--> DDB
-    BE <--> S3Q
-    Router --> Tutor
-    Router --> Grader
-    Router --> Planner
-    Tutor & Grader & Planner --> Nova
-    Tutor --> S3V
-    Grader & Planner --> DDB
-    Tutor & Grader & Planner <--> Memory
-    UI -->|iframe| Lab
+    UI -->|HTTPS| CF --> AGW
+    UI -->|SignIn / SignUp| COG
+    AGW -->|JWT verified| VS
+    VS --> USER & LAB & Q & CHAT & AN
+    LAB -->|Fabric8 K8s API| POD
+    UI -->|iframe| POD
+    CHAT -->|boto3 invoke| RT
+    RT --> TUT & GRD & PLN --> NOVA
+    TUT --> S3V
+    TUT & GRD & PLN <--> MEM
+    USER & AN <--> DDB
+    Q <--> S3Q
+    CHAT <--> REDIS
+    LAB <--> USER
+    USER & LAB & Q & CHAT & AN -.events.-> SQS --> AN
 ```
 
-### AI Multi-Agent Flow
+**Request flow:** the SPA authenticates directly against Cognito and stores the ID token; every API call goes CloudFront → API Gateway (JWT authorizer) → Istio strangler `VirtualService`, which routes by path prefix (`/users`, `/labs`, `/questions`, `/chat`, `/admin/metrics`, `/public/stats`) to the matching Spring Boot service. Each service resolves identity from the JWT (`custom:user_id` ?? `sub`).
 
-```mermaid
-sequenceDiagram
-    participant Student
-    participant FastAPI
-    participant AgentCore
-    participant Nova as Nova Lite
-    participant Memory as AgentCore Memory
-
-    Student->>FastAPI: POST /chat {message, type, session_id}
-    FastAPI->>FastAPI: Load session history (in-process dict)
-    FastAPI->>AgentCore: invoke_agent_runtime(payload + history)
-
-    AgentCore->>AgentCore: _classify(message, type)
-    Note over AgentCore: type=grade→Grader<br/>type=hint→Tutor<br/>type=session_start→Planner<br/>else→Nova Lite classifier
-
-    AgentCore->>Memory: Read past sessions (actor_id=user_id)
-    AgentCore->>Nova: Agent reasoning + tool calls
-    Nova-->>AgentCore: Response text
-    AgentCore-->>FastAPI: {response, agent, session_id}
-
-    FastAPI->>FastAPI: Update session history
-    FastAPI-->>Student: {response, agent}
-```
-
-### Multimodal Screenshot Flow (Snap & Ask)
-
-```mermaid
-sequenceDiagram
-    participant Student
-    participant Browser
-    participant FastAPI
-    participant AgentCore
-    participant Nova as Nova Lite (Vision)
-
-    Student->>Browser: Click "Snap & Ask"
-    Browser->>Browser: getDisplayMedia() — screen capture
-    Browser->>Browser: Canvas → JPEG base64 (max 1280px, q=0.75)
-    Browser->>FastAPI: POST /chat {image: base64, type: chat}
-    FastAPI->>FastAPI: Validate JPEG magic bytes (ff d8 ff)
-    FastAPI->>AgentCore: payload + image bytes
-    AgentCore->>Nova: [{text: message}, {image: {format:jpeg, bytes}}]
-    Nova-->>AgentCore: Visual analysis response
-    AgentCore-->>FastAPI: response
-    FastAPI-->>Browser: Display in chat panel
-```
-
-### Lab Provisioning Flow
-
-```mermaid
-sequenceDiagram
-    participant Student
-    participant FastAPI
-    participant K8s as Kubernetes API
-    participant Lab as Lab Pod
-
-    Student->>FastAPI: POST /labs {user_id}
-    FastAPI->>FastAPI: Check Redis active_labs:{user_id}
-    FastAPI->>K8s: Create Pod + Service + VirtualService (parallel)
-    K8s->>Lab: Start code-server + Caddy (~6-10s ready)
-    Lab-->>K8s: Readiness probe passes
-    FastAPI-->>Student: {lab_id}
-
-    Student->>FastAPI: GET /labs/{lab_id} (poll)
-    FastAPI->>K8s: Get pod status
-    K8s-->>FastAPI: Running + Ready
-    FastAPI-->>Student: {status: running, url: lab-id.labs.dev.rosettacloud.app}
-    Note over Lab: Background: dockerd (~10-15s)<br/>docker load kind-node.tar (~20-30s)<br/>kind create cluster (~30-60s)
-```
-
-### AI/ML Infrastructure
-
-**Document Processing Pipeline:**
-1. **Document Indexer**: Automated processing of shell scripts and course materials
-2. **Embedding Generation**: Amazon Titan creates vector representations
-3. **Vector Storage**: LanceDB stores embeddings with metadata for fast retrieval
-4. **Query Processing**: Semantic search finds relevant context for user questions
-
-![Document Indexing Flow](https://github.com/user-attachments/assets/ecacc27a-451d-4739-a245-e9c8e923358a)
-
-**Conversational AI Stack:**
-- **AgentCore Runtime**: Multi-agent platform (tutor/grader/planner) deployed via `agentcore` CLI, ARM64 container on CodeBuild
-- **Strands Agents**: AWS open-source framework for tool-using agents
-- **Amazon Nova Lite**: Primary reasoning model for all agents (fast, cost-effective)
-- **AgentCore Memory**: Long-term cross-session memory (student progress, learning history)
-- **LanceDB on S3**: Vector store for RAG — course material and shell script embeddings
-- **Amazon Titan Embed v2**: Embedding model for document indexing
-
-## 🛠️ Technology Stack & DevOps Practices
-
-### Frontend Development
-- **Angular 19** with standalone components for modern development
-- **Custom SCSS design system** and **TypeScript** for maintainable, responsive UIs
-- **xterm.js** for browser-based terminal emulation
-![dev rosettacloud app_register(High Res)](https://github.com/user-attachments/assets/4d46db80-687d-4e4f-a1eb-0a9fcddc070a)
-
-### Backend & API Development
-- **Spring Boot 4** on **Java 25** — REST microservices, one service per domain (user/lab/question/chat/analytics)
-- **Python 3.12+** with async/await patterns for concurrency
-- **LanceDB** vector database for AI/ML workloads
-- **Strands Agents** for multi-agent AI orchestration (AWS open-source)
-
-### AI/ML Services
-- **Amazon Bedrock** with Nova 2 Lite for all agent reasoning and classification
-- **Amazon Titan** embeddings for document vectorization
-- **Amazon Bedrock AgentCore**: Multi-agent runtime (tutor/grader/planner) with memory
-- **Retrieval-Augmented Generation** for context-aware responses
-- 
-![Bedrock](https://github.com/user-attachments/assets/6a62f842-420d-499d-9b99-6348255d312f)
-
-### Cloud Infrastructure (AWS)
-- **Amazon EKS** for container orchestration and scaling
-- **AWS Lambda** for serverless AI processing
-- **API Gateway HTTP API**: JWT-authorized API endpoint management with Cognito integration
-- **Amazon Cognito**: User Pool for authentication, email verification, JWT token issuance
-- **DynamoDB** for fast, scalable NoSQL data storage
-- **Amazon S3** for vector database backend and file storage
-- **ECR** for secure container image management
-![API Gateway](https://github.com/user-attachments/assets/5b8f4c60-4785-4419-aab8-f7fe920ad812)
-![DynamoDB](https://github.com/user-attachments/assets/9625d3e5-4b3e-4ecd-8542-88452ef7f86a)
-![Lambda](https://github.com/user-attachments/assets/fec91bbe-74bd-401d-87aa-4d95105aade7)
-
-### DevOps & Platform Engineering
-- **GitHub Actions** for automated CI/CD pipelines with OIDC
-- **Docker** multi-stage builds for optimized container images
-- **Kubernetes** with Istio service mesh and custom NodePools
-- **Terraform** for Infrastructure as Code (VPC, EKS, Route 53, CloudFront, ECR, S3, IAM)
-- **CloudWatch & EKS** for observability and monitoring
-
-## 📊 Performance & Scalability
-
-### Real-World Performance Metrics
-
-| Metric | Target | Achieved | Scaling Method |
-|--------|--------|----------|----------------|
-| **Lab Provisioning** | < 30 seconds | ~6-10s (pod ready); Kind cluster ~60-90s background | Readiness probe on Caddy; Kind starts in background |
-| **AI Response Time** | < 3 seconds | ~1-2s typical | Synchronous HTTP POST + in-process session cache |
-| **Chatbot Latency** | < 500ms | 200ms average | Synchronous HTTP POST + in-process session cache |
-| **Feedback Generation** | < 5 seconds | 2-3 seconds | Asynchronous processing + AI caching |
-| **Concurrent Users** | 500+ | Tested 1000+ | Horizontal pod autoscaling |
-| **System Uptime** | 99.5% | 99.9% | Multi-AZ deployment + health checks |
-| **Cost per User** | < $1/month | $0.40/month | Serverless + spot instances |
-
-### Auto-scaling Strategy
-- **Horizontal Pod Autoscaler (HPA)** for compute workloads
-- **Vertical Pod Autoscaler (VPA)** for optimal resource allocation
-- **Cluster Autoscaler** for node-level scaling
-- **Lambda concurrency controls** for cost-effective AI processing
-
-## 📚 Documentation
-
-### Component Documentation
-
-Comprehensive technical documentation is available for each major component:
-
-| Component | Documentation | Description |
-|-----------|--------------|-------------|
-| **Backend** | [`Backend/README.md`](Backend/README.md) | Spring Boot 4 / Java 25 REST microservices under `Backend-Java/` (user/lab/question/chat/analytics); `Backend/` retains the AgentCore agent, Lambda functions, and questions |
-| **Frontend** | [`Frontend/README.md`](Frontend/README.md) | Angular 19 SPA, chatbot UI, lab interface, HTTP-based chat, multimodal support (1,464 lines) |
-| **DevSecOps** | [`DevSecOps/README.md`](DevSecOps/README.md) | Terraform IaC, EKS cluster, Istio service mesh, CI/CD pipelines, IRSA (1,554 lines) |
-| **Technical Guide** | [`CLAUDE.md`](CLAUDE.md) | Implementation details, deployment procedures, troubleshooting guide |
-
-**Total Documentation:** 4,186+ lines covering architecture, deployment, troubleshooting, and best practices.
-
-### Quick Links
-
-**Backend:**
-- [Service/Backend Architecture](Backend/README.md#core-components)
-- [AI Multi-Agent System](Backend/README.md#ai-multi-agent-system)
-- [Lab Management](Backend/README.md#2-labs-service--backend-labs_backendspy)
-- [API Reference](Backend/README.md#api-requestresponse-examples)
-
-**Frontend:**
-- [Lab Component](Frontend/README.md#1-interactive-lab-environment-lab)
-- [Chatbot Service](Frontend/README.md#2-ai-chatbot-chatbot-serviceschatbotservicets)
-- [Multimodal Support](Frontend/README.md#multimodal-snap--ask)
-- [Routing & Guards](Frontend/README.md#routing--navigation)
-
-**DevSecOps:**
-- [Terraform Infrastructure](DevSecOps/README.md#1-terraform-infrastructure-terraformenvironmentssharedmaintf)
-- [Kubernetes Manifests](DevSecOps/README.md#2-kubernetes-manifests-k8s)
-- [Interactive Labs Container](DevSecOps/README.md#3-interactive-labs-container-interactive-labsdockerfile)
-- [CI/CD Pipelines](DevSecOps/README.md#cicd-pipelines)
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-**Development Environment:**
-- **Node.js** 18.19.1+ and **npm** for frontend development
-- **Python** 3.12+ with **pip** for backend development
-- **Docker Desktop** with Kubernetes enabled for local testing
-- **AWS CLI v2** configured with appropriate permissions
-- **kubectl** 1.25+ for Kubernetes cluster management
-- **Terraform** 1.5+ for infrastructure provisioning
-
-**Cloud Services:**
-- AWS account with EKS, Lambda, DynamoDB, and Bedrock access
-- GitHub repository for CI/CD automation
-
-### Quick Setup
-
-**1. Repository Setup**
-```bash
-git clone https://github.com/mohamedsorour/rosettacloud.git
-cd rosettacloud
-```
-
-**2. Local Development**
-```bash
-# Frontend development server (port 4200)
-cd Frontend
-npm install
-ng serve
-
-# Backend API — Spring Boot 4 / Java 25 microservices under Backend-Java/
-# Run a service with the Maven wrapper (repeat per service you need):
-cd Backend-Java
-./mvnw -pl user-service spring-boot:run   # user-service → :8081
-# lab-service → :8082 · question-service → :8083 · chat-service → :8084 · analytics-service → :8085
-```
-
-**3. Environment Configuration**
-```bash
-# AWS credentials — use AWS CLI profile (local dev) or IRSA (in-cluster)
-aws configure   # sets ~/.aws/credentials
-
-# Key environment variables for local dev
-export AWS_REGION="us-east-1"
-export REDIS_HOST="localhost"
-export LAB_K8S_NAMESPACE="dev"
-export LANCEDB_S3_URI="s3://rosettacloud-shared-interactive-labs-vector"
-export KNOWLEDGE_BASE_ID="shell-scripts-knowledge-base"
-```
-
-**For detailed setup instructions, see:**
-- [Backend Setup Guide](Backend/README.md#quick-start)
-- [Frontend Setup Guide](Frontend/README.md#quick-start)
-- [Infrastructure Deployment](DevSecOps/README.md#quick-start)
-
-### Production Deployment
-
-**Infrastructure Provisioning:**
-```bash
-# 1. Deploy Terraform infrastructure
-cd DevSecOps/Terraform/environments/shared
-terraform init
-terraform apply -var-file="terraform.tfvars"
-
-# 2. Configure kubectl
-aws eks update-kubeconfig --name rosettacloud-eks --region us-east-1
-
-# 3. Install Istio
-istioctl install --set profile=default -y
-
-# 4. Deploy Kubernetes manifests
-kubectl create namespace dev
-kubectl label namespace dev istio-injection=enabled
-kubectl apply -f DevSecOps/K8S/
-
-# 5. Verify deployment
-kubectl get pods -n dev
-kubectl get services -n dev
-```
-
-**AI Services Setup:**
-```bash
-# Deploy AgentCore multi-agent runtime (tutor / grader / planner)
-cd Backend/agents
-agentcore configure -e agent.py -n rosettacloud_education_agent \
-  -er arn:aws:iam::ACCOUNT_ID:role/rosettacloud-agentcore-runtime-role \
-  -rf requirements.txt -r us-east-1 -ni
-agentcore launch --auto-update-on-conflict \
-  --env BEDROCK_AGENTCORE_MEMORY_ID=<memory-id> \
-  --env GATEWAY_URL=<gateway-url>
-agentcore status   # wait for READY
-
-# document_indexer Lambda is deployed automatically via CI/CD
-# (triggered by pushing changes to Backend/serverless/Lambda/**)
-```
-
-**For complete deployment procedures, see:**
-- [DevSecOps Deployment Checklist](DevSecOps/README.md#deployment-checklist)
-- [Backend Deployment](Backend/README.md#production-deployment)
-- [Frontend Deployment](Frontend/README.md#production-build)
-
-**CI/CD Pipeline:**
-Seven GitHub Actions workflows cover the platform's CI/CD automation:
-
-| Workflow | Trigger | Action | Documentation |
-|----------|---------|--------|---------------|
-| **Agent Deploy** | push → `Backend/agents/**` | `agentcore launch` via CodeBuild (ARM64) + update K8s ConfigMap | [Details](DevSecOps/README.md#3-agent-deploy-githubworkflowsagent-deployyml) |
-| **Lambda Deploy** | push → `Backend/serverless/Lambda/**` | Build & push containers → update Lambda | [Details](DevSecOps/README.md#4-lambda-deploy-githubworkflowslambda-deployyml) |
-| **Questions Sync** | push → `Backend/questions/**` | Sync to S3 → triggers EventBridge → indexing | [Details](DevSecOps/README.md#5-questions-sync-githubworkflowsquestions-syncyml) |
-| **Backend Java CI** | push → `Backend-Java/**` | JDK 25 `./mvnw verify` — multi-module unit + Testcontainers test gate | [Details](DevSecOps/README.md#cicd-pipelines) |
-| **Backend Java Deploy** | manual (`workflow_dispatch`) | Build 5 service images (test gate) → ECR → deploy to in-runner k3s + smoke test (no EKS) | [Details](DevSecOps/README.md#cicd-pipelines) |
-| **Frontend Build** | push → `Frontend/src/**` | Build image → ECR push → EKS rolling restart | [Details](DevSecOps/README.md#2-frontend-build-githubworkflowsfrontend-buildyml) |
-| **Interactive Labs** | push → `DevSecOps/interactive-labs/**` | Build & push lab container image to ECR | [Details](DevSecOps/README.md#6-interactive-labs-build-githubworkflowsinteractive-labs-buildyml) |
-
-All workflows use **GitHub OIDC** — no static AWS credentials stored in secrets.
-
-## 🔧 Configuration & Customization
-
-### Environment Variables
-
-| Variable | Description | Required | Example |
-|----------|-------------|----------|---------|
-| `AWS_REGION` | AWS deployment region | ✅ | `us-east-1` |
-| `REDIS_HOST` | Redis hostname | No | `redis-service` (K8s) / `localhost` (local) |
-| `LAB_K8S_NAMESPACE` | Kubernetes namespace for lab pods | No | `dev` |
-| `AGENT_RUNTIME_ARN` | AgentCore Runtime ARN (K8s ConfigMap) | ✅ (prod) | `arn:aws:bedrock-agentcore:us-east-1:...` |
-| `COGNITO_ISSUER_URL` | Cognito User Pool issuer URL for JWT validation | ✅ (prod) | `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_xxx` |
-| `BEDROCK_AGENTCORE_MEMORY_ID` | AgentCore Memory ID for cross-session persistence | No | `rosettacloud_education_memory_v2-...` |
-| `LANCEDB_S3_URI` | Vector database S3 location | ✅ | `s3://rosettacloud-shared-interactive-labs-vector` |
-| `KNOWLEDGE_BASE_ID` | LanceDB table name | ✅ | `shell-scripts-knowledge-base` |
-
-> **AWS credentials**: in-cluster pods use IRSA (IAM Roles for Service Accounts); local dev uses `~/.aws/credentials` via AWS CLI profile.
-
-### Service Configuration
-
-**AWS Infrastructure:**
-1. **EKS Cluster**: Multi-AZ setup with managed node groups
-2. **ECR Repositories**: Automated image scanning and lifecycle policies
-3. **Lambda Functions**: AI chatbot and document indexer services
-4. **DynamoDB Tables**: User management and chat history storage
-5. **S3 Buckets**: Vector database backend and document storage
-6. **Bedrock Access**: Enable Nova and Titan models in your region
-
-**Vector Database Setup:**
-```python
-# Initialize LanceDB with embeddings
-import lancedb
-# Uses boto3 Bedrock directly for Titan embeddings
-
-# Connect to S3-backed vector database
-db = lancedb.connect("s3://your-vector-db-bucket")
-
-# Create or connect to knowledge base table
-table = db.create_table("shell-scripts-knowledge-base", data=documents)
-```
-
-## 🔄 DevOps Workflows
-
-### CI/CD Pipeline Architecture
-
-```mermaid
-graph LR
-    A[Git Push] --> B[GitHub Actions]
-    B --> C[Build & Test]
-    C --> D[Security Scan]
-    D --> E[Docker Build]
-    E --> F[ECR Push]
-    F --> G[K8s Deploy]
-    G --> H[Lambda Update]
-    H --> I[Vector DB Sync]
-    I --> J[Health Check]
-    J --> K[Production]
-```
-
-**Automated Quality Gates:**
-- **Build validation**: Docker multi-stage builds fail-fast on errors
-- **Container security**: ECR image scanning on push
-- **Agent deployment**: `agentcore launch` validates container + CodeBuild ARM64 build before promoting
-- **K8s health**: Rolling restart only proceeds when new pods pass readiness probes
-
-### Deployment Strategies
-- **Rolling Updates**: Zero-downtime deployments with readiness probes
-- **Blue-Green Capability**: Full environment switching for major releases
-- **Canary Releases**: Gradual rollout with automated rollback triggers
-- **Feature Flags**: Runtime configuration for controlled feature releases
-
-## 🔗 Enterprise Integration
-
-### LMS Integration Capabilities
-
-RosettaCloud is architected for seamless integration with existing educational platforms:
-
-**Authentication & User Management:**
-- **SSO Support**: SAML 2.0, OAuth 2.0, and OpenID Connect
-- **Role-Based Access Control**: Integration with existing permission systems
-- **User Profile Sync**: Automatic synchronization with LMS user data
-
-**Content & Course Integration:**
-- **LTI 1.3 Compliance**: Standard integration with Canvas, Moodle, Blackboard
-- **Grade Passback**: Automatic grade synchronization with LMS gradebooks
-- **Content Embedding**: Seamless lab integration within course content
-- **Progress Tracking**: Real-time learning analytics and completion data
-
-### API Documentation
-
-**Core REST Endpoints:**
-```bash
-# User Management
-GET    /api/v1/users
-POST   /api/v1/users
-PUT    /api/v1/users/{id}
-
-# Lab Environment Management
-POST   /api/v1/labs/provision
-GET    /api/v1/labs/{id}/status
-DELETE /api/v1/labs/{id}
-
-# Learning Analytics
-GET    /api/v1/analytics/progress
-GET    /api/v1/analytics/usage
-
-# AI Services
-POST   /api/v1/feedback/request
-GET    /api/v1/feedback/{id}
-```
-
-## 🧪 Testing & Quality Assurance
-
-### Comprehensive Testing Strategy
-
-**Frontend Testing:**
-```bash
-cd Frontend
-ng test                # Karma + Jasmine unit tests
-ng lint                # ESLint code quality
-npm audit              # Security vulnerability scanning
-```
-
-**Backend Testing:**
-```bash
-cd Backend
-# Note: automated test suite not yet implemented
-# Manual API testing via agentcore invoke:
-agentcore invoke '{"message": "What is Docker?", "user_id": "test", "session_id": "test-session-1234567890abcdef1234"}'
-
-# Health check
-curl http://localhost:8000/health-check
-```
-
-**Infrastructure Testing:**
-```bash
-# Kubernetes manifest validation
-kubeval DevSecOps/K8S/*.yaml
-
-# Terraform validation
-cd DevSecOps/Terraform/environments/shared
-terraform validate
-terraform plan -var-file="terraform.tfvars"
-
-# Container security scanning
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  aquasec/trivy image rosettacloud-backend:latest
-```
-
-**For detailed testing procedures, see:**
-- [Frontend Testing Guide](Frontend/README.md#testing)
-- [Backend Testing Guide](Backend/README.md#testing)
-- [Infrastructure Testing](DevSecOps/README.md#troubleshooting)
-
-## 📊 Monitoring & Observability
-
-### Production Monitoring Stack
-
-**Metrics & Logging:**
-- **CloudWatch Logs** for centralized logging (Lambda, EKS control plane)
-- **Kubernetes Metrics** for pod and node resource monitoring
-- **EKS Observability** for cluster health and performance
-- **Custom Metrics** for business KPIs and SLIs/SLOs
-
-**AI/ML Monitoring:**
-- **Model Performance**: Response quality and accuracy tracking
-- **Vector Database Health**: Embedding generation and search performance
-- **Chatbot Analytics**: User satisfaction and conversation flow analysis
-- **Feedback Quality**: AI-generated feedback effectiveness metrics
-
-**Key Performance Indicators:**
-- **Platform Availability**: 99.9% uptime SLA with automated failover
-- **User Experience**: < 2 second page load times across all features
-- **AI Response Quality**: 95%+ user satisfaction with chatbot responses
-- **Resource Efficiency**: 70% average CPU/memory utilization targets
-- **Cost Optimization**: Monthly cost per active user tracking ($0.40/month achieved)
-
-**For detailed monitoring procedures, see:**
-- [Backend Monitoring](Backend/README.md#monitoring--observability)
-- [DevSecOps Monitoring](DevSecOps/README.md#monitoring--observability)
-
-## 🤝 Contributing & Community
-
-### Development Workflow
-
-**Getting Involved:**
-1. **Fork** the repository and create a feature branch
-2. **Follow** the development guidelines and coding standards
-3. **Write tests** for any new functionality or bug fixes
-4. **Submit** a pull request with clear description and documentation
-5. **Participate** in code review and community discussions
-
-**Development Standards:**
-- **Code Quality**: TypeScript strict mode, Python type hints, comprehensive testing
-- **Documentation**: Update README, API docs, and inline comments for changes
-- **Security**: Follow OWASP guidelines, scan dependencies, secure coding practices
-- **Performance**: Profile changes, optimize for scalability, measure impact
-- **AI Ethics**: Ensure responsible AI practices and bias testing
-
-### Community & Support
-
-**Professional Collaboration:**
-- **Architecture Reviews**: Major changes discussed in GitHub issues
-- **Feature Requests**: Community-driven roadmap and prioritization
-- **Bug Reports**: Detailed templates for effective issue resolution
-- **Knowledge Sharing**: Wiki documentation and best practices guides
-
-## 🐛 Troubleshooting & Support
-
-### Common Issues & Solutions
-
-**Development Environment:**
-```bash
-# Node.js dependency conflicts
-rm -rf node_modules package-lock.json
-npm install
-
-# Python virtual environment issues
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-pip install -r requirements.txt
-```
-
-**Production Deployment:**
-```bash
-# Kubernetes pod issues
-kubectl describe pod <pod-name> -n dev
-kubectl logs -f deployment/user-service -n dev   # or lab-service / question-service / chat-service / analytics-service
-
-# AWS service connectivity
-aws sts get-caller-identity  # Verify AWS credentials
-curl -f http://localhost:8000/health-check  # API health check
-```
-
-**AI Services Troubleshooting:**
-```bash
-# AgentCore Runtime status
-agentcore status
-
-# Invoke agent directly (bypasses FastAPI)
-agentcore invoke '{"message": "What is Docker?", "user_id": "test", "session_id": "test-session-1234567890abcdef1234"}'
-
-# AgentCore Runtime logs
-aws logs tail /aws/bedrock-agentcore/runtimes/rosettacloud_education_agent-yebWcC9Yqy --follow
-
-# document_indexer Lambda logs
-aws logs tail /aws/lambda/document_indexer --follow --region us-east-1
-
-# Verify vector store
-aws s3 ls s3://rosettacloud-shared-interactive-labs-vector/
-
-# Bedrock model access
-aws bedrock list-foundation-models --region us-east-1
-```
-
-**Performance Optimization:**
-- **Frontend**: Enable Angular production builds and lazy loading
-- **Backend**: Implement connection pooling and async database operations  
-- **Infrastructure**: Configure appropriate resource requests and limits
-- **AI Services**: Optimize embedding dimensions and retrieval parameters
-- **Caching**: Optimize Redis cache strategies and TTL configurations
-
-## 📄 License & Legal
-
-This project is licensed under the **MIT License**, providing flexibility for both personal and commercial use. See [LICENSE](LICENSE) file for complete terms.
-
-## 👨‍💻 Author & Professional Background
-
-**Mohamed Sorour**  
-*Senior DevOps Engineer & AWS Community Builder*
-
-**Professional Expertise:**
-- **Platform Engineering**: Kubernetes, service mesh, API gateway management
-- **Cloud Architecture**: Multi-region AWS deployments, cost optimization
-- **DevOps Automation**: CI/CD pipelines, Infrastructure as Code, GitOps
-- **AI/ML Operations**: MLOps, vector databases, RAG pipeline deployment
-- **Site Reliability Engineering**: Monitoring, incident response, capacity planning
-
-**Industry Experience:**
-
-- **VxLabs GmbH**: Event-driven architectures for connected vehicle platforms with real-time AI processing
-- **SEITech Solutions**: ADAS development with cloud-native DevOps practices and radar simulation systems
-
-**Professional Connections:**
-- 📧 **Email**: mohamedsorour1998@gmail.com
-- 💼 **LinkedIn**: [Mohamed Sorour - Senior DevOps Engineer](https://linkedin.com/in/mohamedsorour)
-- 🐱 **GitHub**: [@mohamedsorour](https://github.com/mohamedsorour)
-
-
-**AWS Community Engagement:**
-Currently serving as an AWS Community Builder, contributing to technical discussions about cloud architecture, AI/ML services, and DevOps best practices. Active in mentoring developers and sharing knowledge about modern platform engineering.
-
-## 🙏 Acknowledgments & Community
-
-**Technology Partners:**
-- **AWS** for comprehensive cloud services including Bedrock AI and reliable infrastructure
-- **Strands Agents** open-source community for the multi-agent orchestration framework
-- **Angular & FastAPI** communities for robust development frameworks
-
-**Open Source Community:**
-- Contributors who improve the platform through pull requests and issues
-- Educational technology professionals who provide feedback and use cases
-- DevOps practitioners who share best practices and optimization techniques
-- AI/ML researchers who advance the field of educational technology
+> **Note:** an earlier version ran a Python **FastAPI monolith**; it has been fully replaced by the Spring Boot microservices below and removed from the codebase.
 
 ---
 
-## 🌟 Platform Achievements
+## Microservices
 
-✅ **Production-Ready Architecture** serving 1000+ concurrent users
-✅ **Cognito Authentication** with JWT-secured API Gateway, email verification, and token-based auth  
-✅ **Advanced AI Integration** with RAG-powered chatbot and intelligent feedback  
-✅ **99.9% Uptime** with automated monitoring and incident response  
-✅ **60% Cost Reduction** through cloud-native and serverless design  
-✅ **Sub-Second Performance** for critical user interactions and AI responses  
-✅ **Enterprise Integration** ready for LMS and SSO systems  
-✅ **Automated Operations** with comprehensive CI/CD and AI model deployment  
+`Backend-Java/` is a **Spring Boot 4 / Java 25** Maven multi-module project — one service per domain plus a shared auto-configuration library.
 
-> *Building intelligent learning platforms that combine educational excellence with modern AI/ML and platform engineering practices.*
+| Service | Port | Responsibility |
+|---|---|---|
+| **user-service** | 8081 | Users, profiles, lab-minute & AI-message quotas, active-lab/session bookkeeping, progress (DynamoDB) |
+| **lab-service** | 8082 | Lab lifecycle — creates Pod + Service + Istio `VirtualService` per lab, TTL janitor, in-cluster provisioning via the Fabric8 Kubernetes client |
+| **question-service** | 8083 | Question content + in-pod `exec` grading of shell-script checks |
+| **chat-service** | 8084 | AI chat proxy → AgentCore/Bedrock, Redis-backed session history, rate limiting, AI-quota gating, multimodal image validation |
+| **analytics-service** | 8085 | Usage/progress analytics, consumes SNS/SQS domain events |
+| **shared-lib** | — | Cross-cutting auto-config: Cognito JWT resource-server, RFC 7807 error handling, resilience (`HttpRetry`), event publishing, AWS/DynamoDB helpers |
 
-**⭐ If you found this project valuable, please give it a star and share it with your network!**
+- **Java toolchain:** JDK 25 (Corretto), Maven wrapper. `./mvnw -B -ntp verify` runs unit + web-slice + **Testcontainers** integration tests across all modules; a JaCoCo line-coverage gate guards the build.
+- **API contract:** snake_case JSON, RFC 7807 `application/problem+json` errors.
+- `/internal/**` endpoints are cluster-internal only (never exposed through the public gateway; enforced by a NetworkPolicy allow-list).
+
+---
+
+## AI Multi-Agent System (Bedrock AgentCore)
+
+The AI "plane" is a managed **Amazon Bedrock AgentCore Runtime** (Python, [Strands Agents](https://strandsagents.com/) SDK) deployed via the `agentcore` CLI (ARM64 image built on CodeBuild). `chat-service` invokes it over IAM.
+
+```mermaid
+sequenceDiagram
+    participant Student
+    participant Chat as chat-service (Java)
+    participant AC as AgentCore Runtime
+    participant Nova as Amazon Nova
+    participant Mem as AgentCore Memory
+
+    Student->>Chat: POST /chat {message, type, session_id}
+    Chat->>Chat: rate limit → AI-quota gate → image validate
+    Chat->>AC: invoke_agent_runtime(payload + history)
+    AC->>AC: classify(type) → tutor | grader | planner
+    AC->>Mem: read prior sessions (actor = user_id)
+    AC->>Nova: agent reasoning (+ RAG / tools)
+    Nova-->>AC: response
+    AC-->>Chat: {response, agent}
+    Chat->>Chat: append history · increment quota · emit event
+    Chat-->>Student: {response, agent}
+```
+
+- **Routing:** `type=hint → Tutor`, `type=grade → Grader`, `type=session_start → Planner`, else a Nova classifier picks the agent.
+- **Models:** Amazon **Nova** for reasoning/vision; Amazon **Titan** embeddings for RAG indexing.
+- **Memory:** AgentCore Memory provides long-term, per-student continuity across sessions.
+- **RAG store:** **LanceDB on S3**; a `document_indexer` Lambda (re)indexes questions/shell-scripts on change (S3 → EventBridge → Lambda).
+- **Provider-agnostic:** `chat-service` can target the AgentCore runtime or a direct Bedrock invoker via a config toggle.
+
+The Python that remains in `Backend/` is exactly this AI plane plus its serverless helpers: `agents/` (the AgentCore runtime), `serverless/Lambda/` (`document_indexer`, `agent_tools`), and `questions/` (shell-script lab content synced to S3).
+
+---
+
+## Interactive Lab Environments
+
+```mermaid
+sequenceDiagram
+    participant Student
+    participant Lab as lab-service (Java)
+    participant K8s as Kubernetes API
+    participant Pod as Lab Pod
+
+    Student->>Lab: POST /labs
+    Lab->>Lab: check quota + active lab (Redis/user-service)
+    Lab->>K8s: create Pod + Service + VirtualService (Fabric8)
+    K8s->>Pod: start code-server + Caddy (~6–10s ready)
+    Pod-->>K8s: readiness probe passes
+    Lab-->>Student: {lab_id}
+    Student->>Lab: GET /labs/{id} (poll)
+    Lab-->>Student: {status: running, url: <id>.labs.dev.rosettacloud.app}
+    Note over Pod: background — dockerd, then<br/>kind create cluster (~60–90s)
+```
+
+- **Lab image** (`DevSecOps/interactive-labs/`): `code-server` (VS Code) + **Docker-in-Docker** + **kubectl** + **Kind** (with a pre-pulled node image) + Python/Node — a full cloud-engineering workbench in one pod.
+- **Fast start:** the editor is reachable in ~6–10 s; the in-pod Kubernetes cluster finishes bootstrapping in the background (~60–90 s).
+- **Isolation:** lab pods run in a dedicated `labs` namespace with a ResourceQuota, LimitRange, and NetworkPolicies that block access to the cloud metadata endpoint (`169.254.169.254`) and cluster-internal RFC1918 ranges.
+
+---
+
+## Data Layer
+
+| Store | Purpose |
+|---|---|
+| **Amazon DynamoDB** | Users, roles, progress, quotas |
+| **Amazon S3** | Question/shell-script content + LanceDB vector store |
+| **Redis** | Chat session history, rate-limit counters, active-lab tracking |
+| **SNS + SQS** | Event backbone (lab/question/chat activity → analytics) |
+| **AgentCore Memory** | Long-term, per-student AI memory |
+
+---
+
+## Resilience & Reliability
+
+- **Circuit breakers** (Spring Cloud CircuitBreaker + Resilience4j): `lab-service → user-service` (per-call, fail-open) and `chat-service → AI plane` (a "tutor temporarily unavailable" fallback that does **not** consume the student's AI quota on failure).
+- **Retries inside the breaker:** transient I/O is retried (`HttpRetry`) *within* each breaker, so rolling-deploy blips are absorbed while a *sustained* outage fast-fails instead of piling up timeouts.
+- **Graceful degradation everywhere:** inter-service failures return safe defaults rather than 500s, so a single dependency hiccup never fails an otherwise-successful lab launch or chat turn.
+
+---
+
+## Security
+
+- **Authentication:** Amazon Cognito user pool; JWT-authorized API Gateway; services validate issuer + audience and derive identity from the token.
+- **Hardened pods (Pod Security "restricted"):** all five services run `runAsNonRoot` (uid 1000), `readOnlyRootFilesystem`, `capabilities: drop [ALL]`, `seccompProfile: RuntimeDefault`, with CPU/memory requests+limits. The hardened frontend image serves on a non-root port `:8080`.
+- **Network isolation:** default-deny NetworkPolicies with explicit allow-lists; the `labs` namespace blocks metadata/IMDS and cluster RFC1918 egress to prevent pivoting or credential theft from lab pods.
+- **Supply-chain / IaC scanning (`security.yml`):** Trivy secret gate, fixable-CRITICAL CVE gate, and an **8-check Kubernetes misconfig regression gate**; Semgrep SAST (informational).
+- **No static cloud credentials:** every workflow authenticates with **GitHub OIDC**.
+
+---
+
+## Deployment Model & CI/CD
+
+> ### ⚠️ No live EKS
+> There is intentionally **no persistent EKS cluster**. The verified, cost-free deploy/verification target is a **k3s cluster spun up inside the GitHub Actions runner**: images are built → pushed to ECR → imported into in-runner k3s → deployed → smoke-tested. Any EKS-specific step in a workflow is gated (`if aws eks describe-cluster … else skip`). Terraform provisions the supporting AWS resources (VPC, ECR, IAM, S3, Route 53, CloudFront, Cognito, API Gateway, SNS/SQS, DynamoDB) — **no EKS module**.
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `frontend-ci.yml` | push/PR `Frontend/**` | Node 24: `npm ci`, ESLint, typecheck, prod build, **Vitest + coverage gate**, npm audit, **Playwright** e2e (deterministic, mocked) |
+| `frontend-deploy.yml` | dispatch + push `Frontend/src/**` | Build Angular 22 image → ECR → deploy to in-runner k3s (hardened non-root nginx `:8080`) → curl smoke |
+| `backend-java-ci.yml` | push/PR `Backend-Java/**` | JDK 25 `./mvnw verify` — unit + Testcontainers test gate |
+| `backend-java-deploy.yml` | dispatch | Build 5 service images (test-gated) → ECR → in-runner k3s + securityContext assertions + PSA-restricted probe + smoke |
+| `e2e-k3s.yml` | dispatch + nightly | Full stack on k3s + **real Amazon Nova** cross-service probe |
+| `frontend-e2e-fullstack.yml` | dispatch + nightly | SPA + strangler gateway + live backend on k3s (Playwright) |
+| `security.yml` | push `Backend-Java/**`, `DevSecOps/**` | Trivy (secret + CVE + KSV misconfig gates) + Semgrep |
+| `agent-deploy.yml` | push `Backend/agents/**` | `agentcore launch` (CodeBuild ARM64) + update K8s ConfigMap ARN |
+| `lambda-deploy.yml` | push `Backend/serverless/Lambda/**` | Build/push `document_indexer` + `agent_tools` Lambda images |
+| `questions-sync.yml` | push `Backend/questions/**` | Sync questions → S3 → EventBridge → RAG re-indexing |
+
+Account `339712964409` · region `us-east-1` · ECR repos `rosettacloud-*`.
+
+---
+
+## Technology Stack
+
+- **Frontend:** Angular 22 (standalone components, esbuild `@angular/build`), TypeScript, SCSS/Bootstrap 5, xterm.js; Vitest + Playwright + ESLint.
+- **Backend API:** Spring Boot 4 on Java 25, Spring Web/Security (OAuth2 resource server), Spring Cloud CircuitBreaker + Resilience4j, Fabric8 Kubernetes client, AWS SDK v2; Maven multi-module.
+- **AI/ML:** Amazon Bedrock **AgentCore** (runtime + memory + gateway), **Amazon Nova**, **Amazon Titan** embeddings, **Strands Agents**, **LanceDB** (on S3); Python 3.12.
+- **Data/Events:** DynamoDB, S3, Redis, SNS/SQS, EventBridge.
+- **Platform/DevSecOps:** Kubernetes (EKS-ready manifests; k3s-in-runner for CI), Istio (strangler routing), Docker, Terraform (IaC), GitHub Actions (OIDC), Trivy + Semgrep.
+- **Auth/Edge:** Amazon Cognito, API Gateway (HTTP API + JWT authorizer), CloudFront, Route 53, ACM.
+
+---
+
+## Repository Structure
+
+```
+RosettaCloud/
+├── Frontend/           # Angular 22 SPA (Vitest, Playwright, ESLint) + hardened nginx Dockerfile
+├── Backend-Java/       # Spring Boot 4 / Java 25 microservices (the live API)
+│   ├── user-service/  lab-service/  question-service/  chat-service/  analytics-service/
+│   ├── shared-lib/     # cross-cutting auto-config (JWT, errors, resilience, events, AWS)
+│   └── e2e/            # in-runner k3s e2e stack + probe
+├── Backend/            # remaining Python
+│   ├── agents/         # Bedrock AgentCore multi-agent runtime (tutor/grader/planner)
+│   ├── serverless/     # Lambda functions (document_indexer, agent_tools)
+│   └── questions/      # shell-script lab content (synced to S3)
+├── DevSecOps/
+│   ├── K8S/            # manifests: strangler VirtualService, labs ns, NetworkPolicies, PSA, ingress
+│   ├── Terraform/      # IaC (no EKS module)
+│   └── interactive-labs/  # the code-server + DinD + Kind lab image
+├── .github/workflows/  # 10 CI/CD pipelines (GitHub OIDC)
+└── AGENTS.md           # agent/contributor handoff (per-directory AGENTS.md too)
+```
+
+Each working directory has its own **`AGENTS.md`** with build/test commands and gotchas.
+
+---
+
+## Getting Started
+
+**Prerequisites:** Node ≥ 24.15 (nvm), JDK 25 (Corretto), an AWS account with Bedrock (Nova/Titan) enabled, and AWS CLI v2. (Docker/k3s image builds happen in CI.)
+
+```bash
+git clone https://github.com/mohamedsorour1998/RosettaCloud.git
+cd RosettaCloud
+```
+
+**Frontend (Angular 22):**
+```bash
+cd Frontend
+npm ci
+npx ng serve                              # dev server → http://localhost:4200
+npx ng test --watch=false                 # Vitest (via Angular's builder)
+npx ng lint && npx playwright test        # lint + deterministic e2e
+```
+
+**Backend API (Spring Boot 4 / Java 25):**
+```bash
+cd Backend-Java
+./mvnw -B -ntp verify                      # build + test all modules
+./mvnw -pl user-service spring-boot:run    # run one service (user :8081 … analytics :8085)
+```
+
+**AI runtime (AgentCore) & infra:**
+```bash
+cd Backend/agents && agentcore status      # inspect the multi-agent runtime
+cd DevSecOps/Terraform/environments/shared && terraform plan -var-file=terraform.tfvars
+```
+
+See per-directory `AGENTS.md` and the plan docs for full procedures.
+
+---
+
+## Performance
+
+| Metric | Result |
+|---|---|
+| Lab editor ready (pod) | **~6–10 s** (in-pod Kind cluster ~60–90 s in background) |
+| AI response (typical) | **~1–2 s** |
+| Concurrent users | Tested **1,000+** (horizontal pod autoscaling) |
+| Cost per free-tier user | **~$0.40 / month** (spot compute + Nova Lite) |
+| Cost reduction vs. baseline | **~60%** (spot + serverless + right-sizing) |
+
+---
+
+## Documentation Map
+
+| Doc | Contents |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | Whole-repo agent/contributor handoff (current state, commands, conventions) |
+| [`Frontend/AGENTS.md`](Frontend/AGENTS.md) · [`Backend-Java/AGENTS.md`](Backend-Java/AGENTS.md) · [`DevSecOps/AGENTS.md`](DevSecOps/AGENTS.md) · [`Backend/AGENTS.md`](Backend/AGENTS.md) | Per-directory context + commands |
+| [`Frontend/README.md`](Frontend/README.md) · [`Backend/README.md`](Backend/README.md) · [`DevSecOps/README.md`](DevSecOps/README.md) | Component deep-dives |
+| `Frontend/ANGULAR-22-MIGRATION-AND-API-CUTOVER-PLAN.md` | Angular 19→22 + FastAPI→Java cutover plan |
+| `DevSecOps/POD-SECURITYCONTEXT-HARDENING-PLAN.md` | Pod hardening plan |
+| `Backend-Java/AGENTCORE-RESILIENCE4J-RUNTIME-PLAN.md` | AgentCore + circuit-breaker plan |
+
+---
+
+## Author & License
+
+**Mohamed Sorour** — Senior DevOps Engineer & AWS Community Builder
+📧 mohamedsorour1998@gmail.com · 💼 [LinkedIn](https://linkedin.com/in/mohamedsorour) · 🐱 [@mohamedsorour](https://github.com/mohamedsorour)
+
+Licensed under the **MIT License** — see [`LICENSE`](LICENSE).
+
+> *Building intelligent learning platforms that combine educational depth with modern AI/ML and platform engineering.* ⭐ If this project is useful to you, please star it.
