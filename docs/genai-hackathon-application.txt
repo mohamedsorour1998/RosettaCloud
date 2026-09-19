@@ -1,0 +1,171 @@
+GenAI for Education Hackathon 2026 — Application Form
+Draft answers, ready to paste. Fields marked [FILL IN] need something from you —
+I don't have that information and won't guess it.
+
+================================================================================
+TEAM AND TRACK
+================================================================================
+
+Primary affiliation (university name or registered company):
+[FILL IN — I don't know if RosettaCloud has a registered entity, or whether you
+want to list your university, Vezeeta, or leave this as an independent team.]
+
+Track:
+Startup Track
+
+Category:
+AI Tutor
+
+Team member email (must match a Member email below):
+[FILL IN — your email, matching whatever you put in Member 1 below]
+
+================================================================================
+STARTUP TRACK — PRODUCT AND ELIGIBILITY
+================================================================================
+
+--------------------------------------------------------------------------------
+"What does your product currently do, who is it designed for, and what core
+problem does it solve?"
+--------------------------------------------------------------------------------
+
+RosettaCloud is a hint-first AI tutor for software and cloud engineering. When
+a student gets stuck, a three-agent system (Tutor, Grader, Planner) built on
+Amazon Bedrock AgentCore and Amazon Nova gives them a hint grounded in the real
+curriculum — never the direct answer. Each student's work happens inside a
+dedicated Kubernetes pod with its own Docker daemon and a full VS Code IDE, so
+the Grader checks their actual submitted work by exit code, not a self-report.
+
+It's designed for early-career software, DevOps, and cloud engineers — and the
+CS students becoming them — in developing economies who want employable
+skills but can't afford $29–46/month platforms like AWS Skill Builder or
+KodeKloud's AI tier. It was first validated with students in Egypt.
+
+The core problem: existing options sit at two extremes. Generic AI assistants
+and coding copilots answer on request, so a student learns to accept a
+suggestion instead of reasoning through a problem. Hands-on platforms bolt AI
+on afterward — it validates what a student already built, or answers a
+question like any chatbot, but doesn't shape how they got there. Nobody pairs
+a tutor built to withhold the answer with an environment real enough for that
+restraint to matter.
+
+--------------------------------------------------------------------------------
+"Please identify who uses the product, who benefits from it, and — if
+different — who typically pays or makes the purchasing decision."
+--------------------------------------------------------------------------------
+
+Uses it: the student, directly — signing up, launching labs, and working
+through the AI tutor themselves.
+
+Benefits: the student primarily (they gain employable skills); secondarily,
+employers and bootcamps who get better-prepared candidates/graduates without
+having to build training infrastructure themselves.
+
+Pays / decides: two paths, by design. Individual students on the free or paid
+tier make their own purchasing decision (planned $15–25/month for unlimited
+access, versus $0 for a metered free tier). For the secondary channel —
+bootcamps and universities — the purchasing decision shifts to the
+institution, buying bulk seats for a cohort rather than each student paying
+individually.
+
+--------------------------------------------------------------------------------
+Product stage — RECOMMENDATION, please confirm
+--------------------------------------------------------------------------------
+
+Options given: Prototype / Early MVP · Working MVP · Pilot with users ·
+Active product with users · Paying customers
+
+Recommended: "Pilot with users"
+
+Why: the platform is fully built and was tested by three real users (ratings
+5/5 and 4-5/5 on the AI tutor, all three stated willingness to pay) — that's
+more than a prototype or unvalidated MVP. But it's not "active" right now (see
+below) and there are no paying customers yet, so those two options would
+overstate it. "Pilot with users" is the one that's true without inflating.
+
+One thing to know before you pick: the platform was substantially rebuilt this
+year (migrated off an earlier Python backend onto hardened Java microservices)
+and is proven deployable end-to-end by CI on every change — but it is not
+continuously serving public traffic at this exact moment. Redeploying to a
+persistent environment is the next step. If the form or judges would read
+"Pilot with users" as implying it's live today, you may want to pick "Working
+MVP" instead and make the redeploy-next-step framing explicit in your own
+words. This is a judgment call about how the category will be read — not one
+I should make silently on your behalf.
+
+--------------------------------------------------------------------------------
+"Explain what the GenAI component will do and where it fits within the
+current user journey or product workflow."
+--------------------------------------------------------------------------------
+
+The GenAI component IS the product's core workflow, not an add-on feature.
+When a student is working in their lab and gets stuck, they ask the Tutor
+agent for help. The Tutor retrieves the relevant curriculum (Titan embeddings
+in a LanceDB vector store) and returns a hint calibrated to guide, not to
+answer — the student still has to do the work. When they attempt a question,
+the Grader agent checks their actual submitted work inside their own lab
+environment by exit code, not a self-reported claim. Across a session, the
+Planner agent sequences what to try next based on the student's real
+progress, and AgentCore Memory carries context across sessions so the tutor
+doesn't start over each time the student returns. All three agents run on
+Amazon Bedrock AgentCore and Amazon Nova — every step of this loop is
+AWS-native GenAI, with no third-party model in the request path.
+
+--------------------------------------------------------------------------------
+"Explain what GenAI enables that would be difficult to achieve through the
+current product, traditional automation, or other non-generative approaches."
+--------------------------------------------------------------------------------
+
+A fixed curriculum or a rules engine can respond to a predefined set of
+questions, but it can't respond to what a specific student typed into their
+own terminal and got wrong — that's open-ended, student-specific state, not a
+lookup. It also can't paraphrase the same hint three different ways when a
+student is still stuck after the first attempt; a rules engine has a fixed
+set of responses, while a generative model can reason fresh each time about
+what this particular student's mistake suggests they misunderstand.
+Traditional automation could grade an exit code (and RosettaCloud's Grader
+does exactly that — deliberately non-generative, because grading should be
+deterministic), but it cannot generate a calibrated hint, hold a multi-turn
+tutoring conversation, or adapt its explanation style to how a student is
+responding. That reasoning-over-open-ended-input capability is specifically
+what GenAI adds that a scripted system cannot.
+
+================================================================================
+DECLARATIONS (checkboxes — nothing to draft, just confirm honestly)
+================================================================================
+
+- "I confirm ownership or authorization to modify the product" — you built it
+  solo before Talal and Moaz joined; confirm this is accurate for the three of
+  you as a team.
+- "I confirm that this submission is original work of the team" — yes, based
+  on everything reviewed in this project.
+- "I accept the hackathon rules, IP provisions, and data-use terms" — read
+  these yourself before checking; I haven't seen them and can't confirm on
+  your behalf.
+
+================================================================================
+TEAM MEMBERS (2–4 required; name + email each)
+================================================================================
+
+Member 1:
+  Name:  Mohamed Sorour
+  Email: [FILL IN]
+
+Member 2:
+  Name:  Mohamed Talal
+  Email: [FILL IN]
+
+(Optional Member 3, since the team includes Moaz Gamal too — add if the form
+allows a third member:)
+  Name:  Moaz Gamal
+  Email: [FILL IN]
+
+================================================================================
+PITCH DECK UPLOAD
+================================================================================
+
+/Users/sorour/sorour/technical-presentations/talks/rosettacloud-genai-hackathon/pitch/RosettaCloud-Pitch-Deck.pptx
+
+If the form wants a PDF instead of .pptx, open the file in PowerPoint and
+export/save as PDF from there — I don't have a reliable way to convert it
+myself in this environment (see earlier in this session: both AppleScript
+export paths failed).
